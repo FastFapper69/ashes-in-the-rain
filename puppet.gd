@@ -70,6 +70,7 @@ var slide_side := 1.0
 ## so a bullet through the head counts as a head shot.
 const HIT_RADIUS := {"head": 0.14, "torso": 0.17, "skirt": 0.11, "uarm_f": 0.06, "farm_f": 0.055, "thigh_f": 0.085, "thigh_b": 0.085, "shin_f": 0.07, "shin_b": 0.07}
 var _bones := {}   # sprite name -> [start, end] in this node's pixels, as last posed
+var size := 1.0   # a boss is drawn a little bigger
 var _dead := false   # set by die_pose: the arms hang straight from the shoulders, no aiming, no IK twists
 var roll := 0.0      # extra turn of the whole body, radians: a tumble out of a dive
 var ground := 0.0    # where the pavement is below the figure's origin, in pixels (0 when standing on it)
@@ -253,7 +254,7 @@ func _draw() -> void:
 ## in the parent's space.
 func set_state(dir: float, aim: Vector2, delta: float) -> void:
 	var facing := -1.0 if aim.x < 0.0 else 1.0
-	scale.x = facing
+	scale = Vector2(facing * size, size)
 	var want := Vector2(absf(aim.x), aim.y)
 	if want.length() < 0.001:
 		want = Vector2.RIGHT
@@ -373,7 +374,7 @@ func _pose() -> void:
 ## Turn the gun arm onto `aim` at once, without the usual easing: a tap on the screen fires exactly
 ## where the finger is, not where the arm happened to be pointing.
 func snap_aim(aim: Vector2) -> void:
-	scale.x = -1.0 if aim.x < 0.0 else 1.0
+	scale = Vector2((-1.0 if aim.x < 0.0 else 1.0) * size, size)
 	_aim_angle = Vector2(absf(aim.x), aim.y).angle()
 	_aim = Vector2.from_angle(_aim_angle - recoil)
 	_pose()

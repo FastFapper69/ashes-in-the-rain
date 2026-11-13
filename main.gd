@@ -33,14 +33,25 @@ const MASK_UNLIT := 2    # foreground silhouettes: they stay black
 const ZOOM := 0.4
 # The test level. Solid things he has to jump over and can hide behind: [drawing, left edge, width, height].
 # Cover is as tall as a crouching man (about 250 px = 1.25 m), so it hides him and he can still jump it.
-const BOXES := [["crate", 1500.0, 250.0, 248.0], ["drum", 3000.0, 160.0, 246.0], ["crate_long", 4500.0, 330.0, 176.0], ["dumpster", 6600.0, 300.0, 250.0], ["crate", 7500.0, 250.0, 248.0], ["crate", 7880.0, 250.0, 248.0], ["crate", 8130.0, 250.0, 248.0]]
 # The fire-escape catwalk: he can jump up onto it from the long crate and drop off its ends.
-const CATWALK := Rect2(4900.0, -370.0, 1180.0, 0.0)
 # Where the mobsters stand: x, and the height of what they stand on.
 # A mobster with cover close in front of him crouches behind it and pops up to shoot.
-const ENEMIES := [Vector2(2600.0, 0.0), Vector2(3220.0, 0.0), Vector2(5600.0, -370.0), Vector2(6960.0, 0.0), Vector2(8460.0, 0.0), Vector2(9050.0, 0.0)]
 const DUCK_DROP := 116.0   # how much lower the chest is when crouched, px
-const LEVEL_END := 9600.0
+const Levels = preload("res://levels.gd")   # the chapters, made by gen/levels.py
+const RUNNER_SPEED := 560.0
+const MenuScript = preload("res://menu.gd")
+const BOSS_HP := 16
+const BOSS_NAMES := {"sal": "SAL 'KNUCKLES' RUSSO"}
+# which chapter and map are being played, and whether the case file (menu) is open; static, so they
+# survive the scene reload that starts each map
+static var chapter := 0
+static var map := 0
+static var in_menu := true
+var boss: Dictionary = {}
+var level: Dictionary
+var level_end := 0.0
+var catwalks: Array[Rect2] = []
+var ambient := AMBIENT
 const SIGHT := 2100.0   # a mobster starts shooting once the detective is this close
 # The automatic pictures: when (seconds of game time) and under what name.
 const SHOTS := [[6.45, "duck"], [6.95, "duck_walk_a"], [7.15, "duck_walk_b"], [1.2, "stand"], [2.0, "run_a"], [2.11, "run_b"], [2.22, "run_c"], [2.8, "run"], [2.95, "dive"], [3.08, "roll_a"], [3.2, "roll_b"], [3.32, "roll_c"], [3.6, "up"], [4.45, "slide_a"], [4.7, "slide_b"], [5.35, "jump"], [5.62, "land_a"], [5.72, "land_b"]]
@@ -132,6 +143,9 @@ var _auto := ""   # a scripted test run from the command line; empty in normal p
 var _at := 0.0
 var _auto_done := 0
 var _dive_at := 1380.0
+var _bot_x := 0.0
+var _bot_stuck := 0.0
+var _bot_log := 0.0
 var _snap := 0
 var _slow_look := 0.0   # 0 normal .. 1 the screen is in its slowed-time look
 var _show_fps := false
@@ -152,6 +166,17 @@ var _shots_done := 0
 
 
 func _ready() -> void:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--chapter="):
+			chapter = int(arg.trim_prefix("--chapter="))
+		if arg.begins_with("--map="):
+			map = int(arg.trim_prefix("--map="))
+		if arg.begins_with("--test="):
+			in_menu = arg == "--test=menu"
+	var ch: Dictionary = Levels.CAMPAIGN[chapter]
+	level = ch["maps"][map]
+	level_end = level["end"]
+	ambient = ch["ambient"]
 	atmo = AtmosphereScript.new()
 	add_child(atmo)
 	_build_street()
@@ -167,7 +192,7 @@ func _ready() -> void:
 	fore.z_index = 10
 	add_child(fore)
 	var fore_tex: Texture2D = load("res://art/bg/fore.png")
-	for i in range(-2, 3):
+	for i in range(-2, int(level_end / 6000.0) + 3):
 		var f := Sprite2D.new()
 		f.texture = fore_tex
 		f.centered = false
@@ -177,7 +202,7 @@ func _ready() -> void:
 		f.position = Vector2(i * 6000.0 + 900.0, -fore_tex.get_height() * 0.62 + 235.0)
 		f.material = atmo.blur_material(5.0)   # nearer than the focus: soft
 		fore.add_child(f)
-	for k in range(-2, 3):   # telephone wires sagging across the top of the frame, nearest of all
+	for k in range(-2, int(level_end / 4200.0) + 3):   # telephone wires sagging across the top of the frame, nearest of all
 		var wire := Line2D.new()
 		var pts := PackedVector2Array()
 		for j in range(17):
@@ -196,6 +221,8 @@ func _ready() -> void:
 	cam.make_current()
 	_build_depth()
 	atmo.add_rain(cam, _undo_night(0.7), -WALL_LIFT + 18.0 - CAM_Y)
+	atmo.rain_far.amount = maxi(1, int(atmo.rain_far.amount * float(ch["rain"])))
+	atmo.rain_near.amount = maxi(1, int(atmo.rain_near.amount * float(ch["rain"])))
 	atmo.add_post(self)
 	steps = atmo.add_steps(player, _undo_night(0.6))
 	fx = FxScript.new()
@@ -209,6 +236,15 @@ func _ready() -> void:
 	fx.listener = player
 	hud = HudScript.new()
 	add_child(hud)
+	if in_menu:
+		hud.visible = false
+		var menu = MenuScript.new()
+		menu.play = _start_map
+		add_child(menu)
+		player.set_state(0.0, Vector2(1.0, 0.0), 0.0)
+	elif _auto_arg() == "" or _auto_arg() == "play":
+		hud.title("%s  ·  %d / %d" % [String(ch["title"]), map + 1, ch["maps"].size()], String(level["name"]))
+		get_tree().create_timer(3.6).timeout.connect(hud.caption.bind(level["intro"]))
 	DirAccess.make_dir_recursive_absolute("res://_shots")
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--test="):
@@ -236,7 +272,7 @@ func _build_street() -> void:
 	var halo_tex := _soft_glow()
 	var cone_tex: Texture2D = load("res://art/light_cone_soft.png")
 	var wall_w := wall_tex.get_width() * WALL_SCALE
-	for i in range(-1, 3):   # the test level runs to x = 9600, past the third copy
+	for i in range(-1, int(ceil((level_end + 2500.0) / wall_w)) + 1):   # copies of the street to past the end of the level
 		var origin := Vector2(i * wall_w - wall_w * 0.5, -wall_tex.get_height() * WALL_SCALE - WALL_LIFT)
 		var tex := CanvasTexture.new()   # the normal map lets lamplight rake across the brickwork
 		tex.diffuse_texture = wall_tex
@@ -376,7 +412,7 @@ func _build_depth() -> void:
 
 
 func _undo_night(strength: float) -> Color:
-	return Color(strength / AMBIENT.r, strength / AMBIENT.g, strength / AMBIENT.b)
+	return Color(strength / ambient.r, strength / ambient.g, strength / ambient.b)
 
 
 func _add_neon(path: String, at: Vector2, col: Color, unshaded: Material) -> void:
@@ -434,7 +470,7 @@ func _rect(r: Rect2, c: Color) -> void:
 
 func _build_light() -> void:
 	var dark := CanvasModulate.new()
-	dark.color = AMBIENT
+	dark.color = ambient
 	add_child(dark)
 
 	var moon := DirectionalLight2D.new()   # cold light from above and behind: a thin edge on everything
@@ -538,6 +574,16 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
+	if in_menu:   # the case file is open over the street: nothing moves but the rain
+		sfx.listener_x = cam.position.x
+		if _auto == "menu":
+			_at += delta
+			if _at > 1.0 and _auto_done == 0:
+				_auto_done = 1
+				_shot("menu")
+			if _at > 1.3:
+				get_tree().quit()
+		return
 	if _auto != "":
 		_auto_step(delta)
 	_probe += delta / Engine.time_scale
@@ -603,6 +649,10 @@ func _process(delta: float) -> void:
 			hud.jump_tapped = true
 	elif _tt < 0.0:
 		_demo_duck = false
+	if _auto == "play":   # the test bot aims at the nearest mobster
+		var target = _nearest_enemy()
+		if target != null:
+			aim = target.position + SHOULDER + Vector2(0.0, DUCK_DROP * target.duck) - chest
 	_aim_point = chest + aim
 	dir = _move(dir, aim, delta)
 	if not over:
@@ -646,10 +696,8 @@ func _process(delta: float) -> void:
 		_pop = 0.15
 
 	_enemies(delta)
-	if not cleared and not over and player.position.x > LEVEL_END and _nearest_enemy() == null:
-		cleared = true
-		hud.banner("CASE CLOSED")
-		get_tree().create_timer(4.0).timeout.connect(get_tree().reload_current_scene)
+	if not cleared and not over and player.position.x > level_end and _all_down():
+		_map_cleared()
 	_slow_time(real)
 	_afterimages(delta, absf(dir))
 	_slow_look = lerpf(_slow_look, 1.0 if Engine.time_scale < 1.0 else 0.0, 1.0 - exp(-10.0 * real))
@@ -659,7 +707,7 @@ func _process(delta: float) -> void:
 	fx.slow = _slow_look
 	_cast_shadow(player)
 	for e in enemies:
-		if e["alive"]:
+		if e["alive"] and e["state"] != "wait":
 			_cast_shadow(e["node"])
 	# the camera trails the detective softly and does not bob with jumps
 	cam.position = Vector2(lerpf(cam.position.x, player.position.x + CAM_LEAD, 1.0 - exp(-9.0 * real)), CAM_Y)
@@ -691,6 +739,46 @@ func _auto_step(delta: float) -> void:
 		if _auto_done & 1 == 0:
 			_at = minf(_at, 0.9)
 		shots = [[1.06, "dive_1"], [1.14, "dive_2"], [1.22, "dive_3"], [1.32, "dive_4"], [1.5, "dive_5"], [2.0, "dive_6"]]
+	elif _auto == "play":   # a bot plays the chapter: walks right, stops to fight, jumps what blocks it
+		var near = _nearest_enemy()
+		var fight: bool = near != null and absf(near.position.x - player.position.x) < 1500.0
+		hud.move = 0.0 if fight else 1.0
+		if near != null and absf(near.position.x - player.position.x) < 1900.0:
+			hud.fire_tapped = true
+		if hud.move > 0.0 and move_state == "ground":
+			_bot_stuck = _bot_stuck + delta if player.position.x - _bot_x < 1.0 else 0.0
+			if _bot_stuck > 0.3:
+				hud.jump_tapped = true
+				print("BOT jump at ", int(player.position.x))
+				_bot_stuck = 0.0
+		_bot_x = player.position.x
+		_bot_log += delta
+		if _bot_log > 10.0:
+			_bot_log = 0.0
+			var left := 0
+			for e in enemies:
+				left += 1 if e["alive"] else 0
+			print("BOT t ", int(_at), " x ", int(player.position.x), " / ", int(level_end), " mobsters left ", left)
+		if DisplayServer.get_name() != "headless":   # with a screen: a few pictures of the chapter in play, then stop
+			for i in 4:
+				if _auto_done & (1 << i) == 0 and _at > [1.5, 9.0, 15.0, 21.0][i]:
+					_auto_done |= 1 << i
+					_shot("play_%d" % i)
+			if _at > 21.5:
+				get_tree().quit()
+		if _at > 600.0:
+			print("BOT TIMEOUT at x ", int(player.position.x))
+			for e in enemies:
+				if e["alive"]:
+					print("  left: ", int(e["node"].position.x), " ", e["state"], " y ", int(e["node"].position.y))
+			get_tree().quit()
+		return
+	elif _auto == "caption":
+		if _auto_done & 1 == 0 and _at > 0.2:
+			_auto_done |= 1
+			hud.caption(level["intro"])
+			hud.boss_bar("SAL 'KNUCKLES' RUSSO", 0.7)
+		shots = [[2.7, "caption"]]
 	elif _auto == "stains":   # eight hits along the wall, then look at them once the runs have crept down
 		if _at < 0.05:
 			player.position.x = 1150.0
@@ -846,7 +934,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 		if slide_left <= 0.0:
 			move_state = "ground"
 	_block(before_x)
-	player.position.x = clampf(player.position.x, -8500.0, LEVEL_END + 500.0)
+	player.position.x = clampf(player.position.x, -1500.0, level_end + 500.0)
 	if move_state != "ground":
 		player.duck = move_toward(player.duck, 0.0, delta * 9.0)
 	player.ground = _floor_at(player.position.x, player.position.y - DIVE_LAND * player.dive) - player.position.y
@@ -859,8 +947,9 @@ func _floor_at(x: float, feet: float) -> float:
 	for b in boxes:
 		if x > b.position.x - 20.0 and x < b.end.x + 20.0 and feet <= b.position.y + 14.0:
 			best = minf(best, b.position.y)
-	if x > CATWALK.position.x and x < CATWALK.end.x and feet <= CATWALK.position.y + 14.0:
-		best = minf(best, CATWALK.position.y)
+	for c in catwalks:
+		if x > c.position.x and x < c.end.x and feet <= c.position.y + 14.0:
+			best = minf(best, c.position.y)
 	return best
 
 
@@ -922,7 +1011,7 @@ func _dive_clears(way: float, up: float, strict: bool) -> bool:
 			if b.size.y <= VAULT_MAX and x > b.position.x - 45.0 and x < b.end.x + 45.0 and feet > b.position.y + 14.0:
 				return false
 		if f > 0.0 and y >= _floor_at(x, feet) + 30.0:   # down: the roll that follows must not run into a crate
-			if strict and _floor_at(x, feet) < 0.0 and not (x > CATWALK.position.x and x < CATWALK.end.x):
+			if strict and _floor_at(x, feet) < 0.0 and not _on_catwalk(x):
 				return false   # came down on top of a crate
 			for b in boxes:
 				var gap: float = (b.position.x - 45.0 - x) if way > 0.0 else (x - b.end.x - 45.0)
@@ -959,14 +1048,25 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 			return true
 	if from_player:
 		for e in enemies:
-			if not e["alive"]:
+			if not e["alive"] or e["state"] == "wait":
 				continue
 			var part: String = e["node"].hit_part(pos)
 			if part == "":
 				continue
 			fx.blood(pos, Vector2(signf(e["node"].position.x - player.position.x), 0.0))
 			sfx.play("hit_flesh", 0.0, pos.x)
-			e["hp"] -= MOBSTER_HP if part == "head" else 1   # a head shot always kills
+			if e["boss"]:   # the boss takes a lot; at two thirds and one third of his health he calls for help
+				e["hp"] -= 3 if part == "head" else 1
+				hud.boss_bar(BOSS_NAMES.get(String(level["boss"]), "BOSS"), float(e["hp"]) / BOSS_HP)
+				var calls := 2 - int(ceil(float(e["hp"]) / BOSS_HP * 3.0)) + 1
+				while e["calls"] < calls and e["hp"] > 0:
+					e["calls"] += 1
+					_spawn_runner(e["node"].position.x + 1700.0, e["node"].position.x - 450.0)
+					_spawn_runner(e["node"].position.x + 2000.0, e["node"].position.x - 750.0)
+				if e["hp"] <= 0:
+					hud.boss_bar("", -1.0)
+			else:
+				e["hp"] -= MOBSTER_HP if part == "head" else 1   # a head shot always kills
 			e["seen"] = true   # being shot at wakes him up, however far away
 			if e["hp"] <= 0:
 				e["alive"] = false
@@ -980,7 +1080,7 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 		return false
 	fx.blood(pos, Vector2(-signf(pos.x - player.position.x), 0.0))
 	sfx.play("hit_flesh", 2.0)
-	if (_dt < 0.0 or _dt > 7.4) and _tt < 0.0:   # nobody gets hurt during the demo or the test
+	if (_dt < 0.0 or _dt > 7.4) and _tt < 0.0 and _auto == "":   # nobody gets hurt during the demo or the tests
 		hp -= 1
 		hud.set_health(float(hp) / PLAYER_HP)
 		if hp <= 0:
@@ -1024,6 +1124,46 @@ func _afterimages(delta: float, running: float) -> void:
 	var tw := g.create_tween()
 	tw.tween_property(g, "self_modulate:a", 0.0, 0.26).set_ease(Tween.EASE_IN)
 	tw.tween_callback(g.queue_free)
+
+
+func _auto_arg() -> String:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--test="):
+			return arg.trim_prefix("--test=")
+	return ""
+
+
+## The map is won: it is marked done, the detective's closing words come up, and the next map starts
+## (after a chapter's last map, the case file opens again).
+func _map_cleared() -> void:
+	cleared = true
+	MenuScript.mark_done(chapter, map)
+	hud.caption(level["outro"])
+	var maps: Array = Levels.CAMPAIGN[chapter]["maps"]
+	var next_c := chapter
+	var next_m := map + 1
+	var to_menu := false
+	if next_m >= maps.size():
+		hud.banner(String(Levels.CAMPAIGN[chapter]["title"]) + " CLOSED")
+		next_m = 0
+		next_c = mini(chapter + 1, Levels.CAMPAIGN.size() - 1)
+		to_menu = true
+	if _auto == "play":
+		print("BOT CLEARED chapter ", chapter, " map ", map, " in ", int(_at), " s")
+		get_tree().quit()
+	elif _auto == "":
+		get_tree().create_timer(7.0).timeout.connect(func() -> void:
+			chapter = next_c
+			map = next_m
+			in_menu = to_menu
+			get_tree().reload_current_scene())
+
+
+func _start_map(c: int, m: int) -> void:
+	chapter = c
+	map = m
+	in_menu = false
+	get_tree().reload_current_scene()
 
 
 func _restart() -> void:
@@ -1088,9 +1228,9 @@ func _pool(at: Vector2, side: float) -> void:
 	tw.tween_callback(s.queue_free)
 
 
-## Crates, the catwalk and the mobsters of the test level.
+## The crates, catwalks and mobsters of the chapter being played.
 func _build_level() -> void:
-	for spec in BOXES:
+	for spec in level["boxes"]:
 		var tex: Texture2D = load("res://art/props/" + String(spec[0]) + ".png")
 		var s := Sprite2D.new()
 		s.texture = tex
@@ -1101,33 +1241,89 @@ func _build_level() -> void:
 		add_child(s)
 		boxes.append(Rect2(float(spec[1]), -float(spec[3]), float(spec[2]), float(spec[3])))
 	var cat_tex: Texture2D = load("res://art/props/catwalk.png")
-	var cat := Sprite2D.new()
-	cat.texture = cat_tex
-	cat.centered = false
-	cat.scale = Vector2.ONE * (CATWALK.size.x / cat_tex.get_width())
-	cat.position = CATWALK.position - Vector2(0.0, 215.0 * cat.scale.y)   # its floor is 215 px down the drawing
-	cat.z_index = -2
-	add_child(cat)
-	for at in ENEMIES:
+	for c in level["catwalks"]:
+		var r := Rect2(float(c[0]), float(c[1]), float(c[2]), 0.0)
+		catwalks.append(r)
+		var cat := Sprite2D.new()
+		cat.texture = cat_tex
+		cat.centered = false
+		cat.scale = Vector2.ONE * (r.size.x / cat_tex.get_width())
+		cat.position = r.position - Vector2(0.0, 215.0 * cat.scale.y)   # its floor is 215 px down the drawing
+		cat.z_index = -2
+		add_child(cat)
+	if in_menu:
+		return
+	for spec in level["enemies"]:
+		var goal := Vector2(float(spec["x"]), float(spec["y"]))
+		var runner: bool = spec["kind"] == "runner"
 		var m = PuppetScript.new()
 		m.cfg = MOBSTER
 		m.night = _undo_night(1.0)
-		m.position = at
+		m.position = Vector2(float(spec["from"]), goal.y) if runner else goal
 		add_child(m)
 		m.set_state(0.0, Vector2(-1.0, 0.0), 0.0)
-		var cover := false
-		for bx in boxes:   # cover = something tall standing just in front of him, on his floor
-			var gap: float = at.x - bx.end.x
-			if gap > 30.0 and gap < 300.0 and bx.size.y > 200.0 and absf(bx.end.y - at.y) < 1.0:
-				cover = true
-		enemies.append({"node": m, "hp": MOBSTER_HP, "cool": randf_range(0.8, 1.6), "aim_off": 0.0, "alive": true, "seen": false, "cover": cover, "up": false, "shot": false, "timer": randf_range(0.5, 1.5)})
+		m.visible = not runner
+		var is_boss: bool = spec["kind"] == "boss"
+		if is_boss:
+			m.size = 1.15
+			m.set_state(0.0, Vector2(-1.0, 0.0), 0.0)
+		enemies.append({"node": m, "hp": BOSS_HP if is_boss else MOBSTER_HP, "cool": randf_range(0.8, 1.6), "aim_off": 0.0, "alive": true, "seen": false,
+				"cover": false if runner else _has_cover(goal), "up": false, "shot": false, "timer": randf_range(0.5, 1.5),
+				"state": "wait" if runner else "post", "goal": goal.x, "trig": float(spec["trig"]), "boss": is_boss, "calls": 0})
+		if is_boss:
+			boss = enemies[-1]
+
+
+## One of the boss's men, sent running in from off-screen to `goal`.
+func _spawn_runner(from_x: float, goal_x: float) -> void:
+	var m = PuppetScript.new()
+	m.cfg = MOBSTER
+	m.night = _undo_night(1.0)
+	m.position = Vector2(from_x, 0.0)
+	add_child(m)
+	m.set_state(0.0, Vector2(-1.0, 0.0), 0.0)
+	enemies.append({"node": m, "hp": MOBSTER_HP, "cool": 0.6, "aim_off": 0.0, "alive": true, "seen": true, "cover": false, "up": false,
+			"shot": false, "timer": 1.0, "state": "run", "goal": goal_x, "trig": -1.0, "boss": false, "calls": 0})
+
+
+## The boss fires in bursts of three.
+func _boss_fire(m) -> void:
+	_fire(m, false)
+	for k in [1, 2]:
+		get_tree().create_timer(0.13 * k, false).timeout.connect(func() -> void:
+			if boss["alive"] and not over:
+				_fire(m, false))
+
+
+## Cover = something tall standing just in front of (to the left of) a mobster, on his floor.
+func _has_cover(at: Vector2) -> bool:
+	for bx in boxes:
+		var gap: float = at.x - bx.end.x
+		if gap > 30.0 and gap < 300.0 and bx.size.y > 200.0 and absf(bx.end.y - at.y) < 1.0:
+			return true
+	return false
+
+
+func _on_catwalk(x: float) -> bool:
+	for c in catwalks:
+		if x > c.position.x and x < c.end.x:
+			return true
+	return false
+
+
+## Every mobster of the chapter is down, including those still waiting to run in.
+func _all_down() -> bool:
+	for e in enemies:
+		if e["alive"]:
+			return false
+	return true
 
 
 ## The closest mobster still standing and near enough to matter, or null.
 func _nearest_enemy():
 	var best = null
 	for e in enemies:
-		if e["alive"] and (best == null or absf(e["node"].position.x - player.position.x) < absf(best.position.x - player.position.x)):
+		if e["alive"] and e["state"] != "wait" and (best == null or absf(e["node"].position.x - player.position.x) < absf(best.position.x - player.position.x)):
 			best = e["node"]
 	return best
 
@@ -1152,9 +1348,34 @@ func _enemies(delta: float) -> void:
 		if not e["alive"]:
 			continue
 		var m = e["node"]
+		if e["state"] == "wait":   # a runner holds back, out of sight, until the detective passes his mark
+			if player.position.x > float(e["trig"]):
+				e["state"] = "run"
+				e["seen"] = true
+				m.visible = true
+			continue
+		if e["state"] == "run":   # running in to his spot, gun already on the detective; then he stands and fights
+			var way: float = signf(float(e["goal"]) - m.position.x)
+			m.position.x += way * RUNNER_SPEED * delta
+			var aim_at: Vector2 = player.position + Vector2(0.0, SHOULDER.y) - (m.position + Vector2(0.0, SHOULDER.y))
+			m.set_state(way, aim_at, delta)
+			m.duck = move_toward(m.duck, 0.0, delta * 7.0)
+			if absf(float(e["goal"]) - m.position.x) < RUNNER_SPEED * delta * 1.5:
+				m.position.x = float(e["goal"])
+				e["state"] = "post"
+				e["cover"] = _has_cover(m.position)
+				e["cool"] = randf_range(0.3, 0.8)
+			continue
+		if m.position.y == 0.0 and player.position.x - m.position.x > 1800.0:   # left behind: he comes after the detective
+			e["state"] = "run"
+			e["goal"] = player.position.x - randf_range(800.0, 1000.0)
+			e["up"] = false
+			continue
 		var side: float = signf(m.position.x - player.position.x)
 		var to_player: Vector2 = (player.position + Vector2(0.0, SHOULDER.y + DUCK_DROP * player.duck)) - (m.position + Vector2(0.0, SHOULDER.y + DUCK_DROP * m.duck))
 		if absf(to_player.x) < SIGHT:
+			if e["boss"] and not e["seen"]:
+				hud.boss_bar(BOSS_NAMES.get(String(level["boss"]), "BOSS"), 1.0)
 			e["seen"] = true
 		if not e["seen"]:
 			continue
@@ -1167,7 +1388,10 @@ func _enemies(delta: float) -> void:
 				if e["timer"] < 0.55 and not e["shot"]:
 					e["shot"] = true
 					if may_fire:
-						_fire(m, false)
+						if e["boss"]:
+							_boss_fire(m)
+						else:
+							_fire(m, false)
 						e["aim_off"] = randf_range(-120.0, 90.0)
 				if e["timer"] <= 0.0:
 					e["up"] = false
@@ -1181,7 +1405,10 @@ func _enemies(delta: float) -> void:
 		else:
 			e["cool"] -= delta
 			if e["cool"] <= 0.0 and may_fire:
-				_fire(m, false)
+				if e["boss"]:
+					_boss_fire(m)
+				else:
+					_fire(m, false)
 				e["cool"] = randf_range(1.4, 2.3)
 				e["aim_off"] = randf_range(-150.0, 110.0)
 		m.duck = move_toward(m.duck, want_duck, delta * 7.0)

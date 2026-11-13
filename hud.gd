@@ -109,6 +109,110 @@ func banner(text: String) -> void:
 	add_child(l)
 
 
+const PAPER := Color(0.93, 0.89, 0.8)
+const INK := Color(0.05, 0.05, 0.06)
+var _boss_box: Control
+var _boss_fill: ColorRect
+
+
+## The detective's narration, in comic captions: cream boxes with black lettering at the top of the
+## screen, one line after another, then gone.
+func caption(lines: Array) -> void:
+	var box := VBoxContainer.new()
+	box.position = Vector2(get_viewport().get_visible_rect().size.x * 0.5 - 430.0, 140.0)
+	box.custom_minimum_size = Vector2(860.0, 0.0)
+	box.add_theme_constant_override("separation", 10)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(box)
+	var tw := create_tween()
+	for i in lines.size():
+		var panel := PanelContainer.new()
+		var style := StyleBoxFlat.new()
+		style.bg_color = PAPER
+		style.border_color = INK
+		style.set_border_width_all(4)
+		style.set_content_margin_all(14)
+		style.content_margin_left = 22
+		style.content_margin_right = 22
+		style.shadow_color = Color(0.0, 0.0, 0.0, 0.5)
+		style.shadow_offset = Vector2(6.0, 6.0)
+		panel.add_theme_stylebox_override("panel", style)
+		panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var l := Label.new()
+		l.text = String(lines[i]).to_upper()
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.custom_minimum_size = Vector2(minf(700.0, 60.0 + String(lines[i]).length() * 17.0), 0.0)
+		l.add_theme_font_size_override("font_size", 30)
+		l.add_theme_color_override("font_color", INK)
+		panel.add_child(l)
+		panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN if i % 2 == 0 else Control.SIZE_SHRINK_END   # boxes step across like panels on a page
+		panel.modulate.a = 0.0
+		box.add_child(panel)
+		tw.tween_property(panel, "modulate:a", 1.0, 0.35)
+		tw.tween_interval(1.6 + String(lines[i]).length() * 0.03)
+	tw.tween_interval(1.6)
+	tw.tween_property(box, "modulate:a", 0.0, 0.7)
+	tw.tween_callback(box.queue_free)
+
+
+## The boss's name and health across the top of the screen; fraction below 0 takes it away.
+func boss_bar(boss_name: String, fraction: float) -> void:
+	if _boss_box == null:
+		_boss_box = Control.new()
+		_boss_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_boss_box.position = Vector2(get_viewport().get_visible_rect().size.x * 0.5 - 300.0, 26.0)
+		add_child(_boss_box)
+		var back := ColorRect.new()
+		back.color = INK
+		back.size = Vector2(600.0, 30.0)
+		back.position = Vector2(0.0, 46.0)
+		_boss_box.add_child(back)
+		_boss_fill = ColorRect.new()
+		_boss_fill.color = CRIMSON
+		_boss_fill.position = Vector2(5.0, 51.0)
+		_boss_fill.size = Vector2(590.0, 20.0)
+		_boss_box.add_child(_boss_fill)
+		var l := Label.new()
+		l.text = boss_name
+		l.size = Vector2(600.0, 44.0)
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		l.add_theme_font_size_override("font_size", 30)
+		l.add_theme_color_override("font_color", PAPER)
+		l.add_theme_color_override("font_outline_color", INK)
+		l.add_theme_constant_override("outline_size", 10)
+		_boss_box.add_child(l)
+	if fraction < 0.0:
+		_boss_box.queue_free()
+		_boss_box = null
+		return
+	_boss_fill.size.x = 590.0 * clampf(fraction, 0.0, 1.0)
+
+
+## The chapter's title card: the chapter number small, its name large, both fading in and out.
+func title(small: String, big: String) -> void:
+	var box := VBoxContainer.new()
+	box.set_anchors_preset(Control.PRESET_FULL_RECT)
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for spec in [[small, 34, 8], [big, 92, 18]]:
+		var l := Label.new()
+		l.text = spec[0]
+		l.add_theme_font_size_override("font_size", spec[1])
+		l.add_theme_color_override("font_color", Color(0.93, 0.9, 0.86))
+		l.add_theme_color_override("font_outline_color", Color(0.03, 0.03, 0.04))
+		l.add_theme_constant_override("outline_size", spec[2])
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		box.add_child(l)
+	box.modulate.a = 0.0
+	add_child(box)
+	var tw := create_tween()
+	tw.tween_property(box, "modulate:a", 1.0, 0.6)
+	tw.tween_interval(2.2)
+	tw.tween_property(box, "modulate:a", 0.0, 0.9)
+	tw.tween_callback(box.queue_free)
+
+
 ## fraction: 0 = dead, 1 = unhurt.
 func set_health(fraction: float) -> void:
 	var f := clampf(fraction, 0.0, 1.0)
