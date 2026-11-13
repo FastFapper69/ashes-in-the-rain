@@ -1,0 +1,9 @@
+# Godot's own cache: rebuilt on every machine
+.godot/
+# the web build lives on the gh-pages branch, not here
+build/
+# screenshots the game saves for checking, and the raw Gemini sheets
+_shots/
+art_src/
+Claude outputs/
+*.tmp
