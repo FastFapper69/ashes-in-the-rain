@@ -7,7 +7,7 @@ const MASK_FIGURE := 1 | 4   # lit by the street lights (1) and by the figure's 
 
 # Back to front. The far arm and leg reuse the near ones' drawings, darkened.
 const ORDER := [
-	["uarm_b", "uarm", true], ["farm_b", "farm", true],
+	["uarm_b", "uarm", true], ["farm_b", "farm", true], ["gun2", "", false],
 	["thigh_b", "thigh", true], ["shin_b", "shin", true],
 	["thigh_f", "thigh", false], ["shin_f", "shin", false],
 	["skirt", "skirt", false],   # the coat below the belt hangs over the legs
@@ -15,6 +15,23 @@ const ORDER := [
 	["gun", "", false],
 	["uarm_f", "uarm", false], ["collar_back", "", false], ["farm_f", "farm", false],
 ]
+
+# The guns, drawn facing right: picture, length in metres (a touch over life size, so they read on a
+# phone), and points on the picture as fractions of it: where the hand grips, the muzzle, and for the
+# long guns where the other hand holds it.
+const GUNS := {
+	"revolver": {"tex": "res://art/guns/revolver.png", "len": 0.34, "grip": Vector2(0.17, 0.56), "muzzle": Vector2(1.0, 0.13)},
+	"pistol": {"tex": "res://art/guns/pistol.png", "len": 0.33, "grip": Vector2(0.21, 0.55), "muzzle": Vector2(1.0, 0.13)},
+	"tommy": {"tex": "res://art/guns/tommy.png", "len": 0.92, "grip": Vector2(0.42, 0.6), "muzzle": Vector2(1.0, 0.16), "fore": Vector2(0.76, 0.58), "stock": true},
+	"shotgun": {"tex": "res://art/guns/shotgun.png", "len": 1.0, "grip": Vector2(0.31, 0.42), "muzzle": Vector2(1.0, 0.07), "fore": Vector2(0.68, 0.3), "stock": true},
+}
+var weapon := ""
+var _skirt_mesh: Polygon2D   # the coat below the belt as a bending sheet instead of one stiff board
+var _skirt_shadow: Polygon2D
+const SKIRT_ROWS := 7
+const SKIRT_COLS := 4
+var _gun2: Sprite2D   # the second pistol, in the far hand
+var _left_shot := false   # with two pistols: the next shot comes from the far hand
 
 # Set before the node enters the tree. See main.gd for the two characters.
 var cfg := {}
@@ -103,12 +120,16 @@ func _ready() -> void:
 		_len[key] = d.length() / float(p["ppm"])
 	for row in ORDER:
 		var part: String = row[1]
-		if row[0] == "gun":
-			_gun = Sprite2D.new()
-			_gun.texture = load(cfg["gun"])
-			_gun.flip_h = cfg["gun_flip"]
-			_gun.scale = Vector2.ONE * 0.0733
-			_body.add_child(_gun)
+		if row[0] == "gun" or row[0] == "gun2":
+			var g := Sprite2D.new()
+			g.centered = false
+			g.light_mask = 1   # no normal map: the figure's own rim light would wash the steel out
+			g.modulate = Color(0.78, 0.78, 0.8)
+			_body.add_child(g)
+			if row[0] == "gun":
+				_gun = g
+			else:
+				_gun2 = g
 			continue
 		if String(row[0]).begins_with("collar"):
 			if parts.has(row[0]):   # a piece of the torso drawing laid over the head or the sleeve again
@@ -139,6 +160,12 @@ func _ready() -> void:
 		s.light_mask = MASK_FIGURE
 		_body.add_child(s)
 		_spr[row[0]] = s
+	set_weapon(String(cfg.get("weapon", "revolver")))
+	if _spr.has("skirt"):
+		_skirt_mesh = _make_skirt_mesh()
+		_body.add_child(_skirt_mesh)
+		_body.move_child(_skirt_mesh, _spr["skirt"].get_index())
+		_spr["skirt"].visible = false
 	_build_shadow()
 	_build_back_light()
 	_pose()
@@ -190,13 +217,22 @@ func _build_shadow() -> void:
 		d.modulate = Color(0.0, 0.0, 0.0)
 		_shadow.add_child(d)
 		_shadow_spr[key] = d
-	var g := Sprite2D.new()
-	g.texture = _gun.texture
-	g.flip_h = _gun.flip_h
-	g.scale = _gun.scale
-	g.modulate = Color(0.0, 0.0, 0.0)
-	_shadow.add_child(g)
-	_shadow_spr["gun"] = g
+	if _skirt_mesh:
+		_skirt_shadow = _make_skirt_mesh()
+		_skirt_shadow.modulate = Color(0.0, 0.0, 0.0)
+		_shadow.add_child(_skirt_shadow)
+		_shadow_spr["skirt"].visible = false
+	for key in ["gun", "gun2"]:
+		var src: Sprite2D = _gun if key == "gun" else _gun2
+		var g := Sprite2D.new()
+		g.texture = src.texture
+		g.centered = false
+		g.offset = src.offset
+		g.scale = src.scale
+		g.visible = src.visible
+		g.modulate = Color(0.0, 0.0, 0.0)
+		_shadow.add_child(g)
+		_shadow_spr[key] = g
 
 
 ## A flat ink copy of the figure exactly as it is posed this frame: the afterimages a dive, a roll or
@@ -224,13 +260,22 @@ func ghost() -> CanvasGroup:
 		d.rotation = src.rotation
 		d.scale = src.scale
 		g.add_child(d)
-	var gun := Sprite2D.new()
-	gun.texture = _gun.texture
-	gun.flip_h = _gun.flip_h
-	gun.position = _gun.position
-	gun.rotation = _gun.rotation
-	gun.scale = _gun.scale
-	g.add_child(gun)
+	if _skirt_mesh:
+		var m := _make_skirt_mesh()
+		m.polygon = _skirt_mesh.polygon
+		g.add_child(m)
+		g.move_child(m, 0)
+	for src in [_gun, _gun2]:
+		if not src.visible:
+			continue
+		var gun := Sprite2D.new()
+		gun.texture = src.texture
+		gun.centered = false
+		gun.offset = src.offset
+		gun.position = src.position
+		gun.rotation = src.rotation
+		gun.scale = src.scale
+		g.add_child(gun)
 	return g
 
 
@@ -313,7 +358,12 @@ func _pose() -> void:
 	var hip := Vector2(-0.1 * slide * slide_side, -(l1 + l2) * 0.985 - ankle + drop + lerpf(0.01, 0.04 + 0.035 * cos(th * 2.0), t))
 	var legs_lean := dive * 1.35 * dive_side + roll        # the legs follow a dive or a tumble
 	var lean := legs_lean - slide * 0.75 * slide_side + crouch * 0.25 + duck * 0.32   # the torso also lies back in a slide, bows in a crouch
-	var neck := hip + Vector2(lerpf(0.03, 0.15, t), -float(_len["torso"])).rotated(lean)
+	if not _dead:
+		lean += t * 0.13 * (1.0 - dive)                 # leaning into a run
+		lean -= recoil * 0.22                          # each shot knocks him back a touch
+		lean += clampf(_aim.angle(), -0.9, 0.6) * 0.08   # the body follows the gun up or down a little
+	var breath := sin(_clock * 1.7) * 0.006 * (1.0 - t) * (0.0 if _dead else 1.0)   # breathing, standing still
+	var neck := hip + Vector2(lerpf(0.03, 0.15, t), -float(_len["torso"]) - breath).rotated(lean)
 	# Joints that are drawn on the torso (armholes, the bottom of the collar, the belt) are given in
 	# the torso drawing's own pixels, so they stay on the drawing however the torso turns.
 	var shoulder := neck + Vector2(-0.05, 0.11).rotated(lean)
@@ -330,42 +380,69 @@ func _pose() -> void:
 		head_base = hip + ((on["head"] as Vector2) - a0).rotated(turn) * k0
 		belt = hip + ((on["belt"] as Vector2) - a0).rotated(turn) * k0
 
-	# far arm: supports the aim when standing, swings against the far leg when running
+	# The near arm holds the gun on the target. A pistol is held out at arm's length (further when
+	# aiming high, so the arm never folds over his face); a long gun is shouldered, the hand close in.
+	var gun_key := "pistol" if weapon == "pistols" else weapon
+	var gd: Dictionary = GUNS.get(gun_key, GUNS["revolver"])
+	var long_gun: bool = gd.has("fore") and not _dead
+	var up_aim := clampf(-_aim.y, 0.0, 1.0)
+	var reach := (0.3 + 0.04 * up_aim) if long_gun else lerpf(0.55, 0.66, up_aim)
+	var near_target := shoulder + _aim * reach + (Vector2(0.0, 0.05) if long_gun else Vector2.ZERO)
+	if _dead:
+		near_target = shoulder + _aim * (ua + fa) * 0.96
+	var kn := _ik(shoulder, near_target, ua, fa, 1.0)
+	var hand: Vector2 = kn[1]
+	var gun_scale: float = float(gd["len"]) / float((_gun.texture as Texture2D).get_width())   # metres per picture pixel
+
+	# far arm: with a long gun it holds the fore grip; with two pistols it aims the second one just
+	# under the first; with one gun it supports the aim standing and swings against the legs running
 	var far_target := (shoulder + _aim * 0.5 + Vector2(0.02, 0.06)).lerp(hip + Vector2(0.25 * cos(th), 0.05), t)
+	if long_gun:
+		var tex_size := Vector2((_gun.texture as Texture2D).get_size())
+		far_target = hand + ((tex_size * ((gd["fore"] as Vector2) - (gd["grip"] as Vector2))) * gun_scale).rotated(_aim.angle())
+	elif weapon == "pistols" and not _dead:
+		far_target = far_shoulder + _aim * reach + Vector2(0.0, 0.07)
 	if _dead:   # dead weight: the arm lies almost straight along the thrown direction
 		far_target = far_shoulder + Vector2.from_angle(_aim.angle() + 0.25) * (ua + fa) * 0.96
 	var k := _ik(far_shoulder, far_target, ua, fa, 1.0)
 	_place("uarm_b", "uarm", far_shoulder, k[0])
 	_place("farm_b", "farm", k[0], k[1])
+	_gun2.position = k[1] * PPM
+	_gun2.rotation = _aim.angle() + 0.04
 
 	k = _ik(hip, hip + (foot_b - Vector2(0.0, ankle) - hip).rotated(legs_lean), l1, l2, -1.0)
 	_place("thigh_b", "thigh", hip, k[0])
 	_place("shin_b", "shin", k[0], k[1])
+	var leg_b := [hip, k[0], k[1]]
 	k = _ik(hip, hip + (foot_a - Vector2(0.0, ankle) - hip).rotated(legs_lean), l1, l2, -1.0)
 	_place("thigh_f", "thigh", hip, k[0])
 	_place("shin_f", "shin", k[0], k[1])
+	var leg_f := [hip, k[0], k[1]]
 
 	if _spr.has("skirt"):   # hangs from the belt, sways with speed, tips with the body
 		# in a slide it lies along the legs; crouched it falls back behind the heels; never through the pavement
 		var skirt_lean := lean - slide * 0.8 * slide_side + duck * 0.45
-		_place("skirt", "skirt", belt, belt + (_tail_dir.normalized() * float(_len["skirt"])).rotated(skirt_lean))
+		var hem := belt + (_tail_dir.normalized() * float(_len["skirt"])).rotated(skirt_lean)
+		_place("skirt", "skirt", belt, hem)
+		if _skirt_mesh:
+			_bend_skirt(belt, lean, hem, leg_f, leg_b)
 	_place("torso", "torso", hip, neck)
 	for c in _collars:
 		c.position = _spr["torso"].position
 		c.rotation = _spr["torso"].rotation
-	var look := (lean - roll) * 0.5 + roll   # the head tips less than the body: he keeps his eyes on the target
+	# the head tips less than the body, and turns a little after the aim: he looks where he shoots
+	var look := (lean - roll) * 0.5 + roll
+	if not _dead:
+		look += clampf(_aim.angle(), -0.9, 0.7) * 0.4 - recoil * 0.3
 	_place("head", "head", head_base, head_base + Vector2(0.02, -0.3).rotated(look))
 
-	# near arm: always on the target, the gun in its hand
-	k = _ik(shoulder, shoulder + (_aim * (ua + fa) * 0.96 if _dead else _aim * 0.55), ua, fa, 1.0)
-	_place("uarm_f", "uarm", shoulder, k[0])
-	_place("farm_f", "farm", k[0], k[1])
-	var hand: Vector2 = k[1]
-	_gun.position = (hand + _aim * 0.093) * PPM + Vector2(0.0, -5.0)
+	_place("uarm_f", "uarm", shoulder, kn[0])
+	_place("farm_f", "farm", kn[0], kn[1])
+	_gun.position = hand * PPM
 	_gun.rotation = _aim.angle()
 	if _shadow:
 		for key in _shadow_spr:
-			var src: Node2D = _gun if key == "gun" else _spr[key]
+			var src: Node2D = _gun if key == "gun" else (_gun2 if key == "gun2" else _spr[key])
 			var d: Node2D = _shadow_spr[key]
 			d.position = src.position
 			d.rotation = src.rotation
@@ -406,10 +483,127 @@ func hit_part(world: Vector2) -> String:
 	return ""
 
 
-## The end of the barrel, in world coordinates.
+## The coat skirt as a grid laid over its drawing, rows down from the belt to the hem.
+func _make_skirt_mesh() -> Polygon2D:
+	var m := Polygon2D.new()
+	var tex := _tex(String(cfg["dir"]) + "skirt")
+	m.texture = tex
+	var size := Vector2((tex as Texture2D).get_size())
+	var p: Dictionary = cfg["parts"]["skirt"]
+	var uv := PackedVector2Array()
+	for r in SKIRT_ROWS + 1:
+		for c in SKIRT_COLS + 1:
+			uv.append(Vector2(size.x * c / SKIRT_COLS, lerpf(float((p["a"] as Vector2).y), float((p["b"] as Vector2).y), float(r) / SKIRT_ROWS)))
+	m.uv = uv
+	m.polygon = uv
+	var quads := []
+	for r in SKIRT_ROWS:
+		for c in SKIRT_COLS:
+			var i := r * (SKIRT_COLS + 1) + c
+			quads.append(PackedInt32Array([i, i + 1, i + SKIRT_COLS + 2, i + SKIRT_COLS + 1]))
+	m.polygons = quads
+	m.light_mask = MASK_FIGURE
+	return m
+
+
+## Bend the coat: from the belt it follows the hips, lower down it swings out to where the tail of
+## the coat is blown (the hem), and in a stride its front and back edges are carried by the legs so
+## it parts round them instead of sweeping through them like a board.
+func _bend_skirt(belt: Vector2, lean: float, hem: Vector2, leg_f: Array, leg_b: Array) -> void:
+	var p: Dictionary = cfg["parts"]["skirt"]
+	var ppm := float(p["ppm"])
+	var tex_w := float((_skirt_mesh.texture as Texture2D).get_width())
+	var ax := float((p["a"] as Vector2).x)
+	var length := float(_len["skirt"])
+	var top_dir := Vector2(0.0, 1.0).rotated(lean)
+	var end_dir := (hem - belt).normalized()
+	var open := clampf(_moving * 0.8 + air * 0.6 + slide * 0.3, 0.0, 1.0) * (0.0 if _dead else 1.0)
+	var pts := PackedVector2Array()
+	var center := belt
+	for r in SKIRT_ROWS + 1:
+		var v := float(r) / SKIRT_ROWS
+		var d := top_dir.slerp(end_dir, pow(v, 1.4))
+		if r > 0:
+			center += d * length / SKIRT_ROWS
+		var n := Vector2(d.y, -d.x)   # across the coat, front edge on the + side
+		var flare := 1.0 + 0.12 * v
+		var at_f := _along_leg(leg_f, v)
+		var at_b := _along_leg(leg_b, v)
+		for c in SKIRT_COLS + 1:
+			var across := (tex_w * c / SKIRT_COLS - ax) / ppm * flare
+			var q := center + n * across
+			# the edge nearer each leg is pulled with it as he strides; the middle stays between
+			var pull := open * smoothstep(0.15, 1.0, v) * 0.65
+			if c == SKIRT_COLS:
+				q = q.lerp(at_f + n * 0.05, pull)
+			elif c == 0:
+				q = q.lerp(at_b - n * 0.05, pull)
+			elif c == SKIRT_COLS - 1:
+				q = q.lerp(at_f - n * 0.02, pull * 0.5)
+			elif c == 1:
+				q = q.lerp(at_b + n * 0.02, pull * 0.5)
+			pts.append(q * PPM)
+	_skirt_mesh.polygon = pts
+	if _skirt_shadow:
+		_skirt_shadow.polygon = pts
+
+
+## A point down a leg (hip, knee, ankle) at fraction v of the coat's length.
+func _along_leg(leg: Array, v: float) -> Vector2:
+	var u := v * 1.6
+	if u < 1.0:
+		return (leg[0] as Vector2).lerp(leg[1], u)
+	return (leg[1] as Vector2).lerp(leg[2], minf(1.0, u - 1.0))
+
+
+## Put a gun in his hands: one of GUNS. Two pistols: one in each hand.
+func set_weapon(name: String) -> void:
+	var key := "pistol" if name == "pistols" else name
+	if not GUNS.has(key):
+		key = "revolver"
+	weapon = name
+	var gd: Dictionary = GUNS[key]
+	for g in [_gun, _gun2]:
+		var tex: Texture2D = load(gd["tex"])
+		g.texture = tex
+		g.offset = -Vector2(tex.get_size()) * (gd["grip"] as Vector2)
+		g.scale = Vector2.ONE * float(gd["len"]) * PPM / tex.get_width()
+	_gun2.visible = name == "pistols"
+	if _shadow_spr.has("gun"):
+		for k in ["gun", "gun2"]:
+			var src: Sprite2D = _gun if k == "gun" else _gun2
+			var d: Sprite2D = _shadow_spr[k]
+			d.texture = src.texture
+			d.offset = src.offset
+			d.scale = src.scale
+			d.visible = src.visible
+	_pose()
+
+
+## The crown of his hat and the top of his near shoulder, in world coordinates: where rain lands on him.
+func head_top() -> Vector2:
+	var h: Sprite2D = _spr["head"]
+	return to_global(h.position + Vector2(0.0, -0.28 * PPM).rotated(h.rotation))
+
+
+func shoulder_top() -> Vector2:
+	return to_global((_bones["uarm_f"][0] as Vector2) + Vector2(-0.04 * PPM, -0.03 * PPM))
+
+
+## The end of the barrel, in world coordinates. With two pistols the hands take turns.
 func muzzle() -> Vector2:
-	var up := Vector2(_aim.y, -_aim.x)
-	return to_global(_gun.position + _aim * 38.0 + up * 9.0)
+	var g := _gun2 if (_left_shot and _gun2.visible) else _gun
+	var key := "pistol" if weapon == "pistols" else weapon
+	var gd: Dictionary = GUNS.get(key, GUNS["revolver"])
+	var size_px := Vector2(g.texture.get_size())
+	var local := (size_px * (gd["muzzle"] as Vector2) + g.offset) * g.scale
+	return to_global(g.position + local.rotated(g.rotation))
+
+
+## After a shot with two pistols, the other hand fires next.
+func next_hand() -> void:
+	if weapon == "pistols":
+		_left_shot = not _left_shot
 
 
 ## Where the gun points, in world coordinates.

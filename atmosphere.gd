@@ -354,3 +354,31 @@ func _flake() -> ImageTexture:
 				a = maxf(a, clampf((l.z - d) / 1.6, 0.0, 1.0))
 			img.set_pixel(x, y, Color(1.0, 1.0, 1.0, a))
 	return ImageTexture.create_from_image(img)
+
+
+## Rain landing on the detective: tiny splashes on the crown of his hat and on his shoulders, and
+## now and then a drop running off the brim. Three emitters main.gd moves with him each frame.
+func add_hat_rain(parent: Node, boost: Color) -> Array:
+	var out := []
+	for k in 3:
+		var p := CPUParticles2D.new()
+		p.local_coords = false
+		p.texture = load("res://art/fx/splash2.png" if k < 2 else "res://art/fx/rain_streak.png")
+		p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+		p.emission_rect_extents = Vector2(40.0 if k == 0 else (50.0 if k == 1 else 6.0), 4.0)
+		p.amount = 10 if k == 0 else (8 if k == 1 else 2)
+		p.lifetime = 0.22 if k < 2 else 0.5
+		p.direction = Vector2(0.0, -1.0) if k < 2 else Vector2(0.0, 1.0)
+		p.spread = 50.0 if k < 2 else 2.0
+		p.initial_velocity_min = 40.0 if k < 2 else 30.0
+		p.initial_velocity_max = 120.0 if k < 2 else 60.0
+		p.gravity = Vector2(0.0, 900.0 if k < 2 else 1400.0)
+		p.scale_amount_min = 0.03 if k < 2 else 0.25
+		p.scale_amount_max = 0.06 if k < 2 else 0.4
+		p.particle_flag_align_y = k == 2
+		p.color_ramp = _fade(Color(0.9, 0.93, 1.0, 0.7))
+		p.modulate = boost
+		p.z_index = 3
+		parent.add_child(p)
+		out.append(p)
+	return out

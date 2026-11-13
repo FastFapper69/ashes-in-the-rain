@@ -110,7 +110,7 @@ const LEGS := {
 	"shin": {"a": Vector2(80.6, 56.9), "b": Vector2(100.8, 543.5), "ppm": 1000},
 }
 var DETECTIVE := {
-	"dir": "res://art/detective/", "gun": "res://art/revolver.png", "gun_flip": false,
+	"dir": "res://art/detective/", "weapon": "revolver",
 	# where things attach, in the torso drawing's pixels: the armholes, the bottom of the collar, the belt
 	"on_torso": {"shoulder": Vector2(100.0, 225.0), "far_shoulder": Vector2(400.0, 240.0), "head": Vector2(272.0, 168.0), "belt": Vector2(262.0, 596.0)},
 	"parts": {
@@ -129,7 +129,7 @@ var DETECTIVE := {
 	},
 }
 var MOBSTER := {
-	"dir": "res://art/mobster/", "gun": "res://art/pistol.png", "gun_flip": true,
+	"dir": "res://art/mobster/", "weapon": "pistol",
 	"on_torso": {"shoulder": Vector2(75.0, 125.0), "far_shoulder": Vector2(300.0, 130.0), "head": Vector2(207.0, 62.0), "belt": Vector2(216.0, 673.2)},
 	"parts": {
 		"head": {"a": Vector2(165.6, 351.5), "b": Vector2(165.6, 75.6), "ppm": 1000},
@@ -145,6 +145,7 @@ var enemies: Array = []        # one entry per mobster: node, hp, cool, aim_off,
 var boxes: Array[Rect2] = []
 var cleared := false
 var cam: Camera2D
+var _hat_rain: Array = []   # rain splashing on his hat and shoulders, dripping off the brim
 var _menu_x := 0.0   # where the camera rests behind the title
 var _lead := CAM_LEAD   # how far ahead of the detective the camera looks; swings to the side he aims at
 var _look := 1.0
@@ -169,11 +170,12 @@ var _idle_fire := 0.0      # seconds since the last shot: a gun not quite full i
 var _clicked := false      # dry-fired on this empty gun already: the next tap reloads instead
 var slow_on := false           # toggled by the stopwatch button
 var slow_left := 1.0           # 1 = full meter
-var move_state := "ground"     # ground, jump or dive
+var move_state := "ground"     # ground, jump, dive, roll, slide or flip
 var fall := 0.0                # vertical speed, pixels per second, down is positive
 var run := 0.0                 # horizontal running speed, eased towards what the player asks for
 var slide_left := 0.0          # seconds of slide remaining
 var roll_done := 0.0           # 0..1 through the tumble
+var _kick_planned := false     # this dive was aimed at a crate's side, to kick off it in a back flip
 var dive_rolls := false        # this dive ends in a roll instead of a flat landing
 var glide := 0.0               # horizontal speed of a dive
 var over := false              # the detective is down
@@ -283,6 +285,8 @@ func _ready() -> void:
 	atmo.add_post(self)
 	atmo.add_ash(cam, MenuScript.ash_level() if in_menu else float(level.get("ash", 0.3)), float(level.get("embers", 0.0)))
 	steps = atmo.add_steps(player, _undo_night(0.6))
+	if float(ch["rain"]) > 0.0:
+		_hat_rain = atmo.add_hat_rain(self, _undo_night(0.7))
 	fx = FxScript.new()
 	fx.night = _undo_night(1.0)
 	fx.hit_test = _bullet_hit
@@ -779,6 +783,20 @@ func _tick_birds(delta: float) -> void:
 			i -= 1
 
 
+## Keep the rain on his hat and shoulders where they are this frame; none indoors or lying down.
+func _tick_hat_rain() -> void:
+	if _hat_rain.is_empty():
+		return
+	var top: Vector2 = player.head_top()
+	var on: bool = _room == "" and player.dive < 0.4 and not over
+	_hat_rain[0].global_position = top
+	_hat_rain[0].emitting = on
+	_hat_rain[1].global_position = player.shoulder_top()
+	_hat_rain[1].emitting = on
+	_hat_rain[2].global_position = top + Vector2(player.scale.x * 52.0, 22.0)   # the front of the brim
+	_hat_rain[2].emitting = on
+
+
 ## A round glow that fades out smoothly to nothing at its edge (light_blob.png ends in a hard rim).
 func _soft_glow() -> GradientTexture2D:
 	var g := Gradient.new()
@@ -1044,6 +1062,8 @@ func _process(delta: float) -> void:
 		return
 	if _auto != "":
 		_auto_step(delta)
+	if _auto == "poses":
+		return
 	_probe += delta / Engine.time_scale
 	if _probe > 2.0 and _show_fps:   # key 0 switches the readout on
 		_probe = 0.0
@@ -1115,7 +1135,7 @@ func _process(delta: float) -> void:
 	dir = _move(dir, aim, delta)
 	if not over:
 		player.set_state(dir, aim, delta)
-	steps.emitting = absf(dir) > 0.3 and move_state == "ground"
+	steps.emitting = (absf(dir) > 0.3 or absf(glide) > 180.0) and move_state == "ground"
 	if steps.emitting and player.duck < 0.5:   # footfalls on the wet pavement, quicker when he runs
 		_step_t -= delta
 		if _step_t <= 0.0:
@@ -1171,6 +1191,7 @@ func _process(delta: float) -> void:
 	atmo.blow_ash(_time)
 	_tick_neons(delta)
 	_tick_birds(delta)
+	_tick_hat_rain()
 	moonlight.energy = lerpf(0.35, 0.62, clampf(-player.position.y / 650.0, 0.0, 1.0))
 	_afterimages(delta, absf(dir))
 	_slow_look = lerpf(_slow_look, 1.0 if Engine.time_scale < 1.0 else 0.0, 1.0 - exp(-10.0 * real))
@@ -1330,6 +1351,54 @@ func _auto_step(delta: float) -> void:
 			for i in 8:
 				fx.blood(Vector2(1000.0 + i * 260.0, -260.0 - (i % 3) * 70.0), Vector2(1.0 if i % 2 == 0 else -1.0, 0.0))
 		shots = [[0.5, "stains_1"], [2.2, "stains_2"]]
+	elif _auto == "stunt":   # slowed time, a dive into a crate: the kick off it, the back flip, the landing
+		var bi := -1
+		for k in boxes.size():
+			if box_info[k]["wood"] and boxes[k].size.y < 320.0:
+				bi = k
+				break
+		if _at < 0.05 and bi >= 0:
+			for e in enemies:   # an empty street for the picture
+				e["node"].position.x += 60000.0
+				e["goal"] = e["node"].position.x
+			player.position.x = boxes[bi].position.x - 420.0
+			cam.position.x = player.position.x + _lead
+			slow_left = 1.0
+			slow_on = true
+		if _at > 0.5 and _auto_done & 1 == 0:
+			_auto_done |= 1
+			hud.dive_tapped = true
+			hud.move = 1.0
+		if _at > 0.6:
+			hud.move = 0.0
+		shots = [[0.62, "stunt_1"], [0.75, "stunt_2"], [0.9, "stunt_3"], [1.05, "stunt_4"], [1.2, "stunt_5"], [1.4, "stunt_6"], [1.65, "stunt_7"], [2.0, "stunt_8"]]
+	elif _auto == "poses":   # the detective close up in each of his poses, and a mobster, for a look at the drawings
+		const POSES := [["stand", Vector2(1, 0)], ["aim_up", Vector2(1, -1)], ["aim_back", Vector2(-1, -0.15)], ["run", Vector2(1, 0)],
+				["duck", Vector2(1, 0)], ["jump", Vector2(1, 0.2)], ["dive", Vector2(1, 0.1)], ["slide", Vector2(1, -0.1)]]
+		const GUNS_SEEN := ["revolver", "pistols", "tommy", "shotgun", "tommy", "revolver", "shotgun", "pistols"]
+		var k := mini(int(_at / 0.8), POSES.size() - 1)
+		var pose: String = POSES[k][0]
+		hud.visible = false
+		player.position = Vector2(-6500.0, 0.0)
+		cam.zoom = Vector2.ONE * 1.25
+		cam.rotation = 0.0
+		cam.position = player.position + Vector2(0.0, -300.0)
+		player.duck = 1.0 if pose == "duck" else 0.0
+		player.air = 1.0 if pose == "jump" else 0.0
+		player.dive = 1.0 if pose == "dive" else 0.0
+		player.slide = 1.0 if pose == "slide" else 0.0
+		player.slide_side = 1.0
+		player.dive_side = 1.0
+		player.position.y = -260.0 if pose in ["jump", "dive"] else 0.0
+		cam.position = player.position + Vector2(0.0, -300.0 if pose not in ["jump", "dive"] else -420.0)
+		if player.weapon != GUNS_SEEN[k]:
+			player.set_weapon(GUNS_SEEN[k])
+		player.set_state(1.0 if pose == "run" else 0.0, POSES[k][1], delta)
+		if fmod(_at, 0.8) > 0.7 and _auto_done & (1 << k) == 0:
+			_auto_done |= 1 << k
+			_shot("pose_%d_%s" % [k, pose])
+		if _at > POSES.size() * 0.8 + 0.2:
+			get_tree().quit()
 	elif _auto == "kit":   # a crate shot apart, a gun run dry, the reload and the HUD rounds
 		var wi := -1
 		for k in boxes.size():
@@ -1410,7 +1479,12 @@ func _auto_step(delta: float) -> void:
 		if _auto_done & (1 << (i + 8)) == 0 and _at > float(shots[i][0]):
 			_auto_done |= 1 << (i + 8)
 			_shot(shots[i][1])
-	if _at > (6.0 if _auto == "death" else 3.0):
+	var end_t := 6.0 if _auto == "death" else 3.0
+	if not shots.is_empty():   # stay until the last picture has been taken
+		end_t = maxf(end_t, float(shots[-1][0]) + 0.4)
+	if _auto == "poses":
+		end_t = 6.6
+	if _at > end_t:
 		get_tree().quit()
 
 
@@ -1463,10 +1537,13 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 		var crouched: bool = duck_held and player.dive < 0.05 and _pop == 0.0
 		player.duck = move_toward(player.duck, 1.0 if crouched else 0.0, delta * (11.0 if crouched else 10.0))
 		run = move_toward(run, dir * RUN_SPEED * (1.0 - player.dive) * (1.0 - 0.62 * player.duck), RUN_ACCEL * delta)
-		glide = move_toward(glide, 0.0, delta * 4000.0)    # he slides a little after landing flat
+		glide = move_toward(glide, 0.0, delta * 1500.0)    # landed flat, he skids along the wet stones a while
 		player.position.x += (run + glide) * delta
 		player.air = move_toward(player.air, 0.0, delta * 8.0)
-		player.dive = move_toward(player.dive, 0.0, delta * 3.5)
+		if absf(glide) < 180.0:   # and only gets up once the skid has run out
+			player.dive = move_toward(player.dive, 0.0, delta * 3.5)
+		else:
+			steps.emitting = true
 		player.slide = move_toward(player.slide, 0.0, delta * 5.0)
 		player.crouch = lerpf(player.crouch, 0.0, 1.0 - exp(-7.0 * delta))
 		if floor_y > player.position.y - DIVE_LAND * player.dive + 36.0 and player.dive < 0.05:   # walked off an edge (a step down the stairs is just walked)
@@ -1501,13 +1578,15 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			player.roll = 1.35 * player.dive * player.dive_side
 			player.position.y = minf(player.position.y, floor_y)   # the origin moves up to his feet: on a crate he rolls along its top, not inside it
 			player.dive = 0.0
-		elif fall > 0.0 and player.position.y >= floor_y + DIVE_LAND:   # otherwise flat on the pavement
+		elif fall > 0.0 and player.position.y >= floor_y + DIVE_LAND:   # otherwise flat on the pavement, skidding on
 			player.position.y = floor_y + DIVE_LAND
 			player.dive = 1.0
 			run = 0.0
+			glide *= 0.8
 			move_state = "ground"
 			steps.restart()
 			sfx.play("land", -4.0)
+			sfx.play("skid", -5.0, INF, 0.1)
 	elif move_state == "roll":
 		roll_done = minf(1.0, roll_done + delta / 0.5)
 		player.roll = lerpf(1.35, TAU, roll_done) * player.dive_side
@@ -1520,6 +1599,25 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			run = clampf(glide * 0.5, -RUN_SPEED, RUN_SPEED)
 			glide = 0.0
 			move_state = "ground"
+	elif move_state == "flip":   # pushed off a crate: a back flip through the air, the gun still on the target
+		fall += GRAVITY * 0.85 * delta
+		player.position.y += fall * delta
+		player.position.x += glide * delta
+		roll_done = minf(1.0, roll_done + delta / 0.62)
+		var e := roll_done * roll_done * (3.0 - 2.0 * roll_done)
+		player.roll = -TAU * e
+		player.air = move_toward(player.air, 1.0, delta * 12.0)
+		player.dive = move_toward(player.dive, 0.0, delta * 10.0)
+		if fall > 0.0 and player.position.y >= floor_y:   # down on his feet, knees soaking it up, skidding back
+			player.position.y = floor_y
+			player.roll = 0.0
+			player.crouch = 0.9
+			run = glide * 0.35
+			glide = glide * 0.4
+			move_state = "ground"
+			steps.restart()
+			sfx.play("land", -2.0)
+			sfx.play("skid", -8.0, INF, 0.1)
 	elif move_state == "slide":
 		slide_left -= delta
 		run = move_toward(run, 0.0, 500.0 * delta)
@@ -1574,6 +1672,9 @@ func _block(before_x: float) -> void:
 		var left := b.position.x - 45.0
 		var right := b.end.x + 45.0
 		if player.position.x > left and player.position.x < right:
+			if move_state == "dive" and _kick_planned:
+				_kick_off(b, before_x)   # in slowed time: feet to the crate, push off, a back flip
+				return
 			if move_state == "dive" and b.size.y <= VAULT_MAX:
 				# launched too close to clear it: held at its side, he is lifted over the top in a few
 				# frames instead of being dropped onto it, and flies on
@@ -1586,11 +1687,41 @@ func _block(before_x: float) -> void:
 			glide = 0.0
 
 
+## Diving into a crate in slowed time: he turns the dive into a push off its side, up and back,
+## and goes over in a back flip. The aim never leaves the target.
+func _kick_off(b: Rect2, before_x: float) -> void:
+	var from_left := before_x < b.get_center().x
+	player.position.x = (b.position.x - 46.0) if from_left else (b.end.x + 46.0)
+	move_state = "flip"
+	roll_done = 0.0
+	glide = (-1.0 if from_left else 1.0) * 620.0
+	fall = -1150.0
+	player.position.y -= DIVE_LAND * player.dive * 0.5
+	sfx.play("land", -6.0, INF, 0.1)
+	sfx.play("dive", -4.0, INF, 0.1)
+	_word(["wham"], Vector2(player.position.x + (40.0 if from_left else -40.0), player.position.y - 260.0), 0.16)
+	slow_left = minf(1.0, slow_left + 0.1)   # a little slowed time back for the style
+
+
 func _start_dive(way: float, facing: float, up: float, from_run: bool) -> void:
 	sfx.play("dive", -2.0)
 	move_state = "dive"
 	glide = DIVE_SPEED.x * way
 	fall = up
+	# With slowed time to spend (a dive slows it by itself), a crate just ahead is not jumped: he
+	# flies at it to kick off its side.
+	_kick_planned = false
+	if slow_left > 0.2:
+		for b in boxes:
+			var gap: float = (b.position.x - player.position.x) if way > 0.0 else (player.position.x - b.end.x)
+			if gap > 60.0 and gap < 750.0 and b.size.y > 60.0 and absf(b.end.y - player.position.y) < 20.0:
+				var reach_t := maxf(0.08, (gap - 45.0) / DIVE_SPEED.x)   # still in the air, near the top of the arc, when he gets there
+				fall = -GRAVITY * reach_t * 0.8
+				_kick_planned = true
+				run = 0.0
+				player.dive_side = way * facing
+				dive_rolls = false
+				return
 	# a crate in the way: he launches steeper, just enough to fly right over it and land clear of it;
 	# only if that is out of reach, to land on top of it and roll off
 	var found := false
@@ -1650,6 +1781,7 @@ func _dry_fire() -> void:
 	_word(["click"], player.muzzle() + Vector2(0.0, -110.0), 0.16)
 	if weapon != "revolver" and ammo <= 0:   # nothing left for this gun: he drops it
 		weapon = "revolver"
+		player.set_weapon("revolver")
 		mag = 0
 		hud.toast("EMPTY")
 	_start_reload()
@@ -1725,6 +1857,7 @@ func _fire(shooter, from_player: bool, kind := "") -> void:
 		_word(["wham", "bam"], at + Vector2(signf(d.x) * 90.0, -160.0), 0.3, d)
 	else:
 		_word(["blam", "bam", "pow"] if from_player else ["bang", "pow"], at + Vector2(signf(d.x) * 70.0, -150.0), 0.29 if from_player else 0.3, d)
+	shooter.next_hand()
 	if from_player:
 		mag -= 1
 		_idle_fire = 0.0
@@ -2012,7 +2145,7 @@ func _player_down() -> void:
 ## A dive, a roll, a slide, or running in slowed time leaves a short string of ink silhouettes of
 ## the detective behind him, each one fading as the next is laid down.
 func _afterimages(delta: float, running: float) -> void:
-	var on: bool = not over and (move_state in ["dive", "roll", "slide"] or (Engine.time_scale < 1.0 and running > 0.3))
+	var on: bool = not over and (move_state in ["dive", "roll", "slide", "flip"] or (Engine.time_scale < 1.0 and running > 0.3))
 	_ghost_t -= delta
 	if not on or _ghost_t > 0.0:
 		return
@@ -2256,6 +2389,7 @@ func _add_enemy(at: Vector2, kind: String, state: String, goal_x: float) -> Dict
 	add_child(m)
 	if kind == "boss":
 		m.size = 1.15
+	m.set_weapon({"tommy": "tommy", "shotgun": "shotgun", "boss": "pistols"}.get(kind, "pistol"))
 	m.set_state(0.0, Vector2(-1.0, 0.0), 0.0)
 	m.visible = state != "wait"
 	var e := {"node": m, "type": kind, "hp": BOSS_HP if kind == "boss" else MOBSTER_HP, "cool": randf_range(0.8, 1.6), "aim_off": 0.0,
@@ -2398,6 +2532,7 @@ func _pickups() -> void:
 			hud.toast("A PULL FROM THE FLASK")
 		else:
 			weapon = kind
+			player.set_weapon(kind)
 			mag = int(WEAPONS[kind]["mag"])
 			ammo = int(WEAPONS[kind]["ammo"]) - mag
 			reloading = 0.0
@@ -2554,7 +2689,7 @@ func _slow_time(real: float) -> void:
 		Engine.time_scale = 0.3 if _death_t < 1.3 else 1.0
 		hud.set_slow(slow_left, false)
 		return
-	var want := (slow_on or move_state == "dive" or Input.is_physical_key_pressed(KEY_SHIFT)) and not over
+	var want := (slow_on or move_state == "dive" or move_state == "flip" or Input.is_physical_key_pressed(KEY_SHIFT)) and not over
 	var slowed := Engine.time_scale < 1.0
 	if want and (slow_left > 0.0 if slowed else slow_left > 0.2):   # an empty meter must refill a little first
 		slow_left = maxf(0.0, slow_left - real * 0.28)

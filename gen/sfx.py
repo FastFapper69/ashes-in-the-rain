@@ -304,3 +304,8 @@ save('type.wav', x, 0.35)
 tt = t(0.5)
 x = bp(noise(0.5), 800, 6000) * np.sin(np.pi * tt / 0.5) ** 3 * (1 + 0.5 * np.sin(2 * np.pi * 9 * tt))
 save('page.wav', x, 0.45)
+
+# a body skidding over wet stones: cloth dragged through water, slowing down
+tt = t(0.9)
+x = bp(noise(0.9), 300, 3500) * np.exp(-tt / 0.35) * (1 + 0.3 * np.sin(2 * np.pi * 23 * tt)) + bp(noise(0.9), 2000, 7000) * 0.3 * np.exp(-tt / 0.2)
+save('skid.wav', x, 0.5)
