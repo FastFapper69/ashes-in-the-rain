@@ -123,8 +123,8 @@ func blur_material(radius: float) -> ShaderMaterial:
 ## Rain hangs off the camera so it always covers the screen. One layer behind the figures, one in front.
 ## street_y: the pavement, in the camera's own coordinates.
 func add_rain(cam: Camera2D, boost: Color, street_y: float) -> void:
-	rain_far = _rain(Vector2(1900.0, 40.0), 800, 0.7, 0.22, 0.55, -5, boost)
-	rain_near = _rain(Vector2(1900.0, 40.0), 250, 0.6, 0.5, 1.0, 20, boost)
+	rain_far = _rain(Vector2(2500.0, 40.0), 1000, 0.7, 0.22, 0.55, -5, boost)
+	rain_near = _rain(Vector2(2500.0, 40.0), 320, 0.6, 0.5, 1.0, 20, boost)
 	cam.add_child(rain_far)
 	cam.add_child(rain_near)
 
@@ -132,9 +132,9 @@ func add_rain(cam: Camera2D, boost: Color, street_y: float) -> void:
 	splashes.texture = load("res://art/fx/splash2.png")
 	splashes.amount = 70
 	splashes.lifetime = 0.28
-	splashes.local_coords = true
+	splashes.local_coords = false   # a splash stays where the drop landed as the camera moves on
 	splashes.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
-	splashes.emission_rect_extents = Vector2(1700.0, 26.0)
+	splashes.emission_rect_extents = Vector2(2200.0, 26.0)
 	splashes.position = Vector2(0.0, street_y)
 	splashes.gravity = Vector2.ZERO
 	splashes.initial_velocity_min = 0.0
@@ -153,7 +153,7 @@ func _rain(extents: Vector2, amount: int, life: float, alpha: float, size: float
 	p.amount = amount
 	p.lifetime = life
 	p.preprocess = life
-	p.local_coords = true
+	p.local_coords = false   # the drops fall through the street; only where new ones start follows the camera
 	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
 	p.emission_rect_extents = extents
 	p.position = Vector2(-300.0, -1000.0)

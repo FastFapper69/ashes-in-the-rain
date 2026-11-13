@@ -295,3 +295,12 @@ sec = 1.0; x = np.zeros(int(SR * sec))
 for at, a in [(0.0, 1.0), (0.22, 0.7)]:
     tt = t(0.18); place(x, at, np.sin(2 * np.pi * 48 * tt * (1 - 0.3 * tt / 0.18)) * np.exp(-tt / 0.05) * a)
 save_loop('heartbeat.wav', lp(x, 300), 0.8)
+
+# a typewriter key and the bell-less carriage nudge, for narration typing out
+x = np.zeros(int(SR * 0.12)); place(x, 0.0, tick(1700, 0.006, 1.0, (800, 7000))); place(x, 0.01, tick(240, 0.02, 0.4, (100, 1200)))
+save('type.wav', x, 0.35)
+
+# a page of the case file turned over
+tt = t(0.5)
+x = bp(noise(0.5), 800, 6000) * np.sin(np.pi * tt / 0.5) ** 3 * (1 + 0.5 * np.sin(2 * np.pi * 9 * tt))
+save('page.wav', x, 0.45)

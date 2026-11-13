@@ -6,7 +6,7 @@ const DIR := "res://sfx/"
 const NAMES := ["shot_player", "shot_enemy", "shot_tommy", "shot_shotgun", "hit_flesh", "hit_cover", "clink", "casing",
 		"slow_in", "slow_out", "dive", "land", "body_fall", "step1", "step2", "whiz", "death_sting", "explosion", "glass",
 		"pickup", "drink", "flutter", "dry_fire", "reload_revolver", "reload_mag", "reload_shells", "reload_done",
-		"thunder", "coo", "wing", "drip", "wood_break", "wood_hit", "zap"]
+		"thunder", "coo", "wing", "drip", "wood_break", "wood_hit", "zap", "type", "page"]
 const LOOPS := ["neon_hum", "lamp_hum", "steam", "city", "heartbeat"]
 const VOICES := 20
 const HEAR := 2600.0   # world pixels from the listener at which a sound has faded out

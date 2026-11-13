@@ -145,6 +145,7 @@ var enemies: Array = []        # one entry per mobster: node, hp, cool, aim_off,
 var boxes: Array[Rect2] = []
 var cleared := false
 var cam: Camera2D
+var _menu_x := 0.0   # where the camera rests behind the title
 var _lead := CAM_LEAD   # how far ahead of the detective the camera looks; swings to the side he aims at
 var _look := 1.0
 var fore: Node2D
@@ -214,6 +215,19 @@ func _ready() -> void:
 			map = int(arg.trim_prefix("--map="))
 		if arg.begins_with("--test="):
 			in_menu = arg == "--test=menu"
+	var picked := false
+	for arg in OS.get_cmdline_user_args():
+		picked = picked or arg.begins_with("--chapter=")
+	if in_menu and not picked:   # the title stands in the street where the story has got to
+		var p := MenuScript.progress()
+		if p[0] >= 0 and Levels.CAMPAIGN[p[0]]["ready"]:
+			chapter = p[0]
+			map = p[1]
+		else:
+			chapter = Levels.CAMPAIGN.size() - 1
+			while chapter > 0 and not Levels.CAMPAIGN[chapter]["ready"]:
+				chapter -= 1
+			map = Levels.CAMPAIGN[chapter]["maps"].size() - 1
 	var ch: Dictionary = Levels.CAMPAIGN[chapter]
 	level = ch["maps"][map]
 	level_end = level["end"]
@@ -234,7 +248,7 @@ func _ready() -> void:
 	player.cfg = DETECTIVE
 	player.night = _undo_night(1.0)
 	add_child(player)
-	if ch["hero"] == "eddie":   # stand-in until Eddie has his own drawings: a paler, younger coat
+	if ch["hero"] == "eddie" and not in_menu:   # the title always shows Frank: it is his story. Stand-in until Eddie has his own drawings: a paler, younger coat
 		player.modulate = Color(0.9, 0.95, 1.1)
 	if checkpoint > 0.0 and not in_menu:
 		player.position = Vector2(checkpoint, _floor_at(checkpoint, -2000.0))
@@ -267,7 +281,7 @@ func _ready() -> void:
 	atmo.rain_far.amount = maxi(1, int(atmo.rain_far.amount * float(ch["rain"])))
 	atmo.rain_near.amount = maxi(1, int(atmo.rain_near.amount * float(ch["rain"])))
 	atmo.add_post(self)
-	atmo.add_ash(cam, float(level.get("ash", 0.3)), float(level.get("embers", 0.0)))
+	atmo.add_ash(cam, MenuScript.ash_level() if in_menu else float(level.get("ash", 0.3)), float(level.get("embers", 0.0)))
 	steps = atmo.add_steps(player, _undo_night(0.6))
 	fx = FxScript.new()
 	fx.night = _undo_night(1.0)
@@ -282,8 +296,19 @@ func _ready() -> void:
 		hud.visible = false
 		var menu = MenuScript.new()
 		menu.play = _start_map
+		menu.sound = func(n: String) -> void: sfx.play(n, -8.0 if n == "type" else -4.0, INF, 0.15)
 		add_child(menu)
 		player.set_state(0.0, Vector2(1.0, 0.0), 0.0)
+		# the camera rests on the map's main street, the hero standing under the lights on the right
+		var segs: Array = level.get("street", [])
+		if segs.size() > 1:
+			_menu_x = float(segs[1][1]) + 1500.0
+		else:
+			_menu_x = cam_start + 2000.0
+		player.position = Vector2(_menu_x + 700.0, _floor_at(_menu_x + 700.0, -2000.0))
+		for k in 30:   # facing back up the street, the gun hanging at his side
+			player.set_state(0.0, Vector2(-0.3, 1.0), 0.1)
+		cam.position = Vector2(_menu_x, CAM_Y)
 	elif checkpoint > 0.0:
 		hud.toast("CHECKPOINT")
 	elif _auto_arg() == "" or _auto_arg() == "play":
@@ -999,14 +1024,22 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
-	if in_menu:   # the case file is open over the street: nothing moves but the rain
+	if in_menu:   # the title over the street: the rain, the signs, the birds, a slow drift of the camera
 		sfx.listener_x = cam.position.x
+		cam.position.x = _menu_x + sin(_time * 0.09) * 160.0
+		cam.position.y = CAM_Y + sin(_time * 0.13) * 20.0
+		fore.position.x = -cam.position.x * 0.35
+		for i in depth.size():
+			depth[i].position.x = cam.position.x * depth_follow[i]
+		atmo.blow_ash(_time)
+		_tick_neons(delta)
+		_tick_birds(delta)
 		if _auto == "menu":
 			_at += delta
-			if _at > 1.0 and _auto_done == 0:
+			if _at > 6.5 and _auto_done == 0:   # once the title is up and Frank's line typed out
 				_auto_done = 1
 				_shot("menu")
-			if _at > 1.3:
+			if _at > 6.8:
 				get_tree().quit()
 		return
 	if _auto != "":
