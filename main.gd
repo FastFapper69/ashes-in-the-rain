@@ -138,6 +138,8 @@ const TEST_SHOTS := [[1.2, "cover_duck"], [1.68, "cover_pop"], [3.9, "stain"], [
 var _tt_done := 0
 var _duck_was := false        # the crouch key was down last frame: a fresh press while running slides
 var _pop := 0.0               # seconds the detective stays risen out of his crouch to shoot
+var _fire_buf := 0.0          # a tap that came while the gun was still cycling: fired as soon as it is ready
+var _death_t := -1.0          # real seconds since the detective went down
 var _queued_shot := false     # fire as soon as he has risen far enough to clear his cover
 var _shots_done := 0
 
@@ -593,26 +595,33 @@ func _process(delta: float) -> void:
 	steps.emitting = absf(dir) > 0.3 and move_state == "ground"
 
 	fire_cool = maxf(0.0, fire_cool - delta)
+	_fire_buf = maxf(0.0, _fire_buf - delta)
 	if demo and _dt > 0.95 and _dt < 1.1 and fire_cool == 0.0:
 		hud.fire_tapped = true
 	if hud.aim_held and fire_cool == 0.0 and not over:   # a finger held on the street keeps firing
 		hud.fire_tapped = true
-	if hud.fire_tapped and fire_cool == 0.0 and not over:
+	if hud.fire_tapped and fire_cool > 0.0:   # tapped a moment too early: kept, not lost
+		_fire_buf = 0.2
+	if (hud.fire_tapped or _fire_buf > 0.0) and fire_cool == 0.0 and not over and not _queued_shot:
+		_fire_buf = 0.0
 		if player.duck > 0.3:   # crouched behind cover: he rises over it first, then fires
 			_queued_shot = true
+			_pop = 0.25
 		else:
 			if hud.touch_seen and hud.aim_left > 0.0:
 				player.snap_aim(aim)
 			_fire(player, true)
-		fire_cool = 0.28
-		_pop = 0.5
+			_pop = 0.15
+		fire_cool = 0.2
 	hud.fire_tapped = false
-	_pop = maxf(0.0, _pop - delta)
+	if not _queued_shot:   # the time risen out of cover counts from the shot, not from the tap
+		_pop = maxf(0.0, _pop - delta)
 	if _queued_shot and player.duck < 0.12:
 		_queued_shot = false
 		if hud.touch_seen and hud.aim_left > 0.0:
 			player.snap_aim(aim)
 		_fire(player, true)
+		_pop = 0.15
 
 	_enemies(delta)
 	if not cleared and not over and player.position.x > LEVEL_END and _nearest_enemy() == null:
@@ -646,14 +655,32 @@ func _process(delta: float) -> void:
 func _auto_step(delta: float) -> void:
 	_at += delta
 	var shots: Array = []
-	if _auto == "dive":   # run at the first crate and dive into it
+	if _auto == "dive":   # run at the first crate with the stick and tap the dive button right in front of it
 		if _at < 0.05:
-			player.position.x = 1150.0
+			player.position.x = 900.0
 			cam.position.x = player.position.x + CAM_LEAD
-		if _at > 0.3 and _auto_done & 1 == 0:
+		hud.move = 1.0 if _at < 2.2 else 0.0
+		if player.position.x > 1380.0 and _auto_done & 1 == 0:
 			_auto_done |= 1
-			_start_dive(1.0, 1.0, DIVE_SPEED.y, true)
-		shots = [[0.36, "dive_1"], [0.46, "dive_2"], [0.56, "dive_3"], [0.66, "dive_4"], [0.8, "dive_5"], [1.1, "dive_6"]]
+			_at = 1.0
+			hud.dive_tapped = true
+		if _auto_done & 1 == 0:
+			_at = minf(_at, 0.9)
+		shots = [[1.06, "dive_1"], [1.14, "dive_2"], [1.22, "dive_3"], [1.32, "dive_4"], [1.5, "dive_5"], [2.0, "dive_6"]]
+	elif _auto == "death":   # two mobsters go down, one standing and one behind his drum, then the detective
+		if _at < 0.05:
+			player.position.x = 2300.0
+			cam.position.x = player.position.x + CAM_LEAD
+		if _at > 0.6 and _auto_done & 1 == 0:
+			_auto_done |= 1
+			for i in 2:
+				enemies[i]["alive"] = false
+				fx.blood(enemies[i]["node"].position + Vector2(0.0, -300.0), Vector2(1.0, 0.0))
+				_drop(enemies[i]["node"], 1.0, true)
+		if _at > 2.2 and _auto_done & 2 == 0:
+			_auto_done |= 2
+			_player_down()
+		shots = [[0.68, "death_1"], [0.78, "death_2"], [0.9, "death_3"], [1.3, "death_4"], [2.5, "death_5"], [3.4, "death_6"], [4.4, "death_7"], [5.6, "death_8"]]
 	elif _auto == "touch":   # tap on the first mobster, then hold a finger above him
 		if _at < 0.05:
 			player.position.x = 1700.0
@@ -676,7 +703,7 @@ func _auto_step(delta: float) -> void:
 		if _auto_done & (1 << (i + 8)) == 0 and _at > float(shots[i][0]):
 			_auto_done |= 1 << (i + 8)
 			_shot(shots[i][1])
-	if _at > 3.0:
+	if _at > (6.0 if _auto == "death" else 3.0):
 		get_tree().quit()
 
 
@@ -695,11 +722,8 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 	var duck_held: bool = Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_C) or hud.duck or _demo_duck
 	var slide: bool = duck_held and not _duck_was   # a fresh press: out of a run that is a slide
 	_duck_was = duck_held
-	if hud.dive_tapped:   # the one button on the phone: a slide out of a run, a dive otherwise
-		if move_state == "ground" and absf(run) > 300.0:
-			slide = true
-		else:
-			dive = true
+	if hud.dive_tapped:   # the button always throws him into a dive; a slide is the stick pulled down in a run
+		dive = true
 	hud.jump_tapped = false
 	hud.dive_tapped = false
 	var facing := -1.0 if aim.x < 0.0 else 1.0
@@ -722,7 +746,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 	var floor_y := _floor_at(player.position.x, player.position.y - DIVE_LAND * player.dive)
 	if move_state == "ground":
 		var crouched: bool = duck_held and player.dive < 0.05 and _pop == 0.0
-		player.duck = move_toward(player.duck, 1.0 if crouched else 0.0, delta * (6.0 if crouched else 9.0))
+		player.duck = move_toward(player.duck, 1.0 if crouched else 0.0, delta * (11.0 if crouched else 10.0))
 		run = move_toward(run, dir * RUN_SPEED * (1.0 - player.dive) * (1.0 - 0.62 * player.duck), RUN_ACCEL * delta)
 		glide = move_toward(glide, 0.0, delta * 4000.0)    # he slides a little after landing flat
 		player.position.x += (run + glide) * delta
@@ -862,7 +886,7 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 			e["seen"] = true   # being shot at wakes him up, however far away
 			if e["hp"] <= 0:
 				e["alive"] = false
-				_drop(e["node"])
+				_drop(e["node"], signf(e["node"].position.x - player.position.x), true)
 				fx.word("res://art/fx/word_krakoom.png", e["node"].position + Vector2(0.0, -500.0), 0.28)
 			return true
 		return false
@@ -879,11 +903,7 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 		hp -= 1
 		hud.set_health(float(hp) / PLAYER_HP)
 		if hp <= 0:
-			over = true
-			_drop(player)
-			Engine.time_scale = 1.0
-			slow_on = false
-			get_tree().create_timer(2.0).timeout.connect(get_tree().reload_current_scene)
+			_player_down()
 	return true
 
 
@@ -893,13 +913,77 @@ func _bullets_clash(at: Vector2) -> void:
 	slow_left = minf(1.0, slow_left + 0.15)   # a little slowed time back as a reward
 
 
-## A figure that has been shot down falls on its back and fades.
-func _drop(figure) -> void:
+## The detective is shot dead: he goes down in slow motion, the screen says so, and the level restarts.
+func _player_down() -> void:
+	over = true
+	slow_on = false
+	_death_t = 0.0
+	var killer = _nearest_enemy()
+	_drop(player, signf(player.position.x - killer.position.x) if killer != null else -player.scale.x, false)
+	get_tree().create_timer(1.1, true, false, true).timeout.connect(hud.banner.bind("LIGHTS OUT"))
+	if _auto == "":
+		get_tree().create_timer(3.4, true, false, true).timeout.connect(_restart)
+
+
+func _restart() -> void:
+	Engine.time_scale = 1.0
+	get_tree().reload_current_scene()
+
+
+## A figure shot dead, pushed by the bullet towards `push` (-1 / 1). Two ways down: blown off his feet
+## onto his back with the arms flung up, or (crouched, or one time in three) the knees give, the gun
+## drops and he folds forward onto his face. He hits the pavement with a small bounce, a pool of
+## blood spreads under him, and a mobster then fades away; the detective stays down.
+func _drop(figure, push: float, fade: bool) -> void:
 	figure.set_shadow(0.0, 0.0, 0.0)
+	var facing: float = figure.scale.x
+	var crumple: bool = figure.duck > 0.5 or randf() < 0.34
+	var at: Vector2 = figure.position
+	var arm0: float = figure._aim.angle()
+	var knees0: float = figure.duck
+	var side: float = facing if crumple else push   # which way the head goes down
+	var lie := PI * 0.5 * side
 	var tw := create_tween()
-	tw.tween_property(figure, "rotation", -PI * 0.5 * figure.scale.x, 0.35).set_ease(Tween.EASE_IN)
-	tw.tween_interval(0.8)
-	tw.tween_property(figure, "modulate:a", 0.0, 0.5)
+	if crumple:
+		tw.tween_property(figure, "position:x", at.x + push * 30.0, 0.1).set_ease(Tween.EASE_OUT)
+		tw.parallel().tween_property(figure, "rotation", -0.1 * side, 0.1)
+		tw.parallel().tween_method(func(k: float) -> void: figure.die_pose(lerp_angle(arm0, 1.35, k), lerpf(knees0, 1.0, k)), 0.0, 1.0, 0.32).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tw.tween_property(figure, "rotation", lie, 0.34).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tw.parallel().tween_property(figure, "position:y", at.y - 26.0, 0.34)
+		tw.parallel().tween_method(func(k: float) -> void: figure.die_pose(lerp_angle(1.35, 1.6, k), lerpf(1.0, 0.15, k)), 0.0, 1.0, 0.34)   # the legs go out straight as he lands
+	else:
+		tw.tween_method(func(k: float) -> void: figure.die_pose(lerp_angle(arm0, -2.1, k), lerpf(knees0, 0.25, k)), 0.0, 1.0, 0.14).set_ease(Tween.EASE_OUT)
+		tw.parallel().tween_property(figure, "rotation", 0.18 * side, 0.14).set_ease(Tween.EASE_OUT)
+		tw.parallel().tween_property(figure, "position:x", at.x + push * 70.0, 0.14).set_ease(Tween.EASE_OUT)
+		tw.tween_property(figure, "rotation", lie, 0.36).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tw.parallel().tween_property(figure, "position", Vector2(at.x + push * 190.0, at.y - 26.0), 0.36).set_ease(Tween.EASE_OUT)
+		tw.parallel().tween_method(func(k: float) -> void: figure.die_pose(lerp_angle(-2.1, -2.9, k), lerpf(0.25, 0.0, k)), 0.0, 1.0, 0.36)
+	# the bounce off the pavement
+	tw.tween_property(figure, "rotation", lie - 0.13 * side, 0.08).set_ease(Tween.EASE_OUT)
+	tw.tween_property(figure, "rotation", lie, 0.1).set_ease(Tween.EASE_IN)
+	tw.tween_callback(func() -> void: _pool(figure.position + Vector2(side * 230.0, 0.0), side))
+	if fade:
+		tw.tween_interval(3.0)
+		tw.tween_property(figure, "modulate:a", 0.0, 0.9)
+
+
+## Blood spreading on the pavement under a body: dark, flat, slow.
+func _pool(at: Vector2, side: float) -> void:
+	var tex: Texture2D = load("res://art/fx/blood2.png")
+	var s := Sprite2D.new()
+	s.texture = tex
+	s.position = at + Vector2(0.0, -14.0)
+	s.z_index = -1   # on the street, under the body
+	s.modulate = Color(0.32, 0.05, 0.04, 0.95) * Color(_undo_night(0.6), 1.0)
+	s.scale = Vector2(0.05, 0.012)
+	s.flip_h = side < 0.0
+	add_child(s)
+	var w := 300.0 / tex.get_width()
+	var tw := create_tween()
+	tw.tween_property(s, "scale", Vector2(w, w * 0.16), 1.6).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(1.5)
+	tw.tween_property(s, "modulate:a", 0.0, 0.9)
+	tw.tween_callback(s.queue_free)
 
 
 ## Crates, the catwalk and the mobsters of the test level.
@@ -1008,6 +1092,11 @@ func _slow_time(real: float) -> void:
 		slow_on = not slow_on
 		hud.slow_tapped = false
 	# a dive slows time by itself for as long as he is in the air
+	if over:   # the fall of the detective plays in slow motion, then time runs on
+		_death_t += real
+		Engine.time_scale = 0.3 if _death_t < 1.3 else 1.0
+		hud.set_slow(slow_left, false)
+		return
 	var want := (slow_on or move_state == "dive" or Input.is_physical_key_pressed(KEY_SHIFT)) and not over
 	var slowed := Engine.time_scale < 1.0
 	if want and (slow_left > 0.0 if slowed else slow_left > 0.2):   # an empty meter must refill a little first

@@ -337,6 +337,17 @@ func snap_aim(aim: Vector2) -> void:
 	_pose()
 
 
+## Dying: no more running or aiming. The gun arm goes where the hit throws it (an angle in the
+## figure's own facing, 0 = straight ahead, negative = up) and the knees give by `knees`.
+func die_pose(arm: float, knees: float) -> void:
+	_moving = 0.0
+	duck = knees
+	_aim = Vector2.from_angle(arm)
+	_tail_dir = _tail_dir.lerp(Vector2(0.0, 0.5), 0.2)   # the coat settles along the legs, so it lies flat with him
+	_pose()
+	queue_redraw()
+
+
 ## The end of the barrel, in world coordinates.
 func muzzle() -> Vector2:
 	var up := Vector2(_aim.y, -_aim.x)
