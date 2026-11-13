@@ -1,6 +1,6 @@
 extends CanvasLayer
 ## The title and the case file, over the street where the story stands right now. What the
-## player sees here follows the story: the street of the map they are on, Frank's line for that
+## player sees here follows the story: the street of the map they are on, Leo's line for that
 ## moment typed out under the title, the date and the place on the stamp. The ash thickens as
 ## he gets closer to the truth (main.gd sets that from phase()).
 
@@ -11,15 +11,15 @@ const CRIMSON := Color(0.6, 0.1, 0.07)
 const AMBER := Color(0.95, 0.66, 0.13)
 const SAVE := "user://progress2.cfg"   # progress2: the maps were rebuilt longer, old progress no longer applies
 
-# What Frank says on the title, and the stamp under it, for the point the player has reached:
+# What Leo says on the title, and the stamp under it, for the point the player has reached:
 # [chapter, map] of the next map to play. A later entry wins once it is reached.
 const PHASES := [
 	[0, 0, "December 17th, 1947. A week before Christmas.\nIt hadn't snowed yet. It only rained.", "NEW YORK  ·  DEC 17, 1947  ·  11:52 PM"],
 	[1, 0, "They called me at ten past two.\nEddie was already cold. The rain was working on the rest.", "HELL'S KITCHEN  ·  DEC 18, 1947  ·  2:10 AM"],
 	[1, 1, "The shooters ran east. So did I.\nI was always better at running after than running from.", "HELL'S KITCHEN  ·  DEC 18, 1947  ·  3:05 AM"],
 	[1, 2, "Somebody gave up a laundry on Tenth.\nIn this town even the dirty money gets washed.", "TENTH AVENUE  ·  DEC 18, 1947  ·  4:40 AM"],
-	[1, 3, "A receipt signed S. R. and a road over the roofs.\nDown below, a neon sign kept saying JAZZ.", "HELL'S KITCHEN  ·  DEC 18, 1947  ·  5:15 AM"],
-	[1, 4, "Sal Russo owned the Blue Note and most of the people in it.\nTonight he'd find out what he didn't own.", "THE BLUE NOTE  ·  DEC 18, 1947  ·  11:30 PM"],
+	[1, 3, "A receipt signed M. T. and a road over the roofs.\nDown below, a neon sign kept saying JAZZ.", "HELL'S KITCHEN  ·  DEC 18, 1947  ·  5:15 AM"],
+	[1, 4, "Mickey Teague owned the Blue Note and lost every fight he was paid to.\nSomebody was paying for this one too.", "THE BLUE NOTE  ·  DEC 18, 1947  ·  11:30 PM"],
 	[2, 0, "Rosie gave me his diary. First page, his hand:\nPier 17. Eleven dead. Who signed the report?", "PIER 17  ·  DEC 19, 1947"],
 ]
 const ENDING := ["For the first time that winter, it snowed.", "NEW YORK  ·  DEC 24, 1947"]
@@ -85,7 +85,7 @@ static func progress() -> Array:
 	return [-1, -1]
 
 
-## Frank's line and the stamp for where the story stands.
+## Leo's line and the stamp for where the story stands.
 static func phase() -> Array:
 	var p := progress()
 	if p[0] < 0:
@@ -97,7 +97,7 @@ static func phase() -> Array:
 	return [best[2], best[3]]
 
 
-## How thick the ash hangs over the title: thin at the start, heavier the closer Frank gets.
+## How thick the ash hangs over the title: thin at the start, heavier the closer Leo gets.
 static func ash_level() -> float:
 	var p := progress()
 	if p[0] < 0:
@@ -200,7 +200,7 @@ func _button(text: String, at: Vector2, width: float, main: bool, on_press: Call
 	return b
 
 
-## The title: the logo, Frank's line for this moment typed out beneath it, and what to do next.
+## The title: the logo, Leo's line for this moment typed out beneath it, and what to do next.
 func _title() -> void:
 	_on_case_file = false
 	var view := _new_page()

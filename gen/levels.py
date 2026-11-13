@@ -232,11 +232,11 @@ PROLOGUE = {"name": "THE LAST NOTE", "seed": 1, "feature": "bluenote", "start": 
     "hints": [[200, "DRAG THE STICK TO MOVE"], [1500, "TAP ANYWHERE TO SHOOT THERE"], [2700, "PULL THE STICK DOWN TO HIDE BEHIND COVER"],
               [4300, "THE RUNNING MAN BUTTON DIVES OVER CRATES"], [6100, "SHOOT THE RED BARREL"], [7900, "TAP THE STOPWATCH TO SLOW TIME"]],
     "intro": ["December 17th, 1947. Eddie Doyle had a meeting behind the Blue Note.", "He was early. He was always early."],
-    "outro": ["Eddie Doyle bled out in this alley at ten past two.", "Somebody had to call me. Somebody always does."]}
+    "outro": ["His pencil found the notebook one last time. One word: LEO.", "Eddie Doyle bled out in this alley at ten past two.", "Somebody had to call me. Somebody always does."]}
 
 CAMPAIGN = [
   {"title": "PROLOGUE", "name": "EDDIE DOYLE", "ready": True, "hero": "eddie", "ambient": [0.2, 0.21, 0.27], "rain": 1.2, "maps": [PROLOGUE]},
-  {"title": "CHAPTER I", "name": "RAIN ON HELL'S KITCHEN", "ready": True, "hero": "frank", "ambient": [0.2, 0.21, 0.27], "rain": 1.0, "maps": [
+  {"title": "CHAPTER I", "name": "RAIN ON HELL'S KITCHEN", "ready": True, "hero": "leo", "ambient": [0.2, 0.21, 0.27], "rain": 1.0, "maps": [
     {"name": "THE ALLEY", "seed": 101, "feature": "alley", "start": 0.0, "end": 0.35,
      "fixed": ["crate_cover", "drum_duo", "dumpster_alley", "breather", "barrel_trap", "crate_cover", "pistols_cache", "ambush_behind", "gauntlet"],
      "intro": ["They pulled the sheet back for me. Eddie looked surprised.", "In his fist, a matchbook from the Blue Note."],
@@ -248,21 +248,21 @@ CAMPAIGN = [
     {"name": "THE LAUNDRY", "seed": 103, "feature": "laundry", "start": 0.35, "end": 0.6,
      "fixed": ["crate_cover", "barrel_trap", "laundry", "breather", "warehouse_arena", "fire_escape", "rush"],
      "intro": ["Steam, starch and gun oil.", "Nobody washes shirts at three in the morning."],
-     "outro": ["A receipt in the back room, signed S. R.", "The back door led up. They always lead up."]},
+     "outro": ["A receipt in the back room, signed M. T.", "The back door led up. They always lead up."]},
     {"name": "TENEMENTS", "seed": 104, "start": 0.45, "end": 0.7,
      "fixed": ["tenement", "ambush_behind", "fire_escape", "breather", "high_ground", "barrel_trap", "tenement", "gauntlet"],
      "intro": ["Iron stairs, wet as a liar's palm."],
-     "outro": ["Below me the neon said JAZZ.", "Sal Russo liked his music loud and his witnesses quiet."]},
-    {"name": "THE BLUE NOTE", "seed": 105, "feature": "bluenote", "start": 0.6, "end": 0.85, "boss": "sal",
+     "outro": ["Below me the neon said JAZZ.", "Mickey Teague owned the Blue Note. Somebody else owned Mickey."]},
+    {"name": "THE BLUE NOTE", "seed": 105, "feature": "bluenote", "start": 0.6, "end": 0.85, "boss": "teague",
      "fixed": ["crate_cover", "barrel_trap", "club", "breather", "warehouse_arena", "rush"],
-     "intro": ["Sal 'Knuckles' Russo. Moretti's hammer.", "Tonight the hammer was going to meet a nail."],
-     "outro": ["Sal coughed up two words before the end: Pier 17.", "Then Eddie's girl came down off the stage with his notebook."]},
+     "intro": ["Mickey 'Canvas' Teague. Forty fights, and he lost every one he was paid to lose.", "Tonight nobody was paying."],
+     "outro": ["Mickey went down on cue, like always. He asked me to feed his birds. Then: ask your boss.", "Eddie's girl came down off the stage with his notebook. I didn't open it. Not then."]},
   ]},
-  {"title": "CHAPTER II", "name": "THE DOCKS", "ready": False, "hero": "frank", "ambient": [0.16, 0.18, 0.25], "rain": 1.5, "maps": [
+  {"title": "CHAPTER II", "name": "THE DOCKS", "ready": False, "hero": "leo", "ambient": [0.16, 0.18, 0.25], "rain": 1.5, "maps": [
     {"name": "PIER 17"}, {"name": "THE CRANES"}, {"name": "SANTA LUCIA"}, {"name": "CARGO HOLD"}, {"name": "HARBOR MASTER"}]},
-  {"title": "CHAPTER III", "name": "UNDERGROUND", "ready": False, "hero": "frank", "ambient": [0.18, 0.17, 0.2], "rain": 0.0, "maps": [
+  {"title": "CHAPTER III", "name": "UNDERGROUND", "ready": False, "hero": "leo", "ambient": [0.18, 0.17, 0.2], "rain": 0.0, "maps": [
     {"name": "THE PLATFORM"}, {"name": "THE TUNNELS"}, {"name": "TRAIN YARD"}, {"name": "THE LAST TRAIN"}, {"name": "THE CATACOMBS"}]},
-  {"title": "CHAPTER IV", "name": "THE SAINT'S TOWER", "ready": False, "hero": "frank", "ambient": [0.23, 0.19, 0.21], "rain": 1.8, "maps": [
+  {"title": "CHAPTER IV", "name": "THE SAINT'S TOWER", "ready": False, "hero": "leo", "ambient": [0.23, 0.19, 0.21], "rain": 1.8, "maps": [
     {"name": "ROOFTOPS"}, {"name": "THE BALL"}, {"name": "ELEVATOR SHAFT"}, {"name": "PENTHOUSE"}, {"name": "THE SPIRE"}]},
 ]
 

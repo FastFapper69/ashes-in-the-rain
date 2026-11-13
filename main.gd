@@ -41,7 +41,7 @@ const Levels = preload("res://levels.gd")   # the chapters, made by gen/levels.p
 const RUNNER_SPEED := 560.0
 const MenuScript = preload("res://menu.gd")
 const BOSS_HP := 16
-const BOSS_NAMES := {"sal": "SAL 'KNUCKLES' RUSSO"}
+const BOSS_NAMES := {"teague": "MICKEY 'CANVAS' TEAGUE"}
 # which chapter and map are being played, and whether the case file (menu) is open; static, so they
 # survive the scene reload that starts each map
 static var chapter := 0
@@ -251,7 +251,7 @@ func _ready() -> void:
 	player.cfg = DETECTIVE
 	player.night = _undo_night(1.0)
 	add_child(player)
-	if ch["hero"] == "eddie" and not in_menu:   # the title always shows Frank: it is his story. Stand-in until Eddie has his own drawings: a paler, younger coat
+	if ch["hero"] == "eddie" and not in_menu:   # the title always shows Leo: it is his story. Stand-in until Eddie has his own drawings: a paler, younger coat
 		player.modulate = Color(0.9, 0.95, 1.1)
 	if checkpoint > 0.0 and not in_menu:
 		player.position = Vector2(checkpoint, _floor_at(checkpoint, -2000.0))
@@ -1127,7 +1127,7 @@ func _process(delta: float) -> void:
 		_tick_deep()
 		if _auto == "menu":
 			_at += delta
-			if _at > 6.5 and _auto_done == 0:   # once the title is up and Frank's line typed out
+			if _at > 6.5 and _auto_done == 0:   # once the title is up and Leo's line typed out
 				_auto_done = 1
 				_shot("menu")
 			if _at > 6.8:
@@ -1413,9 +1413,9 @@ func _auto_step(delta: float) -> void:
 	elif _auto == "caption":
 		if _auto_done & 1 == 0 and _at > 0.2:
 			_auto_done |= 1
-			hud.caption(level["intro"])
-			hud.boss_bar("SAL 'KNUCKLES' RUSSO", 0.7)
-		shots = [[2.7, "caption"]]
+			hud.caption(level["outro"] if chapter == 0 else level["intro"])
+			hud.boss_bar("MICKEY 'CANVAS' TEAGUE", 0.7)
+		shots = [[4.5, "caption"]]
 	elif _auto == "stains":   # eight hits along the wall, then look at them once the runs have crept down
 		if _at < 0.05:
 			player.position.x = 1150.0
@@ -2248,7 +2248,7 @@ func _player_down() -> void:
 	sfx.play("death_sting", 0.0, INF, 0.0)
 	var killer = _nearest_enemy()
 	_drop(player, signf(player.position.x - killer.position.x) if killer != null else -player.scale.x, false)
-	if _stand:   # the prologue ends as it must: Eddie down, and the story passes to Frank
+	if _stand:   # the prologue ends as it must: Eddie down, and the story passes to Leo
 		get_tree().create_timer(1.6, true, false, true).timeout.connect(hud.caption.bind(level["outro"]))
 		if _auto == "":
 			get_tree().create_timer(9.0, true, false, true).timeout.connect(func() -> void:
