@@ -21,6 +21,11 @@ const PHASES := [
 	[1, 3, "A receipt signed M. T. and a road over the roofs.\nDown below, a neon sign kept saying JAZZ.", "HELL'S KITCHEN  ·  DEC 18, 1947  ·  5:15 AM"],
 	[1, 4, "Mickey Teague owned the Blue Note and lost every fight he was paid to.\nSomebody was paying for this one too.", "THE BLUE NOTE  ·  DEC 18, 1947  ·  11:30 PM"],
 	[2, 0, "Rosie gave me his diary. First page, his hand:\nPier 17. Eleven dead. Who signed the report?", "PIER 17  ·  DEC 19, 1947"],
+	[2, 1, "Pier 17 burned twice. Once for money, once for paper.\nThe cranes were next.", "NORTH RIVER  ·  DEC 19, 1947  ·  4:30 AM"],
+	[2, 2, "A ship called Santa Lucia, and a dock master\nwho hadn't closed a door in eight years.", "PIER 21  ·  DEC 19, 1947  ·  5:10 AM"],
+	[2, 3, "Below decks it smelled of tar and other people's prayers.", "THE SANTA LUCIA  ·  DEC 19, 1947  ·  5:50 AM"],
+	[2, 4, "Kessler ran for his office.\nMen like him always run toward their paperwork.", "HARBOR MASTER  ·  DEC 19, 1947  ·  6:20 AM"],
+	[3, 0, "They read me my rights in the rain.\nEddie would have written it down.", "10TH PRECINCT  ·  DEC 19, 1947  ·  7:00 AM"],
 ]
 const ENDING := ["For the first time that winter, it snowed.", "NEW YORK  ·  DEC 24, 1947"]
 
@@ -61,6 +66,28 @@ static func stars(chapter: int, map: int) -> int:
 	var cfg := ConfigFile.new()
 	cfg.load(SAVE)
 	return int(cfg.get_value("stars", "%d-%d" % [chapter, map], 0))
+
+
+static func mark_page(chapter: int, map: int) -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE)
+	cfg.set_value("pages", "%d-%d" % [chapter, map], true)
+	cfg.save(SAVE)
+
+
+static func has_page(chapter: int, map: int) -> bool:
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE)
+	return bool(cfg.get_value("pages", "%d-%d" % [chapter, map], false))
+
+
+## How many of Eddie's pages have been found in a chapter.
+static func pages(chapter: int) -> int:
+	var n := 0
+	for m in Levels.CAMPAIGN[chapter]["maps"].size():
+		if has_page(chapter, m):
+			n += 1
+	return n
 
 
 ## A map can be played once the one before it (in this chapter, or the last of the chapter before) is done.

@@ -40,8 +40,16 @@ const DUCK_DROP := 116.0   # how much lower the chest is when crouched, px
 const Levels = preload("res://levels.gd")   # the chapters, made by gen/levels.py
 const RUNNER_SPEED := 560.0
 const MenuScript = preload("res://menu.gd")
+const CutsceneScript = preload("res://cutscene.gd")
+const DiaryScript = preload("res://diary.gd")
+const SetpiecesScript = preload("res://setpieces.gd")
+var sets   # setpieces.gd: cars, blackouts, searchlights, fires, the crane's crate
+var _in_cut := false
+const CUTS := {"0:0": "eddie", "1:2": "interlude", "1:4": "teague", "2:4": "kessler"}   # the cutscene after a map ("chapter:map")
+const CUTS_BEFORE := {"2:0": "docks"}   # and before one, the first time it is played
 const BOSS_HP := 16
-const BOSS_NAMES := {"teague": "MICKEY 'CANVAS' TEAGUE"}
+const BOSS_NAMES := {"teague": "MICKEY 'CANVAS' TEAGUE", "kessler": "BRUNO KESSLER"}
+const BOSS_FACES := {"teague": "boxer", "kessler": "cap"}
 # which chapter and map are being played, and whether the case file (menu) is open; static, so they
 # survive the scene reload that starts each map
 static var chapter := 0
@@ -244,7 +252,8 @@ func _ready() -> void:
 	ambient = ch["ambient"]
 	atmo = AtmosphereScript.new()
 	add_child(atmo)
-	sfx = SfxScript.new()   # before the street: its signs, lamps and steam put their sounds in it
+	sfx = SfxScript.new()
+	sfx.process_mode = Node.PROCESS_MODE_ALWAYS   # before the street: its signs, lamps and steam put their sounds in it
 	add_child(sfx)
 	_build_street()
 	_build_light()
@@ -260,6 +269,9 @@ func _ready() -> void:
 	if checkpoint > 0.0 and not in_menu:
 		player.position = Vector2(checkpoint, _floor_at(checkpoint, -2000.0))
 		cam_start = player.position.x
+	sets = SetpiecesScript.new()
+	add_child(sets)
+	sets.setup(self)
 
 	fore = Node2D.new()   # foreground silhouettes, nearer than the action, so they slide past faster
 	fore.z_index = 10
@@ -322,6 +334,14 @@ func _ready() -> void:
 		cam.position = Vector2(_menu_x, CAM_Y)
 	elif checkpoint > 0.0:
 		hud.toast("CHECKPOINT")
+	elif _auto_arg() == "" and CUTS_BEFORE.has("%d:%d" % [chapter, map]) and not MenuScript.is_done(chapter, map):
+		get_tree().paused = true   # the story first, the street holds still under it
+		_play_cut(CUTS_BEFORE["%d:%d" % [chapter, map]], func() -> void:
+			get_tree().paused = false
+			_in_cut = false
+			hud.visible = true
+			hud.title("%s  ·  %d / %d" % [String(ch["title"]), map + 1, ch["maps"].size()], String(level["name"]))
+			get_tree().create_timer(3.6).timeout.connect(hud.caption.bind(level["intro"])))
 	elif _auto_arg() == "" or _auto_arg() == "play":
 		hud.title("%s  ·  %d / %d" % [String(ch["title"]), map + 1, ch["maps"].size()], String(level["name"]))
 		get_tree().create_timer(3.6).timeout.connect(hud.caption.bind(level["intro"]))
@@ -332,6 +352,13 @@ func _ready() -> void:
 			if _auto.begins_with("dive:"):   # --test=dive:1300 taps the dive button at that x
 				_dive_at = float(_auto.get_slice(":", 1))
 				_auto = "dive"
+	if _auto == "page":   # --test=page: the map's notebook page, read
+		get_tree().create_timer(1.0, true, false, true).timeout.connect(_read_page)
+		get_tree().create_timer(3.0, true, false, true).timeout.connect(_shot.bind("page"))
+		get_tree().create_timer(3.6, true, false, true).timeout.connect(get_tree().quit)
+		_auto = "cut:page"   # nothing else to run
+	elif _auto.begins_with("cut:"):   # --test=cut:eddie plays that cutscene and saves a picture of each panel
+		_play_cut(_auto.trim_prefix("cut:"), get_tree().quit, true)
 	RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
 	for n in find_children("*", "Light2D", true, false):
 		n.add_to_group("lights")
@@ -453,7 +480,8 @@ func _build_street() -> void:
 
 ## Where the wall lamps hang on each drawn street segment (fractions of its width), where a facade stands at that height.
 const SEGMENT_LAMPS := {"alley": [0.08, 0.62, 0.92], "bluenote": [0.12, 0.3, 0.9], "warehouse": [0.15, 0.42, 0.82], "laundry": [0.1, 0.3, 0.72],
-	"subway": [0.1, 0.38, 0.72], "church": [0.08, 0.9], "market": [0.1, 0.45, 0.86], "deadend": [0.22, 0.86]}
+	"subway": [0.1, 0.38, 0.72], "church": [0.08, 0.9], "market": [0.1, 0.45, 0.86], "deadend": [0.22, 0.86],
+	"pier17": [0.12, 0.38, 0.8], "cranes": [0.7, 0.9], "shipping": [0.12, 0.42, 0.7], "quay": [0.74, 0.86], "harbor": [0.3, 0.56]}
 # the signs that light up on each drawing: top-left of the glow picture (pixels of the drawing),
 # colour, and how it burns: steady, buzz (now and then a stutter) or dying (out as often as on)
 const SEGMENT_NEONS := {
@@ -479,7 +507,9 @@ const SEGMENT_DEEP := {
 	"warehouse": [Rect2(0.45, 0.32, 0.2, 0.56)], "laundry": [Rect2(0.455, 0.32, 0.1, 0.54)],
 	"subway": [Rect2(0.5, 0.25, 0.095, 0.63)], "church": [Rect2(0.432, 0.4, 0.125, 0.4)],
 	"market": [Rect2(0.54, 0.42, 0.13, 0.46)], "deadend": [Rect2(0.485, 0.4, 0.07, 0.46)],
+	"pier17": [Rect2(0.4699, 0.25, 0.2506, 0.63)], "cranes": [Rect2(0.4385, 0.42, 0.1984, 0.48)], "shipping": [Rect2(0.4908, 0.3, 0.0783, 0.6)], "quay": [Rect2(0.1671, 0.52, 0.1462, 0.34)], "harbor": [Rect2(0.71, 0.4, 0.2506, 0.46)],
 }
+const CRANE_CUT := Rect2(0.3863, 0.2, 0.0783, 0.255)   # the hanging crate taken out of the crane yard drawing (setpieces.gd)
 const DEEP_SHADER := """
 shader_type canvas_item;
 uniform vec4 box;       // the deep part, in the texture's UV: x, y, width, height
@@ -498,9 +528,11 @@ void fragment() {
 var deeps: Array = []   # {sprite, center (world), box (UV)}
 var _deep_rects: Array[Rect2] = []
 var _stain_hosts: Array = []   # [x0, x1, node]: the masks blood on each drawing is clipped to   # the same in world space, for the blood
-const SEGMENT_TRIM := {"alley": 134.0, "bluenote": 134.0, "warehouse": 133.0, "laundry": 133.0, "subway": 53.0, "church": 58.0, "market": 58.0, "deadend": 58.0}
+const SEGMENT_TRIM := {"alley": 134.0, "bluenote": 134.0, "warehouse": 133.0, "laundry": 133.0, "subway": 53.0, "church": 58.0, "market": 58.0, "deadend": 58.0,
+		"pier17": 132.0, "cranes": 132.0, "shipping": 132.0, "quay": 132.0, "harbor": 132.0}
 # evens out how light each drawing came out, so neighbours do not jump in brightness
-const SEGMENT_GAIN := {"alley": 0.92, "bluenote": 0.98, "warehouse": 0.9, "laundry": 1.02, "subway": 1.07, "church": 1.0, "market": 1.05, "deadend": 1.1}
+const SEGMENT_GAIN := {"alley": 0.92, "bluenote": 0.98, "warehouse": 0.9, "laundry": 1.02, "subway": 1.07, "church": 1.0, "market": 1.05, "deadend": 1.1,
+		"pier17": 0.86, "cranes": 0.91, "shipping": 0.96, "quay": 0.91, "harbor": 0.86}
 const SEGMENT_MOON := 1.6   # how much brighter than the bare night the drawn streets are kept
 const SEGMENT_BASE := 0.92   # the facades meet the pavement this far down each drawing
 
@@ -908,6 +940,9 @@ func _tick_birds(delta: float) -> void:
 ## Music: the full tune while the street is quiet, only the bass and brushes, low, once a fight
 ## is on, nothing but the heartbeat when he is down.
 func _tick_music() -> void:
+	if _in_cut:   # the tune, soft, under the story
+		sfx.music_want = Vector2(-13.0, -12.0)
+		return
 	var fight := false
 	for e in enemies:
 		if e["alive"] and e["state"] != "wait" and absf(e["node"].position.x - player.position.x) < 2600.0:
@@ -1236,7 +1271,7 @@ func _process(delta: float) -> void:
 			if _at > 6.8:
 				get_tree().quit()
 		return
-	if _auto != "":
+	if _auto != "" and not _auto.begins_with("cut:"):
 		_auto_step(delta)
 	if _auto == "poses":
 		return
@@ -1361,6 +1396,7 @@ func _process(delta: float) -> void:
 	_enemies(delta)
 	_pickups()
 	_map_events(delta)
+	sets.tick(delta)
 	if not cleared and not over and player.position.x > level_end and _all_down():
 		_map_cleared()
 	_slow_time(real)
@@ -1548,6 +1584,40 @@ func _auto_step(delta: float) -> void:
 			fx.blood(Vector2(cx, -400.0), Vector2(1.0, 0.0))
 			fx.blood(Vector2(cx - 900.0, -400.0), Vector2(1.0, 0.0))
 		shots = [[0.9, "deep_1"], [1.9, "deep_2"]]
+	elif _auto == "crane":   # the crate on the crane's chains: shot down onto the two under it
+		var c: Dictionary = sets._crates[0]
+		if _at < 0.05 or _auto_done & 1 == 0:
+			_auto_done |= 1
+			player.position.x = c["sprite"].position.x - 900.0
+			cam.position.x = player.position.x + _lead
+		hp = PLAYER_HP
+		if _at > 1.0 and _auto_done & 2 == 0:
+			_auto_done |= 2
+			sets.bullet((c["chains"] as Rect2).get_center())
+		if _at > 1.35 and _auto_done & 4 == 0:
+			_auto_done |= 4
+			_shot("crane_1")
+		if _at > 2.6 and _auto_done & 8 == 0:
+			_auto_done |= 8
+			_shot("crane_2")
+		if _at > 2.9:
+			get_tree().quit()
+		return
+	elif _auto.begins_with("look:"):   # --test=look:x1,x2,...: stand at each x for a moment, take a picture
+		var xs := _auto.trim_prefix("look:").split(",")
+		var k := int(_at / 2.6)
+		if k >= xs.size():
+			get_tree().quit()
+			return
+		hp = PLAYER_HP
+		if _auto_done & (1 << (k + 16)) == 0:
+			_auto_done |= 1 << (k + 16)
+			player.position = Vector2(float(xs[k]), _floor_at(float(xs[k]), -2000.0))
+			cam.position.x = player.position.x + _lead
+		if fmod(_at, 2.6) > 2.3 and _auto_done & (1 << k) == 0:
+			_auto_done |= 1 << k
+			_shot("look_%d" % k)
+		return
 	elif _auto == "seams":   # the joins between street drawings, zoomed out, no HUD, one picture each
 		hud.visible = false
 		var segs: Array = level["street"]
@@ -2166,6 +2236,10 @@ func _enemy_fire(e: Dictionary) -> void:
 func _aim_spread() -> float:
 	if _stand:
 		return 0.5
+	if sets.lit(player.position + Vector2(0.0, -150.0)):
+		return 0.55   # in the searchlight they cannot miss
+	if sets.in_smoke(player.position):
+		return 2.6   # nobody can see through it
 	return 2.1 if _in_dark(player.position.x) else 1.0
 
 
@@ -2182,6 +2256,8 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 		if boxes[i].has_point(pos):
 			_hit_box(i, pos)
 			return true
+	if from_player and sets.bullet(pos):
+		return true
 	if from_player:
 		for i in lamps.size():
 			if lamp_info[i]["on"] and not lamp_info[i].get("fixed", false) and pos.distance_to(lamps[i] + Vector2(0.0, -8.0)) < 38.0:
@@ -2202,6 +2278,8 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 				var calls := 2 - int(ceil(float(e["hp"]) / BOSS_HP * 3.0)) + 1
 				while e["calls"] < calls and e["hp"] > 0:
 					e["calls"] += 1
+					if String(level["boss"]) == "kessler":   # he goes to ground in his own smoke
+						sets.smoke(e["node"].position)
 					_spawn_runner(e["node"].position.x + 1700.0, e["node"].position.x - 450.0)
 					_spawn_runner(e["node"].position.x + 2000.0, e["node"].position.x - 750.0)
 				if e["hp"] <= 0:
@@ -2354,6 +2432,7 @@ func _lamp_out(i: int) -> void:
 	var rec: Dictionary = lamp_info[i]
 	if rec.has("hum"):
 		rec["hum"]["on"] = false
+	rec["broken"] = true
 	rec["on"] = false   # dark for the aim at once; to the eye it dies over a few stuttering flickers
 	fx.shatter(lamps[i] + Vector2(0.0, -8.0))
 	sfx.play("zap", -6.0, lamps[i].x, 0.1)
@@ -2393,15 +2472,16 @@ func _player_down() -> void:
 	var killer = _nearest_enemy()
 	_drop(player, signf(player.position.x - killer.position.x) if killer != null else -player.scale.x, false)
 	if _stand:   # the prologue ends as it must: Eddie down, and the story passes to Frank
-		get_tree().create_timer(1.6, true, false, true).timeout.connect(hud.caption.bind(level["outro"]))
-		if _auto == "":
-			get_tree().create_timer(9.0, true, false, true).timeout.connect(func() -> void:
+		if _auto != "":
+			get_tree().create_timer(1.6, true, false, true).timeout.connect(hud.caption.bind(level["outro"]))
+		else:
+			get_tree().create_timer(3.2, true, false, true).timeout.connect(_play_cut.bind(CUTS["0:0"], func() -> void:
 				MenuScript.mark_done(chapter, map)
 				Engine.time_scale = 1.0
 				chapter += 1
 				map = 0
 				checkpoint = -1.0
-				get_tree().reload_current_scene())
+				get_tree().reload_current_scene()))
 		return
 	get_tree().create_timer(1.1, true, false, true).timeout.connect(hud.banner.bind("LIGHTS OUT"))
 	if _auto == "":
@@ -2438,7 +2518,9 @@ func _auto_arg() -> String:
 func _map_cleared() -> void:
 	cleared = true
 	MenuScript.mark_done(chapter, map)
-	hud.caption(level["outro"])
+	var cut: String = CUTS.get("%d:%d" % [chapter, map], "")
+	if cut == "" or _auto != "":
+		hud.caption(level["outro"])
 	_rate()
 	var maps: Array = Levels.CAMPAIGN[chapter]["maps"]
 	var next_c := chapter
@@ -2453,12 +2535,32 @@ func _map_cleared() -> void:
 		print("BOT CLEARED chapter ", chapter, " map ", map, " in ", int(_at), " s")
 		get_tree().quit()
 	elif _auto == "":
-		get_tree().create_timer(7.0).timeout.connect(func() -> void:
+		var go := func() -> void:
 			chapter = next_c
 			map = next_m
 			checkpoint = -1.0
 			in_menu = to_menu
-			get_tree().reload_current_scene())
+			get_tree().reload_current_scene()
+		if cut != "":   # the story takes over for a page or two, then the next map
+			get_tree().create_timer(3.0).timeout.connect(_play_cut.bind(cut, go))
+		else:
+			get_tree().create_timer(7.0).timeout.connect(go)
+
+
+## A comic-page cutscene over the game, then `then`.
+func _play_cut(id: String, then: Callable, test := false) -> void:
+	Engine.time_scale = 1.0
+	slow_on = false
+	hud.visible = false
+	_in_cut = true
+	var c = CutsceneScript.new()
+	c.scene_id = id
+	c.done = then
+	c.fast = test
+	c.sound = func(n: String, db: float) -> void: sfx.play(n, db, INF, 0.0)
+	if test:
+		c.shot = _shot
+	add_child(c)
 
 
 func _start_map(c: int, m: int) -> void:
@@ -2680,6 +2782,8 @@ const MOB_FACES := {"post": ["", "fedora", "cap", "homburg"], "tommy": ["fedora"
 func _mob_cfg(kind: String) -> Dictionary:
 	var c: Dictionary = MOBSTER.duplicate(true)
 	var face: String = (MOB_FACES.get(kind, [""]) as Array).pick_random()
+	if kind == "boss":
+		face = BOSS_FACES.get(String(level.get("boss", "")), face)
 	if face != "":
 		var x: float = MOB_HEADS[face]
 		c["head_tex"] = "res://art/mobster/heads/%s.png" % face
@@ -2811,6 +2915,15 @@ func _add_pickup(kind: String, at: Vector2) -> void:
 	var s := Sprite2D.new()
 	s.texture = load("res://art/items/" + kind + ".png")
 	s.scale = Vector2.ONE * (0.5 if kind == "flask" else 0.62)
+	if kind == "page":
+		if MenuScript.has_page(chapter, map) and _auto == "":
+			s.modulate.a = 0.35   # read before: still there, faded, for anyone who wants it again
+		var glow := Sprite2D.new()   # a pale patch of light so it can be found in the dark
+		glow.texture = load("res://art/light_blob.png")
+		glow.modulate = Color(1.0, 0.95, 0.8, 0.22)
+		glow.scale = Vector2.ONE * 1.1
+		glow.show_behind_parent = true
+		s.add_child(glow)
 	s.position = at + Vector2(0.0, -70.0)
 	s.modulate = _undo_night(0.95)
 	var mat := CanvasItemMaterial.new()
@@ -2831,7 +2944,9 @@ func _pickups() -> void:
 		if absf(s.position.x - player.position.x) > 90.0 or absf(s.position.y + 80.0 - player.position.y) > 160.0:
 			continue
 		var kind: String = pk["kind"]
-		if kind == "flask":
+		if kind == "page":
+			_read_page()
+		elif kind == "flask":
 			if hp >= PLAYER_HP:
 				continue
 			hp = mini(PLAYER_HP, hp + 2)
@@ -2849,6 +2964,20 @@ func _pickups() -> void:
 			hud.toast(String(WEAPONS[kind]["name"]))
 		s.queue_free()
 		pickups.remove_at(i)
+
+
+## A page of Eddie's notebook: the street stops while Frank reads it.
+func _read_page() -> void:
+	if _auto == "play":   # the test bot does not stop to read
+		print("BOT found the page")
+		return
+	MenuScript.mark_page(chapter, map)
+	var d = DiaryScript.new()
+	d.text = String(level.get("diary", ""))
+	d.found = MenuScript.pages(chapter)
+	d.total = Levels.CAMPAIGN[chapter]["maps"].size()
+	d.sound = func(n: String, db: float) -> void: sfx.play(n, db, INF, 0.0)
+	add_child(d)
 
 
 ## One of the boss's men (or the prologue's endless mob), sent running in from off-screen to `goal`.
@@ -2949,6 +3078,8 @@ func _enemies(delta: float) -> void:
 		if absf(to_player.x) < SIGHT:
 			if e["boss"] and not e["seen"]:
 				hud.boss_bar(BOSS_NAMES.get(String(level["boss"]), "BOSS"), 1.0)
+				if String(level["boss"]) == "kessler":
+					sets.smoke(m.position + Vector2(-500.0, 0.0))
 			e["seen"] = true
 		if not e["seen"]:
 			continue

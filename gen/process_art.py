@@ -14,7 +14,13 @@ STREET = {
     'alley': ('20.jpg', 140, True), 'bluenote': ('21.png', 140, True), 'warehouse': ('23.png', 140, True),
     'laundry': ('24.png', 140, True), 'subway': ('25.png', 60, True), 'church': ('26.png', 60, False),
     'market': ('27.png', 130, False), 'deadend': ('28.png', 130, False),
+    # chapter II, the docks: a frame down both edges, trimmed off both (the left one in main.gd)
+    'pier17': ('42.png', 134, False), 'cranes': ('43.png', 134, False), 'shipping': ('44.png', 134, False),
+    'quay': ('45.png', 134, False), 'harbor': ('46.png', 134, False),
 }
+# measured on the whole picture, before the right frame comes off: scaled to the trimmed one below
+FULL = 3168.0
+def _sc(r, trim=134): k = FULL / (FULL - trim); return (r[0] * k, r[1], r[2] * k, r[3])
 # neon and lit signs on the segments: (x0, x1, y0, y1) as fractions of the drawing, and 'letters'
 # (only the bright strokes glow) or 'wash' (the whole board is lit by lamps on it)
 NEONS = {
@@ -29,15 +35,25 @@ NEONS = {
 # that part slides against the wall and a fixed glow would come apart from it
 DEEP = {'alley': [(0.465, 0.22, 0.11, 0.64)], 'bluenote': [(0.665, 0.3, 0.16, 0.38)], 'warehouse': [(0.45, 0.32, 0.2, 0.56)],
         'laundry': [(0.455, 0.32, 0.1, 0.54)], 'subway': [(0.5, 0.25, 0.095, 0.63)], 'church': [(0.432, 0.4, 0.125, 0.4)],
-        'market': [(0.54, 0.42, 0.13, 0.46)], 'deadend': [(0.485, 0.4, 0.07, 0.46)]}
-ROOMS = {'laundry': '29.png', 'warehouse': '30.png', 'tenement': '31.png', 'club': '32.png', 'cellar': '33.png'}
+        'market': [(0.54, 0.42, 0.13, 0.46)], 'deadend': [(0.485, 0.4, 0.07, 0.46)],
+        'pier17': [_sc((0.45, 0.25, 0.24, 0.63))], 'cranes': [_sc((0.42, 0.42, 0.19, 0.48))], 'shipping': [_sc((0.47, 0.3, 0.075, 0.6))],
+        'quay': [_sc((0.16, 0.52, 0.14, 0.34))], 'harbor': [_sc((0.68, 0.4, 0.24, 0.46))]}
+# parts of a drawing taken out of it to come alive in the game (the crate on the crane's chains)
+CUT = {'cranes': [_sc((0.37, 0.2, 0.075, 0.255))]}
+ROOMS = {'laundry': '29.png', 'warehouse': '30.png', 'tenement': '31.png', 'club': '32.png', 'cellar': '33.png', 'hold': '47.png', 'office': '48.png'}
 
 
-def sky_alpha(rgb):
+def sky_alpha(rgb, pockets=False):
     a = rgb.astype(int)
     white = (a.min(2) > 222) & ((a.max(2) - a.min(2)) < 22)
     lab, n = ndimage.label(white)
     top = set(np.unique(lab[0])) - {0}
+    if pockets:   # sky shut in by rigging, wires and broken roofs: any big white patch high up
+        h = rgb.shape[0]
+        idx = np.arange(1, n + 1)
+        size = ndimage.sum(white, lab, idx)
+        cy = ndimage.mean(np.broadcast_to(np.arange(h)[:, None], white.shape), lab, idx)
+        top |= {int(i) for i, sz, y in zip(idx, size, cy) if sz > 400 and y < h * 0.62}
     sky = np.isin(lab, list(top))
     sky = ndimage.binary_opening(sky, iterations=1)
     alpha = np.where(sky, 0, 255).astype(np.uint8)
@@ -93,11 +109,20 @@ def neon_mask(rgb, box, mode):
     return im, (x0 - pad, y0 - pad)
 
 
+ONLY = sys.argv[1:]
 for name, (f, trim, towers) in STREET.items():
+    if ONLY and name not in ONLY:
+        continue
     rgb = np.asarray(Image.open(SRC + f).convert('RGB'))
-    alpha = sky_alpha(rgb).copy()
+    alpha = sky_alpha(rgb, f in ('42.png', '43.png', '44.png', '45.png', '46.png')).copy()
     roof = remove_towers(rgb, alpha) if towers else -1
     rgb, alpha = rgb[:, :rgb.shape[1] - trim], alpha[:, :alpha.shape[1] - trim]
+    for (x, y, w, h) in CUT.get(name, []):
+        hh, ww = alpha.shape
+        sl = (slice(int(y * hh), int((y + h) * hh)), slice(int(x * ww), int((x + w) * ww)))
+        piece = np.dstack([rgb[sl], alpha[sl]])
+        Image.fromarray(piece).save(OUT + f'props/{name}_cut.png')
+        alpha[sl] = 0
     im = Image.fromarray(np.dstack([rgb, alpha]))
     im.save(OUT + f'street/{name}.png')
     keep = alpha.copy()
@@ -113,6 +138,8 @@ for name, (f, trim, towers) in STREET.items():
     print(name, im.size, 'roof', roof, 'sky', round(float((alpha < 128).mean()), 3), 'lit', round(frac, 4))
 
 for style, f in ROOMS.items():
+    if ONLY and style not in ONLY:
+        continue
     Image.open(SRC + f).convert('RGB').save(OUT + f'rooms/{style}.png')
     print('room', style)
 
@@ -131,8 +158,11 @@ FENCES = {
     'church': [(0.0, 0.72, 0.42, 0.18), (0.6, 0.78, 0.38, 0.12)], 'subway': [(0.49, 0.68, 0.12, 0.2), (0.6, 0.78, 0.38, 0.11)],
     'bluenote': [(0.65, 0.6, 0.15, 0.29)], 'laundry': [(0.875, 0.66, 0.08, 0.24)], 'deadend': [(0.47, 0.6, 0.09, 0.3), (0.85, 0.6, 0.11, 0.3)],
     'market': [(0.5, 0.7, 0.16, 0.2)], 'warehouse': [(0.43, 0.62, 0.25, 0.28)], 'alley': [],
+    'pier17': [_sc((0.045, 0.72, 0.40, 0.18))], 'harbor': [_sc((0.045, 0.55, 0.2, 0.33))],
 }
 for name in STREET:
+    if ONLY and name not in ONLY:
+        continue
     im = Image.open(OUT + f'street/{name}.png').convert('RGBA')
     a = np.asarray(im).astype(float)
     hh, ww = a.shape[:2]

@@ -11,8 +11,11 @@ from PIL import Image, ImageDraw
 BOX = {"crate": (250, 248, True), "drum": (160, 246, False), "crate_long": (330, 176, True), "dumpster": (300, 250, False),
        "barrel": (120, 170, False), "machine": (260, 230, False), "bar": (420, 190, False)}
 # the drawn street segments (art/street) and their widths in the world (picture width x 1.9)
-SEGMENTS = {"alley": 3028, "bluenote": 3028, "warehouse": 3028, "laundry": 3028, "subway": 3108, "church": 3108, "market": 3038, "deadend": 3038}
+SEGMENTS = {"alley": 3028, "bluenote": 3028, "warehouse": 3028, "laundry": 3028, "subway": 3108, "church": 3108, "market": 3038, "deadend": 3038,
+            "pier17": 3034, "cranes": 3034, "shipping": 3034, "quay": 3034, "harbor": 3034}
 STREET_POOL = ["alley", "warehouse", "laundry", "subway", "church", "market"]
+DOCKS_POOL = ["pier17", "cranes", "shipping", "quay", "harbor"]
+CRANE_CRATE = (0.3863 + 0.0783 / 2)   # where the crate hangs in the crane yard drawing (see main.gd CRANE_CUT)
 F1, F2 = -370.0, -740.0   # floor heights: first and second storey
 JUMP_REACH = 282.0
 
@@ -25,6 +28,7 @@ class Chunk:
         self.stand = None
         self.end = 0.0
         self.street = []
+        self.events = []
 
     def box(self, kind, x): self.boxes.append([kind, x]); return self
     def plat(self, x, y, w, style="catwalk"): self.plats.append([x, y, w, style]); return self
@@ -33,6 +37,7 @@ class Chunk:
     def lamp(self, x, y=-760.0): self.lamps.append([x, y]); return self
     def pick(self, kind, x, y=0.0): self.pickups.append([kind, x, y]); return self
     def hint(self, x, text): self.hints.append([x, text]); return self
+    def event(self, *ev): self.events.append(list(ev)); return self
 
     def foe(self, x, y=0.0, kind="post", trig=None, frm=None, delay=0.0, run=False):
         self.enemies.append({"x": x, "y": y, "kind": kind, "trig": trig, "from": frm, "delay": delay, "run": run}); return self
@@ -85,6 +90,23 @@ def chunk(name, hard):
     elif name == "club":   # the Blue Note: the bar for cover, tables, a stage at the back
         c = (Chunk(2600).room(0, 2600, "club").box("bar", 400).box("crate_long", 1300).box("barrel", 1900).lamp(500).lamp(1400).lamp(2300)
              .foe(1050).foe(1700, kind="shotgun").foe(2400, kind="tommy").runner(1100, 900, -800, delay=2.0))
+    # ---- the docks -------------------------------------------------------------------------------
+    elif name == "dock_crates":   # cargo waiting on the quay, and them behind it
+        c = Chunk(1700).box("crate_long", 0).box("crate", 700).box("drum", 1350).foe(500).foe(1150).foe(1650, kind="tommy" if hard > 0.5 else "post")
+    elif name == "car_ambush":   # a sedan pulls up ahead and three of them pile out behind it
+        c = Chunk(2700).box("crate", 0).foe(700).event("car", 350, 2000, 1, 3)
+    elif name == "searchlight_yard":   # a searchlight on a pole sweeps the yard: in it, they do not miss
+        c = (Chunk(2300).box("crate", 200).box("crate_long", 1150).foe(750).foe(1650).foe(2150, kind="shotgun" if hard > 0.5 else "post")
+             .event("searchlight", 1150, -1350, 0))
+    elif name == "blackout":   # the power goes: only muzzle flashes, and they cannot see him either
+        c = (Chunk(2100).box("dumpster", 300).box("crate", 1350).foe(950).foe(1850, kind="tommy").runner(1150, 400, 3200)
+             .event("blackout", 120, 10))
+    elif name == "hold":   # below decks on the Santa Lucia: crates lashed down, lamps swinging
+        c = (Chunk(2700).room(0, 2700, "hold").box("crate", 450).box("crate_long", 1250).box("drum", 2000).lamp(500).lamp(1400).lamp(2250)
+             .foe(1000).foe(1850, kind="shotgun").foe(2450, kind="tommy" if hard > 0.5 else "post").pick("flask", 860))
+    elif name == "office":   # the harbor master's: filing cabinets and a counter for cover
+        c = (Chunk(2400).room(0, 2400, "office").box("crate_long", 500).box("machine", 1500).lamp(600).lamp(1700)
+             .foe(1150).foe(2000, kind="shotgun").foe(2300).pick("flask", 1000))
     elif name == "breather":
         c = Chunk(700)
     elif name == "pistols_cache":   # a dead man's guns on the pavement
@@ -110,6 +132,12 @@ def build(mp):
         for lx, ly in c.lamps: out.lamps.append([x + lx, ly])
         for k, px, py in c.pickups: out.pickups.append([k, x + px, py])
         for hx, t in c.hints: out.hints.append([x + hx, t])
+        for ev in c.events:
+            ev = list(ev)
+            if ev[0] == "car": ev[1] += x; ev[2] += x
+            elif ev[0] == "blackout": ev[1] += x
+            elif ev[0] == "searchlight": ev[1] += x
+            out.events.append(ev)
         out.checks += [x + cx for cx in c.checks]
         for en in c.enemies:
             en = dict(en); en["x"] += x
@@ -135,8 +163,23 @@ def build(mp):
         out.enemies += [{"x": x + 800, "y": 0.0, "kind": "post", "trig": None, "from": None, "delay": 0.0, "run": False},
                         {"x": x + 1100, "y": 0.0, "kind": "tommy", "trig": x - 200, "from": x + 2600, "delay": 0.0, "run": True}]
         out.end = x + 1600
+    if mp.get("diary"):   # a page of Eddie's notebook, left on top of a crate partway along: a climb off the road
+        cands = sorted([b for b in out.boxes if b[0] in ("crate", "crate_long", "dumpster", "machine", "drum") and 2500 < b[1] < out.end - 2500], key=lambda b: b[1])
+        b = cands[min(len(cands) - 1, mp.get("page", len(cands) // 2))]
+        out.pickups.append(["page", b[1] + BOX[b[0]][0] / 2, -BOX[b[0]][1]])
     out.checks = sorted(set(round(c) for c in out.checks if 800 < c < out.end - 500))
     out.street = street(mp, out, rng)
+    for e in mp.get("events", []):
+        out.events.append(list(e))
+    for name, sx in out.street:   # two of them keep watch under every crane's hanging crate
+        if name != "cranes":
+            continue
+        cx = sx + (CRANE_CRATE * SEGMENTS[name] - 132) * (SEGMENTS[name] / (SEGMENTS[name] - 132)) * 1.9
+        for dx in (-110, 140):
+            ex = cx + dx
+            if 1500 < ex < out.end - 1500 and not any(b[1] - 60 < ex < b[1] + BOX[b[0]][0] + 60 for b in out.boxes) \
+                    and not any(abs(en["x"] - ex) < 120 for en in out.enemies):
+                out.enemies.append({"x": ex, "y": 0.0, "kind": "post", "trig": None, "from": None, "delay": 0.0, "run": False})
     return out
 
 
@@ -144,7 +187,7 @@ def street(mp, m, rng):
     """The run of drawn segments under the map: the map's own feature segment early on, no segment twice
     in a row, and (in the prologue) the dead-end alley under the last stand."""
     seq, x = [], -3000.0
-    pool = [s for s in STREET_POOL if s != mp.get("feature")]
+    pool = [s for s in mp.get("pool", STREET_POOL) if s != mp.get("feature")]
     last = None
     i = 0
     while x < m.end + 2500:
@@ -189,6 +232,9 @@ def check(m):
             errs.append(f"enemy at {en['x']:.0f} floats")
         if en["y"] == 0 and any(b[1] - 40 < en["x"] < b[1] + BOX[b[0]][0] + 40 for b in bs):
             errs.append(f"enemy at {en['x']:.0f} stands in a box")
+    for ev in m.events:
+        if ev[0] == "car" and any(b[1] < ev[2] + 440 and b[1] + BOX[b[0]][0] > ev[2] - 440 for b in bs):
+            errs.append(f"car at {ev[2]:.0f} stops on a box")
     for r in m.ramps:   # nothing may stand on the ramp's foot
         foot = r[0] if r[1] == 0 else (r[2] if r[3] == 0 else None)
         if foot is not None and any(b[1] - 80 < foot < b[1] + BOX[b[0]][0] + 80 for b in bs):
@@ -239,27 +285,58 @@ CAMPAIGN = [
   {"title": "CHAPTER I", "name": "RAIN ON HELL'S KITCHEN", "ready": True, "hero": "frank", "ambient": [0.2, 0.21, 0.27], "rain": 1.0, "maps": [
     {"name": "THE ALLEY", "seed": 101, "feature": "alley", "start": 0.0, "end": 0.35,
      "fixed": ["crate_cover", "drum_duo", "dumpster_alley", "breather", "barrel_trap", "crate_cover", "pistols_cache", "ambush_behind", "gauntlet"],
-     "intro": ["They pulled the sheet back for me. Eddie looked surprised.", "In his fist, a matchbook from the Blue Note."],
+     "intro": ["The shooters hadn't gone far. Rain doesn't wash a trail away that fast.", "Neither does whiskey. I'd tried."],
+     "diary": "Nov 3. Rosie showed me Tommy's photo again. Eleven men burned in '39 and the papers called it bad wiring. Bad wiring doesn't lock doors from the outside.",
      "outro": ["The shooters ran east. So did I."]},
     {"name": "BACK STREETS", "seed": 102, "start": 0.2, "end": 0.5,
-     "fixed": ["dumpster_alley", "crate_cover", "fire_escape", "ambush_behind", "barrel_trap", "breather", "catwalk", "rush", "drum_duo"],
+     "fixed": ["dumpster_alley", "crate_cover", "fire_escape", "ambush_behind", "barrel_trap", "breather", "catwalk", "car_ambush", "drum_duo"],
      "intro": ["Hell's Kitchen doesn't sleep. It just lies there with its eyes open."],
+     "diary": "Nov 11. Pulled the Pier 17 file from records. Half of it is missing. The half that's left smells like money.",
      "outro": ["One of them talked before he stopped talking. A laundry on Tenth Avenue."]},
     {"name": "THE LAUNDRY", "seed": 103, "feature": "laundry", "start": 0.35, "end": 0.6,
-     "fixed": ["crate_cover", "barrel_trap", "laundry", "breather", "warehouse_arena", "fire_escape", "rush"],
+     "fixed": ["crate_cover", "barrel_trap", "laundry", "blackout", "breather", "warehouse_arena", "fire_escape", "rush"],
      "intro": ["Steam, starch and gun oil.", "Nobody washes shirts at three in the morning."],
+     "diary": "Nov 20. Insurance paid out $400,000 to a company owned by a company owned by a church charity. The Saint's charity.",
      "outro": ["A receipt in the back room, signed M. T.", "The back door led up. They always lead up."]},
     {"name": "TENEMENTS", "seed": 104, "start": 0.45, "end": 0.7,
-     "fixed": ["tenement", "ambush_behind", "fire_escape", "breather", "high_ground", "barrel_trap", "tenement", "gauntlet"],
+     "fixed": ["tenement", "ambush_behind", "fire_escape", "car_ambush", "breather", "high_ground", "barrel_trap", "tenement", "gauntlet"],
      "intro": ["Iron stairs, wet as a liar's palm."],
+     "diary": "Dec 9. Found the patrolman who signed the report. I wish I hadn't. I need to hear it from him before I take it upstairs.",
      "outro": ["Below me the neon said JAZZ.", "Mickey Teague owned the Blue Note. Somebody else owned Mickey."]},
     {"name": "THE BLUE NOTE", "seed": 105, "feature": "bluenote", "start": 0.6, "end": 0.85, "boss": "teague",
      "fixed": ["crate_cover", "barrel_trap", "club", "breather", "warehouse_arena", "rush"],
      "intro": ["Mickey 'Canvas' Teague. Forty fights, and he lost every one he was paid to lose.", "Tonight nobody was paying."],
+     "diary": "Dec 17. Meeting a guy from the Blue Note tonight. Says he'll sell me the name of who paid. If I'm wrong about this, I'll buy Frank a drink and tell him everything.",
      "outro": ["Mickey went down on cue, like always. He asked me to feed his birds. Then: ask your boss.", "Eddie's girl came down off the stage with his notebook. I didn't open it. Not then."]},
   ]},
-  {"title": "CHAPTER II", "name": "THE DOCKS", "ready": False, "hero": "frank", "ambient": [0.16, 0.18, 0.25], "rain": 1.5, "maps": [
-    {"name": "PIER 17"}, {"name": "THE CRANES"}, {"name": "SANTA LUCIA"}, {"name": "CARGO HOLD"}, {"name": "HARBOR MASTER"}]},
+  {"title": "CHAPTER II", "name": "THE DOCKS", "ready": True, "hero": "frank", "ambient": [0.16, 0.18, 0.25], "rain": 1.5, "maps": [
+    {"name": "PIER 17", "seed": 201, "feature": "pier17", "pool": DOCKS_POOL, "start": 0.45, "end": 0.7, "ash": 1.0, "embers": 0.6,
+     "fixed": ["dock_crates", "crate_cover", "car_ambush", "breather", "barrel_trap", "searchlight_yard", "pistols_cache", "gauntlet"],
+     "events": [["burn", "shipping"]],
+     "intro": ["Pier 17. Eight years cold, and it still smelled of smoke.", "Somebody had lit a fresh fire to keep it company."],
+     "diary": "Nov 24. Went down to Pier 17 at night. You can still see where the doors were chained. Nobody chains a door to keep a fire in by accident.",
+     "outro": ["Vail Shipping burned like a confession nobody would ever read.", "Kessler's men fell back to the cranes."]},
+    {"name": "THE CRANES", "seed": 202, "feature": "cranes", "pool": DOCKS_POOL, "start": 0.5, "end": 0.75, "ash": 0.8, "embers": 0.3,
+     "fixed": ["crate_cover", "searchlight_yard", "high_ground", "blackout", "dock_crates", "rush", "catwalk", "drum_duo"],
+     "intro": ["The cranes stood over the yard with their heads bowed, like men at a wake."],
+     "diary": "Nov 29. A crane man named Sully told me Kessler had the keys that night. Sully drinks. Sully also cried when he said it.",
+     "outro": ["A dock rat with a broken arm told me the rest for a dollar.", "The Santa Lucia. Kessler kept his ledgers aboard."]},
+    {"name": "SANTA LUCIA", "seed": 203, "feature": "quay", "pool": DOCKS_POOL, "start": 0.55, "end": 0.8, "ash": 0.7, "embers": 0.2,
+     "fixed": ["dock_crates", "car_ambush", "catwalk", "hold", "breather", "blackout", "gauntlet"],
+     "intro": ["The Santa Lucia. Registered in Panama, owned in Manhattan, prayed for on Sundays."],
+     "diary": "Dec 2. The Santa Lucia sails under the Saint's flag. Its manifest for August '39 lists eleven crates of 'machine parts'. Eleven.",
+     "outro": ["The ledger had a page torn out. The stub said August 1939."]},
+    {"name": "CARGO HOLD", "seed": 204, "feature": "shipping", "pool": DOCKS_POOL, "start": 0.6, "end": 0.85, "ash": 0.8, "embers": 0.3,
+     "fixed": ["hold", "rush", "dock_crates", "hold", "warehouse_arena", "searchlight_yard"],
+     "intro": ["Down in the hold the rain sounded like applause for somebody else."],
+     "diary": "Dec 5. Frank asked me why I keep at this. I said a reporter's job is to write down what everybody already knows. He didn't laugh.",
+     "outro": ["Kessler ran for the harbor office. Men like him always run toward their paperwork."]},
+    {"name": "HARBOR MASTER", "seed": 205, "feature": "harbor", "pool": DOCKS_POOL, "start": 0.65, "end": 0.9, "boss": "kessler", "ash": 1.0, "embers": 0.5,
+     "fixed": ["dock_crates", "car_ambush", "office", "breather", "searchlight_yard", "rush"],
+     "intro": ["Bruno Kessler. Dock master since '38. He hadn't closed a door in eight years."],
+     "diary": "Dec 12. If anything happens to me, the report is in the harbor office, second drawer. Frank, if you're reading this, then you already know that I know.",
+     "outro": ["Kessler gave me a key on a chain. It had been warm against his chest for eight years.", "In the second drawer, the report. At the bottom, a name I knew better than my own."]},
+  ]},
   {"title": "CHAPTER III", "name": "UNDERGROUND", "ready": False, "hero": "frank", "ambient": [0.18, 0.17, 0.2], "rain": 0.0, "maps": [
     {"name": "THE PLATFORM"}, {"name": "THE TUNNELS"}, {"name": "TRAIN YARD"}, {"name": "THE LAST TRAIN"}, {"name": "THE CATACOMBS"}]},
   {"title": "CHAPTER IV", "name": "THE SAINT'S TOWER", "ready": False, "hero": "frank", "ambient": [0.23, 0.19, 0.21], "rain": 1.8, "maps": [
@@ -301,6 +378,9 @@ def gd(campaign):
             st = ", ".join(f'["{g[0]}", {f(g[1])}]' for g in m.street)
             out.append("\t\t{" + f'"name": {q(lv["name"])}, "end": {f(m.end)}, "boss": {q(lv.get("boss", ""))}, "stand": {f(m.stand if m.stand else -1)},')
             out.append("\t\t\t\"intro\": [" + ", ".join(q(t) for t in lv["intro"]) + "], \"outro\": [" + ", ".join(q(t) for t in lv["outro"]) + "],")
+            out.append(f'\t\t\t"diary": {q(lv.get("diary", ""))}, "ash": {lv.get("ash", 0.3)}, "embers": {lv.get("embers", 0.0)},')
+            evs = ", ".join("[" + ", ".join(q(v) if isinstance(v, str) else f(v) for v in ev) + "]" for ev in m.events)
+            out.append(f'\t\t\t"events": [{evs}],')
             out.append(f'\t\t\t"hints": [{hn}],')
             out.append(f'\t\t\t"boxes": [{bx}],')
             out.append(f'\t\t\t"floors": [{fl}],')
