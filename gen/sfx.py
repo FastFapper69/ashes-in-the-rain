@@ -309,3 +309,72 @@ save('page.wav', x, 0.45)
 tt = t(0.9)
 x = bp(noise(0.9), 300, 3500) * np.exp(-tt / 0.35) * (1 + 0.3 * np.sin(2 * np.pi * 23 * tt)) + bp(noise(0.9), 2000, 7000) * 0.3 * np.exp(-tt / 0.2)
 save('skid.wav', x, 0.5)
+
+# ---- music: a slow noir jazz loop in D minor, two stems -------------------------------------
+# base: walking upright bass, brushes and ride, sparse piano chords. lead: a muted horn line.
+BPM = 72; BEAT = 60.0 / BPM; BARS = 16
+LEN = int(SR * BEAT * 4 * BARS)
+def hz(m): return 440.0 * 2 ** ((m - 69) / 12)
+def wrap_add(buf, at, snd):
+    s0 = int(at) % LEN
+    n = len(snd)
+    e = min(LEN, s0 + n); buf[s0:e] += snd[:e - s0]
+    if s0 + n > LEN: buf[:s0 + n - LEN] += snd[e - s0:]
+def bass_note(m, dur):
+    tt = t(dur); f = hz(m)
+    x = (np.sin(2 * np.pi * f * tt) + 0.5 * np.sin(4 * np.pi * f * tt) + 0.2 * np.sin(6 * np.pi * f * tt))
+    x *= np.minimum(1, tt / 0.008) * np.exp(-tt / 0.55)
+    x += env(bp(noise(dur), 200, 900), 0.002, 0.02) * 0.4   # the pluck
+    return lp(x, 900)
+def piano(ms, dur):
+    tt = t(dur); x = np.zeros_like(tt)
+    for m in ms:
+        f = hz(m)
+        x += (np.sin(2 * np.pi * f * tt) + 0.4 * np.sin(4 * np.pi * f * tt) * np.exp(-tt / 0.3) + 0.15 * np.sin(6 * np.pi * f * tt) * np.exp(-tt / 0.15))
+    return lp(x * np.minimum(1, tt / 0.004) * np.exp(-tt / 1.4), 2500) / len(ms)
+def horn(m, dur):
+    tt = t(dur); f = hz(m) * (1 + 0.006 * np.sin(2 * np.pi * 5.2 * tt) * np.minimum(1, tt / 0.4))
+    ph = 2 * np.pi * np.cumsum(f) / SR
+    x = np.sin(ph) + 0.45 * np.sin(2 * ph) + 0.25 * np.sin(3 * ph) + 0.12 * np.sin(5 * ph)
+    x += bp(noise(dur), 1200, 3500) * 0.05   # breath
+    a = np.minimum(1, tt / 0.09) * np.minimum(1, (dur - tt) / 0.25).clip(0, 1)
+    return lp(x * a, 1800)
+# chords per bar (piano voicings, midi) and the bass roots
+CHORDS = [[50, 53, 57, 60, 64], [50, 53, 57, 60, 64], [43, 53, 58, 62, 65], [43, 53, 58, 62, 65],
+          [50, 53, 57, 60, 64], [46, 50, 53, 57, 60], [45, 49, 52, 55, 58], [45, 49, 52, 55, 58],
+          [43, 53, 58, 62, 65], [43, 53, 58, 62, 65], [50, 53, 57, 60, 64], [48, 52, 55, 58, 62],
+          [46, 50, 53, 57, 60], [45, 49, 52, 55, 58], [50, 53, 57, 60, 64], [45, 49, 52, 55, 58]]
+base = np.zeros(LEN); lead = np.zeros(LEN)
+for b, ch in enumerate(CHORDS):
+    root = ch[0] - 12 if ch[0] > 40 else ch[0]
+    walk = [root, root + 3 if b % 2 == 0 else root + 7, root + 7, root + 5 if b % 2 == 0 else root + 10]
+    for k in range(4):   # walking quarters
+        wrap_add(base, (b * 4 + k) * BEAT * SR, bass_note(walk[k], BEAT * 1.1) * 0.8)
+    if b % 2 == 0 or rng.random() < 0.4:   # a chord on the and of one, sometimes another on three
+        wrap_add(base, (b * 4 + 0.66) * BEAT * SR, piano(ch[1:], BEAT * 3) * 0.32)
+    if rng.random() < 0.35:
+        wrap_add(base, (b * 4 + 2.66) * BEAT * SR, piano(ch[1:], BEAT * 2) * 0.22)
+    for k in range(4):   # brushes: a sweep under every beat, a slap on two and four
+        sweep = bp(noise(BEAT), 1500, 6000) * np.sin(np.pi * t(BEAT) / BEAT) ** 2 * 0.028
+        wrap_add(base, (b * 4 + k) * BEAT * SR, sweep)
+        if k in (1, 3):
+            wrap_add(base, (b * 4 + k) * BEAT * SR, env(bp(noise(0.2), 1200, 5000), 0.003, 0.06) * 0.16)
+        for sw in (0.0, 0.66):   # the ride, swung
+            wrap_add(base, (b * 4 + k + sw) * BEAT * SR, env(hp(noise(0.5), 6000), 0.001, 0.12 if sw == 0 else 0.06) * (0.03 if sw == 0 else 0.018))
+# the horn: a slow minor phrase, answered, with rests where the city can be heard
+PHRASE = [(0, 69, 1.5), (1.5, 67, 0.5), (2, 65, 1), (3, 64, 1), (4, 62, 3), (8, 69, 1), (9, 72, 1.5), (10.5, 70, 0.5),
+          (11, 69, 1), (12, 67, 2), (14, 65, 2), (20, 62, 1), (21, 65, 1), (22, 69, 2), (24, 70, 1.5), (25.5, 69, 0.5),
+          (26, 67, 1), (27, 64, 1), (28, 61, 2.5), (32, 69, 1.5), (33.5, 67, 0.5), (34, 65, 1), (35, 64, 1), (36, 62, 3),
+          (40, 74, 2), (42, 72, 1), (43, 70, 1), (44, 69, 3), (48, 65, 1), (49, 67, 1), (50, 69, 2), (52, 64, 1.5),
+          (53.5, 65, 0.5), (54, 61, 2), (56, 62, 4)]
+for at, m, d in PHRASE:
+    wrap_add(lead, at * BEAT * SR, horn(m, d * BEAT * 1.02) * 0.32)
+def wet(x, sec, mix):
+    ir_n = int(SR * sec); ir = rng.standard_normal(ir_n) * np.exp(-np.arange(ir_n) / (SR * sec / 5))
+    y = signal.fftconvolve(np.concatenate([x, x]), lp(ir, 3000))[:2 * LEN]
+    y = y[LEN:2 * LEN]   # the tail of the end of the loop wrapped onto its start
+    return x * (1 - mix) + y / np.max(np.abs(y)) * np.max(np.abs(x)) * mix
+for name, x, mix in (('music_base', base, 0.25), ('music_lead', lead, 0.4)):
+    x = wet(x, 2.2, mix)
+    x = x / np.max(np.abs(x)) * 0.7
+    wavfile.write(OUT + name + '.wav', SR, (x * 32767).astype(np.int16)); print(name, round(LEN / SR, 1))

@@ -146,6 +146,9 @@ var boxes: Array[Rect2] = []
 var cleared := false
 var cam: Camera2D
 var _hat_rain: Array = []   # rain splashing on his hat and shoulders, dripping off the brim
+var _sky_mat: ShaderMaterial
+var _flash := 0.0
+var _lightning_t := randf_range(20.0, 45.0)
 var _menu_x := 0.0   # where the camera rests behind the title
 var _lead := CAM_LEAD   # how far ahead of the detective the camera looks; swings to the side he aims at
 var _look := 1.0
@@ -297,6 +300,7 @@ func _ready() -> void:
 	fx.sound = sfx
 	fx.listener = player
 	fx.wall_at = _wall_at
+	fx.stain_host = _stain_host
 	hud = HudScript.new()
 	add_child(hud)
 	if in_menu:
@@ -492,8 +496,11 @@ void fragment() {
 }
 """
 var deeps: Array = []   # {sprite, center (world), box (UV)}
-var _deep_rects: Array[Rect2] = []   # the same in world space, for the blood
+var _deep_rects: Array[Rect2] = []
+var _stain_hosts: Array = []   # [x0, x1, node]: the masks blood on each drawing is clipped to   # the same in world space, for the blood
 const SEGMENT_TRIM := {"alley": 134.0, "bluenote": 134.0, "warehouse": 133.0, "laundry": 133.0, "subway": 53.0, "church": 58.0, "market": 58.0, "deadend": 58.0}
+# evens out how light each drawing came out, so neighbours do not jump in brightness
+const SEGMENT_GAIN := {"alley": 0.92, "bluenote": 0.98, "warehouse": 0.9, "laundry": 1.02, "subway": 1.07, "church": 1.0, "market": 1.05, "deadend": 1.1}
 const SEGMENT_MOON := 1.6   # how much brighter than the bare night the drawn streets are kept
 const SEGMENT_BASE := 0.92   # the facades meet the pavement this far down each drawing
 
@@ -525,7 +532,7 @@ func _build_segments() -> void:
 		w.position = Vector2(x0, -diffuse.get_height() * WALL_SCALE * SEGMENT_BASE - WALL_LIFT)
 		w.z_index = -10
 		w.material = atmo.blur_material(1.4)
-		w.modulate = Color.WHITE * SEGMENT_MOON   # a moonlit wash, so the drawing still reads between the lamps
+		w.modulate = Color.WHITE * SEGMENT_MOON * float(SEGMENT_GAIN.get(seg_name, 1.0))   # a moonlit wash, so the drawing reads between the lamps
 		add_child(w)
 		for r in SEGMENT_DEEP.get(seg_name, []):
 			_add_deep(diffuse, w, r as Rect2, trim)
@@ -540,6 +547,18 @@ func _build_segments() -> void:
 		glow.modulate = _undo_night(0.55)   # added on top of the drawing: big lit shopfronts would burn out at more
 		glow.z_index = -9
 		add_child(glow)
+		var host := Sprite2D.new()   # blood lands only on what is solid in the drawing: see _stain_host
+		host.texture = load("res://art/street/" + seg_name + "_solid.png")
+		host.centered = false
+		host.region_enabled = true
+		host.region_rect = Rect2(trim * 0.5, 0.0, host.texture.get_width() - trim * 0.5, host.texture.get_height())
+		host.scale = glow.scale
+		host.position = w.position
+		host.clip_children = CanvasItem.CLIP_CHILDREN_ONLY
+		host.z_index = -9
+		host.light_mask = 0
+		add_child(host)
+		_stain_hosts.append([w.position.x, w.position.x + seg_w, host])
 		atmo.add_mist(self, x0, seg_w, -WALL_LIFT, _undo_night(0.8))
 		atmo.add_steam(self, Vector2(x0 + seg_w * 0.45, -20.0))
 		sfx.add_loop("steam", x0 + seg_w * 0.45, -20.0, 900.0)
@@ -592,6 +611,16 @@ func _build_segments() -> void:
 			add_child(bulb)
 			rec["nodes"].append(bulb)
 		_pavement(x0, seg_w)
+		if seg != level["street"][0]:   # a firewall pier over the join with the drawing before
+			var pier := Sprite2D.new()
+			pier.texture = load("res://art/street/pier.png")
+			pier.centered = false
+			pier.scale = Vector2.ONE * WALL_SCALE
+			pier.position = Vector2(x0 - pier.texture.get_width() * WALL_SCALE * 0.5, -WALL_LIFT - (diffuse.get_height() * SEGMENT_BASE - (diffuse.get_height() - pier.texture.get_height())) * WALL_SCALE)
+			pier.modulate = w.modulate * 0.85
+			pier.material = w.material
+			pier.z_index = -10
+			add_child(pier)
 
 
 func _add_deep(tex: Texture2D, facade: Sprite2D, r: Rect2, trim: float) -> void:
@@ -627,6 +656,14 @@ func _tick_deep() -> void:
 		var sx := clampf(off.x * 0.00005, -0.1, 0.1) * r.size.x / 0.15   # the far end moves at about a quarter of the wall's speed
 		var sy := clampf(off.y * 0.00004, -0.05, 0.05) * r.size.y
 		(dp["mat"] as ShaderMaterial).set_shader_parameter("shift", Vector2(sx * 0.15, sy))
+
+
+## The drawing under a point, whose solid parts a stain there is clipped to (null: none).
+func _stain_host(p: Vector2) -> Node2D:
+	for h in _stain_hosts:
+		if p.x >= float(h[0]) and p.x < float(h[1]):
+			return h[2]
+	return null
 
 
 ## Blood only lands on a wall, not in the air over an alley.
@@ -868,6 +905,41 @@ func _tick_birds(delta: float) -> void:
 			i -= 1
 
 
+## Music: the full tune while the street is quiet, only the bass and brushes, low, once a fight
+## is on, nothing but the heartbeat when he is down.
+func _tick_music() -> void:
+	var fight := false
+	for e in enemies:
+		if e["alive"] and e["state"] != "wait" and absf(e["node"].position.x - player.position.x) < 2600.0:
+			fight = true
+			break
+	if over:
+		sfx.music_want = Vector2(-80.0, -80.0)
+	elif fight:
+		sfx.music_want = Vector2(-21.0, -80.0)
+	else:
+		sfx.music_want = Vector2(-15.0, -13.0)
+
+
+## The sky: clouds drifting, and now and then lightning far off, the thunder a moment later.
+func _tick_sky(delta: float) -> void:
+	if _sky_mat == null:
+		return
+	_lightning_t -= delta
+	if _lightning_t <= 0.0 and float(Levels.CAMPAIGN[chapter]["rain"]) > 0.0:
+		_lightning_t = randf_range(35.0, 90.0)
+		var tw := create_tween()   # a double flicker, the second brighter
+		tw.tween_property(self, "_flash", 0.6, 0.05)
+		tw.tween_property(self, "_flash", 0.1, 0.08)
+		tw.tween_property(self, "_flash", 1.0, 0.04)
+		tw.tween_property(self, "_flash", 0.0, 0.5)
+		get_tree().create_timer(randf_range(1.2, 3.0), false).timeout.connect(func() -> void: sfx.play("thunder", -8.0, INF, 0.15))
+	_sky_mat.set_shader_parameter("drift", _time * 0.0025 + cam.position.x * 0.000004)
+	_sky_mat.set_shader_parameter("flash", _flash)
+	if moonlight:
+		moonlight.energy += _flash * 1.4
+
+
 ## Keep the rain on his hat and shoulders where they are this frame; none indoors or lying down.
 func _tick_hat_rain() -> void:
 	if _hat_rain.is_empty():
@@ -911,7 +983,23 @@ func _build_depth() -> void:
 	sky.modulate = _undo_night(0.4)
 	sky.light_mask = 0
 	sky.z_index = -30
-	sky.material = atmo.blur_material(2.0)
+	var sky_sh := Shader.new()   # the clouds in the drawing drift slowly with the wind
+	sky_sh.code = """
+shader_type canvas_item;
+uniform float drift = 0.0;
+uniform float flash = 0.0;
+void fragment() {
+	vec2 px = TEXTURE_PIXEL_SIZE * 2.0;
+	vec2 uv = vec2(UV.x + drift, UV.y);
+	vec4 c = texture(TEXTURE, uv) * 0.4 + texture(TEXTURE, uv + vec2(px.x, 0.0)) * 0.15 + texture(TEXTURE, uv - vec2(px.x, 0.0)) * 0.15
+			+ texture(TEXTURE, uv + vec2(0.0, px.y)) * 0.15 + texture(TEXTURE, uv - vec2(0.0, px.y)) * 0.15;
+	COLOR = c * COLOR * (1.0 + flash * 2.5);
+}
+"""
+	_sky_mat = ShaderMaterial.new()
+	_sky_mat.shader = sky_sh
+	sky.material = _sky_mat
+	sky.texture_repeat = CanvasItem.TEXTURE_REPEAT_MIRROR
 	cam.add_child(sky)
 	# the moon: just over the roofs, seen through the gaps between buildings and from the rooftops
 	var moon_tex: Texture2D = load("res://art/bg/moon.png")
@@ -1129,6 +1217,7 @@ func _process(delta: float) -> void:
 	_time += delta
 	if in_menu:   # the title over the street: the rain, the signs, the birds, a slow drift of the camera
 		sfx.listener_x = cam.position.x
+		sfx.music_want = Vector2(-9.0, -7.0)
 		cam.position.x = _menu_x + sin(_time * 0.09) * 160.0
 		cam.position.y = CAM_Y + sin(_time * 0.13) * 20.0
 		fore.position.x = -cam.position.x * 0.35
@@ -1138,6 +1227,7 @@ func _process(delta: float) -> void:
 		_tick_neons(delta)
 		_tick_birds(delta)
 		_tick_deep()
+		_tick_sky(delta)
 		if _auto == "menu":
 			_at += delta
 			if _at > 6.5 and _auto_done == 0:   # once the title is up and Frank's line typed out
@@ -1280,6 +1370,8 @@ func _process(delta: float) -> void:
 	_tick_hat_rain()
 	_tick_deep()
 	moonlight.energy = lerpf(0.35, 0.62, clampf(-player.position.y / 650.0, 0.0, 1.0))
+	_tick_sky(delta)
+	_tick_music()
 	_afterimages(delta, absf(dir))
 	_slow_look = lerpf(_slow_look, 1.0 if Engine.time_scale < 1.0 else 0.0, 1.0 - exp(-10.0 * real))
 	atmo.set_slow(_slow_look)
@@ -1430,13 +1522,17 @@ func _auto_step(delta: float) -> void:
 			hud.boss_bar("MICKEY 'CANVAS' TEAGUE", 0.7)
 		shots = [[4.5, "caption"]]
 	elif _auto == "stains":   # eight hits along the wall, then look at them once the runs have crept down
+		var sx0: float = 1150.0
+		for seg in level["street"]:   # in front of the church railings, if this map has them
+			if String(seg[0]) == "church":
+				sx0 = float(seg[1]) + 900.0
 		if _at < 0.05:
-			player.position.x = 1150.0
+			player.position.x = sx0
 			cam.position.x = player.position.x + _lead
 		if _at > 0.3 and _auto_done & 1 == 0:
 			_auto_done |= 1
-			for i in 8:
-				fx.blood(Vector2(1000.0 + i * 260.0, -260.0 - (i % 3) * 70.0), Vector2(1.0 if i % 2 == 0 else -1.0, 0.0))
+			for i in 14:
+				fx.blood(Vector2(sx0 - 200.0 + i * 150.0, -200.0 - (i % 4) * 90.0), Vector2(1.0 if i % 2 == 0 else -1.0, 0.0))
 		shots = [[0.5, "stains_1"], [2.2, "stains_2"]]
 	elif _auto == "deep":   # the camera passing a deep view: the far end should slide against the wall
 		var cx: float = deeps[0]["center"].x if not deeps.is_empty() else 3000.0
@@ -1716,11 +1812,14 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			steps.restart()
 			sfx.play("land", -4.0)
 			sfx.play("skid", -5.0, INF, 0.1)
-	elif move_state == "roll":
+	elif move_state == "roll":   # over the shoulder: tucked tight in the middle of the turn, opening to come up
 		roll_done = minf(1.0, roll_done + delta / 0.5)
-		player.roll = lerpf(1.35, TAU, roll_done) * player.dive_side
-		player.air = move_toward(player.air, 1.0, delta * 10.0)
-		player.crouch = move_toward(player.crouch, 0.9, delta * 10.0)
+		var ease_r := roll_done * roll_done * (3.0 - 2.0 * roll_done)
+		player.roll = lerpf(1.35, TAU, ease_r) * player.dive_side
+		var tuck := sin(roll_done * PI)
+		player.air = lerpf(0.5, 1.0, tuck)
+		player.crouch = lerpf(0.6, 1.0, tuck) if roll_done < 0.75 else lerpf(1.0, 0.7, (roll_done - 0.75) / 0.25)
+		steps.emitting = roll_done > 0.2
 		player.position.y = move_toward(player.position.y, floor_y, delta * 500.0)
 		player.position.x += glide * 0.75 * delta
 		if roll_done >= 1.0:   # a full turn: he comes up on his feet, still moving
@@ -1747,11 +1846,15 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			steps.restart()
 			sfx.play("land", -2.0)
 			sfx.play("skid", -8.0, INF, 0.1)
-	elif move_state == "slide":
+	elif move_state == "slide":   # dropping into it, riding it out on the hip, then pushing back up
 		slide_left -= delta
 		run = move_toward(run, 0.0, 500.0 * delta)
 		player.position.x += run * delta
-		player.slide = move_toward(player.slide, 1.0, delta * 10.0)
+		var into := clampf((0.55 - slide_left) / 0.12, 0.0, 1.0)
+		var out := clampf(slide_left / 0.16, 0.0, 1.0)
+		player.slide = minf(into, lerpf(0.55, 1.0, out))
+		player.duck = (1.0 - out) * 0.5
+		steps.emitting = true
 		if slide_left <= 0.0:
 			move_state = "ground"
 	_block(before_x)
@@ -2107,7 +2210,7 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 				e["hp"] -= MOBSTER_HP if part == "head" else 1   # a head shot always kills
 			e["seen"] = true   # being shot at wakes him up, however far away
 			if e["hp"] <= 0:
-				_kill(e, part == "head")
+				_kill(e, part == "head", false, part)
 			return true
 		return false
 	if over or cleared:
@@ -2130,13 +2233,14 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 
 
 ## A mobster goes down: counted for the score, his gun left on the pavement.
-func _kill(e: Dictionary, head: bool, quiet := false) -> void:
+func _kill(e: Dictionary, head: bool, quiet := false, part := "") -> void:
 	e["alive"] = false
 	var m = e["node"]
 	stats["kills"] += 1
 	stats["heads"] += 1 if head else 0
 	stats["slow"] += 1 if Engine.time_scale < 1.0 else 0
-	_drop(m, signf(m.position.x - player.position.x), true)
+	var how := "head" if head else ("blast" if part == "blast" else ("leg" if part.begins_with("thigh") or part.begins_with("shin") else ""))
+	_drop(m, signf(m.position.x - player.position.x), true, how)
 	if not quiet:
 		_word(["crack"] if head else ["pow", "wham", "bam"], m.position + Vector2(0.0, -500.0), 0.27)
 	if e["type"] in ["tommy", "shotgun"]:
@@ -2227,7 +2331,7 @@ func _explode(at: Vector2, i: int) -> void:
 				if e["hp"] > 0:
 					continue
 				hud.boss_bar("", -1.0)
-			_kill(e, false, true)
+			_kill(e, false, true, "blast")
 	if not over and player.position.distance_to(at + Vector2(0.0, 60.0)) < 330.0 and _auto == "":
 		hp -= 2
 		stats["hits"] += 1
@@ -2432,17 +2536,44 @@ func _restart() -> void:
 ## onto his back with the arms flung up, or (crouched, or one time in three) the knees give, the gun
 ## drops and he folds forward onto his face. He hits the pavement with a small bounce, a pool of
 ## blood spreads under him, and a mobster then fades away; the detective stays down.
-func _drop(figure, push: float, fade: bool) -> void:
+## The fall follows the hit. how: "head" (snapped back, arms flung, straight down backwards),
+## "leg" (the knee goes, he kneels a beat, then folds forward), "blast" (thrown up and over),
+## anything else: a stagger and a fall, or a crumple where he stands.
+func _drop(figure, push: float, fade: bool, how := "") -> void:
 	figure.set_shadow(0.0, 0.0, 0.0)
 	var facing: float = figure.scale.x
-	var crumple: bool = figure.duck > 0.5 or randf() < 0.34
+	var crumple: bool = how == "leg" or (how == "" and (figure.duck > 0.5 or randf() < 0.34))
 	var at: Vector2 = figure.position
 	var arm0: float = figure._aim.angle()
 	var knees0: float = figure.duck
 	var side: float = facing if crumple else push   # which way the head goes down
+	if how == "leg":
+		side = -push   # forward, towards the one who shot him
 	var lie := PI * 0.5 * side
 	var tw := create_tween()
-	if crumple:
+	if how == "blast":
+		var spin := lie + TAU * side
+		tw.tween_method(func(k: float) -> void: figure.die_pose(lerp_angle(arm0, -2.4, k), 0.6 * k), 0.0, 1.0, 0.2)
+		tw.parallel().tween_property(figure, "rotation", spin, 0.75).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tw.parallel().tween_property(figure, "position:x", at.x + push * 460.0, 0.75).set_ease(Tween.EASE_OUT)
+		tw.parallel().tween_method(func(k: float) -> void: figure.position.y = at.y - 26.0 - sin(k * PI) * 320.0 * (1.0 - k * 0.15), 0.0, 1.0, 0.75)
+		tw.tween_callback(func() -> void: figure.rotation = lie)
+	elif how == "head":
+		tw.tween_method(func(k: float) -> void: figure.die_pose(lerp_angle(arm0, -2.3, k), 0.0), 0.0, 1.0, 0.09).set_ease(Tween.EASE_OUT)
+		tw.parallel().tween_property(figure, "rotation", 0.35 * side, 0.09).set_ease(Tween.EASE_OUT)
+		tw.parallel().tween_property(figure, "position:x", at.x + push * 110.0, 0.09).set_ease(Tween.EASE_OUT)
+		tw.tween_property(figure, "rotation", lie, 0.26).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tw.parallel().tween_property(figure, "position", Vector2(at.x + push * 230.0, at.y - 26.0), 0.26).set_ease(Tween.EASE_OUT)
+		tw.parallel().tween_method(func(k: float) -> void: figure.die_pose(lerp_angle(-2.3, -2.6, k), 0.0), 0.0, 1.0, 0.26)
+	elif how == "leg":
+		tw.tween_method(func(k: float) -> void: figure.die_pose(lerp_angle(arm0, 0.9, k), lerpf(knees0, 1.0, k)), 0.0, 1.0, 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tw.parallel().tween_property(figure, "position:y", at.y + 40.0, 0.18)
+		tw.parallel().tween_property(figure, "rotation", 0.15 * side, 0.18)
+		tw.tween_interval(0.28)   # down on one knee, a beat
+		tw.tween_property(figure, "rotation", lie, 0.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tw.parallel().tween_property(figure, "position", Vector2(at.x - push * 60.0, at.y - 26.0), 0.4)
+		tw.parallel().tween_method(func(k: float) -> void: figure.die_pose(lerp_angle(0.9, 1.5, k), lerpf(1.0, 0.2, k)), 0.0, 1.0, 0.4)
+	elif crumple:
 		tw.tween_property(figure, "position:x", at.x + push * 30.0, 0.1).set_ease(Tween.EASE_OUT)
 		tw.parallel().tween_property(figure, "rotation", -0.1 * side, 0.1)
 		tw.parallel().tween_method(func(k: float) -> void: figure.die_pose(lerp_angle(arm0, 1.2, k), lerpf(knees0, 1.0, k)), 0.0, 1.0, 0.32).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)

@@ -7,7 +7,7 @@ const NAMES := ["shot_player", "shot_enemy", "shot_tommy", "shot_shotgun", "hit_
 		"slow_in", "slow_out", "dive", "land", "body_fall", "step1", "step2", "whiz", "death_sting", "explosion", "glass",
 		"pickup", "drink", "flutter", "dry_fire", "reload_revolver", "reload_mag", "reload_shells", "reload_done",
 		"thunder", "coo", "wing", "drip", "wood_break", "wood_hit", "zap", "type", "page", "skid"]
-const LOOPS := ["neon_hum", "lamp_hum", "steam", "city", "heartbeat"]
+const LOOPS := ["neon_hum", "lamp_hum", "steam", "city", "heartbeat", "music_base", "music_lead"]
 const VOICES := 20
 const HEAR := 2600.0   # world pixels from the listener at which a sound has faded out
 
@@ -20,8 +20,10 @@ var _next := 0
 var _rain: AudioStreamPlayer
 var _muffle: AudioEffectLowPassFilter
 var _heart: AudioStreamPlayer
+var _music: Array[AudioStreamPlayer] = []
+var music_want := Vector2(-80.0, -80.0)   # dB for the base and the lead, set by main.gd; eased to
 var _loops: Array = []   # {player, x, db, on}: hums and hisses fixed in the street, heard as you pass
-var _ambient_t := {"thunder": 25.0, "drip": 2.0}
+var _ambient_t := {"drip": 2.0}   # thunder comes from main.gd, after its lightning
 
 
 func _ready() -> void:
@@ -51,6 +53,13 @@ func _ready() -> void:
 	city.volume_db = -19.0
 	add_child(city)
 	city.play()
+	for n in ["music_base", "music_lead"]:   # the two stems run in step, always; only their levels move
+		var mp := AudioStreamPlayer.new()
+		mp.stream = _streams[n]
+		mp.volume_db = -80.0
+		add_child(mp)
+		mp.play()
+		_music.append(mp)
 	_heart = AudioStreamPlayer.new()   # slowed time: the heart, heard from inside
 	_heart.stream = _streams["heartbeat"]
 	_heart.volume_db = -60.0
@@ -67,7 +76,9 @@ func _exit_tree() -> void:
 			AudioServer.remove_bus_effect(0, i)
 
 
+var _delta_real := 0.016
 func _process(delta: float) -> void:
+	_delta_real = delta / maxf(Engine.time_scale, 0.05)
 	_muffle.cutoff_hz = lerpf(20000.0, 1300.0, slow)
 	_rain.pitch_scale = lerpf(1.0, 0.7, slow)
 	if slow > 0.05 and not _heart.playing:
@@ -75,6 +86,11 @@ func _process(delta: float) -> void:
 	elif slow <= 0.05 and _heart.playing:
 		_heart.stop()
 	_heart.volume_db = linear_to_db(maxf(0.001, slow)) - 4.0
+	for i in 2:
+		var want: float = music_want[i]
+		var mp := _music[i]
+		mp.volume_db = move_toward(mp.volume_db, want, (8.0 if want < mp.volume_db else 4.0) * _delta_real)
+		mp.pitch_scale = lerpf(1.0, 0.8, slow)
 	for l in _loops:   # only the ones in earshot actually play
 		var k := absf(float(l["x"]) - listener_x) / float(l["reach"])
 		var p: AudioStreamPlayer = l["player"]

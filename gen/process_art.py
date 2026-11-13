@@ -19,17 +19,17 @@ STREET = {
 # (only the bright strokes glow) or 'wash' (the whole board is lit by lamps on it)
 NEONS = {
     'bluenote': [(0.232, 0.258, 0.335, 0.57, 'letters'), (0.128, 0.264, 0.565, 0.648, 'letters')],
-    'warehouse': [(0.45, 0.32, 0.2, 0.56)],
+    'warehouse': [(0.718, 0.822, 0.582, 0.668, 'letters')],
     'church': [(0.688, 0.727, 0.385, 0.705, 'letters'), (0.608, 0.737, 0.035, 0.285, 'wash')],
     'market': [(0.378, 0.422, 0.055, 0.55, 'letters'), (0.318, 0.512, 0.535, 0.64, 'letters')],
-    'deadend': [(0.485, 0.4, 0.07, 0.46)],   # the rooftop JAZZ stays dead
+    'deadend': [(0.528, 0.582, 0.455, 0.675, 'letters')],   # the rooftop JAZZ stays dead
     'subway': [(0.045, 0.107, 0.56, 0.63, 'letters'), (0.198, 0.228, 0.57, 0.63, 'letters')],
 }
 # the deep views (see SEGMENT_DEEP in main.gd): their lit windows are left to the drawing, since
 # that part slides against the wall and a fixed glow would come apart from it
-DEEP = {'alley': [(0.465, 0.22, 0.11, 0.64)], 'bluenote': [(0.665, 0.3, 0.16, 0.38)], 'warehouse': [(0.44, 0.3, 0.22, 0.6)],
+DEEP = {'alley': [(0.465, 0.22, 0.11, 0.64)], 'bluenote': [(0.665, 0.3, 0.16, 0.38)], 'warehouse': [(0.45, 0.32, 0.2, 0.56)],
         'laundry': [(0.455, 0.32, 0.1, 0.54)], 'subway': [(0.5, 0.25, 0.095, 0.63)], 'church': [(0.432, 0.4, 0.125, 0.4)],
-        'market': [(0.54, 0.42, 0.13, 0.46)], 'deadend': [(0.478, 0.38, 0.085, 0.5)]}
+        'market': [(0.54, 0.42, 0.13, 0.46)], 'deadend': [(0.485, 0.4, 0.07, 0.46)]}
 ROOMS = {'laundry': '29.png', 'warehouse': '30.png', 'tenement': '31.png', 'club': '32.png', 'cellar': '33.png'}
 
 
@@ -115,3 +115,34 @@ for name, (f, trim, towers) in STREET.items():
 for style, f in ROOMS.items():
     Image.open(SRC + f).convert('RGB').save(OUT + f'rooms/{style}.png')
     print('room', style)
+
+
+# a brick pier cut from the alley drawing's own left edge: stood over every join between two
+# drawings, so they meet at a firewall instead of a seam
+_a = Image.open(OUT + 'street/alley.png').convert('RGBA')
+_al = np.asarray(_a)[..., 3]
+_top = int(np.argmax((_al[:, 10:110] > 128).mean(1) > 0.9))
+_a.crop((6, _top, 118, _a.height)).save(OUT + 'street/pier.png')
+
+
+# where blood can land on each drawing: the walls, not the sky between roofs, not the deep views
+# (they slide), and inside railings and fences only on the dark iron itself. Half size, alpha only.
+FENCES = {
+    'church': [(0.0, 0.72, 0.42, 0.18), (0.6, 0.78, 0.38, 0.12)], 'subway': [(0.49, 0.68, 0.12, 0.2), (0.6, 0.78, 0.38, 0.11)],
+    'bluenote': [(0.65, 0.6, 0.15, 0.29)], 'laundry': [(0.875, 0.66, 0.08, 0.24)], 'deadend': [(0.47, 0.6, 0.09, 0.3), (0.85, 0.6, 0.11, 0.3)],
+    'market': [(0.5, 0.7, 0.16, 0.2)], 'warehouse': [(0.43, 0.62, 0.25, 0.28)], 'alley': [],
+}
+for name in STREET:
+    im = Image.open(OUT + f'street/{name}.png').convert('RGBA')
+    a = np.asarray(im).astype(float)
+    hh, ww = a.shape[:2]
+    solid = (a[..., 3] > 128).astype(np.uint8) * 255
+    lum = a[..., :3].mean(2)
+    for (x, y, w, h) in FENCES.get(name, []):
+        sl = (slice(int(y * hh), int((y + h) * hh)), slice(int(x * ww), int((x + w) * ww)))
+        solid[sl] = np.where(lum[sl] < 45, 255, 0)
+    for (x, y, w, h) in DEEP.get(name, []):
+        solid[int(y * hh):int((y + h) * hh), int(x * ww):int((x + w) * ww)] = 0
+    m = Image.fromarray(solid).resize((ww // 2, hh // 2), Image.BILINEAR)
+    Image.merge('RGBA', [Image.new('L', m.size, 255)] * 3 + [m]).save(OUT + f'street/{name}_solid.png')
+print('solid masks')

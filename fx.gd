@@ -22,6 +22,7 @@ var night := Color.WHITE        # set by main.gd
 var sound: Node                 # sfx.gd, set by main.gd
 var listener: Node2D            # the detective: enemy bullets that pass close to him whistle
 var clash := Callable()         # func(at: Vector2), called when two opposing bullets meet
+var stain_host := Callable()   # func(pos) -> Node2D: the mask a wall stain at pos is clipped to
 var wall_at := Callable()      # func(pos: Vector2) -> bool, false where there is no wall to stain (an alley's mouth)
 var hit_test := Callable()      # func(pos: Vector2, from_player: bool) -> bool, true when the bullet hit someone
 
@@ -318,31 +319,22 @@ func _stain_sprite(path: String, at: Vector2, origin: Vector2, dir: Vector2) -> 
 func _stain(at: Vector2, dir: Vector2) -> void:
 	if wall_at.is_valid() and not wall_at.call(at + dir * 40.0):
 		return
-	var kind := randi() % 10
+	# What a bullet really leaves on a wall behind someone: a fine fan of small droplets, now and
+	# then a few of them running. No big splats or smears.
 	var s: Sprite2D
 	var size := 1.0
 	var grow_down := false
-	if kind < 3:   # spray flung away from the shooter
-		s = _stain_sprite(STAIN_SPRAYS.pick_random(), at + dir * 15.0, Vector2(90.0, 150.0), dir)
-		size = randf_range(0.5, 0.75)
-	elif kind < 5:   # a splat that runs down the wall
-		s = _stain_sprite(STAIN_DRIPS.pick_random(), at + Vector2(dir.x * randf_range(30.0, 90.0), randf_range(-40.0, 0.0)), Vector2(150.0, 95.0), Vector2.RIGHT if randf() < 0.5 else Vector2.LEFT)
-		s.rotation = 0.0
-		size = randf_range(0.45, 0.65)
-		grow_down = true
-	elif kind < 6:   # smeared along
-		s = _stain_sprite("res://art/fx/stain_smear1.png", at + dir * 20.0, Vector2(70.0, 110.0), dir)
-		size = randf_range(0.45, 0.6)
-	elif kind < 8:   # a graze: just a fan of droplets
+	if randf() < 0.75:
 		s = _stain_sprite(STAIN_MISTS.pick_random(), at + dir * 10.0, Vector2(50.0, 150.0), dir)
-		size = randf_range(0.5, 0.7)
-	else:   # the round splats
-		s = _sprite(BLOODS.pick_random(), at + Vector2(dir.x * randf_range(50.0, 150.0), randf_range(-60.0, 30.0)), 0.05)
-		s.rotation = randf() * TAU
-		size = randf_range(0.2, 0.32)
+		size = randf_range(0.28, 0.42)
+	else:   # a little heavier: a few drops that run
+		s = _stain_sprite(STAIN_DRIPS.pick_random(), at + Vector2(dir.x * randf_range(20.0, 60.0), randf_range(-30.0, 0.0)), Vector2(150.0, 95.0), Vector2.RIGHT if randf() < 0.5 else Vector2.LEFT)
+		s.rotation = 0.0
+		size = randf_range(0.2, 0.3)
+		grow_down = true
 	s.z_index = -15   # with this node at 6: just over the wall, behind every figure and prop
 	var dark := randf_range(0.8, 1.1)
-	s.modulate = Color(0.54 * night.r * dark, 0.11 * night.g * dark, 0.08 * night.b * dark, 0.0)
+	s.modulate = Color(0.3 * night.r * dark, 0.05 * night.g * dark, 0.045 * night.b * dark, 0.0)   # dark, not paint red
 	var tw := create_tween()
 	tw.set_parallel(true)
 	if grow_down:   # the runs creep down the wall over a second
@@ -351,7 +343,12 @@ func _stain(at: Vector2, dir: Vector2) -> void:
 	else:
 		s.scale = Vector2.ONE * size * 0.3
 		tw.tween_property(s, "scale", Vector2(size, size * randf_range(0.85, 1.1)), 0.09)
-	tw.tween_property(s, "modulate:a", 0.92, 0.09)
+	tw.tween_property(s, "modulate:a", 0.8, 0.09)
+	if stain_host.is_valid():   # clipped to the solid parts of the drawing behind: no blood on the gaps of a railing
+		var host = stain_host.call(at)
+		if host != null:
+			s.reparent(host, true)
+			s.z_index = 0
 	_stains.append(s)
 	if _stains.size() > MAX_STAINS:
 		_stains.pop_front().queue_free()
