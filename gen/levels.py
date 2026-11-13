@@ -10,6 +10,9 @@ from PIL import Image, ImageDraw
 # kind: (width, height, wood?)  wood breaks under fire, the rest holds; barrel explodes
 BOX = {"crate": (250, 248, True), "drum": (160, 246, False), "crate_long": (330, 176, True), "dumpster": (300, 250, False),
        "barrel": (120, 170, False), "machine": (260, 230, False), "bar": (420, 190, False)}
+# the drawn street segments (art/street) and their widths in the world (picture width x 1.9)
+SEGMENTS = {"alley": 3028, "bluenote": 3028, "warehouse": 3028, "laundry": 3028, "subway": 3108, "church": 3108, "market": 3038, "deadend": 3038}
+STREET_POOL = ["alley", "warehouse", "laundry", "subway", "church", "market"]
 F1, F2 = -370.0, -740.0   # floor heights: first and second storey
 JUMP_REACH = 282.0
 
@@ -21,6 +24,7 @@ class Chunk:
         self.enemies, self.pickups, self.hints, self.checks = [], [], [], []
         self.stand = None
         self.end = 0.0
+        self.street = []
 
     def box(self, kind, x): self.boxes.append([kind, x]); return self
     def plat(self, x, y, w, style="catwalk"): self.plats.append([x, y, w, style]); return self
@@ -132,7 +136,31 @@ def build(mp):
                         {"x": x + 1100, "y": 0.0, "kind": "tommy", "trig": x - 200, "from": x + 2600, "delay": 0.0, "run": True}]
         out.end = x + 1600
     out.checks = sorted(set(round(c) for c in out.checks if 800 < c < out.end - 500))
+    out.street = street(mp, out, rng)
     return out
+
+
+def street(mp, m, rng):
+    """The run of drawn segments under the map: the map's own feature segment early on, no segment twice
+    in a row, and (in the prologue) the dead-end alley under the last stand."""
+    seq, x = [], -3000.0
+    pool = [s for s in STREET_POOL if s != mp.get("feature")]
+    last = None
+    i = 0
+    while x < m.end + 2500:
+        if i == 1 and mp.get("feature"):
+            name = mp["feature"]
+        elif m.stand and "deadend" not in [q[0] for q in seq] and x + SEGMENTS["deadend"] * 1.9 > m.stand + 1000:
+            name = "deadend"
+        else:   # each segment once before any comes back
+            used = [q[0] for q in seq]
+            fresh = [s for s in pool if s not in used]
+            name = rng.choice(fresh if fresh else [s for s in pool if s != last])
+        seq.append([name, x])
+        last = name
+        x += SEGMENTS[name] * 1.9
+        i += 1
+    return seq
 
 
 def last_stand(out, x):   # the prologue's end: a dead-end alley and more of them than Eddie has bullets
@@ -199,7 +227,7 @@ def draw(m, name, path):
     im.save(path)
 
 
-PROLOGUE = {"name": "THE LAST NOTE", "seed": 1, "start": 0.0, "end": 0.2, "extra": last_stand,
+PROLOGUE = {"name": "THE LAST NOTE", "seed": 1, "feature": "bluenote", "start": 0.0, "end": 0.2, "extra": last_stand,
     "fixed": ["breather", "crate_cover", "drum_duo", "barrel_trap", "rush"],
     "hints": [[200, "DRAG THE STICK TO MOVE"], [1500, "TAP ANYWHERE TO SHOOT THERE"], [2700, "PULL THE STICK DOWN TO HIDE BEHIND COVER"],
               [4300, "THE RUNNING MAN BUTTON DIVES OVER CRATES"], [6100, "SHOOT THE RED BARREL"], [7900, "TAP THE STOPWATCH TO SLOW TIME"]],
@@ -209,7 +237,7 @@ PROLOGUE = {"name": "THE LAST NOTE", "seed": 1, "start": 0.0, "end": 0.2, "extra
 CAMPAIGN = [
   {"title": "PROLOGUE", "name": "EDDIE DOYLE", "ready": True, "hero": "eddie", "ambient": [0.2, 0.21, 0.27], "rain": 1.2, "maps": [PROLOGUE]},
   {"title": "CHAPTER I", "name": "RAIN ON HELL'S KITCHEN", "ready": True, "hero": "frank", "ambient": [0.2, 0.21, 0.27], "rain": 1.0, "maps": [
-    {"name": "THE ALLEY", "seed": 101, "start": 0.0, "end": 0.35,
+    {"name": "THE ALLEY", "seed": 101, "feature": "alley", "start": 0.0, "end": 0.35,
      "fixed": ["crate_cover", "drum_duo", "dumpster_alley", "breather", "barrel_trap", "crate_cover", "pistols_cache", "ambush_behind", "gauntlet"],
      "intro": ["They pulled the sheet back for me. Eddie looked surprised.", "In his fist, a matchbook from the Blue Note."],
      "outro": ["The shooters ran east. So did I."]},
@@ -217,7 +245,7 @@ CAMPAIGN = [
      "fixed": ["dumpster_alley", "crate_cover", "fire_escape", "ambush_behind", "barrel_trap", "breather", "catwalk", "rush", "drum_duo"],
      "intro": ["Hell's Kitchen doesn't sleep. It just lies there with its eyes open."],
      "outro": ["One of them talked before he stopped talking. A laundry on Tenth Avenue."]},
-    {"name": "THE LAUNDRY", "seed": 103, "start": 0.35, "end": 0.6,
+    {"name": "THE LAUNDRY", "seed": 103, "feature": "laundry", "start": 0.35, "end": 0.6,
      "fixed": ["crate_cover", "barrel_trap", "laundry", "breather", "warehouse_arena", "fire_escape", "rush"],
      "intro": ["Steam, starch and gun oil.", "Nobody washes shirts at three in the morning."],
      "outro": ["A receipt in the back room, signed S. R.", "The back door led up. They always lead up."]},
@@ -225,7 +253,7 @@ CAMPAIGN = [
      "fixed": ["tenement", "ambush_behind", "fire_escape", "breather", "high_ground", "barrel_trap", "tenement", "gauntlet"],
      "intro": ["Iron stairs, wet as a liar's palm."],
      "outro": ["Below me the neon said JAZZ.", "Sal Russo liked his music loud and his witnesses quiet."]},
-    {"name": "THE BLUE NOTE", "seed": 105, "start": 0.6, "end": 0.85, "boss": "sal",
+    {"name": "THE BLUE NOTE", "seed": 105, "feature": "bluenote", "start": 0.6, "end": 0.85, "boss": "sal",
      "fixed": ["crate_cover", "barrel_trap", "club", "breather", "warehouse_arena", "rush"],
      "intro": ["Sal 'Knuckles' Russo. Moretti's hammer.", "Tonight the hammer was going to meet a nail."],
      "outro": ["Sal coughed up two words before the end: Pier 17.", "Then Eddie's girl came down off the stage with his notebook."]},
@@ -270,6 +298,7 @@ def gd(campaign):
             pk = ", ".join(f'["{p[0]}", {f(p[1])}, {f(p[2])}]' for p in m.pickups)
             hn = ", ".join(f'[{f(h[0])}, {q(h[1])}]' for h in m.hints)
             ck = ", ".join(f(c) for c in m.checks)
+            st = ", ".join(f'["{g[0]}", {f(g[1])}]' for g in m.street)
             out.append("\t\t{" + f'"name": {q(lv["name"])}, "end": {f(m.end)}, "boss": {q(lv.get("boss", ""))}, "stand": {f(m.stand if m.stand else -1)},')
             out.append("\t\t\t\"intro\": [" + ", ".join(q(t) for t in lv["intro"]) + "], \"outro\": [" + ", ".join(q(t) for t in lv["outro"]) + "],")
             out.append(f'\t\t\t"hints": [{hn}],')
@@ -280,6 +309,7 @@ def gd(campaign):
             out.append(f'\t\t\t"lamps": [{lp}],')
             out.append(f'\t\t\t"pickups": [{pk}],')
             out.append(f'\t\t\t"checkpoints": [{ck}],')
+            out.append(f'\t\t\t"street": [{st}],')
             out.append(f'\t\t\t"enemies": [{en}]}},')
         out.append("\t]},")
     out.append("]")

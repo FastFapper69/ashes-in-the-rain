@@ -144,6 +144,8 @@ var enemies: Array = []        # one entry per mobster: node, hp, cool, aim_off,
 var boxes: Array[Rect2] = []
 var cleared := false
 var cam: Camera2D
+var _lead := CAM_LEAD   # how far ahead of the detective the camera looks; swings to the side he aims at
+var _look := 1.0
 var fore: Node2D
 var depth: Array[Node2D] = []   # the far and mid layers, moved with the camera in _process
 var depth_follow: Array[float] = []
@@ -219,6 +221,7 @@ func _ready() -> void:
 	_build_light()
 
 	_build_level()
+	_place_flocks()
 	player = PuppetScript.new()
 	player.cfg = DETECTIVE
 	player.night = _undo_night(1.0)
@@ -232,17 +235,7 @@ func _ready() -> void:
 	fore = Node2D.new()   # foreground silhouettes, nearer than the action, so they slide past faster
 	fore.z_index = 10
 	add_child(fore)
-	var fore_tex: Texture2D = load("res://art/bg/fore.png")
-	for i in range(-2, int(level_end / 6000.0) + 3):
-		var f := Sprite2D.new()
-		f.texture = fore_tex
-		f.centered = false
-		f.modulate = Color(0.1, 0.1, 0.11)
-		f.light_mask = MASK_UNLIT
-		f.scale = Vector2.ONE * 0.62
-		f.position = Vector2(i * 6000.0 + 900.0, -fore_tex.get_height() * 0.62 + 235.0)
-		f.material = atmo.blur_material(5.0)   # nearer than the focus: soft
-		fore.add_child(f)
+	_scatter_fore()
 	for k in range(-2, int(level_end / 4200.0) + 3):   # telephone wires sagging across the top of the frame, nearest of all
 		var wire := Line2D.new()
 		var pts := PackedVector2Array()
@@ -257,6 +250,7 @@ func _ready() -> void:
 
 	cam = Camera2D.new()
 	cam.zoom = Vector2(ZOOM, ZOOM)
+	cam.ignore_rotation = false   # it leans a little into the aim
 	cam.position = Vector2(cam_start + CAM_LEAD, CAM_Y)
 	add_child(cam)
 	cam.make_current()
@@ -265,6 +259,7 @@ func _ready() -> void:
 	atmo.rain_far.amount = maxi(1, int(atmo.rain_far.amount * float(ch["rain"])))
 	atmo.rain_near.amount = maxi(1, int(atmo.rain_near.amount * float(ch["rain"])))
 	atmo.add_post(self)
+	atmo.add_ash(cam, float(level.get("ash", 0.3)), float(level.get("embers", 0.0)))
 	steps = atmo.add_steps(player, _undo_night(0.6))
 	fx = FxScript.new()
 	fx.night = _undo_night(1.0)
@@ -304,6 +299,9 @@ func _ready() -> void:
 
 
 func _build_street() -> void:
+	if level.has("street") and level["street"].size() > 0:
+		_build_segments()
+		return
 	var wall_tex: Texture2D = load("res://art/bg/wall2.png")
 	var wall_n: Texture2D = load("res://art/bg/wall2_n.png")
 	var lit_tex: Texture2D = load("res://art/bg/wall2_lit.png")
@@ -410,6 +408,334 @@ func _build_street() -> void:
 		_pavement(origin.x, wall_w)
 
 
+## Where the wall lamps hang on each drawn street segment (fractions of its width), where a facade stands at that height.
+const SEGMENT_LAMPS := {"alley": [0.08, 0.62, 0.92], "bluenote": [0.12, 0.3, 0.9], "warehouse": [0.15, 0.42, 0.82], "laundry": [0.1, 0.3, 0.72],
+	"subway": [0.1, 0.38, 0.72], "church": [0.08, 0.9], "market": [0.1, 0.45, 0.86], "deadend": [0.22, 0.86]}
+# the signs that light up on each drawing: top-left of the glow picture (pixels of the drawing),
+# colour, and how it burns: steady, buzz (now and then a stutter) or dying (out as often as on)
+const SEGMENT_NEONS := {
+	"bluenote": [[Vector2(678, 426), Color(1.0, 0.22, 0.18), "buzz"], [Vector2(363, 735), Color(0.42, 0.5, 0.62), "steady"]],
+	"warehouse": [[Vector2(2150, 758), Color(1.0, 0.2, 0.2), "dying"]],
+	"subway": [[Vector2(115, 728), Color(1.0, 0.8, 0.5), "steady"], [Vector2(591, 742), Color(1.0, 0.8, 0.5), "steady"]],
+	"church": [[Vector2(2114, 493), Color(1.0, 0.28, 0.22), "buzz"], [Vector2(1865, 23), Color(1.0, 0.85, 0.6), "steady", true]],
+	"market": [[Vector2(1124, 49), Color(1.0, 0.7, 0.32), "steady"], [Vector2(942, 695), Color(1.0, 0.8, 0.45), "buzz"]],
+	"deadend": [[Vector2(1580, 587), Color(1.0, 0.25, 0.25), "dying"]],
+}
+var neons: Array = []
+const NEON_LIGHT := 0.35   # the colour a sign throws on figures near it; the drawings already carry their own glow
+var flocks: Array = []   # pigeons on the pavement: {birds: [{node, state, t, vel, frame}], scared}
+const BIRD_FLAP := ["up1", "glide", "up2", "flat", "up3", "glide"]
+var _bird_tex := {}
+var moonlight: DirectionalLight2D   # stronger up on the roofs, under the open sky   # {nodes, light, mode, next, on}
+const SEGMENT_MOON := 1.6   # how much brighter than the bare night the drawn streets are kept
+const SEGMENT_BASE := 0.92   # the facades meet the pavement this far down each drawing
+
+
+## The street as a run of different drawn segments, each with its own buildings and a view into the
+## depth between them; the sky and the distant city show through the gaps.
+func _build_segments() -> void:
+	var halo_tex := _soft_glow()
+	var additive := CanvasItemMaterial.new()
+	additive.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+	additive.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	var unshaded := CanvasItemMaterial.new()
+	unshaded.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+	for seg in level["street"]:
+		var seg_name := String(seg[0])
+		var x0 := float(seg[1])
+		var diffuse: Texture2D = load("res://art/street/" + seg_name + ".png")
+		var w := Sprite2D.new()   # no normal map: lamplight falls on the drawing as it is, like the moonlit wash
+		w.texture = diffuse
+		w.centered = false
+		w.scale = Vector2.ONE * WALL_SCALE
+		var seg_w := diffuse.get_width() * WALL_SCALE
+		w.position = Vector2(x0, -diffuse.get_height() * WALL_SCALE * SEGMENT_BASE - WALL_LIFT)
+		w.z_index = -10
+		w.material = atmo.blur_material(1.4)
+		w.modulate = Color.WHITE * SEGMENT_MOON   # a moonlit wash, so the drawing still reads between the lamps
+		add_child(w)
+		var glow := Sprite2D.new()   # its lit windows and signs, pushed through the night at full strength
+		glow.texture = load("res://art/street/" + seg_name + "_lit.png")
+		glow.centered = false
+		glow.scale = Vector2.ONE * WALL_SCALE * 2.0   # the glow layer is stored at half size
+		glow.position = w.position
+		glow.material = additive
+		glow.modulate = _undo_night(0.55)   # added on top of the drawing: big lit shopfronts would burn out at more
+		glow.z_index = -9
+		add_child(glow)
+		atmo.add_mist(self, x0, seg_w, -WALL_LIFT, _undo_night(0.8))
+		atmo.add_steam(self, Vector2(x0 + seg_w * 0.45, -20.0))
+		var signs: Array = SEGMENT_NEONS.get(seg_name, [])
+		for k in signs.size():
+			_add_sign("res://art/street/%s_neon%d.png" % [seg_name, k], w.position + (signs[k][0] as Vector2) * WALL_SCALE, signs[k][1], String(signs[k][2]), halo_tex, signs[k].size() > 3)
+		for f in SEGMENT_LAMPS.get(seg_name, []):
+			var at := Vector2(x0 + seg_w * float(f), -WALL_LIFT - 880.0)
+			if _room_at(at.x) != "":
+				continue
+			lamps.append(at)
+			var rec := {"nodes": [], "light": null, "on": true}
+			lamp_info.append(rec)
+			var fix := Sprite2D.new()
+			fix.texture = load("res://art/props/lamp_wall.png")
+			fix.centered = false
+			fix.scale = Vector2.ONE * 0.2
+			fix.offset = -LAMP_BULB
+			fix.position = at
+			fix.z_index = -7
+			add_child(fix)
+			var halo := Sprite2D.new()
+			halo.texture = halo_tex
+			halo.scale = Vector2.ONE * 2.2
+			halo.position = at + Vector2(0.0, -8.0)
+			halo.material = additive
+			halo.modulate = _undo_night(0.4) * Color(1.0, 0.68, 0.32)
+			halo.z_index = -6
+			add_child(halo)
+			rec["nodes"].append(halo)
+			for wet_scale in [Vector2(1.7, 0.13), Vector2(0.55, 0.3)]:
+				var wet := Sprite2D.new()
+				wet.texture = halo_tex
+				wet.scale = wet_scale
+				wet.position = Vector2(at.x, -30.0)
+				wet.material = additive
+				wet.modulate = _undo_night(0.2) * Color(1.0, 0.72, 0.4)
+				wet.z_index = -7
+				add_child(wet)
+				rec["nodes"].append(wet)
+			var bulb := Sprite2D.new()
+			bulb.texture = load("res://art/light_blob.png")
+			bulb.scale = Vector2.ONE * 0.11
+			bulb.position = at + Vector2(0.0, -8.0)
+			bulb.material = unshaded
+			bulb.modulate = _undo_night(0.8) * Color(1.0, 0.85, 0.6)
+			bulb.z_index = -6
+			add_child(bulb)
+			rec["nodes"].append(bulb)
+		_pavement(x0, seg_w)
+
+
+## A sign on a drawn street that burns in the dark: its strokes glow in their colour, a haze hangs
+## round it, it throws coloured light on whoever passes and shines in the wet pavement below.
+func _add_sign(path: String, top_left: Vector2, col: Color, mode: String, halo_tex: Texture2D, wash := false) -> void:
+	var tex: Texture2D = load(path)
+	var size := tex.get_size() * WALL_SCALE
+	var mid := top_left + size * 0.5
+	if _room_at(mid.x) != "":
+		return
+	var additive := CanvasItemMaterial.new()
+	additive.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+	additive.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	var rec := {"nodes": [], "light": null, "mode": mode, "next": randf_range(0.5, 4.0), "on": true}
+	var unshaded := CanvasItemMaterial.new()
+	unshaded.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+	# the tubes: painted over in their own colour (so a red sign reads red, not pink), then a white-hot
+	# core added on top. A lamp-lit billboard only gets the added light.
+	for layer in ([1] if wash else [0, 1]):
+		var glow := Sprite2D.new()
+		glow.texture = tex
+		glow.centered = false
+		glow.position = top_left
+		glow.scale = Vector2.ONE * WALL_SCALE
+		glow.material = unshaded if layer == 0 else additive
+		glow.modulate = col if layer == 0 else _undo_night(0.35 if wash else 0.22) * col.lerp(Color.WHITE, 0.55)
+		glow.z_index = -9
+		add_child(glow)
+		rec["nodes"].append(glow)
+	var haze := Sprite2D.new()
+	haze.texture = halo_tex
+	haze.position = mid
+	haze.scale = Vector2(size.x, size.y) / 256.0 * 2.2 + Vector2.ONE * 1.2
+	haze.material = additive
+	haze.modulate = _undo_night(0.07) * col
+	haze.z_index = -8
+	add_child(haze)
+	rec["nodes"].append(haze)
+	var wet := Sprite2D.new()   # its colour smeared on the wet stone
+	wet.texture = halo_tex
+	wet.position = Vector2(mid.x, -30.0)
+	wet.scale = Vector2(maxf(size.x / 256.0 * 2.4, 1.2), 0.14)
+	wet.material = additive
+	wet.modulate = _undo_night(0.16) * col
+	wet.z_index = -7
+	add_child(wet)
+	rec["nodes"].append(wet)
+	var l := PointLight2D.new()
+	l.texture = load("res://art/light_blob.png")
+	l.texture_scale = clampf(maxf(size.x, size.y) / 256.0 * 2.5, 4.0, 9.0)
+	l.position = Vector2(mid.x, maxf(mid.y, -900.0))
+	l.color = col
+	l.energy = NEON_LIGHT
+	l.height = 120.0
+	l.range_item_cull_mask = MASK_LIT
+	add_child(l)
+	rec["light"] = l
+	neons.append(rec)
+
+
+## Neon is never quite steady: a low hum in its brightness, a stutter now and then, and the old
+## ones die and catch again.
+func _tick_neons(delta: float) -> void:
+	for rec in neons:
+		rec["next"] = float(rec["next"]) - delta
+		var hum := 1.0 + sin(_time * 50.0 + float(rec["next"])) * 0.03
+		if rec["next"] <= 0.0:
+			match String(rec["mode"]):
+				"buzz":
+					rec["on"] = not rec["on"]
+					rec["next"] = randf_range(0.03, 0.09) if not rec["on"] or randf() < 0.6 else randf_range(3.0, 9.0)
+				"dying":
+					rec["on"] = not rec["on"]
+					rec["next"] = randf_range(0.05, 1.4) if not rec["on"] else randf_range(0.08, 2.5)
+				_:
+					rec["next"] = 99.0
+		var k := hum if rec["on"] else 0.0
+		for n in rec["nodes"]:
+			n.self_modulate.a = k
+		rec["light"].energy = NEON_LIGHT * k
+
+
+## Things standing right by the camera, out of focus: bollards, a hydrant, a parked car, a lamp
+## whose lantern blooms into a soft disc. Each map deals them in its own order and spacing.
+const FORE_PROPS := {"bollard": 3.0, "hydrant": 2.0, "trash": 2.0, "lamp": 2.0, "railing": 1.0, "sign": 1.0, "car": 0.7}
+func _scatter_fore() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = chapter * 1000 + map * 17 + 5
+	var additive := CanvasItemMaterial.new()
+	additive.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+	additive.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	var halo := _soft_glow()
+	var names: Array = FORE_PROPS.keys()
+	var weights := PackedFloat32Array(FORE_PROPS.values())
+	var last := ""
+	var x := -3000.0 + rng.randf_range(0.0, 1500.0)
+	while x < level_end * 1.4 + 3000.0:
+		var pick: String = names[rng.rand_weighted(weights)]
+		if pick == last:
+			continue
+		last = pick
+		var tex: Texture2D = load("res://art/fore/" + pick + ".png")
+		var sc := 0.62 * rng.randf_range(0.92, 1.08)
+		var f := Sprite2D.new()
+		f.texture = tex
+		f.centered = false
+		f.flip_h = rng.randf() < 0.5 and pick != "sign"
+		f.modulate = Color(0.1, 0.1, 0.11)
+		f.light_mask = MASK_UNLIT
+		f.scale = Vector2.ONE * sc
+		f.position = Vector2(x, 205.0 - tex.get_height() * sc)
+		f.material = atmo.blur_material(5.0)   # nearer than the focus: soft
+		fore.add_child(f)
+		if pick == "lamp":   # its lantern, out of focus, blooms into a disc of warm light
+			var head := f.position + Vector2(210.0, 125.0) * sc
+			for k in 2:
+				var g := Sprite2D.new()
+				g.texture = halo
+				g.position = head
+				g.scale = Vector2.ONE * (2.6 if k == 0 else 0.9)
+				g.material = additive
+				g.modulate = _undo_night(0.22 if k == 0 else 0.55) * Color(1.0, 0.7, 0.38)
+				fore.add_child(g)
+		x += tex.get_width() * sc + rng.randf_range(1500.0, 3600.0)
+
+
+## Pigeons pecking about on the pavement here and there. The detective walking up, a shot, or
+## an explosion sends the whole flock up and over the roofs in a clatter of wings.
+func _place_flocks() -> void:
+	for n in ["stand", "peck", "walk", "crouch"] + BIRD_FLAP:
+		_bird_tex[n] = load("res://art/birds/" + n + ".png")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = chapter * 777 + map * 31 + 3
+	var x := cam_start + rng.randf_range(1800.0, 3200.0)
+	while x < level_end - 800.0:
+		var clear := _room_at(x) == ""
+		for b in boxes:
+			if absf(b.get_center().x - x) < 500.0:
+				clear = false
+		if clear:
+			var flock := {"birds": [], "scared": false}
+			for k in rng.randi_range(5, 9):
+				var bird := Sprite2D.new()
+				bird.texture = _bird_tex["stand"]
+				bird.centered = false
+				bird.scale = Vector2.ONE * rng.randf_range(0.33, 0.39)
+				bird.position = Vector2(x + rng.randf_range(-320.0, 320.0), rng.randf_range(-40.0, -8.0))
+				bird.flip_h = rng.randf() < 0.5
+				bird.z_index = -2
+				bird.modulate = Color(0.95, 0.95, 1.0)
+				add_child(bird)
+				flock["birds"].append({"node": bird, "state": "idle", "t": rng.randf_range(0.0, 1.5), "vel": Vector2.ZERO, "frame": 0.0})
+				_bird_pose(flock["birds"][-1], "stand")
+			flocks.append(flock)
+			x += rng.randf_range(5500.0, 9500.0)
+		else:
+			x += 600.0
+
+
+func _bird_pose(b: Dictionary, pose: String) -> void:
+	var n: Sprite2D = b["node"]
+	var tex: Texture2D = _bird_tex[pose]
+	n.texture = tex
+	n.offset = Vector2(-tex.get_width() * 0.5, -tex.get_height())   # the node sits at its feet, whatever the pose
+
+
+func _scare_birds(at: Vector2, radius: float) -> void:
+	for flock in flocks:
+		if flock["scared"] or flock["birds"].is_empty():
+			continue
+		var first: Sprite2D = flock["birds"][0]["node"]
+		if absf(first.position.x - at.x) > radius:
+			continue
+		flock["scared"] = true
+		sfx.play("flutter", -3.0, first.position.x, 0.1)
+		for b in flock["birds"]:
+			b["state"] = "startle"
+			b["t"] = randf_range(0.0, 0.3)   # not all at once: the nearest go first, the rest follow
+			var away := signf(b["node"].position.x - at.x)
+			b["vel"] = Vector2((away if away != 0.0 else 1.0) * randf_range(350.0, 750.0), -randf_range(650.0, 1050.0))
+			_bird_pose(b, "crouch")
+
+
+func _tick_birds(delta: float) -> void:
+	for flock in flocks:
+		if flock["birds"].is_empty():
+			continue
+		if not flock["scared"] and absf(flock["birds"][0]["node"].position.x - player.position.x) < (700.0 if absf(run) > 500.0 else 330.0) \
+				and player.position.y > -200.0:
+			_scare_birds(player.position, 2000.0)
+		var i: int = flock["birds"].size() - 1
+		while i >= 0:
+			var b: Dictionary = flock["birds"][i]
+			var n: Sprite2D = b["node"]
+			b["t"] = float(b["t"]) - delta
+			match String(b["state"]):
+				"idle":   # peck, look up, take a few steps
+					if b["t"] <= 0.0:
+						var pose: String = ["stand", "peck", "peck", "walk"][randi() % 4]
+						_bird_pose(b, pose)
+						if pose == "walk":
+							if randf() < 0.3:
+								n.flip_h = not n.flip_h
+							n.position.x += (-1.0 if n.flip_h else 1.0) * randf_range(10.0, 30.0)
+						b["t"] = randf_range(0.3, 1.4)
+				"startle":
+					if b["t"] <= 0.0:
+						b["state"] = "fly"
+						n.flip_h = b["vel"].x < 0.0
+				"fly":   # beat hard, climb and bank away; the wings slow down with time itself
+					var vel: Vector2 = b["vel"]
+					vel.y -= 260.0 * delta
+					vel.x *= 1.0 + 0.4 * delta
+					b["vel"] = vel
+					n.position += vel * delta
+					b["frame"] = float(b["frame"]) + delta * 15.0
+					_bird_pose(b, BIRD_FLAP[int(b["frame"]) % BIRD_FLAP.size()])
+					n.rotation = clampf(vel.angle() + (PI if n.flip_h else 0.0), -0.5, 0.5) * 0.4
+					if b["t"] < -4.0:
+						n.queue_free()
+						flock["birds"].remove_at(i)
+			i -= 1
+
+
 ## A round glow that fades out smoothly to nothing at its edge (light_blob.png ends in a hard rim).
 func _soft_glow() -> GradientTexture2D:
 	var g := Gradient.new()
@@ -441,6 +767,30 @@ func _build_depth() -> void:
 	sky.z_index = -30
 	sky.material = atmo.blur_material(2.0)
 	cam.add_child(sky)
+	# the moon: just over the roofs, seen through the gaps between buildings and from the rooftops
+	var moon_tex: Texture2D = load("res://art/bg/moon.png")
+	var additive := CanvasItemMaterial.new()
+	additive.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+	additive.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	var moon_at := Vector2(980.0, -560.0)
+	var glow := Sprite2D.new()
+	glow.texture = _soft_glow()
+	glow.scale = Vector2.ONE * 4.2
+	glow.position = moon_at
+	glow.material = additive
+	glow.modulate = _undo_night(0.16) * Color(0.75, 0.82, 1.0)
+	glow.z_index = -29
+	glow.light_mask = 0
+	cam.add_child(glow)
+	var disc := Sprite2D.new()
+	disc.texture = moon_tex
+	disc.scale = Vector2.ONE * 0.75
+	disc.position = moon_at
+	disc.modulate = _undo_night(0.82)
+	disc.light_mask = 0
+	disc.z_index = -29
+	disc.material = atmo.blur_material(1.0)
+	cam.add_child(disc)
 	for d in DEPTH:
 		var layer := Node2D.new()
 		add_child(layer)
@@ -531,6 +881,7 @@ func _build_light() -> void:
 	moon.rotation_degrees = 35.0
 	moon.range_item_cull_mask = MASK_LIT
 	add_child(moon)
+	moonlight = moon
 
 	for i in lamps.size():
 		lamp_info[i]["light"] = _lamp_light(lamps[i])
@@ -614,14 +965,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		_tt = 0.0   # cover test: crouch behind the first crate, pop up and shoot, then watch a mobster use cover
 		_tt_done = 0
 		player.position = Vector2(1350.0, 0.0)
-		cam.position.x = player.position.x + CAM_LEAD
+		cam.position.x = player.position.x + _lead
 	if event is InputEventKey and event.pressed and event.physical_keycode == KEY_F9:
 		hp = PLAYER_HP
 		hud.set_health(1.0)
 		_dt = 0.0   # run the demo of every move and save pictures of it into _shots/
 		_demo_step = 0
 		player.position = Vector2(-6500.0, 0.0)   # an empty stretch of street, away from the mobsters
-		cam.position.x = player.position.x + CAM_LEAD
+		cam.position.x = player.position.x + _lead
 		_shots_done = 0
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if not hud.touch_seen:   # on a phone a tap also arrives as a click; the buttons handle those
@@ -686,7 +1037,7 @@ func _process(delta: float) -> void:
 				_shot(TEST_SHOTS[i][1])
 		if _tt > 4.0 and player.position.x < 2750.0:   # on to the mobster behind the drum
 			player.position.x = 2750.0
-			cam.position.x = player.position.x + CAM_LEAD
+			cam.position.x = player.position.x + _lead
 		if _tt > 6.4:
 			_tt = -1.0
 			_demo_duck = false
@@ -758,19 +1109,32 @@ func _process(delta: float) -> void:
 	if not cleared and not over and player.position.x > level_end and _all_down():
 		_map_cleared()
 	_slow_time(real)
+	atmo.blow_ash(_time)
+	_tick_neons(delta)
+	_tick_birds(delta)
+	moonlight.energy = lerpf(0.35, 0.62, clampf(-player.position.y / 650.0, 0.0, 1.0))
 	_afterimages(delta, absf(dir))
 	_slow_look = lerpf(_slow_look, 1.0 if Engine.time_scale < 1.0 else 0.0, 1.0 - exp(-10.0 * real))
 	atmo.set_slow(_slow_look)
 	sfx.slow = _slow_look
-	sfx.listener_x = cam.position.x - CAM_LEAD
+	sfx.listener_x = player.position.x
 	fx.slow = _slow_look
 	_cast_shadow(player)
 	for e in enemies:
 		if e["alive"] and e["state"] != "wait":
 			_cast_shadow(e["node"])
-	# the camera trails the detective softly and does not bob with jumps
-	cam.position = Vector2(lerpf(cam.position.x, player.position.x + CAM_LEAD, 1.0 - exp(-9.0 * real)),
-			lerpf(cam.position.y, CAM_Y + clampf(player.position.y * 0.45, -330.0, 0.0), 1.0 - exp(-4.0 * real)))
+	# The camera looks the way he aims: when the fight turns round behind him it swings over, slowly,
+	# to give him room on that side. It leans a touch into the aim, trails him softly and does not
+	# bob with jumps.
+	var aim_n := aim.normalized() if aim.length() > 1.0 else Vector2(signf(_lead), 0.0)
+	if absf(aim.x) > 60.0 and not over:
+		_look = signf(aim.x)
+	_lead = lerpf(_lead, CAM_LEAD * _look, 1.0 - exp(-2.4 * real))
+	var want_y := CAM_Y + clampf(player.position.y * 0.45, -330.0, 0.0) + clampf(aim_n.y, -0.6, 0.6) * 90.0
+	cam.position = Vector2(lerpf(cam.position.x, player.position.x + _lead, 1.0 - exp(-5.5 * real)),
+			lerpf(cam.position.y, want_y, 1.0 - exp(-3.0 * real)))
+	var tilt := clampf(aim_n.y, -0.7, 0.7) * _look * 0.012 + clampf(run / 1400.0, -1.0, 1.0) * 0.006
+	cam.rotation = lerpf(cam.rotation, 0.0 if over else tilt, 1.0 - exp(-2.0 * real))
 	if _shake > 0.0:   # an explosion shakes the picture
 		_shake = maxf(0.0, _shake - real)
 		cam.offset = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * 60.0 * _shake
@@ -795,7 +1159,7 @@ func _auto_step(delta: float) -> void:
 	if _auto == "dive":   # run at the first crate with the stick and tap the dive button right in front of it
 		if _at < 0.05:
 			player.position.x = 900.0
-			cam.position.x = player.position.x + CAM_LEAD
+			cam.position.x = player.position.x + _lead
 		hud.move = 1.0 if _at < 2.2 else 0.0
 		if player.position.x > _dive_at and _auto_done & 1 == 0:
 			_auto_done |= 1
@@ -861,7 +1225,7 @@ func _auto_step(delta: float) -> void:
 			if t < 0.05:
 				player.position = Vector2(spot[1], _floor_at(spot[1], -3000.0))
 				move_state = "ground"
-				cam.position = Vector2(player.position.x + CAM_LEAD, CAM_Y + clampf(player.position.y * 0.45, -330.0, 0.0))
+				cam.position = Vector2(player.position.x + _lead, CAM_Y + clampf(player.position.y * 0.45, -330.0, 0.0))
 			if spot[0] == "barrel" and t > 0.5 and _auto_done & (1 << 20) == 0:
 				_auto_done |= 1 << 20
 				for k in boxes.size():
@@ -877,7 +1241,7 @@ func _auto_step(delta: float) -> void:
 	elif _auto == "stand":   # the prologue's last stand, to its end
 		if _at < 0.05:
 			player.position.x = float(level["stand"]) + 60.0
-			cam.position.x = player.position.x + CAM_LEAD
+			cam.position.x = player.position.x + _lead
 		hud.move = 1.0 if _at < 0.5 else 0.0
 		var near = _nearest_enemy()
 		if near != null and int(_at * 10) % 3 == 0:
@@ -901,16 +1265,38 @@ func _auto_step(delta: float) -> void:
 	elif _auto == "stains":   # eight hits along the wall, then look at them once the runs have crept down
 		if _at < 0.05:
 			player.position.x = 1150.0
-			cam.position.x = player.position.x + CAM_LEAD
+			cam.position.x = player.position.x + _lead
 		if _at > 0.3 and _auto_done & 1 == 0:
 			_auto_done |= 1
 			for i in 8:
 				fx.blood(Vector2(1000.0 + i * 260.0, -260.0 - (i % 3) * 70.0), Vector2(1.0 if i % 2 == 0 else -1.0, 0.0))
 		shots = [[0.5, "stains_1"], [2.2, "stains_2"]]
+	elif _auto == "life":   # the living street: a flock, a shot that scares it, a hit, a muzzle flash, a neon sign
+		var fx0: float = flocks[0]["birds"][0]["node"].position.x if not flocks.is_empty() else 3000.0
+		if _at < 0.05:
+			player.position.x = fx0 - 1000.0
+			cam.position.x = player.position.x + _lead
+		if _at > 1.0 and _auto_done & 1 == 0:
+			_auto_done |= 1
+			_fire(player, true)
+		if _at > 2.2 and _auto_done & 2 == 0:
+			_auto_done |= 2
+			fx.blood(player.position + Vector2(700.0, -300.0), Vector2(1.0, -0.1), true)
+		if _at > 2.6 and _auto_done & 4 == 0:
+			_auto_done |= 4
+			_fire(player, true)
+		if _at > 3.0 and _auto_done & 8 == 0:
+			_auto_done |= 8
+			for seg in level["street"]:
+				if String(seg[0]) == "bluenote":
+					player.position.x = float(seg[1]) + 800.0
+					cam.position.x = player.position.x + _lead
+					break
+		shots = [[0.8, "life_1"], [1.2, "life_2"], [1.6, "life_3"], [2.24, "life_4"], [2.4, "life_5"], [2.64, "life_6"], [3.6, "life_7"], [4.4, "life_8"]]
 	elif _auto == "death":   # two mobsters go down, one standing and one behind his drum, then the detective
 		if _at < 0.05:
 			player.position.x = 2300.0
-			cam.position.x = player.position.x + CAM_LEAD
+			cam.position.x = player.position.x + _lead
 		if _at > 0.6 and _auto_done & 1 == 0:
 			_auto_done |= 1
 			for i in 2:
@@ -924,7 +1310,7 @@ func _auto_step(delta: float) -> void:
 	elif _auto == "touch":   # tap on the first mobster, then hold a finger above him
 		if _at < 0.05:
 			player.position.x = 1700.0
-			cam.position.x = player.position.x + CAM_LEAD
+			cam.position.x = player.position.x + _lead
 		var target: Vector2 = get_viewport().get_canvas_transform() * (enemies[0]["node"].position + Vector2(0.0, -300.0))
 		if _at > 1.0 and _auto_done & 1 == 0:
 			_auto_done |= 1
@@ -1175,7 +1561,8 @@ func _fire(shooter, from_player: bool, kind := "") -> void:
 		d = (_aim_point - at).normalized()   # exactly onto the finger or the cursor, wherever the arm still is
 	var gun := weapon if from_player else (kind if WEAPONS.has(kind) else "revolver")
 	var w: Dictionary = WEAPONS[gun]
-	fx.muzzle(at, d)
+	fx.muzzle(at, d, gun)
+	_scare_birds(at, 1300.0)
 	for k in int(w["pellets"]):
 		var spread: float = w["spread"]
 		fx.shoot(at, d.rotated(randf_range(-spread, spread)) * BULLET_SPEED, from_player, w["life"])
@@ -1241,7 +1628,7 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 			return true
 	if from_player:
 		for i in lamps.size():
-			if lamp_info[i]["on"] and pos.distance_to(lamps[i] + Vector2(0.0, -8.0)) < 38.0:
+			if lamp_info[i]["on"] and not lamp_info[i].get("fixed", false) and pos.distance_to(lamps[i] + Vector2(0.0, -8.0)) < 38.0:
 				_lamp_out(i)
 				return true
 		for e in enemies:
@@ -1250,7 +1637,7 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 			var part: String = e["node"].hit_part(pos)
 			if part == "":
 				continue
-			fx.blood(pos, Vector2(signf(e["node"].position.x - player.position.x), 0.0))
+			fx.blood(pos, fx.hit_vel, part == "head" or e["hp"] <= 1)
 			sfx.play("hit_flesh", 0.0, pos.x)
 			if e["boss"]:   # the boss takes a lot; at two thirds and one third of his health he calls for help
 				e["hp"] -= 3 if part == "head" else 1
@@ -1277,7 +1664,7 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 		return true
 	_hurt_t = 0.3
 	stats["hits"] += 1
-	fx.blood(pos, Vector2(-signf(pos.x - player.position.x), 0.0))
+	fx.blood(pos, fx.hit_vel)
 	sfx.play("hit_flesh", 2.0)
 	if (_dt < 0.0 or _dt > 7.4) and _tt < 0.0 and (_auto == "" or _auto == "stand"):   # nobody gets hurt during the demo or the tests
 		hp -= 1
@@ -1355,6 +1742,7 @@ func _break_box(i: int) -> void:
 
 ## A barrel goes up: everyone close is thrown down, crates near it burst, other barrels follow it.
 func _explode(at: Vector2, i: int) -> void:
+	_scare_birds(at, 2600.0)
 	if i >= boxes.size() or boxes[i].get_center() != at:
 		i = -1
 		for k in boxes.size():
@@ -1414,13 +1802,25 @@ func _explode(at: Vector2, i: int) -> void:
 ## A lamp shot out: its glow and light go, glass rains down, and the street around it is dark.
 func _lamp_out(i: int) -> void:
 	var rec: Dictionary = lamp_info[i]
-	rec["on"] = false
-	for n in rec["nodes"]:
-		n.visible = false
-	if rec["light"] != null:
-		rec["light"].enabled = false
-	fx.spark(lamps[i])
+	rec["on"] = false   # dark for the aim at once; to the eye it dies over a few stuttering flickers
+	fx.shatter(lamps[i] + Vector2(0.0, -8.0))
 	sfx.play("glass", -2.0, lamps[i].x, 0.1)
+	var light: PointLight2D = rec["light"]
+	var tw := create_tween()
+	for k in randi_range(3, 5):
+		var show := k % 2 == 1
+		tw.tween_callback(func() -> void:
+			for n in rec["nodes"]:
+				n.visible = show
+			if light != null:
+				light.enabled = show
+				light.energy = randf_range(0.5, 1.3) if show else 0.0)
+		tw.tween_interval(randf_range(0.03, 0.11))
+	tw.tween_callback(func() -> void:
+		for n in rec["nodes"]:
+			n.visible = false
+		if light != null:
+			light.enabled = false)
 
 
 ## One of the detective's bullets met one of theirs in the air.
@@ -1671,35 +2071,10 @@ func _build_level() -> void:
 	for rp in level["ramps"]:
 		ramps.append(rp)
 		_stairs(Vector2(float(rp[0]), float(rp[1])), Vector2(float(rp[2]), float(rp[3])))
-	for l in level["lamps"]:   # lamps hanging from the ceilings of the rooms
+	for l in level["lamps"]:   # the rooms' lamps are drawn in their pictures: here only their light
 		var at := Vector2(float(l[0]), float(l[1]))
-		var cord := Line2D.new()
-		cord.points = PackedVector2Array([Vector2(at.x, -1330.0), at + Vector2(0.0, -30.0)])
-		cord.width = 5.0
-		cord.default_color = Color(0.03, 0.03, 0.03)
-		cord.z_index = -4
-		add_child(cord)
-		var rec := {"nodes": [], "light": null, "on": true}
-		var shade := Polygon2D.new()
-		shade.polygon = PackedVector2Array([Vector2(-50, 0), Vector2(50, 0), Vector2(22, -36), Vector2(-22, -36)])
-		shade.color = Color(0.05, 0.05, 0.05)
-		shade.position = at
-		shade.z_index = -4
-		add_child(shade)
-		var bulb := Sprite2D.new()
-		bulb.texture = load("res://art/light_blob.png")
-		bulb.scale = Vector2.ONE * 0.1
-		bulb.position = at + Vector2(0.0, 6.0)
-		var mat := CanvasItemMaterial.new()
-		mat.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
-		bulb.material = mat
-		bulb.modulate = _undo_night(0.8) * Color(1.0, 0.85, 0.6)
-		bulb.z_index = -4
-		add_child(bulb)
-		rec["nodes"].append(bulb)
-		rec["light"] = _lamp_light(at + Vector2(0.0, -8.0))
 		lamps.append(at + Vector2(0.0, 8.0))
-		lamp_info.append(rec)
+		lamp_info.append({"nodes": [], "light": _lamp_light(at + Vector2(0.0, -8.0)), "on": true, "fixed": true})
 	if in_menu:
 		return
 	for pk in level["pickups"]:
@@ -1735,7 +2110,8 @@ func _add_enemy(at: Vector2, kind: String, state: String, goal_x: float) -> Dict
 	return e
 
 
-## An interior: its back wall in front of the street, a ceiling, and a doorway at each end.
+## An interior: its drawn back wall in front of the street (the middle of the drawing, where the
+## depth is), black above its ceiling, and a doorway at each end.
 func _build_room(x0: float, x1: float, style: String) -> void:
 	var tex: Texture2D = load("res://art/rooms/" + style + ".png")
 	var wall := Sprite2D.new()
@@ -1743,13 +2119,16 @@ func _build_room(x0: float, x1: float, style: String) -> void:
 	wall.centered = false
 	wall.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	wall.region_enabled = true
-	wall.region_rect = Rect2(0.0, 0.0, x1 - x0, tex.get_height())
-	wall.position = Vector2(x0, -tex.get_height() + 2.0)
+	var src_w := (x1 - x0) / WALL_SCALE
+	wall.region_rect = Rect2(maxf(0.0, (tex.get_width() - src_w) * 0.5), 0.0, src_w, tex.get_height())
+	wall.scale = Vector2.ONE * WALL_SCALE
+	var top := -tex.get_height() * WALL_SCALE * SEGMENT_BASE
+	wall.position = Vector2(x0, top)
 	wall.z_index = -5
-	wall.modulate = Color(0.62, 0.6, 0.58)   # indoors is darker than the street under its lamps
+	wall.modulate = Color(0.8, 0.78, 0.76)
 	add_child(wall)
 	var roof := Polygon2D.new()   # everything above the ceiling is solid black
-	roof.polygon = PackedVector2Array([Vector2(x0, -3200), Vector2(x1, -3200), Vector2(x1, -tex.get_height() + 120.0), Vector2(x0, -tex.get_height() + 120.0)])
+	roof.polygon = PackedVector2Array([Vector2(x0, -4200), Vector2(x1, -4200), Vector2(x1, top + 2.0), Vector2(x0, top + 2.0)])
 	roof.color = Color(0.0, 0.0, 0.0)
 	roof.z_index = 9
 	add_child(roof)

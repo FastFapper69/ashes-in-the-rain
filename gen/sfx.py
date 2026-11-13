@@ -143,6 +143,13 @@ s0 = int(SR * 0.8); x[s0:] += env(bp(noise(len(x[s0:]) / SR), 400, 2500), 0.05, 
 save('drink.wav', x, 0.5)
 
 # a tommy gun burst and a shotgun: built from the shot, quicker and heavier
+# a flock taking off: a rush of wingbeats, each a soft papery clap, thinning out as they climb
+x = np.zeros(int(SR * 1.6))
+for k in range(26):
+    at = int(SR * (rng.random() ** 1.6) * 1.1)
+    clap = bp(noise(0.05), 500, 3500) * env(noise(0.05) * 0 + 1, 0.004, 0.035)
+    x[at:at + len(clap)] += clap * (1 - at / len(x)) * rng.uniform(0.5, 1.0)
+save('flutter.wav', reverb(lp(x, 4000), 0.5, 0.15), 0.55)
 save('shot_tommy.wav', gunshot(1.35, 0.7, 0.6), 0.7)
 save('shot_shotgun.wav', gunshot(0.8, 1.6, 1.5), 0.95)
 

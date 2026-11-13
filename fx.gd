@@ -3,11 +3,12 @@ extends Node2D
 # blood, casings and smoke. Everything here is drawn unshaded and lifted by `night` (the inverse
 # of the scene's darkness), so the effects keep the colours they were drawn in.
 
-const FLASHES := ["res://art/fx/flash1.png", "res://art/fx/flash2.png", "res://art/fx/flash4.png"]
+const FLASHES := ["res://art/fx/flash1.png", "res://art/fx/flash2.png", "res://art/fx/flash3.png", "res://art/fx/flash4.png"]
 const STAIN_SPRAYS := ["res://art/fx/stain_spray1.png", "res://art/fx/stain_spray2.png"]
 const STAIN_DRIPS := ["res://art/fx/stain_drip1.png", "res://art/fx/stain_drip2.png"]
 const STAIN_MISTS := ["res://art/fx/stain_mist1.png", "res://art/fx/stain_mist2.png"]
 const BLOODS := ["res://art/fx/blood1.png", "res://art/fx/blood2.png", "res://art/fx/blood3.png", "res://art/fx/blood4.png"]
+const SPARKS := ["res://art/fx/spark1.png", "res://art/fx/spark2.png"]
 const PUFFS := ["res://art/fx/puff1.png", "res://art/fx/puff2.png", "res://art/fx/puff3.png"]
 const WORDS := ["res://art/fx/word_blam.png", "res://art/fx/word_bang.png", "res://art/fx/word_krakoom.png", "res://art/fx/word_clink.png"]
 const TRAIL_LENGTH := 620.0
@@ -21,6 +22,11 @@ var clash := Callable()         # func(at: Vector2), called when two opposing bu
 var hit_test := Callable()      # func(pos: Vector2, from_player: bool) -> bool, true when the bullet hit someone
 
 var _unshaded: CanvasItemMaterial
+var _additive: CanvasItemMaterial
+var _bits: Array = []      # loose particles under gravity, see _bit
+var _spots: Array = []   # drops and glass lying on the pavement
+const MAX_SPOTS := 50
+var hit_vel := Vector2.RIGHT     # the velocity of the bullet being tested in hit_test, for main.gd
 var _bullets: Array = []
 var _cache := {}
 var _swoosh: Array[Line2D] = []
@@ -36,8 +42,11 @@ func _ready() -> void:
 	z_index = 6
 	_unshaded = CanvasItemMaterial.new()
 	_unshaded.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+	_additive = CanvasItemMaterial.new()
+	_additive.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+	_additive.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	# read every drawing now: loading one in the middle of a fight makes the game stutter
-	for path in FLASHES + BLOODS + PUFFS + WORDS + STAIN_SPRAYS + STAIN_DRIPS + STAIN_MISTS + ["res://art/fx/stain_smear1.png", "res://art/fx/spark1.png", "res://art/fx/casing1.png", "res://art/light_blob.png"]:
+	for path in FLASHES + BLOODS + PUFFS + WORDS + STAIN_SPRAYS + STAIN_DRIPS + STAIN_MISTS + ["res://art/fx/stain_smear1.png", "res://art/fx/spark1.png", "res://art/fx/spark2.png", "res://art/fx/flash3.png", "res://art/fx/casing1.png", "res://art/light_blob.png"]:
 		_cache[path] = load(path)
 
 
@@ -59,40 +68,78 @@ func _fade_out(node: CanvasItem, hold: float, fade: float) -> void:
 	tw.tween_callback(node.queue_free)
 
 
-## The flash at the barrel, a burst of light on everything near, and a puff of smoke.
-func muzzle(at: Vector2, dir: Vector2) -> void:
+## The flash at the barrel, a burst of light on everything near, sparks and a puff of smoke.
+## No two are alike: shape, size, how long it hangs and how the light flickers all vary a little,
+## and the gun sets the scale (a shotgun roars, a tommy gun stutters small and fast).
+func muzzle(at: Vector2, dir: Vector2, kind := "") -> void:
+	var big: float = {"shotgun": 1.35, "tommy": 0.78}.get(kind, 1.0) * randf_range(0.82, 1.18)
 	var s := _sprite(FLASHES.pick_random(), at, 0.34)
 	s.centered = false   # the drawings fire to the right from their left edge
 	s.offset = Vector2(-30.0, -s.texture.get_height() * 0.5)
-	s.rotation = dir.angle()
-	s.scale = Vector2(0.2, 0.34)
+	s.rotation = dir.angle() + randf_range(-0.1, 0.1)
+	s.flip_v = randf() < 0.5
+	s.scale = Vector2(0.2, 0.3) * big
+	var peak := Vector2(randf_range(0.42, 0.6), randf_range(0.4, 0.55)) * big
 	var tw := create_tween()
-	tw.tween_property(s, "scale", Vector2(0.5, 0.5), 0.04)
-	tw.tween_interval(0.05)
+	tw.tween_property(s, "scale", peak, 0.035)
+	tw.tween_interval(randf_range(0.02, 0.07))
+	tw.tween_property(s, "scale", peak * Vector2(0.6, 0.3), 0.03)
 	tw.tween_callback(s.queue_free)
+	if randf() < 0.45:   # now and then the gas also bursts out sideways at the cylinder gap
+		var side := _sprite(FLASHES.pick_random(), at - dir * 18.0, 0.1)
+		side.centered = false
+		side.offset = Vector2(-30.0, -side.texture.get_height() * 0.5)
+		side.rotation = dir.angle() + (1.25 if randf() < 0.5 else -1.25) + randf_range(-0.2, 0.2)
+		side.scale = Vector2(0.12, 0.14) * big
+		_fade_out(side, 0.03, 0.04)
+	var core := _sprite("res://art/light_blob.png", at, 0.09 * big)   # the white-hot point at the muzzle
+	core.material = _additive
+	core.modulate = night * Color(1.0, 0.92, 0.75)
+	_fade_out(core, 0.02, 0.06)
 
 	var l := PointLight2D.new()
 	l.texture = _cache["res://art/light_blob.png"]
-	l.texture_scale = 5.0
-	l.position = at
-	l.color = Color(1.0, 0.8, 0.55)
-	l.energy = 2.2
+	l.texture_scale = randf_range(4.2, 6.2) * big
+	l.position = at + dir * 30.0
+	l.color = Color(1.0, randf_range(0.72, 0.86), randf_range(0.45, 0.62))
+	l.energy = randf_range(1.7, 2.8) * big
 	l.height = 60.0
 	l.range_item_cull_mask = 1 | 4
 	add_child(l)
 	var tl := create_tween()
-	tl.tween_property(l, "energy", 0.0, 0.12)
+	if randf() < 0.35:   # a stutter: the light dips and catches once more
+		tl.tween_property(l, "energy", l.energy * 0.25, 0.03)
+		tl.tween_property(l, "energy", l.energy * 0.8, 0.02)
+	tl.tween_property(l, "energy", 0.0, randf_range(0.08, 0.15))
 	tl.tween_callback(l.queue_free)
 
-	var p := _sprite(PUFFS.pick_random(), at + dir * 40.0, 0.25)
-	p.modulate = Color(night.r, night.g, night.b, 0.6)
-	p.rotation = randf() * TAU
-	var tp := create_tween()
-	tp.set_parallel(true)
-	tp.tween_property(p, "position", p.position + Vector2(dir.x * 30.0, -70.0), 0.7)
-	tp.tween_property(p, "scale", Vector2.ONE * 0.5, 0.7)
-	tp.tween_property(p, "modulate:a", 0.0, 0.7)
-	tp.chain().tween_callback(p.queue_free)
+	for k in randi_range(2, 5):   # burning grains of powder flung out with the shot
+		var v := dir.rotated(randf_range(-0.35, 0.35)) * randf_range(700.0, 1500.0)
+		_bit(SPARKS.pick_random(), at + dir * 20.0, v, randf_range(0.04, 0.07), randf_range(0.08, 0.2), 900.0, true, Color(1.0, 0.75, 0.4))
+
+	for k in (2 if randf() < 0.3 else 1):
+		var p := _sprite(PUFFS.pick_random(), at + dir * randf_range(30.0, 60.0), 0.25 * big)
+		p.modulate = Color(night.r, night.g, night.b, randf_range(0.4, 0.65))
+		p.rotation = randf() * TAU
+		var life := randf_range(0.55, 0.95)
+		var tp := create_tween()
+		tp.set_parallel(true)
+		tp.tween_property(p, "position", p.position + Vector2(dir.x * randf_range(20.0, 70.0), -randf_range(50.0, 110.0)), life)
+		tp.tween_property(p, "scale", Vector2.ONE * randf_range(0.45, 0.65) * big, life)
+		tp.tween_property(p, "rotation", p.rotation + randf_range(-0.6, 0.6), life)
+		tp.tween_property(p, "modulate:a", 0.0, life)
+		tp.chain().tween_callback(p.queue_free)
+
+
+## A loose particle flying under gravity: a powder spark, a drop of blood, a sliver of glass.
+## stretch: drawn long along its flight, like a streak caught by the shutter.
+func _bit(path: String, at: Vector2, vel: Vector2, size: float, life: float, gravity: float, stretch: bool, tint: Color, land := "") -> Sprite2D:
+	var n := _sprite(path, at, size)
+	n.modulate = Color(night.r * tint.r, night.g * tint.g, night.b * tint.b, tint.a)
+	if path == "res://art/light_blob.png" or path in SPARKS:
+		n.material = _additive
+	_bits.append({"node": n, "vel": vel, "g": gravity, "life": 0.0, "max": life, "size": size, "stretch": stretch, "land": land, "spin": randf_range(-12.0, 12.0)})
+	return n
 
 
 ## A lettered sound effect that pops in, hangs for a moment and fades.
@@ -183,30 +230,70 @@ func _clashes() -> void:
 		a -= 1
 
 
-## A hit: a crimson splash over a black ink shadow, with drops flung out the far side.
-func blood(at: Vector2, dir: Vector2) -> void:
+## A hit: a burst of red mist, a splash over a black ink shadow, and a spray of drops flung out
+## the far side that streak, fall and spatter the pavement. A few drops spit back towards the gun.
+## dir: the way the bullet was going. heavy: a head shot or a kill, more of everything.
+func blood(at: Vector2, dir: Vector2, heavy := false) -> void:
+	dir = dir.normalized() if dir.length() > 0.01 else Vector2.RIGHT
+	var more := 1.6 if heavy else 1.0
+	var mist := _sprite(STAIN_MISTS.pick_random(), at + dir * 30.0, 0.08)   # the red cloud the shot blows out
+	mist.rotation = dir.angle() + randf_range(-0.3, 0.3)
+	mist.flip_h = dir.x < 0.0
+	mist.modulate = Color(0.6 * night.r, 0.08 * night.g, 0.06 * night.b, 0.75)
+	var tm := create_tween()
+	tm.set_parallel(true)
+	tm.tween_property(mist, "scale", Vector2.ONE * randf_range(0.35, 0.5) * more, 0.22).set_ease(Tween.EASE_OUT)
+	tm.tween_property(mist, "position", mist.position + dir * 60.0 + Vector2(0.0, 20.0), 0.4)
+	tm.tween_property(mist, "modulate:a", 0.0, 0.4).set_ease(Tween.EASE_IN)
+	tm.chain().tween_callback(mist.queue_free)
+
 	var path: String = BLOODS.pick_random()
-	var turn := randf() * TAU
+	var turn := dir.angle() + randf_range(-0.8, 0.8)
+	var size := randf_range(0.22, 0.34) * (1.25 if heavy else 1.0)
+	var squash := Vector2(randf_range(1.0, 1.5), randf_range(0.7, 1.0))   # thrown out along the shot
 	for layer in 2:
-		var s := _sprite(path, at + dir * 20.0 + (Vector2(7.0, 7.0) if layer == 0 else Vector2.ZERO), 0.1)
-		s.rotation = turn
+		var sp := _sprite(path, at + dir * 20.0 + (Vector2(7.0, 7.0) if layer == 0 else Vector2.ZERO), 0.08)
+		sp.rotation = turn
 		if layer == 0:
-			s.modulate = Color(0.0, 0.0, 0.0, 0.9)
+			sp.modulate = Color(0.0, 0.0, 0.0, 0.9)
 		var tw := create_tween()
-		tw.tween_property(s, "scale", Vector2.ONE * (0.34 if layer == 0 else 0.3), 0.08)
-		tw.tween_interval(0.14)
-		tw.tween_property(s, "modulate:a", 0.0, 0.25)
-		tw.tween_callback(s.queue_free)
+		tw.tween_property(sp, "scale", squash * size * (1.12 if layer == 0 else 1.0), 0.07)
+		tw.tween_interval(randf_range(0.08, 0.18))
+		tw.tween_property(sp, "modulate:a", 0.0, 0.22)
+		tw.tween_callback(sp.queue_free)
 	_stain(at, dir)
-	for i in 6:
-		var d := _sprite(BLOODS.pick_random(), at, randf_range(0.03, 0.07))
-		d.rotation = randf() * TAU
-		var fly := Vector2(dir.x * randf_range(60.0, 190.0), randf_range(-120.0, 40.0))
-		var td := create_tween()
-		td.set_parallel(true)
-		td.tween_property(d, "position", at + fly + Vector2(0.0, 70.0), 0.4).set_ease(Tween.EASE_OUT)
-		td.tween_property(d, "modulate:a", 0.0, 0.4).set_ease(Tween.EASE_IN)
-		td.chain().tween_callback(d.queue_free)
+	var red := Color(0.62, 0.07, 0.05)
+	for i in int(randi_range(10, 16) * more):   # the spray out of the exit side
+		var v := dir.rotated(randf_range(-0.55, 0.55)) * randf_range(260.0, 950.0) + Vector2(0.0, -randf_range(0.0, 320.0))
+		_bit(BLOODS.pick_random(), at + dir * 15.0, v, randf_range(0.028, 0.075), randf_range(0.5, 1.0), 2300.0, true, red * randf_range(0.8, 1.15), "blood")
+	for i in randi_range(2, 4):   # and a little back the way it came
+		var v := (-dir).rotated(randf_range(-0.7, 0.7)) * randf_range(150.0, 420.0) + Vector2(0.0, -randf_range(60.0, 260.0))
+		_bit(BLOODS.pick_random(), at, v, randf_range(0.015, 0.03), randf_range(0.4, 0.7), 2300.0, true, red, "blood")
+
+
+## A street lamp shot out: the glass bursts, sparks rain down from the socket.
+func shatter(at: Vector2) -> void:
+	var ring := _sprite("res://art/light_blob.png", at, 0.15)
+	ring.material = _additive
+	ring.modulate = night * Color(1.0, 0.9, 0.7)
+	var tr := create_tween()
+	tr.set_parallel(true)
+	tr.tween_property(ring, "scale", Vector2.ONE * 0.7, 0.12)
+	tr.tween_property(ring, "modulate:a", 0.0, 0.14)
+	tr.chain().tween_callback(ring.queue_free)
+	for i in randi_range(12, 18):   # slivers of glass, turning and catching the light as they fall
+		var shard := Polygon2D.new()
+		var r := randf_range(7.0, 18.0)
+		shard.polygon = PackedVector2Array([Vector2(-r, -r * 0.3), Vector2(r * randf_range(0.6, 1.2), randf_range(-r, -r * 0.2)), Vector2(randf_range(-r * 0.3, r * 0.5), r * randf_range(0.4, 1.0))])
+		shard.color = Color(0.85 * night.r, 0.9 * night.g, 0.95 * night.b, randf_range(0.5, 0.95))
+		shard.material = _unshaded
+		shard.position = at
+		add_child(shard)
+		var v := Vector2.from_angle(randf_range(-PI, 0.3)) * randf_range(200.0, 720.0)
+		_bits.append({"node": shard, "vel": v, "g": 2000.0, "life": 0.0, "max": randf_range(0.8, 1.4), "size": 1.0, "stretch": false, "land": "glass", "spin": randf_range(-16.0, 16.0)})
+	for i in randi_range(8, 14):   # sparks from the broken socket, dripping down
+		var v := Vector2(randf_range(-260.0, 260.0), randf_range(-280.0, 60.0))
+		_bit(SPARKS.pick_random(), at, v, randf_range(0.03, 0.06), randf_range(0.5, 1.1), 1500.0, true, Color(1.0, 0.7, 0.3))
 
 
 ## A stain picture placed so that `origin` (its pixel where the blood came from) sits at `at`,
@@ -298,6 +385,7 @@ func _process(delta: float) -> void:
 		var from: Vector2 = b["prev"]
 		var steps := maxi(1, ceili(from.distance_to(pos) / 10.0))
 		for k in range(1, steps + 1):
+			hit_vel = b["vel"]
 			if hit_test.is_valid() and hit_test.call(from.lerp(pos, float(k) / steps), b["player"]):
 				done = true
 				break
@@ -315,6 +403,8 @@ func _process(delta: float) -> void:
 
 	_clashes()
 
+	_fly_bits(delta)
+
 	var j := _casings.size() - 1
 	while j >= 0:
 		var c: Dictionary = _casings[j]
@@ -330,3 +420,67 @@ func _process(delta: float) -> void:
 			_fade_out(node, 0.0, 0.3)
 			_casings.remove_at(j)
 		j -= 1
+
+
+func _fly_bits(delta: float) -> void:
+	var i := _bits.size() - 1
+	while i >= 0:
+		var b: Dictionary = _bits[i]
+		var n: Node2D = b["node"]
+		var vel: Vector2 = b["vel"]
+		vel.y += float(b["g"]) * delta
+		vel *= 1.0 - 1.2 * delta   # air drag: the fine drops slow first
+		b["vel"] = vel
+		n.position += vel * delta
+		b["life"] += delta
+		if b["stretch"]:
+			n.rotation = vel.angle()
+			var sz: float = b["size"]
+			n.scale = Vector2(sz * clampf(1.0 + vel.length() / 260.0, 1.0, 4.5), sz * 0.8)
+		else:
+			n.rotation += float(b["spin"]) * delta
+			if b["land"] == "glass":   # glints as it turns
+				n.modulate.a = 0.35 + 0.6 * absf(sin(n.rotation * 2.0))
+		var landed: bool = b["land"] != "" and n.position.y > GROUND_Y + 40.0 and vel.y > 0.0
+		if landed or float(b["life"]) > float(b["max"]):
+			if landed:
+				_land(String(b["land"]), n.position, vel)
+			if landed or b["land"] != "":
+				n.queue_free()
+			else:
+				_fade_out(n, 0.0, 0.08)
+			_bits.remove_at(i)
+		i -= 1
+
+
+## Where a drop or a sliver comes down it stays on the wet stone for a while.
+func _land(kind: String, at: Vector2, vel: Vector2) -> void:
+	var spot: Node2D
+	if kind == "blood":
+		var sp := _sprite(BLOODS.pick_random(), Vector2(at.x, GROUND_Y + 40.0 + randf_range(-6.0, 6.0)), 1.0)
+		var sz := randf_range(0.03, 0.06)
+		sp.scale = Vector2(sz * randf_range(1.6, 2.6), sz * 0.45)   # flattened: it lies on the ground
+		sp.rotation = 0.0
+		sp.modulate = Color(0.45 * night.r, 0.06 * night.g, 0.05 * night.b, 0.85)
+		spot = sp
+	else:
+		if sound and randf() < 0.5:
+			sound.play("casing", -14.0, at.x, 0.3)
+		var g := Polygon2D.new()
+		var r := randf_range(4.0, 9.0)
+		g.polygon = PackedVector2Array([Vector2(-r, 0.0), Vector2(r, -r * 0.3), Vector2(r * 0.4, r * 0.25)])
+		g.color = Color(0.7 * night.r, 0.75 * night.g, 0.8 * night.b, 0.6)
+		g.material = _unshaded
+		g.position = Vector2(at.x, GROUND_Y + 40.0)
+		add_child(g)
+		spot = g
+	spot.z_index = -1
+	_spots.append(spot)
+	var tw := spot.create_tween()   # bound to the spot: if it is cleared early, its fade goes with it
+	tw.tween_interval(randf_range(6.0, 10.0))
+	tw.tween_property(spot, "modulate:a", 0.0, 2.0)
+	tw.tween_callback(spot.queue_free)
+	while _spots.size() > 0 and not is_instance_valid(_spots[0]):   # already faded and gone
+		_spots.pop_front()
+	if _spots.size() > MAX_SPOTS:
+		_spots.pop_front().queue_free()

@@ -3,7 +3,7 @@ extends Node
 ## and slowed time heard as well as seen: lower pitch and a muffled, under-water top end.
 
 const DIR := "res://sfx/"
-const NAMES := ["shot_player", "shot_enemy", "hit_flesh", "hit_cover", "clink", "casing", "slow_in", "slow_out",
+const NAMES := ["flutter", "shot_player", "shot_enemy", "hit_flesh", "hit_cover", "clink", "casing", "slow_in", "slow_out",
 		"dive", "land", "body_fall", "step1", "step2", "whiz", "death_sting"]
 const VOICES := 20
 const HEAR := 2600.0   # world pixels from the listener at which a sound has faded out
