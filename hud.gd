@@ -18,6 +18,7 @@ var aim_at := Vector2.ZERO   # where the aiming finger is, in screen pixels
 var aim_held := false       # an aiming finger is on the screen
 var aim_left := 0.0         # seconds the aim stays where the finger last was
 var _aim_finger := -1
+var reload_tapped := false  # the rounds under the health bar were tapped
 var touch_seen := false    # true once a finger has touched the screen: then the mouse is ignored
 
 var _portrait: Sprite2D
@@ -230,6 +231,69 @@ func set_weapon(weapon_name: String, rounds: int) -> void:
 	_weapon_label.text = "" if weapon_name == "revolver" else "%s   %d" % [weapon_name.to_upper(), rounds]
 
 
+## The rounds in the gun under the health bar: a cartridge per round, bright when loaded, hollow
+## when spent. While he reloads they fill up again from the left. A big magazine is shown as a
+## count. Tapping them reloads.
+var _ammo_box: Control
+var _ammo := [0, 6, -1, 0.0]   # in the gun, gun holds, left to load (-1: no limit), reload progress
+var _ammo_name := ""
+const AMMO_AT := Vector2(132.0, 70.0)
+
+func set_ammo(gun_name: String, rounds: int, holds: int, spare: int, reload_progress: float) -> void:
+	if _ammo_box == null:
+		_ammo_box = Control.new()
+		_ammo_box.position = AMMO_AT
+		_ammo_box.size = Vector2(560.0, 40.0)
+		_ammo_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_ammo_box.draw.connect(_draw_ammo)
+		add_child(_ammo_box)
+	var now := [rounds, holds, spare, snappedf(reload_progress, 0.02)]
+	if now == _ammo and gun_name == _ammo_name:
+		return
+	_ammo = now
+	_ammo_name = gun_name
+	_ammo_box.queue_redraw()
+
+
+func _draw_ammo() -> void:
+	var rounds: int = _ammo[0]
+	var holds: int = _ammo[1]
+	var progress: float = _ammo[3]
+	if progress > 0.0:   # reloading: the chambers fill one after another
+		rounds = int(lerpf(float(rounds), float(holds), progress))
+	var font := ThemeDB.fallback_font
+	var x := 0.0
+	if holds <= 14:
+		for i in holds:
+			var r := Rect2(Vector2(x, 4.0), Vector2(11.0, 28.0))
+			var shell := PackedVector2Array([r.position + Vector2(0, 9), r.position + Vector2(5.5, 0), r.position + Vector2(11, 9), r.end, Vector2(r.position.x, r.end.y)])
+			_ammo_box.draw_colored_polygon(shell, INK)
+			var inner := PackedVector2Array()
+			for p in shell:
+				inner.append(p.lerp(r.get_center(), 0.28))
+			if i < rounds:
+				_ammo_box.draw_colored_polygon(inner, AMBER if i < 1 and rounds <= 2 else PAPER)
+			else:   # spent: just the outline of the round, so the gun's size still reads
+				var ring := inner.duplicate()
+				ring.append(inner[0])
+				_ammo_box.draw_polyline(ring, Color(PAPER, 0.45), 1.5)
+			x += 16.0
+	else:
+		_ammo_box.draw_string_outline(font, Vector2(x, 30.0), "%d" % rounds, HORIZONTAL_ALIGNMENT_LEFT, -1, 30, 8, INK)
+		_ammo_box.draw_string(font, Vector2(x, 30.0), "%d" % rounds, HORIZONTAL_ALIGNMENT_LEFT, -1, 30, PAPER)
+		x += 50.0
+	var tail := _ammo_name
+	if _ammo[2] >= 0:
+		tail += ("  " if tail != "" else "") + "+%d" % _ammo[2]
+	if progress > 0.0:
+		tail = "RELOADING"
+	elif _ammo[0] <= 0:
+		tail = "TAP TO RELOAD"
+	if tail != "":
+		_ammo_box.draw_string_outline(font, Vector2(x + 12.0, 28.0), tail, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, 7, INK)
+		_ammo_box.draw_string(font, Vector2(x + 12.0, 28.0), tail, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, AMBER if progress > 0.0 or _ammo[0] <= 0 else PAPER)
+
+
 ## A short word low on the screen that fades: CHECKPOINT, a gun picked up.
 func toast(text: String) -> void:
 	var view := get_viewport().get_visible_rect().size
@@ -323,7 +387,9 @@ func _input(event: InputEvent) -> void:
 		touch_seen = true
 		var t := event as InputEventScreenTouch
 		if t.pressed:
-			if _fire.visible and t.position.distance_to(_fire.position) < 80.0:
+			if Rect2(AMMO_AT - Vector2(20.0, 20.0), Vector2(320.0, 80.0)).has_point(t.position):
+				reload_tapped = true
+			elif _fire.visible and t.position.distance_to(_fire.position) < 80.0:
 				fire_tapped = true
 			elif t.position.distance_to(_slow.position) < 80.0:
 				slow_tapped = true

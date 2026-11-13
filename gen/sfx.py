@@ -167,3 +167,131 @@ x[:cross] = x[:cross] * np.linspace(0, 1, cross) + x[-cross:] * np.linspace(1, 0
 x = x[:-cross]
 x = x / np.max(np.abs(x)) * 0.5
 wavfile.write(OUT + 'rain_loop.wav', SR, (x * 32767).astype(np.int16)); print('rain_loop.wav', len(x) / SR)
+
+
+# ---- guns running dry and being reloaded --------------------------------------------------
+def tick(f0, dec=0.008, amp=1.0, band=(1500, 9000)):
+    seg = t(0.08)
+    return amp * (env(bp(noise(0.08), *band), 0.0003, dec) + 0.35 * np.sin(2 * np.pi * f0 * seg) * np.exp(-seg / (dec * 1.5)))
+
+def place(x, at, snd, amp=1.0):
+    s0 = int(SR * at); e0 = min(len(x), s0 + len(snd)); x[s0:e0] += amp * snd[:e0 - s0]
+
+# the hammer falling on an empty chamber: one dry, sharp metal click
+x = np.zeros(int(SR * 0.25)); place(x, 0.0, tick(4200, 0.006)); place(x, 0.012, tick(2600, 0.01, 0.5))
+save('dry_fire.wav', reverb(x, 0.3, 0.12), 0.7)
+
+# revolver: the latch, the cylinder swings out, empties rattle out, six rounds pushed in, snapped shut
+x = np.zeros(int(SR * 1.3))
+place(x, 0.0, tick(2400, 0.01)); place(x, 0.06, tick(1800, 0.02, 0.6, (600, 4000)))
+for k in range(6):
+    place(x, 0.16 + rng.uniform(0, 0.18), tick(rng.uniform(3500, 6000), 0.03, 0.35, (2500, 9000)))
+for k in range(6):
+    place(x, 0.5 + k * 0.085 + rng.uniform(-0.01, 0.01), tick(rng.uniform(1800, 2600), 0.012, 0.45, (900, 5000)))
+place(x, 1.12, tick(1500, 0.02, 1.1, (500, 6000)))
+save('reload_revolver.wav', reverb(x, 0.4, 0.12), 0.7)
+
+# a magazine: release, out with a slide, the new one seated with a thunk, the bolt racked
+x = np.zeros(int(SR * 1.7))
+place(x, 0.0, tick(2800, 0.008))
+seg = env(bp(noise(0.12), 800, 4000), 0.01, 0.05); place(x, 0.05, seg, 0.5)
+place(x, 0.7, tick(700, 0.03, 1.2, (200, 2500)))
+seg = env(bp(noise(0.1), 1000, 6000), 0.005, 0.04); place(x, 1.3, seg, 0.7)
+place(x, 1.42, tick(1300, 0.02, 1.0, (400, 6000)))
+save('reload_mag.wav', reverb(x, 0.4, 0.12), 0.75)
+
+# shotgun: shells thumbed in one by one, then the pump
+x = np.zeros(int(SR * 1.7))
+for k in range(4):
+    place(x, 0.15 + k * 0.28, tick(1100, 0.018, 0.8, (400, 4000)))
+    place(x, 0.2 + k * 0.28, env(bp(noise(0.06), 1500, 6000), 0.005, 0.02), 0.3)
+place(x, 1.35, env(bp(noise(0.12), 400, 3000), 0.01, 0.05), 0.8)
+place(x, 1.5, tick(900, 0.025, 1.2, (300, 5000)))
+save('reload_shells.wav', reverb(x, 0.4, 0.12), 0.8)
+
+# ready again: a soft metallic settle
+x = np.zeros(int(SR * 0.2)); place(x, 0.0, tick(3200, 0.012, 0.6))
+save('reload_done.wav', x, 0.35)
+
+# ---- the street ---------------------------------------------------------------------------
+def loop(x, cross=0.3):
+    c = int(SR * cross)
+    x[:c] = x[:c] * np.linspace(0, 1, c) + x[-c:] * np.linspace(1, 0, c)
+    return x[:-c]
+
+def save_loop(name, x, peak):
+    x = x / np.max(np.abs(x)) * peak
+    wavfile.write(OUT + name, SR, (x * 32767).astype(np.int16)); print(name, round(len(x) / SR, 2))
+
+# neon: the transformer's 120 Hz hum with its buzzy harmonics and the odd crackle in the tube
+sec = 3.0; tt = t(sec)
+x = sum(a * np.sin(2 * np.pi * 120 * h * tt + rng.uniform(0, 6)) for h, a in [(1, 1.0), (2, 0.6), (3, 0.45), (5, 0.25), (7, 0.15)])
+x = np.tanh(x * 1.5) * (1 + 0.08 * np.sin(2 * np.pi * 0.7 * tt))
+crk = np.zeros_like(tt)
+for k in range(12):
+    s0 = rng.integers(0, len(tt) - 3000); crk[s0:s0 + 3000] += env(hp(noise(3000 / SR), 3000), 0.0005, 0.004)[:3000] * rng.uniform(0.2, 0.8)
+save_loop('neon_hum.wav', loop(bp(x, 100, 3000) * 0.6 + crk * 0.5), 0.6)
+
+# a street lamp's quieter mains hum
+sec = 3.0; tt = t(sec)
+x = np.sin(2 * np.pi * 60 * tt) + 0.5 * np.sin(2 * np.pi * 120 * tt) + 0.2 * np.sin(2 * np.pi * 180 * tt)
+save_loop('lamp_hum.wav', loop(lp(np.tanh(x), 600)), 0.5)
+
+# steam out of a manhole: a breathy hiss that swells and settles
+sec = 4.0; tt = t(sec)
+x = bp(noise(sec), 1500, 7000) * (0.7 + 0.3 * np.sin(2 * np.pi * 0.35 * tt) ** 2)
+save_loop('steam.wav', loop(x, 0.5), 0.5)
+
+# the city behind it all: a low traffic rumble, a horn far off, a train on the El going by
+sec = 24.0; tt = t(sec)
+x = lp(noise(sec), 180) * 3.0
+for at, f in [(5.0, 330), (5.35, 392), (16.0, 294)]:   # two-tone horns, far away
+    seg = t(0.45); place(x, at, lp(np.sign(np.sin(2 * np.pi * f * seg)) * env(np.ones_like(seg), 0.03, 0.25), 1200), 0.12)
+train = bp(noise(7.0), 60, 900) * np.sin(np.pi * t(7.0) / 7.0) ** 2 * (1 + 0.4 * np.sign(np.sin(2 * np.pi * 3.2 * t(7.0))))
+place(x, 9.0, train, 0.6)
+save_loop('city.wav', loop(lp(x, 1500), 1.0), 0.5)
+
+# far thunder: a long low roll
+tt = t(5.0)
+x = lp(noise(5.0), 120) * np.exp(-tt / 1.6) * (1 + 0.6 * np.sin(2 * np.pi * 0.9 * tt) ** 2) * np.minimum(1, tt / 0.3)
+save('thunder.wav', reverb(x * 3, 2.5, 0.4, 600), 0.8)
+
+# a pigeon cooing: a soft throaty two-part "hoo-ooo"
+x = np.zeros(int(SR * 0.9))
+for at, f0, dur in [(0.0, 330, 0.18), (0.24, 300, 0.45)]:
+    tt = t(dur); fr = f0 * (1 + 0.08 * np.sin(np.pi * tt / dur)) * (1 + 0.04 * np.sin(2 * np.pi * 28 * tt))
+    v = np.sin(2 * np.pi * np.cumsum(fr) / SR) + 0.3 * np.sin(4 * np.pi * np.cumsum(fr) / SR)
+    place(x, at, lp(v, 900) * np.sin(np.pi * tt / dur) ** 1.5, 0.8)
+save('coo.wav', reverb(x, 0.4, 0.15), 0.4)
+
+# one flap of wings, for a bird passing close
+x = np.zeros(int(SR * 0.3)); place(x, 0.0, env(bp(noise(0.08), 400, 3000), 0.006, 0.03)); place(x, 0.11, env(bp(noise(0.08), 400, 3000), 0.006, 0.03), 0.7)
+save('wing.wav', x, 0.4)
+
+# water dripping off a fire escape into a puddle
+x = np.zeros(int(SR * 0.4)); seg = t(0.12)
+place(x, 0.0, np.sin(2 * np.pi * (1300 + 900 * np.exp(-seg / 0.01)) * seg) * np.exp(-seg / 0.03))
+save('drip.wav', reverb(x, 0.6, 0.3), 0.3)
+
+# wood: a crate breaking, a dry crack and splinters rattling down
+x = np.zeros(int(SR * 1.0))
+place(x, 0.0, env(bp(noise(0.2), 300, 5000), 0.0005, 0.04), 1.2)
+place(x, 0.0, np.sin(2 * np.pi * 110 * t(0.2)) * np.exp(-t(0.2) / 0.05), 0.8)
+for k in range(16):
+    place(x, rng.uniform(0.05, 0.7), tick(rng.uniform(600, 1800), 0.02, 0.35, (300, 3000)))
+save('wood_break.wav', reverb(x, 0.6, 0.2), 0.85)
+
+# a crate hit but holding: a hollow knock
+x = np.zeros(int(SR * 0.3)); place(x, 0.0, tick(380, 0.03, 1.0, (150, 2500)))
+save('wood_hit.wav', reverb(x, 0.3, 0.15), 0.6)
+
+# an electric zap: a neon tube catching again, a lamp's filament dying
+x = np.zeros(int(SR * 0.25)); tt = t(0.12)
+place(x, 0.0, (hp(noise(0.12), 2500) * 0.6 + np.sign(np.sin(2 * np.pi * 120 * tt)) * 0.3) * np.exp(-tt / 0.04))
+save('zap.wav', x, 0.45)
+
+# slowed time: the heart heard from inside, a low double beat, seamless loop
+sec = 1.0; x = np.zeros(int(SR * sec))
+for at, a in [(0.0, 1.0), (0.22, 0.7)]:
+    tt = t(0.18); place(x, at, np.sin(2 * np.pi * 48 * tt * (1 - 0.3 * tt / 0.18)) * np.exp(-tt / 0.05) * a)
+save_loop('heartbeat.wav', lp(x, 300), 0.8)

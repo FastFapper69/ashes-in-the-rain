@@ -3,8 +3,11 @@ extends Node
 ## and slowed time heard as well as seen: lower pitch and a muffled, under-water top end.
 
 const DIR := "res://sfx/"
-const NAMES := ["flutter", "shot_player", "shot_enemy", "hit_flesh", "hit_cover", "clink", "casing", "slow_in", "slow_out",
-		"dive", "land", "body_fall", "step1", "step2", "whiz", "death_sting"]
+const NAMES := ["shot_player", "shot_enemy", "shot_tommy", "shot_shotgun", "hit_flesh", "hit_cover", "clink", "casing",
+		"slow_in", "slow_out", "dive", "land", "body_fall", "step1", "step2", "whiz", "death_sting", "explosion", "glass",
+		"pickup", "drink", "flutter", "dry_fire", "reload_revolver", "reload_mag", "reload_shells", "reload_done",
+		"thunder", "coo", "wing", "drip", "wood_break", "wood_hit", "zap"]
+const LOOPS := ["neon_hum", "lamp_hum", "steam", "city", "heartbeat"]
 const VOICES := 20
 const HEAR := 2600.0   # world pixels from the listener at which a sound has faded out
 
@@ -16,11 +19,20 @@ var _pool: Array[AudioStreamPlayer] = []
 var _next := 0
 var _rain: AudioStreamPlayer
 var _muffle: AudioEffectLowPassFilter
+var _heart: AudioStreamPlayer
+var _loops: Array = []   # {player, x, db, on}: hums and hisses fixed in the street, heard as you pass
+var _ambient_t := {"thunder": 25.0, "drip": 2.0}
 
 
 func _ready() -> void:
 	for n in NAMES:
 		_streams[n] = load(DIR + n + ".wav")
+	for n in LOOPS:
+		var w: AudioStreamWAV = load(DIR + n + ".wav")
+		w.loop_mode = AudioStreamWAV.LOOP_FORWARD
+		w.loop_begin = 0
+		w.loop_end = int(w.get_length() * w.mix_rate)
+		_streams[n] = w
 	for i in VOICES:
 		var p := AudioStreamPlayer.new()
 		add_child(p)
@@ -34,6 +46,15 @@ func _ready() -> void:
 	_rain.volume_db = -17.0
 	add_child(_rain)
 	_rain.play()
+	var city := AudioStreamPlayer.new()   # the city behind it all, always there under the rain
+	city.stream = _streams["city"]
+	city.volume_db = -19.0
+	add_child(city)
+	city.play()
+	_heart = AudioStreamPlayer.new()   # slowed time: the heart, heard from inside
+	_heart.stream = _streams["heartbeat"]
+	_heart.volume_db = -60.0
+	add_child(_heart)
 	_muffle = AudioEffectLowPassFilter.new()
 	_muffle.cutoff_hz = 20000.0
 	AudioServer.add_bus_effect(0, _muffle)
@@ -46,9 +67,46 @@ func _exit_tree() -> void:
 			AudioServer.remove_bus_effect(0, i)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	_muffle.cutoff_hz = lerpf(20000.0, 1300.0, slow)
 	_rain.pitch_scale = lerpf(1.0, 0.7, slow)
+	if slow > 0.05 and not _heart.playing:
+		_heart.play()
+	elif slow <= 0.05 and _heart.playing:
+		_heart.stop()
+	_heart.volume_db = linear_to_db(maxf(0.001, slow)) - 4.0
+	for l in _loops:   # only the ones in earshot actually play
+		var k := absf(float(l["x"]) - listener_x) / float(l["reach"])
+		var p: AudioStreamPlayer = l["player"]
+		if k >= 1.0 or not l["on"]:
+			if p.playing:
+				p.stop()
+			continue
+		if not p.playing:
+			p.play(randf() * p.stream.get_length())
+		p.volume_db = float(l["db"]) + linear_to_db(maxf(0.001, 1.0 - k * k))
+		p.pitch_scale = lerpf(1.0, 0.75, slow)
+	# now and then: thunder far off, water dripping somewhere near
+	for n in _ambient_t:
+		_ambient_t[n] -= delta
+		if _ambient_t[n] <= 0.0:
+			if n == "thunder":
+				play("thunder", -9.0, INF, 0.15)
+				_ambient_t[n] = randf_range(45.0, 110.0)
+			else:
+				play("drip", -13.0, listener_x + randf_range(-900.0, 900.0), 0.25)
+				_ambient_t[n] = randf_range(1.5, 5.0)
+
+
+## A sound that hums or hisses on its own at one place in the street (a neon sign, a lamp,
+## steam). Returns its record, so the caller can switch it off and on.
+func add_loop(sound: String, at_x: float, volume_db: float, reach := 1400.0) -> Dictionary:
+	var p := AudioStreamPlayer.new()
+	p.stream = _streams[sound]
+	add_child(p)
+	var rec := {"player": p, "x": at_x, "db": volume_db, "on": true, "reach": reach}
+	_loops.append(rec)
+	return rec
 
 
 ## Play one sound. `at_x` (world x) makes it quieter the further it is from the camera; INF = right here.

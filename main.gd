@@ -75,13 +75,14 @@ static var checkpoint := -1.0   # where a death sends him back to on this map; -
 # the guns: seconds between shots, rounds when picked up, pellets per shot, spread (radians), how long a
 # bullet flies, the kick of the arm, the sound
 const WEAPONS := {
-	"revolver": {"cool": 0.2, "ammo": 0, "pellets": 1, "spread": 0.0, "life": 1.4, "kick": 0.2, "sound": "shot_player", "name": "REVOLVER"},
-	"pistols": {"cool": 0.11, "ammo": 40, "pellets": 1, "spread": 0.025, "life": 1.4, "kick": 0.12, "sound": "shot_enemy", "name": "TWO PISTOLS"},
-	"tommy": {"cool": 0.085, "ammo": 60, "pellets": 1, "spread": 0.05, "life": 1.4, "kick": 0.08, "sound": "shot_tommy", "name": "TOMMY GUN"},
-	"shotgun": {"cool": 0.7, "ammo": 10, "pellets": 6, "spread": 0.15, "life": 0.3, "kick": 0.35, "sound": "shot_shotgun", "name": "SHOTGUN"},
+	"revolver": {"mag": 6, "reload": 1.2, "cool": 0.2, "ammo": 0, "pellets": 1, "spread": 0.0, "life": 1.4, "kick": 0.2, "sound": "shot_player", "name": "REVOLVER"},
+	"pistols": {"mag": 14, "reload": 1.35, "cool": 0.11, "ammo": 42, "pellets": 1, "spread": 0.025, "life": 1.4, "kick": 0.12, "sound": "shot_enemy", "name": "TWO PISTOLS"},
+	"tommy": {"mag": 30, "reload": 1.7, "cool": 0.085, "ammo": 60, "pellets": 1, "spread": 0.05, "life": 1.4, "kick": 0.08, "sound": "shot_tommy", "name": "TOMMY GUN"},
+	"shotgun": {"mag": 5, "reload": 1.6, "cool": 0.7, "ammo": 10, "pellets": 6, "spread": 0.15, "life": 0.3, "kick": 0.35, "sound": "shot_shotgun", "name": "SHOTGUN"},
 }
 const WOOD := ["crate", "crate_long"]
 const BOX_ART := {"barrel": ["drum", Color(1.0, 0.32, 0.26)], "machine": ["dumpster", Color(0.7, 0.72, 0.78)], "bar": ["crate_long", Color(0.45, 0.32, 0.26)]}
+const ENEMY_MAG := {"post": 6, "tommy": 3, "shotgun": 4, "boss": 5}   # shots (a tommy gunner's: bursts) before a reload
 const ENEMY_TINT := {"post": Color(1, 1, 1), "tommy": Color(0.82, 0.86, 1.0), "shotgun": Color(1.0, 0.9, 0.78), "boss": Color(1, 1, 1)}
 var ambient := AMBIENT
 const SIGHT := 2100.0   # a mobster starts shooting once the detective is this close
@@ -160,6 +161,11 @@ var _ghost_t := 0.0   # game seconds to the next afterimage
 var hud
 var hp := PLAYER_HP
 var fire_cool := 0.0
+var _last_hit := Vector2.ZERO   # where the last bullet struck a crate: it bursts outward from there
+var mag := 6               # rounds in the gun; ammo is what is left to load (the revolver never runs out)
+var reloading := 0.0       # seconds left of a reload
+var _idle_fire := 0.0      # seconds since the last shot: a gun not quite full is topped up after a while
+var _clicked := false      # dry-fired on this empty gun already: the next tap reloads instead
 var slow_on := false           # toggled by the stopwatch button
 var slow_left := 1.0           # 1 = full meter
 var move_state := "ground"     # ground, jump or dive
@@ -217,6 +223,8 @@ func _ready() -> void:
 	ambient = ch["ambient"]
 	atmo = AtmosphereScript.new()
 	add_child(atmo)
+	sfx = SfxScript.new()   # before the street: its signs, lamps and steam put their sounds in it
+	add_child(sfx)
 	_build_street()
 	_build_light()
 
@@ -266,8 +274,6 @@ func _ready() -> void:
 	fx.hit_test = _bullet_hit
 	fx.clash = _bullets_clash
 	add_child(fx)
-	sfx = SfxScript.new()
-	add_child(sfx)
 	fx.sound = sfx
 	fx.listener = player
 	hud = HudScript.new()
@@ -357,6 +363,7 @@ func _build_street() -> void:
 			lamps.append(at)
 			var rec := {"nodes": [], "light": null, "on": true}
 			lamp_info.append(rec)
+			rec["hum"] = sfx.add_loop("lamp_hum", at.x, -26.0, 600.0)
 			var fix := Sprite2D.new()   # the lamp itself, hung on the wall
 			fix.texture = load("res://art/props/lamp_wall.png")
 			fix.centered = false
@@ -465,6 +472,7 @@ func _build_segments() -> void:
 		add_child(glow)
 		atmo.add_mist(self, x0, seg_w, -WALL_LIFT, _undo_night(0.8))
 		atmo.add_steam(self, Vector2(x0 + seg_w * 0.45, -20.0))
+		sfx.add_loop("steam", x0 + seg_w * 0.45, -20.0, 900.0)
 		var signs: Array = SEGMENT_NEONS.get(seg_name, [])
 		for k in signs.size():
 			_add_sign("res://art/street/%s_neon%d.png" % [seg_name, k], w.position + (signs[k][0] as Vector2) * WALL_SCALE, signs[k][1], String(signs[k][2]), halo_tex, signs[k].size() > 3)
@@ -475,6 +483,7 @@ func _build_segments() -> void:
 			lamps.append(at)
 			var rec := {"nodes": [], "light": null, "on": true}
 			lamp_info.append(rec)
+			rec["hum"] = sfx.add_loop("lamp_hum", at.x, -26.0, 600.0)
 			var fix := Sprite2D.new()
 			fix.texture = load("res://art/props/lamp_wall.png")
 			fix.centered = false
@@ -569,6 +578,7 @@ func _add_sign(path: String, top_left: Vector2, col: Color, mode: String, halo_t
 	l.range_item_cull_mask = MASK_LIT
 	add_child(l)
 	rec["light"] = l
+	rec["hum"] = sfx.add_loop("neon_hum", mid.x, -15.0, 1500.0)
 	neons.append(rec)
 
 
@@ -585,10 +595,13 @@ func _tick_neons(delta: float) -> void:
 					rec["next"] = randf_range(0.03, 0.09) if not rec["on"] or randf() < 0.6 else randf_range(3.0, 9.0)
 				"dying":
 					rec["on"] = not rec["on"]
+					if rec["on"]:
+						sfx.play("zap", -16.0, rec["light"].position.x, 0.2)
 					rec["next"] = randf_range(0.05, 1.4) if not rec["on"] else randf_range(0.08, 2.5)
 				_:
 					rec["next"] = 99.0
 		var k := hum if rec["on"] else 0.0
+		rec["hum"]["on"] = rec["on"]
 		for n in rec["nodes"]:
 			n.self_modulate.a = k
 		rec["light"].energy = NEON_LIGHT * k
@@ -699,6 +712,11 @@ func _tick_birds(delta: float) -> void:
 	for flock in flocks:
 		if flock["birds"].is_empty():
 			continue
+		if not flock["scared"]:   # cooing now and then while they peck
+			flock["coo"] = float(flock.get("coo", randf_range(1.0, 4.0))) - delta
+			if flock["coo"] <= 0.0:
+				flock["coo"] = randf_range(2.0, 6.0)
+				sfx.play("coo", -10.0, flock["birds"][0]["node"].position.x, 0.12)
 		if not flock["scared"] and absf(flock["birds"][0]["node"].position.x - player.position.x) < (700.0 if absf(run) > 500.0 else 330.0) \
 				and player.position.y > -200.0:
 			_scare_birds(player.position, 2000.0)
@@ -1082,7 +1100,13 @@ func _process(delta: float) -> void:
 	_hurt_t = maxf(0.0, _hurt_t - delta)
 	if hud.fire_tapped and fire_cool > 0.0:   # tapped a moment too early: kept, not lost
 		_fire_buf = 0.2
-	if (hud.fire_tapped or _fire_buf > 0.0) and fire_cool == 0.0 and not over and not _queued_shot:
+	_tick_reload(delta)
+	if (hud.fire_tapped or _fire_buf > 0.0) and fire_cool == 0.0 and not over and not _queued_shot and mag <= 0:
+		_fire_buf = 0.0   # the hammer falls on an empty chamber
+		fire_cool = 0.35
+		if reloading <= 0.0:
+			_dry_fire()
+	elif (hud.fire_tapped or _fire_buf > 0.0) and fire_cool == 0.0 and not over and not _queued_shot and reloading <= 0.0:
 		_fire_buf = 0.0
 		if player.duck > 0.3:   # crouched behind cover: he rises over it first, then fires
 			_queued_shot = true
@@ -1096,6 +1120,8 @@ func _process(delta: float) -> void:
 	hud.fire_tapped = false
 	if not _queued_shot:   # the time risen out of cover counts from the shot, not from the tap
 		_pop = maxf(0.0, _pop - delta)
+	if _queued_shot and (mag <= 0 or reloading > 0.0):
+		_queued_shot = false
 	if _queued_shot and player.duck < 0.12:
 		_queued_shot = false
 		if hud.touch_seen and hud.aim_left > 0.0:
@@ -1271,6 +1297,28 @@ func _auto_step(delta: float) -> void:
 			for i in 8:
 				fx.blood(Vector2(1000.0 + i * 260.0, -260.0 - (i % 3) * 70.0), Vector2(1.0 if i % 2 == 0 else -1.0, 0.0))
 		shots = [[0.5, "stains_1"], [2.2, "stains_2"]]
+	elif _auto == "kit":   # a crate shot apart, a gun run dry, the reload and the HUD rounds
+		var wi := -1
+		for k in boxes.size():
+			if box_info[k]["wood"]:
+				wi = k
+				break
+		if _at < 0.05 and wi >= 0:
+			player.position.x = boxes[wi].get_center().x - 900.0
+			cam.position.x = player.position.x + _lead
+		if _at > 0.8 and _auto_done & 1 == 0 and wi >= 0:
+			_auto_done |= 1
+			for k in 12:
+				if wi < boxes.size() and box_info[wi]["wood"]:
+					_hit_box(wi, boxes[wi].get_center() + Vector2(-40.0, -30.0))
+		if _at > 2.0 and _auto_done & 2 == 0:
+			_auto_done |= 2
+			mag = 1
+			hud.fire_tapped = true
+		if _at > 2.5 and _auto_done & 4 == 0:
+			_auto_done |= 4
+			hud.fire_tapped = true
+		shots = [[0.84, "kit_1"], [0.95, "kit_2"], [1.2, "kit_3"], [1.9, "kit_4"], [2.55, "kit_5"], [2.9, "kit_6"], [3.6, "kit_7"]]
 	elif _auto == "life":   # the living street: a flock, a shot that scares it, a hit, a muzzle flash, a neon sign
 		var fx0: float = flocks[0]["birds"][0]["node"].position.x if not flocks.is_empty() else 3000.0
 		if _at < 0.05:
@@ -1552,6 +1600,69 @@ func _dive_clears(way: float, up: float, strict: bool) -> bool:
 	return true
 
 
+## A lettered sound effect, picked from the given words so the same one does not come twice in a row.
+var _last_word := ""
+func _word(names: Array, at: Vector2, size: float, along := Vector2.ZERO) -> void:
+	var pick: String = names.pick_random()
+	if pick == _last_word and names.size() > 1:
+		pick = names[(names.find(pick) + 1) % names.size()]
+	_last_word = pick
+	fx.word("res://art/fx/word_%s.png" % pick, at, size * randf_range(0.92, 1.08), along)
+
+
+## Out of rounds: a dry click, and then he reloads. A gun that is nearly full is topped up
+## by itself once he has not fired for a while; the HUD's rounds can be tapped to reload at once.
+func _dry_fire() -> void:
+	sfx.play("dry_fire", 0.0)
+	_word(["click"], player.muzzle() + Vector2(0.0, -110.0), 0.16)
+	if weapon != "revolver" and ammo <= 0:   # nothing left for this gun: he drops it
+		weapon = "revolver"
+		mag = 0
+		hud.toast("EMPTY")
+	_start_reload()
+
+
+func _start_reload() -> void:
+	var full := int(WEAPONS[weapon]["mag"])
+	if reloading > 0.0 or mag >= full or (weapon != "revolver" and ammo <= 0):
+		return
+	reloading = float(WEAPONS[weapon]["reload"])
+	sfx.play("reload_" + ("revolver" if weapon == "revolver" else ("shells" if weapon == "shotgun" else "mag")), -1.0)
+	if weapon == "revolver":   # the empties tumble out of the cylinder onto the stones
+		for k in full - mag:
+			get_tree().create_timer(0.04 * k, false).timeout.connect(func() -> void:
+				fx.casing(player.position + Vector2(-player.scale.x * 20.0, -300.0), -player.scale.x))
+
+
+func _tick_reload(delta: float) -> void:
+	if hud.reload_tapped or Input.is_physical_key_pressed(KEY_R):
+		hud.reload_tapped = false
+		_start_reload()
+	_idle_fire += delta
+	if reloading <= 0.0 and mag < int(WEAPONS[weapon]["mag"]) and _idle_fire > 2.2 and not over:
+		_start_reload()
+	if reloading > 0.0:
+		reloading -= delta
+		if reloading <= 0.0:
+			reloading = 0.0
+			var full := int(WEAPONS[weapon]["mag"])
+			if weapon == "revolver":
+				mag = full
+			else:
+				var take := mini(full - mag, ammo)
+				mag += take
+				ammo -= take
+			sfx.play("reload_done", -2.0)
+			_word(["kachak"], player.position + Vector2(-player.scale.x * 40.0, -470.0), 0.13)
+	_show_ammo()
+
+
+func _show_ammo() -> void:
+	var w: Dictionary = WEAPONS[weapon]
+	var left := 0.0 if reloading <= 0.0 else 1.0 - reloading / float(w["reload"])
+	hud.set_ammo(String(w["name"]) if weapon != "revolver" else "", mag, int(w["mag"]), ammo if weapon != "revolver" else -1, left)
+
+
 ## One shot: flash, bullet (or a shotgun's pellets), casing, kick of the arm and the lettered bang.
 ## kind: the mobster's gun (post, tommy, shotgun); the detective fires whatever he holds.
 func _fire(shooter, from_player: bool, kind := "") -> void:
@@ -1566,22 +1677,26 @@ func _fire(shooter, from_player: bool, kind := "") -> void:
 	for k in int(w["pellets"]):
 		var spread: float = w["spread"]
 		fx.shoot(at, d.rotated(randf_range(-spread, spread)) * BULLET_SPEED, from_player, w["life"])
-	fx.casing(at - d * 50.0, signf(d.x))
+	if gun != "revolver":   # a revolver keeps its empties until it is reloaded
+		fx.casing(at - d * 50.0, signf(d.x))
 	shooter.recoil = w["kick"]
 	var sound: String = w["sound"] if from_player else ("shot_enemy" if gun == "revolver" else String(w["sound"]))
 	if from_player:
 		sfx.play(sound, 0.0)
 	else:
 		sfx.play(sound, -2.0, at.x)
-	if gun != "tommy" or randf() < 0.25:
-		var word_path := "res://art/fx/word_blam.png" if from_player else "res://art/fx/word_bang.png"
-		fx.word(word_path, at + Vector2(signf(d.x) * 70.0, -150.0), 0.29 if from_player else 0.32, d)
-	if from_player and weapon != "revolver":
-		ammo -= 1
-		if ammo <= 0:
-			weapon = "revolver"
-			hud.toast("EMPTY")
-		hud.set_weapon(String(WEAPONS[weapon]["name"]), ammo)
+	if gun == "tommy":
+		if randf() < 0.25:
+			_word(["rattat"], at + Vector2(signf(d.x) * 120.0, -150.0), 0.26, d)
+	elif gun == "shotgun":
+		_word(["wham", "bam"], at + Vector2(signf(d.x) * 90.0, -160.0), 0.3, d)
+	else:
+		_word(["blam", "bam", "pow"] if from_player else ["bang", "pow"], at + Vector2(signf(d.x) * 70.0, -150.0), 0.29 if from_player else 0.3, d)
+	if from_player:
+		mag -= 1
+		_idle_fire = 0.0
+		_clicked = false
+		_show_ammo()
 
 
 ## A mobster opens fire the way his gun does: the tommy gunner in a burst, the boss in threes.
@@ -1604,6 +1719,18 @@ func _enemy_fire(e: Dictionary) -> void:
 		_:
 			_fire(m, false)
 			e["cool"] = randf_range(1.4, 2.3)
+	# They run dry too: a click, a few seconds fumbling with rounds, a chance to rush them.
+	e["mag"] = int(e.get("mag", ENEMY_MAG.get(String(e["type"]), 6))) - 1
+	if e["mag"] <= 0 and not _stand:
+		e["mag"] = ENEMY_MAG.get(String(e["type"]), 6)
+		var t := 0.6 if String(e["type"]) == "tommy" else 0.0   # after the burst has finished
+		get_tree().create_timer(t + 0.25, false).timeout.connect(func() -> void:
+			if not e["alive"] or over:
+				return
+			sfx.play("dry_fire", -4.0, m.position.x)
+			_word(["click"], m.position + Vector2(0.0, -560.0), 0.14)
+			sfx.play("reload_mag" if String(e["type"]) != "post" else "reload_revolver", -6.0, m.position.x))
+		e["cool"] = t + randf_range(2.2, 2.8)
 
 
 ## How far off the mobsters aim: wide when the detective stands in the dark, tight in the last stand.
@@ -1683,7 +1810,7 @@ func _kill(e: Dictionary, head: bool, quiet := false) -> void:
 	stats["slow"] += 1 if Engine.time_scale < 1.0 else 0
 	_drop(m, signf(m.position.x - player.position.x), true)
 	if not quiet:
-		fx.word("res://art/fx/word_krakoom.png", m.position + Vector2(0.0, -500.0), 0.28)
+		_word(["crack"] if head else ["pow", "wham", "bam"], m.position + Vector2(0.0, -500.0), 0.27)
 	if e["type"] in ["tommy", "shotgun"]:
 		_add_pickup(String(e["type"]), m.position)
 	elif randf() < 0.12:
@@ -1696,10 +1823,16 @@ func _hit_box(i: int, pos: Vector2) -> void:
 	if info["kind"] == "barrel":
 		_explode.call_deferred(boxes[i].get_center(), i)
 		return
-	fx.spark(pos)
-	sfx.play("hit_cover", -4.0, pos.x, 0.12)
+	_last_hit = pos
 	if not info["wood"]:
+		fx.spark(pos)
+		sfx.play("hit_cover", -4.0, pos.x, 0.12)
+		if randf() < 0.35:   # off steel: the bullet sings away
+			_word(["zing"], pos + Vector2(0.0, -90.0), 0.16)
 		return
+	sfx.play("wood_hit", -3.0, pos.x, 0.12)
+	for k in 3:   # chips fly off the boards where the bullet went in
+		fx.chip(pos)
 	info["hp"] -= 1
 	var s: Sprite2D = info["sprite"]
 	s.modulate = Color(1, 1, 1).darkened(0.08 * (7 - int(info["hp"])))
@@ -1716,25 +1849,10 @@ func _break_box(i: int) -> void:
 	var s: Sprite2D = box_info[i]["sprite"]
 	boxes.remove_at(i)
 	box_info.remove_at(i)
-	sfx.play("hit_cover", 0.0, r.get_center().x, 0.0)
-	var tw := s.create_tween().set_parallel(true)
-	tw.tween_property(s, "scale:y", s.scale.y * 0.15, 0.25)
-	tw.tween_property(s, "position:y", s.position.y + r.size.y * 0.85, 0.25)
-	tw.tween_property(s, "modulate:a", 0.0, 0.6)
-	tw.chain().tween_callback(s.queue_free)
-	for k in 10:   # splinters
-		var sp := Polygon2D.new()
-		sp.polygon = PackedVector2Array([Vector2(-14, -3), Vector2(14, -2), Vector2(12, 3), Vector2(-12, 4)])
-		sp.color = Color(0.32, 0.24, 0.16)
-		sp.position = r.get_center() + Vector2(randf_range(-r.size.x, r.size.x) * 0.4, randf_range(-40.0, 40.0))
-		sp.rotation = randf() * TAU
-		sp.z_index = 2
-		add_child(sp)
-		var t2 := sp.create_tween().set_parallel(true)
-		t2.tween_property(sp, "position", sp.position + Vector2(randf_range(-260.0, 260.0), randf_range(-200.0, 120.0)), 0.5).set_ease(Tween.EASE_OUT)
-		t2.tween_property(sp, "rotation", sp.rotation + randf_range(-8.0, 8.0), 0.5)
-		t2.tween_property(sp, "modulate:a", 0.0, 0.6)
-		t2.chain().tween_callback(sp.queue_free)
+	sfx.play("wood_break", 0.0, r.get_center().x, 0.08)
+	fx.break_apart(s, _last_hit, r.end.y)
+	_word(["crash", "crash2"], r.get_center() + Vector2(0.0, -160.0), 0.24)
+	s.queue_free()
 	for e in enemies:
 		if e["alive"] and e["state"] == "post":
 			e["cover"] = _has_cover(e["node"].position)
@@ -1802,8 +1920,12 @@ func _explode(at: Vector2, i: int) -> void:
 ## A lamp shot out: its glow and light go, glass rains down, and the street around it is dark.
 func _lamp_out(i: int) -> void:
 	var rec: Dictionary = lamp_info[i]
+	if rec.has("hum"):
+		rec["hum"]["on"] = false
 	rec["on"] = false   # dark for the aim at once; to the eye it dies over a few stuttering flickers
 	fx.shatter(lamps[i] + Vector2(0.0, -8.0))
+	sfx.play("zap", -6.0, lamps[i].x, 0.1)
+	_word(["smash"], lamps[i] + Vector2(0.0, -120.0), 0.2)
 	sfx.play("glass", -2.0, lamps[i].x, 0.1)
 	var light: PointLight2D = rec["light"]
 	var tw := create_tween()
@@ -2243,8 +2365,10 @@ func _pickups() -> void:
 			hud.toast("A PULL FROM THE FLASK")
 		else:
 			weapon = kind
-			ammo = int(WEAPONS[kind]["ammo"])
-			hud.set_weapon(String(WEAPONS[kind]["name"]), ammo)
+			mag = int(WEAPONS[kind]["mag"])
+			ammo = int(WEAPONS[kind]["ammo"]) - mag
+			reloading = 0.0
+			_show_ammo()
 			sfx.play("pickup", 0.0)
 			hud.toast(String(WEAPONS[kind]["name"]))
 		s.queue_free()

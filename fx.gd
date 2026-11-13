@@ -10,7 +10,10 @@ const STAIN_MISTS := ["res://art/fx/stain_mist1.png", "res://art/fx/stain_mist2.
 const BLOODS := ["res://art/fx/blood1.png", "res://art/fx/blood2.png", "res://art/fx/blood3.png", "res://art/fx/blood4.png"]
 const SPARKS := ["res://art/fx/spark1.png", "res://art/fx/spark2.png"]
 const PUFFS := ["res://art/fx/puff1.png", "res://art/fx/puff2.png", "res://art/fx/puff3.png"]
-const WORDS := ["res://art/fx/word_blam.png", "res://art/fx/word_bang.png", "res://art/fx/word_krakoom.png", "res://art/fx/word_clink.png"]
+const WORDS := ["res://art/fx/word_blam.png", "res://art/fx/word_bang.png", "res://art/fx/word_krakoom.png", "res://art/fx/word_clink.png",
+		"res://art/fx/word_pow.png", "res://art/fx/word_bam.png", "res://art/fx/word_crack.png", "res://art/fx/word_wham.png",
+		"res://art/fx/word_click.png", "res://art/fx/word_kachak.png", "res://art/fx/word_smash.png", "res://art/fx/word_crash.png",
+		"res://art/fx/word_crash2.png", "res://art/fx/word_thud.png", "res://art/fx/word_zing.png", "res://art/fx/word_rattat.png"]
 const TRAIL_LENGTH := 620.0
 const CLASH_RADIUS := 34.0   # how close two bullets must pass to count as a hit; generous on purpose
 const GROUND_Y := -48.0   # bullets stop at the pavement
@@ -404,6 +407,7 @@ func _process(delta: float) -> void:
 	_clashes()
 
 	_fly_bits(delta)
+	_fly_debris(delta)
 
 	var j := _casings.size() - 1
 	while j >= 0:
@@ -484,3 +488,118 @@ func _land(kind: String, at: Vector2, vel: Vector2) -> void:
 		_spots.pop_front()
 	if _spots.size() > MAX_SPOTS:
 		_spots.pop_front().queue_free()
+
+
+## A crate shot to pieces: the drawing itself is cut into jagged boards that fly apart from where
+## the last bullet went in, tumble, bounce on the ground and lie there a while; thin splinters and
+## a puff of dust go with them. floor_y: where the pieces land.
+var _debris: Array = []
+
+func break_apart(s: Sprite2D, hit: Vector2, floor_y: float) -> void:
+	var tex := s.texture
+	var size := tex.get_size()
+	var rect := Rect2((-size * 0.5 if s.centered else Vector2.ZERO) + s.offset, size)
+	var cols := 4
+	var rows := 3
+	var pts := []   # a grid of points over the drawing, the inner ones nudged so the cuts run crooked
+	for r in rows + 1:
+		var row := []
+		for c in cols + 1:
+			var u := Vector2(float(c) / cols, float(r) / rows)
+			if c > 0 and c < cols:
+				u.x += randf_range(-0.07, 0.07)
+			if r > 0 and r < rows:
+				u.y += randf_range(-0.09, 0.09)
+			row.append(rect.position + u * rect.size)
+		pts.append(row)
+	var local_hit := s.to_local(hit)
+	for r in rows:
+		for c in cols:
+			var quad := [pts[r][c], pts[r][c + 1], pts[r + 1][c + 1], pts[r + 1][c]]
+			var pieces := [quad]
+			if randf() < 0.5:   # some boards split again on the diagonal
+				pieces = [[quad[0], quad[1], quad[2]], [quad[0], quad[2], quad[3]]] if randf() < 0.5 else [[quad[0], quad[1], quad[3]], [quad[1], quad[2], quad[3]]]
+			for piece in pieces:
+				var mid := Vector2.ZERO
+				for v in piece:
+					mid += v
+				mid /= piece.size()
+				var poly := PackedVector2Array()
+				var uv := PackedVector2Array()
+				for v in piece:
+					poly.append(v - mid)
+					uv.append(v - rect.position)
+				var f := Polygon2D.new()
+				f.texture = tex
+				f.polygon = poly
+				f.uv = uv
+				f.modulate = s.modulate.lightened(0.35)   # the raw wood inside shows lighter than the weathered face
+				f.light_mask = s.light_mask
+				f.z_index = 1
+				add_child(f)
+				f.global_position = s.to_global(mid)
+				f.global_rotation = s.global_rotation
+				f.scale = s.global_scale
+				var away := (mid - local_hit).normalized()
+				var v := Vector2(away.x * randf_range(250.0, 750.0), -randf_range(350.0, 950.0))
+				_debris.append({"node": f, "vel": v, "spin": randf_range(-9.0, 9.0), "floor": floor_y - randf_range(0.0, 20.0), "bounces": 0, "rest": 0.0})
+	for k in randi_range(10, 16):   # thin splinters
+		var sp := Polygon2D.new()
+		var l := randf_range(8.0, 22.0)
+		sp.polygon = PackedVector2Array([Vector2(-l, -1.5), Vector2(l, -0.5), Vector2(l * 0.8, 2.0), Vector2(-l, 1.5)])
+		sp.color = Color(0.3, 0.22, 0.15) * night
+		sp.material = _unshaded
+		sp.position = s.global_position + Vector2(randf_range(-0.4, 0.4) * rect.size.x * s.global_scale.x, randf_range(-0.4, 0.4) * rect.size.y * s.global_scale.y)
+		add_child(sp)
+		_debris.append({"node": sp, "vel": Vector2(randf_range(-600.0, 600.0), -randf_range(300.0, 1100.0)), "spin": randf_range(-20.0, 20.0), "floor": floor_y, "bounces": 0, "rest": 0.0})
+	for k in 3:   # dust
+		var p := _sprite(PUFFS.pick_random(), s.global_position + Vector2(randf_range(-60.0, 60.0), randf_range(-20.0, 40.0)), 0.3)
+		p.modulate = Color(0.55 * night.r, 0.48 * night.g, 0.4 * night.b, 0.5)
+		var tp := create_tween().set_parallel(true)
+		tp.tween_property(p, "scale", Vector2.ONE * randf_range(0.7, 1.0), 1.0)
+		tp.tween_property(p, "position", p.position + Vector2(randf_range(-60.0, 60.0), -80.0), 1.0)
+		tp.tween_property(p, "modulate:a", 0.0, 1.0)
+		tp.chain().tween_callback(p.queue_free)
+
+
+func _fly_debris(delta: float) -> void:
+	var i := _debris.size() - 1
+	while i >= 0:
+		var d: Dictionary = _debris[i]
+		var n: Node2D = d["node"]
+		if d["rest"] > 0.0:   # lying on the ground: wait, then fade
+			d["rest"] = float(d["rest"]) - delta
+			if d["rest"] <= 0.0:
+				_fade_out(n, 0.0, 1.0)
+				_debris.remove_at(i)
+			i -= 1
+			continue
+		var v: Vector2 = d["vel"]
+		v.y += 2600.0 * delta
+		n.position += v * delta
+		n.rotation += float(d["spin"]) * delta
+		if n.position.y > float(d["floor"]) and v.y > 0.0:
+			n.position.y = d["floor"]
+			d["bounces"] = int(d["bounces"]) + 1
+			if int(d["bounces"]) == 1 and sound and randf() < 0.4:
+				sound.play("wood_hit", -14.0, n.position.x, 0.25)
+			if int(d["bounces"]) >= 3 or absf(v.y) < 200.0:
+				d["rest"] = randf_range(5.0, 8.0)
+				n.rotation = snappedf(n.rotation, PI) + randf_range(-0.15, 0.15)   # settles flat
+			else:
+				v = Vector2(v.x * 0.5, -v.y * 0.32)
+				d["spin"] = float(d["spin"]) * 0.5
+		d["vel"] = v
+		i -= 1
+
+
+## A chip of wood knocked off a crate by a bullet.
+func chip(at: Vector2) -> void:
+	var sp := Polygon2D.new()
+	var l := randf_range(5.0, 12.0)
+	sp.polygon = PackedVector2Array([Vector2(-l, -2.0), Vector2(l, -1.0), Vector2(-l * 0.6, 2.5)])
+	sp.color = Color(0.45, 0.34, 0.22) * night
+	sp.material = _unshaded
+	sp.position = at
+	add_child(sp)
+	_bits.append({"node": sp, "vel": Vector2(randf_range(-350.0, 350.0), -randf_range(200.0, 600.0)), "g": 2200.0, "life": 0.0, "max": 0.7, "size": 1.0, "stretch": false, "land": "", "spin": randf_range(-20.0, 20.0)})
