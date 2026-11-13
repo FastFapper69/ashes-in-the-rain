@@ -6,7 +6,7 @@ const Levels = preload("res://levels.gd")
 const PAPER := Color(0.93, 0.89, 0.8)
 const INK := Color(0.05, 0.05, 0.06)
 const CRIMSON := Color(0.6, 0.1, 0.07)
-const SAVE := "user://progress.cfg"
+const SAVE := "user://progress2.cfg"   # progress2: the maps were rebuilt longer, old progress no longer applies
 
 var play := Callable()   # func(chapter: int, map: int), set by main.gd
 var _chapter := 0
