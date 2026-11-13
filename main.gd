@@ -45,7 +45,7 @@ const DiaryScript = preload("res://diary.gd")
 const SetpiecesScript = preload("res://setpieces.gd")
 var sets   # setpieces.gd: cars, blackouts, searchlights, fires, the crane's crate
 var _in_cut := false
-const CUTS := {"0:0": "eddie", "1:2": "interlude", "1:4": "teague", "2:4": "kessler"}   # the cutscene after a map ("chapter:map")
+const CUTS := {"0:0": "eddie", "1:2": "interlude", "1:4": "teague", "2:2": "dream", "2:4": "kessler"}   # the cutscene after a map ("chapter:map")
 const CUTS_BEFORE := {"2:0": "docks"}   # and before one, the first time it is played
 const BOSS_HP := 16
 const BOSS_NAMES := {"teague": "MICKEY 'CANVAS' TEAGUE", "kessler": "BRUNO KESSLER"}

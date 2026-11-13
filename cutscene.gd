@@ -40,6 +40,10 @@ const SCENES := {
 		{"img": 59, "from": [0.4, 0.5, 1.0], "to": [0.62, 0.45, 1.55], "rain": 0.0, "hit": 1,
 			"lines": ["Pier 17. Eleven dead. Who signed the report?", "Everybody on the West Side remembered that fire. I remembered it as well as anybody."]},
 	],
+	"dream": [
+		{"img": 70, "from": [0.72, 0.5, 1.25], "to": [0.5, 0.45, 1.0], "rain": 0.0, "hit": 1,
+			"lines": ["That night I dreamed I was twenty-six again, with a new badge and a clean conscience.", "The doors were chained. Somebody on the other side kept knocking. I counted the hands. Eleven.", "I woke up before I could see whose side of the door I was on."]},
+	],
 	"kessler": [
 		{"img": 64, "from": [0.35, 0.45, 1.05], "to": [0.55, 0.62, 1.4], "rain": 0.0, "hit": 1,
 			"lines": ["Second drawer, like Eddie said. PIER 17. FIRE. CAUSE: ACCIDENTAL.", "At the bottom, in ink gone brown: Ptl. F. Malone. My hand. My two hundred dollars."]},
