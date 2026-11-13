@@ -82,8 +82,26 @@ func _add(path: String, size: float) -> Sprite2D:
 	return s
 
 
+var _upright: Control   # shown over the game while the phone is held upright
+
 func _layout() -> void:
 	var size := get_viewport().get_visible_rect().size
+	if _upright == null:
+		_upright = ColorRect.new()
+		(_upright as ColorRect).color = Color(0.0, 0.0, 0.0, 0.9)
+		var l := Label.new()
+		l.text = "Turn your phone sideways."
+		l.add_theme_font_override("font", load("res://fonts/SpecialElite.ttf"))
+		l.add_theme_font_size_override("font_size", 52)
+		l.add_theme_color_override("font_color", PAPER)
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_upright.add_child(l)
+		add_child(_upright)
+	_upright.size = size
+	_upright.visible = size.x < size.y
 	_portrait.position = Vector2(72.0, 62.0)
 	_bar.position = Vector2(128.0, 30.0)
 	_stick_at = Vector2(180.0, size.y - 175.0)

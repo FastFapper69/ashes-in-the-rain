@@ -33,6 +33,7 @@ var _type_text := ""
 var _type_t := 0.0
 var _font_type: FontFile
 var _font_head: FontVariation
+var _on_case_file := false
 
 
 static func is_done(chapter: int, map: int) -> bool:
@@ -114,6 +115,12 @@ func _ready() -> void:
 		if is_open(c, 0):
 			_chapter = c
 	_title()
+	# a phone turned while the title is up: lay the page out again for the new shape
+	get_viewport().size_changed.connect(func() -> void:
+		if _on_case_file:
+			_case_file()
+		else:
+			_title())
 
 
 func _process(delta: float) -> void:
@@ -195,7 +202,11 @@ func _button(text: String, at: Vector2, width: float, main: bool, on_press: Call
 
 ## The title: the logo, Frank's line for this moment typed out beneath it, and what to do next.
 func _title() -> void:
+	_on_case_file = false
 	var view := _new_page()
+	if view.x < view.y:   # held upright: the game is played sideways
+		_portrait_note(view)
+		return
 	var shade := TextureRect.new()   # the left of the street darkened so the words read; the right stays open
 	var g := Gradient.new()
 	g.set_color(0, Color(0.0, 0.0, 0.0, 0.82))
@@ -215,8 +226,9 @@ func _title() -> void:
 	logo.texture = load("res://art/ui/title.png")
 	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT
-	var lh := view.y * 0.46
-	logo.size = Vector2(lh * logo.texture.get_width() / logo.texture.get_height(), lh)
+	var aspect := float(logo.texture.get_width()) / logo.texture.get_height()
+	var lh := minf(view.y * 0.46, view.x * 0.42 / aspect)   # never wider than the left part of the screen
+	logo.size = Vector2(lh * aspect, lh)
 	logo.position = Vector2(left, view.y * 0.05)
 	logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	logo.modulate.a = 0.0
@@ -256,7 +268,11 @@ func _title() -> void:
 
 ## The case file: one chapter at a time, its maps as pasted comic panels.
 func _case_file() -> void:
+	_on_case_file = true
 	var view := _new_page()
+	if view.x < view.y:
+		_portrait_note(view)
+		return
 	_type_label = null
 	var shade := ColorRect.new()
 	shade.color = Color(0.0, 0.0, 0.0, 0.55)
@@ -354,3 +370,25 @@ func _case_file() -> void:
 			_case_file())
 		_page.add_child(b)
 	_button("BACK", Vector2(view.x * 0.06, view.y - 100.0), 180.0, false, _title)
+
+
+## Upright phone: the title, small, and a word to turn it sideways.
+func _portrait_note(view: Vector2) -> void:
+	_type_label = null
+	var shade := ColorRect.new()
+	shade.color = Color(0.0, 0.0, 0.0, 0.85)
+	shade.size = view
+	_page.add_child(shade)
+	var logo := TextureRect.new()
+	logo.texture = load("res://art/ui/title.png")
+	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	logo.size = Vector2(view.x * 0.8, view.x * 0.8 * logo.texture.get_height() / logo.texture.get_width())
+	logo.position = Vector2(view.x * 0.1, view.y * 0.18)
+	_page.add_child(logo)
+	var l := _label("Turn your phone sideways.", _font_type, 52, PAPER, 8)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.position = Vector2(view.x * 0.1, logo.position.y + logo.size.y + 60.0)
+	l.size = Vector2(view.x * 0.8, 100.0)
+	_page.add_child(l)
