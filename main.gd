@@ -7,6 +7,7 @@ extends Node2D
 const PuppetScript = preload("res://puppet.gd")
 const AtmosphereScript = preload("res://atmosphere.gd")
 const FxScript = preload("res://fx.gd")
+const SfxScript = preload("res://sfx.gd")
 const HudScript = preload("res://hud.gd")
 const PPM := 200.0
 const WALL_SCALE := 1.9         # sized so a doorway on the wall drawing is a little taller than a man
@@ -107,6 +108,10 @@ var lamps: Array[Vector2] = []   # world positions of every lamp, for the cast s
 var atmo
 var steps: CPUParticles2D
 var fx
+var sfx
+var _step_t := 0.0   # game seconds to the next footstep sound
+var _slowed_was := false
+var _ghost_t := 0.0   # game seconds to the next afterimage
 var hud
 var hp := PLAYER_HP
 var fire_cool := 0.0
@@ -126,6 +131,7 @@ var _probe := 0.0
 var _auto := ""   # a scripted test run from the command line; empty in normal play
 var _at := 0.0
 var _auto_done := 0
+var _dive_at := 1380.0
 var _snap := 0
 var _slow_look := 0.0   # 0 normal .. 1 the screen is in its slowed-time look
 var _show_fps := false
@@ -138,6 +144,7 @@ const TEST_SHOTS := [[1.2, "cover_duck"], [1.68, "cover_pop"], [3.9, "stain"], [
 var _tt_done := 0
 var _duck_was := false        # the crouch key was down last frame: a fresh press while running slides
 var _pop := 0.0               # seconds the detective stays risen out of his crouch to shoot
+var _aim_point := Vector2.INF   # where the detective aims, in the world, this frame
 var _fire_buf := 0.0          # a tap that came while the gun was still cycling: fired as soon as it is ready
 var _death_t := -1.0          # real seconds since the detective went down
 var _queued_shot := false     # fire as soon as he has risen far enough to clear his cover
@@ -196,12 +203,19 @@ func _ready() -> void:
 	fx.hit_test = _bullet_hit
 	fx.clash = _bullets_clash
 	add_child(fx)
+	sfx = SfxScript.new()
+	add_child(sfx)
+	fx.sound = sfx
+	fx.listener = player
 	hud = HudScript.new()
 	add_child(hud)
 	DirAccess.make_dir_recursive_absolute("res://_shots")
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--test="):
 			_auto = arg.trim_prefix("--test=")
+			if _auto.begins_with("dive:"):   # --test=dive:1300 taps the dive button at that x
+				_dive_at = float(_auto.get_slice(":", 1))
+				_auto = "dive"
 	RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
 	for n in find_children("*", "Light2D", true, false):
 		n.add_to_group("lights")
@@ -589,10 +603,18 @@ func _process(delta: float) -> void:
 			hud.jump_tapped = true
 	elif _tt < 0.0:
 		_demo_duck = false
+	_aim_point = chest + aim
 	dir = _move(dir, aim, delta)
 	if not over:
 		player.set_state(dir, aim, delta)
 	steps.emitting = absf(dir) > 0.3 and move_state == "ground"
+	if steps.emitting and player.duck < 0.5:   # footfalls on the wet pavement, quicker when he runs
+		_step_t -= delta
+		if _step_t <= 0.0:
+			_step_t = 0.3
+			sfx.play("step1" if randf() < 0.5 else "step2", -6.0, INF, 0.1)
+	else:
+		_step_t = 0.08
 
 	fire_cool = maxf(0.0, fire_cool - delta)
 	_fire_buf = maxf(0.0, _fire_buf - delta)
@@ -629,9 +651,11 @@ func _process(delta: float) -> void:
 		hud.banner("CASE CLOSED")
 		get_tree().create_timer(4.0).timeout.connect(get_tree().reload_current_scene)
 	_slow_time(real)
-	fx.trail(move_state in ["dive", "roll", "slide"], player.position + Vector2(0.0, -150.0 if move_state == "slide" else -230.0))
+	_afterimages(delta, absf(dir))
 	_slow_look = lerpf(_slow_look, 1.0 if Engine.time_scale < 1.0 else 0.0, 1.0 - exp(-10.0 * real))
 	atmo.set_slow(_slow_look)
+	sfx.slow = _slow_look
+	sfx.listener_x = cam.position.x - CAM_LEAD
 	fx.slow = _slow_look
 	_cast_shadow(player)
 	for e in enemies:
@@ -660,13 +684,22 @@ func _auto_step(delta: float) -> void:
 			player.position.x = 900.0
 			cam.position.x = player.position.x + CAM_LEAD
 		hud.move = 1.0 if _at < 2.2 else 0.0
-		if player.position.x > 1380.0 and _auto_done & 1 == 0:
+		if player.position.x > _dive_at and _auto_done & 1 == 0:
 			_auto_done |= 1
 			_at = 1.0
 			hud.dive_tapped = true
 		if _auto_done & 1 == 0:
 			_at = minf(_at, 0.9)
 		shots = [[1.06, "dive_1"], [1.14, "dive_2"], [1.22, "dive_3"], [1.32, "dive_4"], [1.5, "dive_5"], [2.0, "dive_6"]]
+	elif _auto == "stains":   # eight hits along the wall, then look at them once the runs have crept down
+		if _at < 0.05:
+			player.position.x = 1150.0
+			cam.position.x = player.position.x + CAM_LEAD
+		if _at > 0.3 and _auto_done & 1 == 0:
+			_auto_done |= 1
+			for i in 8:
+				fx.blood(Vector2(1000.0 + i * 260.0, -260.0 - (i % 3) * 70.0), Vector2(1.0 if i % 2 == 0 else -1.0, 0.0))
+		shots = [[0.5, "stains_1"], [2.2, "stains_2"]]
 	elif _auto == "death":   # two mobsters go down, one standing and one behind his drum, then the detective
 		if _at < 0.05:
 			player.position.x = 2300.0
@@ -773,6 +806,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			player.crouch = clampf(fall / 1500.0, 0.3, 0.9)   # the harder the landing, the deeper the knees
 			move_state = "ground"
 			steps.restart()
+			sfx.play("land", -4.0)
 	elif move_state == "dive":
 		fall += GRAVITY * delta
 		player.position.y += fall * delta
@@ -783,6 +817,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			move_state = "roll"
 			roll_done = 0.0
 			player.roll = 1.35 * player.dive * player.dive_side
+			player.position.y = minf(player.position.y, floor_y)   # the origin moves up to his feet: on a crate he rolls along its top, not inside it
 			player.dive = 0.0
 		elif fall > 0.0 and player.position.y >= floor_y + DIVE_LAND:   # otherwise flat on the pavement
 			player.position.y = floor_y + DIVE_LAND
@@ -790,6 +825,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			run = 0.0
 			move_state = "ground"
 			steps.restart()
+			sfx.play("land", -4.0)
 	elif move_state == "roll":
 		roll_done = minf(1.0, roll_done + delta / 0.5)
 		player.roll = lerpf(1.35, TAU, roll_done) * player.dive_side
@@ -838,9 +874,11 @@ func _block(before_x: float) -> void:
 		var right := b.end.x + 45.0
 		if player.position.x > left and player.position.x < right:
 			if move_state == "dive" and b.size.y <= VAULT_MAX:
-				# flying into cover: he goes over it, skimming the top, and keeps his momentum
-				player.position.y = b.position.y + DIVE_LAND * player.dive
-				fall = minf(fall, -350.0)
+				# launched too close to clear it: held at its side, he is lifted over the top in a few
+				# frames instead of being dropped onto it, and flies on
+				player.position.x = left if player.position.x < b.get_center().x else right
+				player.position.y = move_toward(player.position.y, b.position.y + DIVE_LAND * player.dive - 6.0, 2600.0 * get_process_delta_time())
+				fall = minf(fall, 0.0)
 				continue
 			player.position.x = left if before_x <= left + 1.0 else (right if before_x >= right - 1.0 else (left if player.position.x < b.get_center().x else right))
 			run = 0.0
@@ -848,22 +886,66 @@ func _block(before_x: float) -> void:
 
 
 func _start_dive(way: float, facing: float, up: float, from_run: bool) -> void:
+	sfx.play("dive", -2.0)
 	move_state = "dive"
 	glide = DIVE_SPEED.x * way
 	fall = up
+	# a crate in the way: he launches steeper, just enough to fly right over it and land clear of it;
+	# only if that is out of reach, to land on top of it and roll off
+	var found := false
+	for strict in [true, false]:
+		for k in 14:
+			var u := up - 60.0 * k
+			if not found and _dive_clears(way, u, strict):
+				fall = u
+				found = true
 	run = 0.0
 	player.dive_side = way * facing
 	dive_rolls = from_run and way * facing > 0.0
+
+
+## Would a dive launched now, with this upward speed, fly over every low crate in its way and land
+## with room to roll before the next one? Steps the same arc _move will fly.
+func _dive_clears(way: float, up: float, strict: bool) -> bool:
+	var x: float = player.position.x
+	var y: float = player.position.y
+	var d: float = player.dive
+	var f := up
+	var dt := 1.0 / 60.0
+	for i in 120:
+		f += GRAVITY * dt
+		y += f * dt
+		x += DIVE_SPEED.x * way * dt
+		d = move_toward(d, 1.0, 6.0 * dt)
+		var feet := y - DIVE_LAND * d
+		for b in boxes:
+			if b.size.y <= VAULT_MAX and x > b.position.x - 45.0 and x < b.end.x + 45.0 and feet > b.position.y + 14.0:
+				return false
+		if f > 0.0 and y >= _floor_at(x, feet) + 30.0:   # down: the roll that follows must not run into a crate
+			if strict and _floor_at(x, feet) < 0.0 and not (x > CATWALK.position.x and x < CATWALK.end.x):
+				return false   # came down on top of a crate
+			for b in boxes:
+				var gap: float = (b.position.x - 45.0 - x) if way > 0.0 else (x - b.end.x - 45.0)
+				if b.size.y <= VAULT_MAX and gap > -1.0 and gap < 420.0 and _floor_at(x, feet) > b.position.y:
+					return false
+			return true
+	return true
 
 
 ## One shot: flash, bullet, casing, kick of the arm and the lettered bang.
 func _fire(shooter, from_player: bool) -> void:
 	var at: Vector2 = shooter.muzzle()
 	var d: Vector2 = shooter.aim_dir()
+	if from_player and _aim_point != Vector2.INF and _aim_point.distance_to(at) > 120.0:
+		d = (_aim_point - at).normalized()   # exactly onto the finger or the cursor, wherever the arm still is
 	fx.muzzle(at, d)
 	fx.shoot(at, d * BULLET_SPEED, from_player)
 	fx.casing(at - d * 50.0, signf(d.x))
 	shooter.recoil = 0.2
+	if from_player:
+		sfx.play("shot_player", 0.0)
+	else:
+		sfx.play("shot_enemy", -2.0, at.x)
 	var word_path := "res://art/fx/word_blam.png" if from_player else "res://art/fx/word_bang.png"
 	fx.word(word_path, at + Vector2(signf(d.x) * 70.0, -150.0), 0.29 if from_player else 0.32, d)
 
@@ -873,16 +955,18 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 	for b in boxes:   # cover stops bullets from both sides
 		if b.has_point(pos):
 			fx.spark(pos)
+			sfx.play("hit_cover", -4.0, pos.x, 0.12)
 			return true
 	if from_player:
 		for e in enemies:
 			if not e["alive"]:
 				continue
-			var rel: Vector2 = pos - e["node"].position
-			if absf(rel.x) > 45.0 or rel.y < lerpf(-385.0, -225.0, e["node"].duck) or rel.y > -10.0:
+			var part: String = e["node"].hit_part(pos)
+			if part == "":
 				continue
-			fx.blood(Vector2(e["node"].position.x, pos.y), Vector2(signf(e["node"].position.x - player.position.x), 0.0))
-			e["hp"] -= 1
+			fx.blood(pos, Vector2(signf(e["node"].position.x - player.position.x), 0.0))
+			sfx.play("hit_flesh", 0.0, pos.x)
+			e["hp"] -= MOBSTER_HP if part == "head" else 1   # a head shot always kills
 			e["seen"] = true   # being shot at wakes him up, however far away
 			if e["hp"] <= 0:
 				e["alive"] = false
@@ -892,13 +976,10 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 		return false
 	if over or cleared:
 		return false
-	var flat: bool = player.dive > 0.5 or player.slide > 0.5 or move_state == "roll"   # lying or flying flat he is a long, low target
-	var half := 150.0 if flat else 45.0
-	var top := -250.0 if flat else lerpf(-385.0, -225.0, player.duck)
-	var rel_p: Vector2 = pos - player.position
-	if absf(rel_p.x) > half or rel_p.y < top or rel_p.y > -10.0:
+	if player.hit_part(pos) == "":   # the posed body: flying flat or crouched he really is a smaller target
 		return false
-	fx.blood(Vector2(player.position.x, pos.y), Vector2(-signf(pos.x - player.position.x), 0.0))
+	fx.blood(pos, Vector2(-signf(pos.x - player.position.x), 0.0))
+	sfx.play("hit_flesh", 2.0)
 	if (_dt < 0.0 or _dt > 7.4) and _tt < 0.0:   # nobody gets hurt during the demo or the test
 		hp -= 1
 		hud.set_health(float(hp) / PLAYER_HP)
@@ -910,6 +991,7 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 ## One of the detective's bullets met one of theirs in the air.
 func _bullets_clash(at: Vector2) -> void:
 	fx.word("res://art/fx/word_clink.png", at + Vector2(0.0, -110.0), 0.22)
+	sfx.play("clink", -3.0, at.x)
 	slow_left = minf(1.0, slow_left + 0.15)   # a little slowed time back as a reward
 
 
@@ -918,11 +1000,30 @@ func _player_down() -> void:
 	over = true
 	slow_on = false
 	_death_t = 0.0
+	sfx.play("death_sting", 0.0, INF, 0.0)
 	var killer = _nearest_enemy()
 	_drop(player, signf(player.position.x - killer.position.x) if killer != null else -player.scale.x, false)
 	get_tree().create_timer(1.1, true, false, true).timeout.connect(hud.banner.bind("LIGHTS OUT"))
 	if _auto == "":
 		get_tree().create_timer(3.4, true, false, true).timeout.connect(_restart)
+
+
+## A dive, a roll, a slide, or running in slowed time leaves a short string of ink silhouettes of
+## the detective behind him, each one fading as the next is laid down.
+func _afterimages(delta: float, running: float) -> void:
+	var on: bool = not over and (move_state in ["dive", "roll", "slide"] or (Engine.time_scale < 1.0 and running > 0.3))
+	_ghost_t -= delta
+	if not on or _ghost_t > 0.0:
+		return
+	_ghost_t = 0.05
+	var g: CanvasGroup = player.ghost()
+	var paper := Color(0.9, 0.87, 0.8) * _undo_night(0.5)   # pale paper ghosts read against the dark street
+	g.self_modulate = Color(paper.r, paper.g, paper.b, 0.45)
+	g.z_index = -1   # behind the detective and the mobsters, in front of the crates
+	add_child(g)
+	var tw := g.create_tween()
+	tw.tween_property(g, "self_modulate:a", 0.0, 0.26).set_ease(Tween.EASE_IN)
+	tw.tween_callback(g.queue_free)
 
 
 func _restart() -> void:
@@ -947,21 +1048,22 @@ func _drop(figure, push: float, fade: bool) -> void:
 	if crumple:
 		tw.tween_property(figure, "position:x", at.x + push * 30.0, 0.1).set_ease(Tween.EASE_OUT)
 		tw.parallel().tween_property(figure, "rotation", -0.1 * side, 0.1)
-		tw.parallel().tween_method(func(k: float) -> void: figure.die_pose(lerp_angle(arm0, 1.35, k), lerpf(knees0, 1.0, k)), 0.0, 1.0, 0.32).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tw.parallel().tween_method(func(k: float) -> void: figure.die_pose(lerp_angle(arm0, 1.2, k), lerpf(knees0, 1.0, k)), 0.0, 1.0, 0.32).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		tw.tween_property(figure, "rotation", lie, 0.34).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 		tw.parallel().tween_property(figure, "position:y", at.y - 26.0, 0.34)
-		tw.parallel().tween_method(func(k: float) -> void: figure.die_pose(lerp_angle(1.35, 1.6, k), lerpf(1.0, 0.15, k)), 0.0, 1.0, 0.34)   # the legs go out straight as he lands
+		tw.parallel().tween_method(func(k: float) -> void: figure.die_pose(lerp_angle(1.2, 1.45, k), lerpf(1.0, 0.15, k)), 0.0, 1.0, 0.34)   # the legs go out straight as he lands
 	else:
-		tw.tween_method(func(k: float) -> void: figure.die_pose(lerp_angle(arm0, -2.1, k), lerpf(knees0, 0.25, k)), 0.0, 1.0, 0.14).set_ease(Tween.EASE_OUT)
+		tw.tween_method(func(k: float) -> void: figure.die_pose(lerp_angle(arm0, -1.75, k), lerpf(knees0, 0.25, k)), 0.0, 1.0, 0.14).set_ease(Tween.EASE_OUT)
 		tw.parallel().tween_property(figure, "rotation", 0.18 * side, 0.14).set_ease(Tween.EASE_OUT)
 		tw.parallel().tween_property(figure, "position:x", at.x + push * 70.0, 0.14).set_ease(Tween.EASE_OUT)
 		tw.tween_property(figure, "rotation", lie, 0.36).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 		tw.parallel().tween_property(figure, "position", Vector2(at.x + push * 190.0, at.y - 26.0), 0.36).set_ease(Tween.EASE_OUT)
-		tw.parallel().tween_method(func(k: float) -> void: figure.die_pose(lerp_angle(-2.1, -2.9, k), lerpf(0.25, 0.0, k)), 0.0, 1.0, 0.36)
+		tw.parallel().tween_method(func(k: float) -> void: figure.die_pose(lerp_angle(-1.75, -2.05, k), lerpf(0.25, 0.0, k)), 0.0, 1.0, 0.36)
 	# the bounce off the pavement
 	tw.tween_property(figure, "rotation", lie - 0.13 * side, 0.08).set_ease(Tween.EASE_OUT)
 	tw.tween_property(figure, "rotation", lie, 0.1).set_ease(Tween.EASE_IN)
 	tw.tween_callback(func() -> void: _pool(figure.position + Vector2(side * 230.0, 0.0), side))
+	tw.parallel().tween_callback(func() -> void: sfx.play("body_fall", 0.0 if figure == player else -3.0, figure.position.x))
 	if fade:
 		tw.tween_interval(3.0)
 		tw.tween_property(figure, "modulate:a", 0.0, 0.9)
@@ -1108,6 +1210,10 @@ func _slow_time(real: float) -> void:
 		slow_left = minf(1.0, slow_left + real * 0.14)
 		Engine.time_scale = 1.0
 	hud.set_slow(slow_left, Engine.time_scale < 1.0)
+	var now_slow := Engine.time_scale < 1.0
+	if now_slow != _slowed_was:
+		sfx.play("slow_in" if now_slow else "slow_out", -3.0, INF, 0.0)
+		_slowed_was = now_slow
 
 
 ## The nearest lamp throws the figure's shadow onto the wall behind it, leaning away from the light.

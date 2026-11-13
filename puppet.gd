@@ -66,6 +66,11 @@ var crouch := 0.0    # 0 standing .. 1 deep knee bend: soaks up a landing
 var slide := 0.0     # 0 .. 1 sliding along the ground, legs first
 var duck := 0.0      # 0 .. 1 crouched low behind cover
 var slide_side := 1.0
+## How thick each body part is for bullets, in metres either side of its bone. Checked in this order,
+## so a bullet through the head counts as a head shot.
+const HIT_RADIUS := {"head": 0.14, "torso": 0.17, "skirt": 0.11, "uarm_f": 0.06, "farm_f": 0.055, "thigh_f": 0.085, "thigh_b": 0.085, "shin_f": 0.07, "shin_b": 0.07}
+var _bones := {}   # sprite name -> [start, end] in this node's pixels, as last posed
+var _dead := false   # set by die_pose: the arms hang straight from the shoulders, no aiming, no IK twists
 var roll := 0.0      # extra turn of the whole body, radians: a tumble out of a dive
 var ground := 0.0    # where the pavement is below the figure's origin, in pixels (0 when standing on it)
 var recoil := 0.0    # set after a shot: the gun arm kicks up by this many radians and settles back
@@ -193,6 +198,41 @@ func _build_shadow() -> void:
 	_shadow_spr["gun"] = g
 
 
+## A flat ink copy of the figure exactly as it is posed this frame: the afterimages a dive, a roll or
+## a run in slowed time leaves behind. The caller adds it to the scene and fades it.
+func ghost() -> CanvasGroup:
+	var g := CanvasGroup.new()
+	g.position = position
+	g.scale = scale
+	g.rotation = rotation
+	for key in _spr:
+		var src: Sprite2D = _spr[key]
+		if not src.visible:
+			continue
+		var d := Sprite2D.new()
+		var t: Texture2D = src.texture
+		if t is CanvasTexture:
+			t = (t as CanvasTexture).diffuse_texture
+		d.texture = t
+		d.centered = src.centered
+		d.offset = src.offset
+		d.flip_h = src.flip_h
+		d.region_enabled = src.region_enabled
+		d.region_rect = src.region_rect
+		d.position = src.position
+		d.rotation = src.rotation
+		d.scale = src.scale
+		g.add_child(d)
+	var gun := Sprite2D.new()
+	gun.texture = _gun.texture
+	gun.flip_h = _gun.flip_h
+	gun.position = _gun.position
+	gun.rotation = _gun.rotation
+	gun.scale = _gun.scale
+	g.add_child(gun)
+	return g
+
+
 ## dx: how far the shadow lands from the feet (world pixels), skew: its lean, alpha: 0 = no lamp near.
 func set_shadow(dx: float, skew_amount: float, alpha: float) -> void:
 	_shadow.self_modulate = Color(1.0, 1.0, 1.0, alpha)
@@ -291,6 +331,8 @@ func _pose() -> void:
 
 	# far arm: supports the aim when standing, swings against the far leg when running
 	var far_target := (shoulder + _aim * 0.5 + Vector2(0.02, 0.06)).lerp(hip + Vector2(0.25 * cos(th), 0.05), t)
+	if _dead:   # dead weight: the arm lies almost straight along the thrown direction
+		far_target = far_shoulder + Vector2.from_angle(_aim.angle() + 0.25) * (ua + fa) * 0.96
 	var k := _ik(far_shoulder, far_target, ua, fa, 1.0)
 	_place("uarm_b", "uarm", far_shoulder, k[0])
 	_place("farm_b", "farm", k[0], k[1])
@@ -314,7 +356,7 @@ func _pose() -> void:
 	_place("head", "head", head_base, head_base + Vector2(0.02, -0.3).rotated(look))
 
 	# near arm: always on the target, the gun in its hand
-	k = _ik(shoulder, shoulder + _aim * 0.55, ua, fa, 1.0)
+	k = _ik(shoulder, shoulder + (_aim * (ua + fa) * 0.96 if _dead else _aim * 0.55), ua, fa, 1.0)
 	_place("uarm_f", "uarm", shoulder, k[0])
 	_place("farm_f", "farm", k[0], k[1])
 	var hand: Vector2 = k[1]
@@ -340,12 +382,27 @@ func snap_aim(aim: Vector2) -> void:
 ## Dying: no more running or aiming. The gun arm goes where the hit throws it (an angle in the
 ## figure's own facing, 0 = straight ahead, negative = up) and the knees give by `knees`.
 func die_pose(arm: float, knees: float) -> void:
+	_dead = true
 	_moving = 0.0
 	duck = knees
 	_aim = Vector2.from_angle(arm)
 	_tail_dir = _tail_dir.lerp(Vector2(0.0, 0.5), 0.2)   # the coat settles along the legs, so it lies flat with him
 	_pose()
 	queue_redraw()
+
+
+## Which body part a bullet at `world` is inside, or "" for a miss. The test follows the posed
+## bones, so a crouch, a dive or a fall changes what can be hit exactly as it looks.
+func hit_part(world: Vector2) -> String:
+	var p := to_local(world)
+	for key in HIT_RADIUS:
+		if not _bones.has(key):
+			continue
+		var bone: Array = _bones[key]
+		var near := Geometry2D.get_closest_point_to_segment(p, bone[0], bone[1])
+		if near.distance_to(p) < float(HIT_RADIUS[key]) * PPM:
+			return key
+	return ""
 
 
 ## The end of the barrel, in world coordinates.
@@ -361,6 +418,7 @@ func aim_dir() -> Vector2:
 
 func _place(sprite: String, part: String, a: Vector2, b: Vector2) -> void:
 	var s: Sprite2D = _spr[sprite]
+	_bones[sprite] = [a * PPM, b * PPM]
 	s.position = a * PPM
 	s.rotation = (b - a).angle() - float(_ang[part])
 

@@ -49,9 +49,9 @@ func _ready() -> void:
 		cut.width = 10.0
 		cut.default_color = Color(0.03, 0.03, 0.04)
 		_bar.add_child(cut)
-	_ring = _add("res://art/ui/stick_ring.png", 0.5)
+	_ring = _add("res://art/ui/stick_ring.png", 0.62)
 	_ring.modulate.a = 0.8
-	_knob = _add("res://art/ui/stick_knob.png", 0.5)
+	_knob = _add("res://art/ui/stick_knob.png", 0.62)
 	_knob.modulate.a = 0.9
 	_slow = _add("res://art/ui/stopwatch.png", 0.215)
 	_meter = Line2D.new()
@@ -64,6 +64,7 @@ func _ready() -> void:
 	gun.scale = Vector2.ONE * 0.27
 	gun.position = Vector2(0.0, 6.0)
 	_fire.add_child(gun)
+	_fire.visible = false   # a touch on the street aims and fires; the button is no longer needed
 	_dash = _add("res://art/ui/icon_dash.png", 0.5)
 	_jump = _add("res://art/ui/icon_jump.png", 0.5)
 	set_health(1.0)
@@ -84,7 +85,7 @@ func _layout() -> void:
 	var size := get_viewport().get_visible_rect().size
 	_portrait.position = Vector2(72.0, 62.0)
 	_bar.position = Vector2(128.0, 30.0)
-	_stick_at = Vector2(150.0, size.y - 140.0)
+	_stick_at = Vector2(180.0, size.y - 175.0)
 	_ring.position = _stick_at
 	_knob.position = _stick_at
 	_fire.position = Vector2(size.x - 105.0, size.y - 215.0)
@@ -131,7 +132,7 @@ func _input(event: InputEvent) -> void:
 		touch_seen = true
 		var t := event as InputEventScreenTouch
 		if t.pressed:
-			if t.position.distance_to(_fire.position) < 80.0:
+			if _fire.visible and t.position.distance_to(_fire.position) < 80.0:
 				fire_tapped = true
 			elif t.position.distance_to(_slow.position) < 80.0:
 				slow_tapped = true
@@ -165,10 +166,10 @@ func _input(event: InputEvent) -> void:
 			aim_left = 0.7
 
 
-## The thumbstick lives in the lower left; a touch anywhere else that is not a button aims.
+## The thumbstick is the ring in the lower left and a little margin round it; a touch anywhere else
+## that is not a button aims there and shoots, behind the detective as well as in front of him.
 func _in_stick_zone(at: Vector2) -> bool:
-	var size := get_viewport().get_visible_rect().size
-	return at.x < size.x * 0.4 and at.y > size.y * 0.35
+	return at.distance_to(_stick_at) < 165.0
 
 
 func _process(delta: float) -> void:
@@ -177,7 +178,7 @@ func _process(delta: float) -> void:
 
 
 func _steer(at: Vector2) -> void:
-	var off := (at - _stick_at).limit_length(60.0)
+	var off := (at - _stick_at).limit_length(76.0)
 	_knob.position = _stick_at + off
-	move = 0.0 if absf(off.x) < 18.0 else signf(off.x)
-	duck = off.y > 30.0
+	move = 0.0 if absf(off.x) < 22.0 else signf(off.x)
+	duck = off.y > 38.0

@@ -4,6 +4,9 @@ extends Node2D
 # of the scene's darkness), so the effects keep the colours they were drawn in.
 
 const FLASHES := ["res://art/fx/flash1.png", "res://art/fx/flash2.png", "res://art/fx/flash4.png"]
+const STAIN_SPRAYS := ["res://art/fx/stain_spray1.png", "res://art/fx/stain_spray2.png"]
+const STAIN_DRIPS := ["res://art/fx/stain_drip1.png", "res://art/fx/stain_drip2.png"]
+const STAIN_MISTS := ["res://art/fx/stain_mist1.png", "res://art/fx/stain_mist2.png"]
 const BLOODS := ["res://art/fx/blood1.png", "res://art/fx/blood2.png", "res://art/fx/blood3.png", "res://art/fx/blood4.png"]
 const PUFFS := ["res://art/fx/puff1.png", "res://art/fx/puff2.png", "res://art/fx/puff3.png"]
 const WORDS := ["res://art/fx/word_blam.png", "res://art/fx/word_bang.png", "res://art/fx/word_krakoom.png", "res://art/fx/word_clink.png"]
@@ -12,6 +15,8 @@ const CLASH_RADIUS := 34.0   # how close two bullets must pass to count as a hit
 const GROUND_Y := -48.0   # bullets stop at the pavement
 
 var night := Color.WHITE        # set by main.gd
+var sound: Node                 # sfx.gd, set by main.gd
+var listener: Node2D            # the detective: enemy bullets that pass close to him whistle
 var clash := Callable()         # func(at: Vector2), called when two opposing bullets meet
 var hit_test := Callable()      # func(pos: Vector2, from_player: bool) -> bool, true when the bullet hit someone
 
@@ -32,7 +37,7 @@ func _ready() -> void:
 	_unshaded = CanvasItemMaterial.new()
 	_unshaded.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
 	# read every drawing now: loading one in the middle of a fight makes the game stutter
-	for path in FLASHES + BLOODS + PUFFS + WORDS + ["res://art/fx/spark1.png", "res://art/fx/casing1.png", "res://art/light_blob.png"]:
+	for path in FLASHES + BLOODS + PUFFS + WORDS + STAIN_SPRAYS + STAIN_DRIPS + STAIN_MISTS + ["res://art/fx/stain_smear1.png", "res://art/fx/spark1.png", "res://art/fx/casing1.png", "res://art/light_blob.png"]:
 		_cache[path] = load(path)
 
 
@@ -204,18 +209,56 @@ func blood(at: Vector2, dir: Vector2) -> void:
 		td.chain().tween_callback(d.queue_free)
 
 
+## A stain picture placed so that `origin` (its pixel where the blood came from) sits at `at`,
+## pointing along `dir`, a little tilted.
+func _stain_sprite(path: String, at: Vector2, origin: Vector2, dir: Vector2) -> Sprite2D:
+	var s := _sprite(path, at, 0.05)
+	var tex := s.texture
+	s.offset = Vector2(tex.get_width() * 0.5 - origin.x, tex.get_height() * 0.5 - origin.y)
+	s.flip_h = dir.x < 0.0
+	if s.flip_h:
+		s.offset.x = -s.offset.x
+	s.rotation = randf_range(-0.25, 0.25)
+	return s
+
+
 ## Blood thrown onto the wall behind whoever was hit. It stays for the rest of the fight; the
 ## oldest stains go once there are too many.
 func _stain(at: Vector2, dir: Vector2) -> void:
-	var s := _sprite(BLOODS.pick_random(), at + Vector2(dir.x * randf_range(50.0, 150.0), randf_range(-60.0, 30.0)), 0.05)
+	var kind := randi() % 10
+	var s: Sprite2D
+	var size := 1.0
+	var grow_down := false
+	if kind < 3:   # spray flung away from the shooter
+		s = _stain_sprite(STAIN_SPRAYS.pick_random(), at + dir * 15.0, Vector2(90.0, 150.0), dir)
+		size = randf_range(0.5, 0.75)
+	elif kind < 5:   # a splat that runs down the wall
+		s = _stain_sprite(STAIN_DRIPS.pick_random(), at + Vector2(dir.x * randf_range(30.0, 90.0), randf_range(-40.0, 0.0)), Vector2(150.0, 95.0), Vector2.RIGHT if randf() < 0.5 else Vector2.LEFT)
+		s.rotation = 0.0
+		size = randf_range(0.45, 0.65)
+		grow_down = true
+	elif kind < 6:   # smeared along
+		s = _stain_sprite("res://art/fx/stain_smear1.png", at + dir * 20.0, Vector2(70.0, 110.0), dir)
+		size = randf_range(0.45, 0.6)
+	elif kind < 8:   # a graze: just a fan of droplets
+		s = _stain_sprite(STAIN_MISTS.pick_random(), at + dir * 10.0, Vector2(50.0, 150.0), dir)
+		size = randf_range(0.5, 0.7)
+	else:   # the round splats
+		s = _sprite(BLOODS.pick_random(), at + Vector2(dir.x * randf_range(50.0, 150.0), randf_range(-60.0, 30.0)), 0.05)
+		s.rotation = randf() * TAU
+		size = randf_range(0.2, 0.32)
 	s.z_index = -15   # with this node at 6: just over the wall, behind every figure and prop
-	s.rotation = randf() * TAU
-	s.modulate = Color(0.54 * night.r, 0.11 * night.g, 0.08 * night.b, 0.0)
-	var size := randf_range(0.2, 0.32)
+	var dark := randf_range(0.8, 1.1)
+	s.modulate = Color(0.54 * night.r * dark, 0.11 * night.g * dark, 0.08 * night.b * dark, 0.0)
 	var tw := create_tween()
 	tw.set_parallel(true)
-	tw.tween_property(s, "scale", Vector2(size, size * randf_range(0.8, 1.1)), 0.09)
-	tw.tween_property(s, "modulate:a", 0.9, 0.09)
+	if grow_down:   # the runs creep down the wall over a second
+		s.scale = Vector2(size, size * 0.3)
+		tw.tween_property(s, "scale:y", size, 1.4).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	else:
+		s.scale = Vector2.ONE * size * 0.3
+		tw.tween_property(s, "scale", Vector2(size, size * randf_range(0.85, 1.1)), 0.09)
+	tw.tween_property(s, "modulate:a", 0.92, 0.09)
 	_stains.append(s)
 	if _stains.size() > MAX_STAINS:
 		_stains.pop_front().queue_free()
@@ -243,13 +286,17 @@ func _process(delta: float) -> void:
 		var line: Line2D = b["line"]
 		line.add_point(pos)
 		line.width = lerpf(12.0, 26.0, slow)
+		if not b["player"] and not b.has("whizzed") and listener and pos.distance_to(listener.position + Vector2(0.0, -260.0)) < 260.0:
+			b["whizzed"] = true   # a near miss: the bullet whistles past his ear
+			if sound:
+				sound.play("whiz", -2.0, INF, 0.1)
 		while line.get_point_count() > 2 and line.get_point_position(0).distance_to(pos) > TRAIL_LENGTH:
 			line.remove_point(0)
 		var done := false
 		# A bullet covers 70 px or more a frame, more than a man is wide: test the whole stretch it
 		# flew this frame in short steps, or it would pass straight through people and crates.
 		var from: Vector2 = b["prev"]
-		var steps := maxi(1, ceili(from.distance_to(pos) / 18.0))
+		var steps := maxi(1, ceili(from.distance_to(pos) / 10.0))
 		for k in range(1, steps + 1):
 			if hit_test.is_valid() and hit_test.call(from.lerp(pos, float(k) / steps), b["player"]):
 				done = true
@@ -278,6 +325,8 @@ func _process(delta: float) -> void:
 		node.position += vel * delta
 		node.rotation += float(c["spin"]) * delta
 		if node.position.y > GROUND_Y + 10.0:
+			if sound and randf() < 0.7:
+				sound.play("casing", -8.0, node.position.x, 0.15)
 			_fade_out(node, 0.0, 0.3)
 			_casings.remove_at(j)
 		j -= 1
