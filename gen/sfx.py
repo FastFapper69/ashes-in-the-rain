@@ -111,6 +111,41 @@ for f in [55, 65.4, 82.4, 98]:   # A minor-ish with a flat
 x = lp(np.tanh(x * 0.6), 1400) * np.minimum(1, tt / 0.04) * np.exp(-tt / 0.9)
 save('death_sting.wav', reverb(x, 2.5, 0.5), 0.8)
 
+# a barrel going up: a cracking blast, a deep body and a long rolling tail
+tt = t(2.5)
+blast = env(lp(noise(2.5), 2500), 0.002, 0.25) * 1.2
+body = np.sin(2 * np.pi * 42 * tt * np.exp(-tt * 0.8)) * np.exp(-tt / 0.5)
+crackle = env(hp(noise(2.5), 2000), 0.001, 0.05) * 0.6
+save('explosion.wav', reverb(np.tanh((blast + body + crackle) * 2.0), 2.0, 0.6, 1800), 0.95)
+
+# a lamp shot out: glass bursting and tinkling down
+x = env(hp(noise(0.9), 3000), 0.0005, 0.03)
+for k in range(14):
+    s0 = int(SR * rng.uniform(0.03, 0.6)); seg = t(0.08)
+    f0 = rng.uniform(3500, 8000)
+    x[s0:s0 + len(seg)] += rng.uniform(0.15, 0.5) * np.sin(2 * np.pi * f0 * seg) * np.exp(-seg / 0.015)
+save('glass.wav', reverb(x, 0.6, 0.2), 0.6)
+
+# picking up a gun: a metallic double click
+x = np.zeros(int(SR * 0.4))
+for dt0, f0 in [(0.0, 2200), (0.11, 1600)]:
+    s0 = int(SR * dt0); seg = t(0.06)
+    x[s0:s0 + len(seg)] += env(bp(noise(0.06), f0, f0 * 3), 0.0005, 0.008) + 0.3 * np.sin(2 * np.pi * f0 * seg) * np.exp(-seg / 0.01)
+save('pickup.wav', x, 0.6)
+
+# a pull from the flask: cap, two swallows, a breath out
+x = np.zeros(int(SR * 1.1))
+x[:int(SR * 0.05)] += env(bp(noise(0.05), 1500, 5000), 0.0005, 0.006)
+for dt0 in (0.25, 0.55):
+    s0 = int(SR * dt0); seg = t(0.18)
+    x[s0:s0 + len(seg)] += env(bp(noise(0.18), 200, 700), 0.02, 0.05) * 0.8
+s0 = int(SR * 0.8); x[s0:] += env(bp(noise(len(x[s0:]) / SR), 400, 2500), 0.05, 0.12)[:len(x) - s0] * 0.4
+save('drink.wav', x, 0.5)
+
+# a tommy gun burst and a shotgun: built from the shot, quicker and heavier
+save('shot_tommy.wav', gunshot(1.35, 0.7, 0.6), 0.7)
+save('shot_shotgun.wav', gunshot(0.8, 1.6, 1.5), 0.95)
+
 # rain on the street, seamless loop: hiss, a steady patter of drops, gutter trickle
 sec = 8.0; n = int(SR * sec)
 hiss = lp(hp(noise(sec), 600), 7000) * 0.35

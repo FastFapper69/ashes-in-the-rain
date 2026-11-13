@@ -141,7 +141,7 @@ func trail(active: bool, at: Vector2) -> void:
 		line.points = pts if pts.size() > 1 else PackedVector2Array()
 
 
-func shoot(from: Vector2, velocity: Vector2, from_player: bool) -> void:
+func shoot(from: Vector2, velocity: Vector2, from_player: bool, life := 1.4) -> void:
 	var line := Line2D.new()
 	line.width = 12.0
 	var taper := Curve.new()   # thin at the tail, full at the bullet
@@ -152,7 +152,7 @@ func shoot(from: Vector2, velocity: Vector2, from_player: bool) -> void:
 	line.material = _unshaded
 	line.add_point(from)
 	add_child(line)
-	_bullets.append({"pos": from, "vel": velocity, "line": line, "player": from_player, "life": 0.0})
+	_bullets.append({"pos": from, "vel": velocity, "line": line, "player": from_player, "life": 0.0, "max": life})
 
 
 ## The detective's bullets knock the mobsters' bullets out of the air. Both are fast, so the test
@@ -306,7 +306,7 @@ func _process(delta: float) -> void:
 		elif pos.y > GROUND_Y:
 			spark(pos)
 			done = true
-		elif b["life"] > 1.4:
+		elif b["life"] > float(b["max"]):
 			done = true
 		if done:
 			_fade_out(line, 0.0, 0.25)

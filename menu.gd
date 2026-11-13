@@ -26,6 +26,20 @@ static func mark_done(chapter: int, map: int) -> void:
 	cfg.save(SAVE)
 
 
+static func mark_stars(chapter: int, map: int, stars: int) -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE)
+	var key := "%d-%d" % [chapter, map]
+	cfg.set_value("stars", key, maxi(stars, int(cfg.get_value("stars", key, 0))))
+	cfg.save(SAVE)
+
+
+static func stars(chapter: int, map: int) -> int:
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE)
+	return int(cfg.get_value("stars", "%d-%d" % [chapter, map], 0))
+
+
 ## A map can be played once the one before it (in this chapter, or the last of the chapter before) is done.
 static func is_open(chapter: int, map: int) -> bool:
 	if not Levels.CAMPAIGN[chapter]["ready"]:
@@ -133,7 +147,7 @@ func _build() -> void:
 		if not ch["ready"]:
 			tag = "SOON"
 		elif done:
-			tag = "CLOSED"
+			tag = "CLOSED" + ("  " + "I".repeat(stars(_chapter, m)) if stars(_chapter, m) > 0 else "")
 		elif open:
 			tag = "PLAY"
 		else:

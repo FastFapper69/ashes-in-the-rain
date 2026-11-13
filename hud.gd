@@ -213,6 +213,93 @@ func title(small: String, big: String) -> void:
 	tw.tween_callback(box.queue_free)
 
 
+var _weapon_label: Label
+
+
+## The gun in hand and its rounds, under the health bar; the revolver never runs dry, so it shows none.
+func set_weapon(weapon_name: String, rounds: int) -> void:
+	if _weapon_label == null:
+		_weapon_label = Label.new()
+		_weapon_label.position = Vector2(132.0, 66.0)
+		_weapon_label.add_theme_font_size_override("font_size", 26)
+		_weapon_label.add_theme_color_override("font_color", PAPER)
+		_weapon_label.add_theme_color_override("font_outline_color", INK)
+		_weapon_label.add_theme_constant_override("outline_size", 8)
+		_weapon_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_weapon_label)
+	_weapon_label.text = "" if weapon_name == "revolver" else "%s   %d" % [weapon_name.to_upper(), rounds]
+
+
+## A short word low on the screen that fades: CHECKPOINT, a gun picked up.
+func toast(text: String) -> void:
+	var view := get_viewport().get_visible_rect().size
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_size_override("font_size", 34)
+	l.add_theme_color_override("font_color", PAPER)
+	l.add_theme_color_override("font_outline_color", INK)
+	l.add_theme_constant_override("outline_size", 10)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.size = Vector2(view.x, 50.0)
+	l.position = Vector2(0.0, view.y * 0.68)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(l)
+	var tw := create_tween()
+	tw.tween_interval(1.2)
+	tw.tween_property(l, "modulate:a", 0.0, 0.6)
+	tw.tween_callback(l.queue_free)
+
+
+## A cut through black: going through a door.
+func flash() -> void:
+	var r := ColorRect.new()
+	r.color = Color(0.0, 0.0, 0.0, 0.85)
+	r.size = get_viewport().get_visible_rect().size
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(r)
+	move_child(r, 0)
+	var tw := create_tween()
+	tw.tween_property(r, "color:a", 0.0, 0.35)
+	tw.tween_callback(r.queue_free)
+
+
+## The map's score card: one to three stars and the numbers behind them.
+func rating(stars: int, lines: Array) -> void:
+	var view := get_viewport().get_visible_rect().size
+	var panel := Panel.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = PAPER
+	style.border_color = INK
+	style.set_border_width_all(5)
+	style.shadow_color = Color(0.0, 0.0, 0.0, 0.5)
+	style.shadow_offset = Vector2(8.0, 8.0)
+	panel.add_theme_stylebox_override("panel", style)
+	panel.size = Vector2(420.0, 250.0)
+	panel.position = Vector2(view.x * 0.5 - 210.0, view.y * 0.5 + 10.0)
+	panel.rotation = deg_to_rad(-1.5)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(panel)
+	for i in 3:   # stars drawn as ink polygons, red when earned
+		var star := Polygon2D.new()
+		var pts := PackedVector2Array()
+		for k in 10:
+			var r := 34.0 if k % 2 == 0 else 14.0
+			var a := -PI * 0.5 + TAU * k / 10.0
+			pts.append(Vector2(cos(a), sin(a)) * r)
+		star.polygon = pts
+		star.color = Color(0.6, 0.1, 0.07) if i < stars else Color(0.72, 0.68, 0.6)
+		star.position = Vector2(130.0 + i * 80.0, 52.0)
+		panel.add_child(star)
+	var l := Label.new()
+	l.text = "\n".join(lines)
+	l.position = Vector2(20.0, 98.0)
+	l.size = Vector2(380.0, 140.0)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.add_theme_font_size_override("font_size", 24)
+	l.add_theme_color_override("font_color", INK)
+	panel.add_child(l)
+
+
 ## fraction: 0 = dead, 1 = unhurt.
 func set_health(fraction: float) -> void:
 	var f := clampf(fraction, 0.0, 1.0)
