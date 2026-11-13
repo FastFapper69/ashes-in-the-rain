@@ -19,12 +19,17 @@ STREET = {
 # (only the bright strokes glow) or 'wash' (the whole board is lit by lamps on it)
 NEONS = {
     'bluenote': [(0.232, 0.258, 0.335, 0.57, 'letters'), (0.128, 0.264, 0.565, 0.648, 'letters')],
-    'warehouse': [(0.718, 0.822, 0.582, 0.668, 'letters')],
+    'warehouse': [(0.45, 0.32, 0.2, 0.56)],
     'church': [(0.688, 0.727, 0.385, 0.705, 'letters'), (0.608, 0.737, 0.035, 0.285, 'wash')],
     'market': [(0.378, 0.422, 0.055, 0.55, 'letters'), (0.318, 0.512, 0.535, 0.64, 'letters')],
-    'deadend': [(0.528, 0.582, 0.455, 0.675, 'letters')],   # the rooftop JAZZ stays dead
+    'deadend': [(0.485, 0.4, 0.07, 0.46)],   # the rooftop JAZZ stays dead
     'subway': [(0.045, 0.107, 0.56, 0.63, 'letters'), (0.198, 0.228, 0.57, 0.63, 'letters')],
 }
+# the deep views (see SEGMENT_DEEP in main.gd): their lit windows are left to the drawing, since
+# that part slides against the wall and a fixed glow would come apart from it
+DEEP = {'alley': [(0.465, 0.22, 0.11, 0.64)], 'bluenote': [(0.665, 0.3, 0.16, 0.38)], 'warehouse': [(0.44, 0.3, 0.22, 0.6)],
+        'laundry': [(0.455, 0.32, 0.1, 0.54)], 'subway': [(0.5, 0.25, 0.095, 0.63)], 'church': [(0.432, 0.4, 0.125, 0.4)],
+        'market': [(0.54, 0.42, 0.13, 0.46)], 'deadend': [(0.478, 0.38, 0.085, 0.5)]}
 ROOMS = {'laundry': '29.png', 'warehouse': '30.png', 'tenement': '31.png', 'club': '32.png', 'cellar': '33.png'}
 
 
@@ -95,7 +100,11 @@ for name, (f, trim, towers) in STREET.items():
     rgb, alpha = rgb[:, :rgb.shape[1] - trim], alpha[:, :alpha.shape[1] - trim]
     im = Image.fromarray(np.dstack([rgb, alpha]))
     im.save(OUT + f'street/{name}.png')
-    lit, frac = lit_layer(rgb, alpha)
+    keep = alpha.copy()
+    hh, ww = keep.shape
+    for (x, y, w, h) in DEEP.get(name, []):
+        keep[int(y * hh):int((y + h) * hh), int(x * ww):int((x + w) * ww)] = 0
+    lit, frac = lit_layer(rgb, keep)
     lit.save(OUT + f'street/{name}_lit.png')
     for k, box in enumerate(NEONS.get(name, [])):
         nm, at = neon_mask(rgb, box, box[4])

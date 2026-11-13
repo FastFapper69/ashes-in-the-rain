@@ -175,7 +175,8 @@ var fall := 0.0                # vertical speed, pixels per second, down is posi
 var run := 0.0                 # horizontal running speed, eased towards what the player asks for
 var slide_left := 0.0          # seconds of slide remaining
 var roll_done := 0.0           # 0..1 through the tumble
-var _kick_planned := false     # this dive was aimed at a crate's side, to kick off it in a back flip
+var _vaulted := false          # this dive has already vaulted off a crate
+var _flip_way := 1.0
 var dive_rolls := false        # this dive ends in a roll instead of a flat landing
 var glide := 0.0               # horizontal speed of a dive
 var over := false              # the detective is down
@@ -294,6 +295,7 @@ func _ready() -> void:
 	add_child(fx)
 	fx.sound = sfx
 	fx.listener = player
+	fx.wall_at = _wall_at
 	hud = HudScript.new()
 	add_child(hud)
 	if in_menu:
@@ -463,6 +465,31 @@ var flocks: Array = []   # pigeons on the pavement: {birds: [{node, state, t, ve
 const BIRD_FLAP := ["up1", "glide", "up2", "flat", "up3", "glide"]
 var _bird_tex := {}
 var moonlight: DirectionalLight2D   # stronger up on the roofs, under the open sky   # {nodes, light, mode, next, on}
+# Where each drawing looks deep into the city (an alley, a street running away, an arch onto the
+# harbour), as fractions of the picture. That part is drawn again over the facade and slides against
+# it as the camera moves, most in the middle and not at all at its edges: the far end of the view
+# moves slower than the wall, so it reads as depth. Blood does not splash onto these.
+const SEGMENT_DEEP := {
+	"alley": [Rect2(0.465, 0.22, 0.11, 0.64)], "bluenote": [Rect2(0.665, 0.3, 0.16, 0.38)],
+	"warehouse": [Rect2(0.45, 0.32, 0.2, 0.56)], "laundry": [Rect2(0.455, 0.32, 0.1, 0.54)],
+	"subway": [Rect2(0.5, 0.25, 0.095, 0.63)], "church": [Rect2(0.432, 0.4, 0.125, 0.4)],
+	"market": [Rect2(0.54, 0.42, 0.13, 0.46)], "deadend": [Rect2(0.485, 0.4, 0.07, 0.46)],
+}
+const DEEP_SHADER := """
+shader_type canvas_item;
+uniform vec4 box;       // the deep part, in the texture's UV: x, y, width, height
+uniform vec2 shift;     // how far the far end slides, in UV
+varying vec4 tint;
+void vertex() { tint = COLOR; }
+void fragment() {
+	vec2 l = (UV - box.xy) / box.zw;
+	float w = smoothstep(0.0, 0.32, l.x) * smoothstep(0.0, 0.32, 1.0 - l.x)
+			* smoothstep(0.0, 0.22, l.y) * smoothstep(0.0, 0.3, 1.0 - l.y);
+	COLOR = texture(TEXTURE, UV - shift * w) * tint;
+}
+"""
+var deeps: Array = []   # {sprite, center (world), box (UV)}
+var _deep_rects: Array[Rect2] = []   # the same in world space, for the blood
 const SEGMENT_MOON := 1.6   # how much brighter than the bare night the drawn streets are kept
 const SEGMENT_BASE := 0.92   # the facades meet the pavement this far down each drawing
 
@@ -490,6 +517,8 @@ func _build_segments() -> void:
 		w.material = atmo.blur_material(1.4)
 		w.modulate = Color.WHITE * SEGMENT_MOON   # a moonlit wash, so the drawing still reads between the lamps
 		add_child(w)
+		for r in SEGMENT_DEEP.get(seg_name, []):
+			_add_deep(diffuse, w, r as Rect2)
 		var glow := Sprite2D.new()   # its lit windows and signs, pushed through the night at full strength
 		glow.texture = load("res://art/street/" + seg_name + "_lit.png")
 		glow.centered = false
@@ -550,6 +579,49 @@ func _build_segments() -> void:
 			add_child(bulb)
 			rec["nodes"].append(bulb)
 		_pavement(x0, seg_w)
+
+
+func _add_deep(tex: Texture2D, facade: Sprite2D, r: Rect2) -> void:
+	var size := Vector2(tex.get_size())
+	var px := Rect2(r.position * size, r.size * size)
+	var d := Sprite2D.new()
+	d.texture = tex
+	d.centered = false
+	d.region_enabled = true
+	d.region_rect = px
+	d.scale = facade.scale
+	d.position = facade.position + px.position * facade.scale
+	d.modulate = facade.modulate
+	d.z_index = facade.z_index
+	var sh := Shader.new()
+	sh.code = DEEP_SHADER
+	var m := ShaderMaterial.new()
+	m.shader = sh
+	m.set_shader_parameter("box", Vector4(r.position.x, r.position.y, r.size.x, r.size.y))
+	m.set_shader_parameter("shift", Vector2.ZERO)
+	d.material = m
+	add_child(d)
+	var world := Rect2(d.position, px.size * facade.scale)
+	deeps.append({"sprite": d, "mat": m, "center": world.get_center(), "box": r})
+	_deep_rects.append(world)
+
+
+## Slide the far end of every deep view against its wall, by where the camera is.
+func _tick_deep() -> void:
+	for dp in deeps:
+		var r: Rect2 = dp["box"]
+		var off: Vector2 = cam.position - Vector2(dp["center"].x, dp["center"].y + 300.0)
+		var sx := clampf(off.x * 0.00005, -0.1, 0.1) * r.size.x / 0.15   # the far end moves at about a quarter of the wall's speed
+		var sy := clampf(off.y * 0.00004, -0.05, 0.05) * r.size.y
+		(dp["mat"] as ShaderMaterial).set_shader_parameter("shift", Vector2(sx * 0.15, sy))
+
+
+## Blood only lands on a wall, not in the air over an alley.
+func _wall_at(p: Vector2) -> bool:
+	for r in _deep_rects:
+		if r.grow(-20.0).has_point(p):
+			return false
+	return true
 
 
 ## A sign on a drawn street that burns in the dark: its strokes glow in their colour, a haze hangs
@@ -1052,6 +1124,7 @@ func _process(delta: float) -> void:
 		atmo.blow_ash(_time)
 		_tick_neons(delta)
 		_tick_birds(delta)
+		_tick_deep()
 		if _auto == "menu":
 			_at += delta
 			if _at > 6.5 and _auto_done == 0:   # once the title is up and Frank's line typed out
@@ -1192,6 +1265,7 @@ func _process(delta: float) -> void:
 	_tick_neons(delta)
 	_tick_birds(delta)
 	_tick_hat_rain()
+	_tick_deep()
 	moonlight.energy = lerpf(0.35, 0.62, clampf(-player.position.y / 650.0, 0.0, 1.0))
 	_afterimages(delta, absf(dir))
 	_slow_look = lerpf(_slow_look, 1.0 if Engine.time_scale < 1.0 else 0.0, 1.0 - exp(-10.0 * real))
@@ -1351,6 +1425,20 @@ func _auto_step(delta: float) -> void:
 			for i in 8:
 				fx.blood(Vector2(1000.0 + i * 260.0, -260.0 - (i % 3) * 70.0), Vector2(1.0 if i % 2 == 0 else -1.0, 0.0))
 		shots = [[0.5, "stains_1"], [2.2, "stains_2"]]
+	elif _auto == "deep":   # the camera passing a deep view: the far end should slide against the wall
+		var cx: float = deeps[0]["center"].x if not deeps.is_empty() else 3000.0
+		for dp in deeps:
+			if String(level["street"][0][0]) != "" and dp["box"].size.x > 0.14:
+				cx = dp["center"].x
+				break
+		var k := 0 if _at < 1.0 else 1
+		player.position.x = cx + (-700.0 if k == 0 else 700.0)
+		cam.position.x = player.position.x + 200.0
+		if _at > 0.5 and _auto_done & 1 == 0:
+			_auto_done |= 1
+			fx.blood(Vector2(cx, -400.0), Vector2(1.0, 0.0))
+			fx.blood(Vector2(cx - 900.0, -400.0), Vector2(1.0, 0.0))
+		shots = [[0.9, "deep_1"], [1.9, "deep_2"]]
 	elif _auto == "stunt":   # slowed time, a dive into a crate: the kick off it, the back flip, the landing
 		var bi := -1
 		for k in boxes.size():
@@ -1361,7 +1449,7 @@ func _auto_step(delta: float) -> void:
 			for e in enemies:   # an empty street for the picture
 				e["node"].position.x += 60000.0
 				e["goal"] = e["node"].position.x
-			player.position.x = boxes[bi].position.x - 420.0
+			player.position.x = boxes[bi].position.x - 380.0
 			cam.position.x = player.position.x + _lead
 			slow_left = 1.0
 			slow_on = true
@@ -1572,7 +1660,10 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 		player.position.x += glide * delta
 		player.dive = move_toward(player.dive, 1.0, delta * 6.0)
 		player.air = move_toward(player.air, 0.0, delta * 8.0)
-		if dive_rolls and fall > 0.0 and player.position.y >= floor_y + 30.0:   # fast and forward: over the shoulder
+		_try_vault()
+		if move_state != "dive":
+			pass
+		elif dive_rolls and fall > 0.0 and player.position.y >= floor_y + 30.0:   # fast and forward: over the shoulder
 			move_state = "roll"
 			roll_done = 0.0
 			player.roll = 1.35 * player.dive * player.dive_side
@@ -1599,21 +1690,21 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			run = clampf(glide * 0.5, -RUN_SPEED, RUN_SPEED)
 			glide = 0.0
 			move_state = "ground"
-	elif move_state == "flip":   # pushed off a crate: a back flip through the air, the gun still on the target
+	elif move_state == "flip":   # vaulted off a crate: a forward somersault through the air
 		fall += GRAVITY * 0.85 * delta
 		player.position.y += fall * delta
 		player.position.x += glide * delta
-		roll_done = minf(1.0, roll_done + delta / 0.62)
+		roll_done = minf(1.0, roll_done + delta / 0.5)
 		var e := roll_done * roll_done * (3.0 - 2.0 * roll_done)
-		player.roll = -TAU * e
+		player.roll = TAU * e * _flip_way
 		player.air = move_toward(player.air, 1.0, delta * 12.0)
 		player.dive = move_toward(player.dive, 0.0, delta * 10.0)
 		if fall > 0.0 and player.position.y >= floor_y:   # down on his feet, knees soaking it up, skidding back
 			player.position.y = floor_y
 			player.roll = 0.0
 			player.crouch = 0.9
-			run = glide * 0.35
-			glide = glide * 0.4
+			run = clampf(glide * 0.6, -RUN_SPEED, RUN_SPEED)
+			glide = glide * 0.35
 			move_state = "ground"
 			steps.restart()
 			sfx.play("land", -2.0)
@@ -1672,9 +1763,6 @@ func _block(before_x: float) -> void:
 		var left := b.position.x - 45.0
 		var right := b.end.x + 45.0
 		if player.position.x > left and player.position.x < right:
-			if move_state == "dive" and _kick_planned:
-				_kick_off(b, before_x)   # in slowed time: feet to the crate, push off, a back flip
-				return
 			if move_state == "dive" and b.size.y <= VAULT_MAX:
 				# launched too close to clear it: held at its side, he is lifted over the top in a few
 				# frames instead of being dropped onto it, and flies on
@@ -1687,20 +1775,32 @@ func _block(before_x: float) -> void:
 			glide = 0.0
 
 
-## Diving into a crate in slowed time: he turns the dive into a push off its side, up and back,
-## and goes over in a back flip. The aim never leaves the target.
-func _kick_off(b: Rect2, before_x: float) -> void:
-	var from_left := before_x < b.get_center().x
-	player.position.x = (b.position.x - 46.0) if from_left else (b.end.x + 46.0)
-	move_state = "flip"
-	roll_done = 0.0
-	glide = (-1.0 if from_left else 1.0) * 620.0
-	fall = -1150.0
-	player.position.y -= DIVE_LAND * player.dive * 0.5
-	sfx.play("land", -6.0, INF, 0.1)
-	sfx.play("dive", -4.0, INF, 0.1)
-	_word(["wham"], Vector2(player.position.x + (40.0 if from_left else -40.0), player.position.y - 260.0), 0.16)
-	slow_left = minf(1.0, slow_left + 0.1)   # a little slowed time back for the style
+## A dive that carries him just over a crate: his hands touch its top and he pushes off it, a
+## parkour vault, tucking into a forward somersault and landing on his feet further on.
+func _try_vault() -> void:
+	if _vaulted or player.dive < 0.5:
+		return
+	var feet: float = player.position.y - DIVE_LAND * player.dive
+	var hands_x: float = player.position.x + signf(glide) * 20.0
+	for b in boxes:
+		if b.size.y > VAULT_MAX or hands_x < b.position.x or hands_x > b.end.x:
+			continue
+		var gap: float = b.position.y - feet
+		if gap >= -10.0 and gap < 95.0:
+			_vaulted = true
+			move_state = "flip"
+			roll_done = 0.0
+			_flip_way = player.dive_side
+			fall = -720.0
+			glide = signf(glide) * maxf(absf(glide), 950.0)
+			player.position.y = minf(player.position.y - DIVE_LAND * player.dive, b.position.y - 6.0)   # the origin up to his body: he tumbles over the top, not through it
+			player.dive = 0.0
+			sfx.play("land", -9.0, INF, 0.15)
+			fx.chip(Vector2(hands_x, b.position.y))
+			_word(["wham"], Vector2(hands_x, b.position.y - 200.0), 0.15)
+			if Engine.time_scale < 1.0:
+				slow_left = minf(1.0, slow_left + 0.1)   # a little slowed time back for the style
+			return
 
 
 func _start_dive(way: float, facing: float, up: float, from_run: bool) -> void:
@@ -1708,23 +1808,16 @@ func _start_dive(way: float, facing: float, up: float, from_run: bool) -> void:
 	move_state = "dive"
 	glide = DIVE_SPEED.x * way
 	fall = up
-	# With slowed time to spend (a dive slows it by itself), a crate just ahead is not jumped: he
-	# flies at it to kick off its side.
-	_kick_planned = false
-	if slow_left > 0.2:
-		for b in boxes:
-			var gap: float = (b.position.x - player.position.x) if way > 0.0 else (player.position.x - b.end.x)
-			if gap > 60.0 and gap < 750.0 and b.size.y > 60.0 and absf(b.end.y - player.position.y) < 20.0:
-				var reach_t := maxf(0.08, (gap - 45.0) / DIVE_SPEED.x)   # still in the air, near the top of the arc, when he gets there
-				fall = -GRAVITY * reach_t * 0.8
-				_kick_planned = true
-				run = 0.0
-				player.dive_side = way * facing
-				dive_rolls = false
-				return
+	_vaulted = false
 	# a crate in the way: he launches steeper, just enough to fly right over it and land clear of it;
 	# only if that is out of reach, to land on top of it and roll off
 	var found := false
+	# a low crate within reach: the arc that skims its top, so his hands meet it and he vaults
+	for k in 24:
+		var u := up * 0.5 - 40.0 * k
+		if not found and _dive_vaults(way, u):
+			fall = u
+			found = true
 	for strict in [true, false]:
 		for k in 14:
 			var u := up - 60.0 * k
@@ -1734,6 +1827,35 @@ func _start_dive(way: float, facing: float, up: float, from_run: bool) -> void:
 	run = 0.0
 	player.dive_side = way * facing
 	dive_rolls = from_run and way * facing > 0.0
+
+
+## Does a dive launched with this upward speed come down onto a low crate's top just as he is over
+## it (where _try_vault catches it), without first hitting the crate's side?
+func _dive_vaults(way: float, up: float) -> bool:
+	var x: float = player.position.x
+	var y: float = player.position.y
+	var d: float = player.dive
+	var f := up
+	var dt := 1.0 / 60.0
+	for i in 90:
+		f += GRAVITY * dt
+		y += f * dt
+		x += DIVE_SPEED.x * way * dt
+		d = move_toward(d, 1.0, 6.0 * dt)
+		var feet := y - DIVE_LAND * d
+		var hands := x + way * 20.0
+		for b in boxes:
+			if b.size.y > VAULT_MAX:
+				continue
+			if x > b.position.x - 45.0 and x < b.end.x + 45.0 and feet > b.position.y + 14.0:
+				return false   # into its side
+			if d >= 0.5 and hands >= b.position.x and hands <= b.end.x and f > 0.0:
+				var gap: float = b.position.y - feet
+				if gap >= 10.0 and gap < 70.0:
+					return true
+		if feet > 0.0:
+			return false
+	return false
 
 
 ## Would a dive launched now, with this upward speed, fly over every low crate in its way and land

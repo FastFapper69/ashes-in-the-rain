@@ -45,7 +45,7 @@ render_mode unshaded;
 uniform sampler2D screen_texture : hint_screen_texture, repeat_disable, filter_linear;
 uniform vec3 line = vec3(0.92, 0.9, 0.87);
 uniform vec3 boost = vec3(1.0);
-uniform float width = 1.6;
+uniform float width = 1.0;
 void fragment() {
 	float fade = COLOR.a;
 	vec4 c = textureLod(screen_texture, SCREEN_UV, 0.0);
@@ -58,7 +58,7 @@ void fragment() {
 		c.rgb /= c.a;
 	}
 	vec3 col = mix(line, c.rgb * boost, c.a);
-	COLOR = vec4(col, max(c.a, m * 0.9) * fade);
+	COLOR = vec4(col, max(c.a, m * 0.5) * fade);   // a thin ink line that closes the silhouette, not a sticker edge
 }
 """
 
@@ -106,7 +106,7 @@ func _ready() -> void:
 	sh.code = OUTLINE_SHADER
 	var mat := ShaderMaterial.new()
 	mat.shader = sh
-	mat.set_shader_parameter("line", Vector3(0.92 * night.r, 0.9 * night.g, 0.87 * night.b))
+	mat.set_shader_parameter("line", Vector3(0.03, 0.03, 0.035))
 	mat.set_shader_parameter("boost", Vector3(body_boost.r, body_boost.g, body_boost.b))
 	_body.material = mat
 	add_child(_body)

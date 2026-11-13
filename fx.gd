@@ -22,6 +22,7 @@ var night := Color.WHITE        # set by main.gd
 var sound: Node                 # sfx.gd, set by main.gd
 var listener: Node2D            # the detective: enemy bullets that pass close to him whistle
 var clash := Callable()         # func(at: Vector2), called when two opposing bullets meet
+var wall_at := Callable()      # func(pos: Vector2) -> bool, false where there is no wall to stain (an alley's mouth)
 var hit_test := Callable()      # func(pos: Vector2, from_player: bool) -> bool, true when the bullet hit someone
 
 var _unshaded: CanvasItemMaterial
@@ -315,6 +316,8 @@ func _stain_sprite(path: String, at: Vector2, origin: Vector2, dir: Vector2) -> 
 ## Blood thrown onto the wall behind whoever was hit. It stays for the rest of the fight; the
 ## oldest stains go once there are too many.
 func _stain(at: Vector2, dir: Vector2) -> void:
+	if wall_at.is_valid() and not wall_at.call(at + dir * 40.0):
+		return
 	var kind := randi() % 10
 	var s: Sprite2D
 	var size := 1.0
