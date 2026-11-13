@@ -14,6 +14,10 @@ var fire_tapped := false   # main.gd sets these back to false once it has acted 
 var slow_tapped := false
 var jump_tapped := false
 var dive_tapped := false
+var aim_at := Vector2.ZERO   # where the aiming finger is, in screen pixels
+var aim_held := false       # an aiming finger is on the screen
+var aim_left := 0.0         # seconds the aim stays where the finger last was
+var _aim_finger := -1
 var touch_seen := false    # true once a finger has touched the screen: then the mouse is ignored
 
 var _portrait: Sprite2D
@@ -135,9 +139,18 @@ func _input(event: InputEvent) -> void:
 				jump_tapped = true
 			elif t.position.distance_to(_dash.position) < 60.0:
 				dive_tapped = true
-			elif t.position.x < get_viewport().get_visible_rect().size.x * 0.45 and _stick_finger == -1:
+			elif _in_stick_zone(t.position) and _stick_finger == -1:
 				_stick_finger = t.index
 				_steer(t.position)
+			elif _aim_finger == -1:   # anywhere else on the street: aim there and shoot
+				_aim_finger = t.index
+				aim_at = t.position
+				aim_held = true
+				aim_left = 0.7
+				fire_tapped = true
+		elif t.index == _aim_finger:
+			_aim_finger = -1
+			aim_held = false
 		elif t.index == _stick_finger:
 			_stick_finger = -1
 			move = 0.0
@@ -147,6 +160,20 @@ func _input(event: InputEvent) -> void:
 		var d := event as InputEventScreenDrag
 		if d.index == _stick_finger:
 			_steer(d.position)
+		elif d.index == _aim_finger:
+			aim_at = d.position
+			aim_left = 0.7
+
+
+## The thumbstick lives in the lower left; a touch anywhere else that is not a button aims.
+func _in_stick_zone(at: Vector2) -> bool:
+	var size := get_viewport().get_visible_rect().size
+	return at.x < size.x * 0.4 and at.y > size.y * 0.35
+
+
+func _process(delta: float) -> void:
+	if not aim_held:
+		aim_left = maxf(0.0, aim_left - delta / Engine.time_scale)
 
 
 func _steer(at: Vector2) -> void:

@@ -50,7 +50,8 @@ const GRAVITY := 3000.0
 const JUMP_SPEED := 1300.0   # clears the 230 px cover with room to spare
 const RUN_SPEED := 640.0
 const RUN_ACCEL := 4200.0   # he gets up to speed and stops over a few steps, not in one frame
-const DIVE_SPEED := Vector2(1250.0, -720.0)
+const DIVE_SPEED := Vector2(1250.0, -900.0)
+const VAULT_MAX := 270.0   # a dive carries him over anything up to this tall instead of stopping dead
 const DIVE_LAND := 125.0   # lying flat, the figure's origin sits this far below the pavement line
 const SLOW_SCALE := 0.3   # how fast time runs while it is slowed
 const CAM_Y := -572.0     # puts the pavement about four fifths of the way down the screen
@@ -122,6 +123,9 @@ var over := false              # the detective is down
 var _time := 0.0
 var _env: Environment
 var _probe := 0.0
+var _auto := ""   # a scripted test run from the command line; empty in normal play
+var _at := 0.0
+var _auto_done := 0
 var _snap := 0
 var _slow_look := 0.0   # 0 normal .. 1 the screen is in its slowed-time look
 var _show_fps := false
@@ -193,6 +197,9 @@ func _ready() -> void:
 	hud = HudScript.new()
 	add_child(hud)
 	DirAccess.make_dir_recursive_absolute("res://_shots")
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--test="):
+			_auto = arg.trim_prefix("--test=")
 	RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
 	for n in find_children("*", "Light2D", true, false):
 		n.add_to_group("lights")
@@ -515,6 +522,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
+	if _auto != "":
+		_auto_step(delta)
 	_probe += delta / Engine.time_scale
 	if _probe > 2.0 and _show_fps:   # key 0 switches the readout on
 		_probe = 0.0
@@ -529,7 +538,9 @@ func _process(delta: float) -> void:
 	dir = clampf(dir + hud.move, -1.0, 1.0)
 	var chest: Vector2 = player.position + SHOULDER + Vector2(0.0, DUCK_DROP * player.duck)
 	var aim: Vector2 = get_global_mouse_position() - chest
-	if hud.touch_seen:   # no mouse on a phone: he aims at the mobster, or ahead when there is none
+	if hud.touch_seen and hud.aim_left > 0.0:   # on a phone: a finger on the screen is where he shoots
+		aim = get_viewport().get_canvas_transform().affine_inverse() * hud.aim_at - chest
+	elif hud.touch_seen:   # no finger: he aims at the nearest mobster, or ahead when there is none
 		var near = _nearest_enemy()
 		aim = (near.position + SHOULDER + Vector2(0.0, DUCK_DROP * near.duck) - chest) if near != null else Vector2(1.0 if dir >= 0.0 else -1.0, 0.0)
 	if _dt >= 0.0:
@@ -584,10 +595,14 @@ func _process(delta: float) -> void:
 	fire_cool = maxf(0.0, fire_cool - delta)
 	if demo and _dt > 0.95 and _dt < 1.1 and fire_cool == 0.0:
 		hud.fire_tapped = true
+	if hud.aim_held and fire_cool == 0.0 and not over:   # a finger held on the street keeps firing
+		hud.fire_tapped = true
 	if hud.fire_tapped and fire_cool == 0.0 and not over:
 		if player.duck > 0.3:   # crouched behind cover: he rises over it first, then fires
 			_queued_shot = true
 		else:
+			if hud.touch_seen and hud.aim_left > 0.0:
+				player.snap_aim(aim)
 			_fire(player, true)
 		fire_cool = 0.28
 		_pop = 0.5
@@ -595,6 +610,8 @@ func _process(delta: float) -> void:
 	_pop = maxf(0.0, _pop - delta)
 	if _queued_shot and player.duck < 0.12:
 		_queued_shot = false
+		if hud.touch_seen and hud.aim_left > 0.0:
+			player.snap_aim(aim)
 		_fire(player, true)
 
 	_enemies(delta)
@@ -623,6 +640,52 @@ func _process(delta: float) -> void:
 				if SHOTS[i][1] == "stand":
 					_fire(player, true)
 				_shot(SHOTS[i][1])
+
+
+## Scripted checks, run headless-with-a-screen on the build machine. Each saves pictures and quits.
+func _auto_step(delta: float) -> void:
+	_at += delta
+	var shots: Array = []
+	if _auto == "dive":   # run at the first crate and dive into it
+		if _at < 0.05:
+			player.position.x = 1150.0
+			cam.position.x = player.position.x + CAM_LEAD
+		if _at > 0.3 and _auto_done & 1 == 0:
+			_auto_done |= 1
+			_start_dive(1.0, 1.0, DIVE_SPEED.y, true)
+		shots = [[0.36, "dive_1"], [0.46, "dive_2"], [0.56, "dive_3"], [0.66, "dive_4"], [0.8, "dive_5"], [1.1, "dive_6"]]
+	elif _auto == "touch":   # tap on the first mobster, then hold a finger above him
+		if _at < 0.05:
+			player.position.x = 1700.0
+			cam.position.x = player.position.x + CAM_LEAD
+		var target: Vector2 = get_viewport().get_canvas_transform() * (enemies[0]["node"].position + Vector2(0.0, -300.0))
+		if _at > 1.0 and _auto_done & 1 == 0:
+			_auto_done |= 1
+			_touch(target, true)
+		if _at > 1.1 and _auto_done & 2 == 0:
+			_auto_done |= 2
+			_touch(target, false)
+		if _at > 1.6 and _auto_done & 4 == 0:
+			_auto_done |= 4
+			_touch(target + Vector2(0.0, -120.0), true)
+		if _at > 2.4 and _auto_done & 8 == 0:
+			_auto_done |= 8
+			_touch(target + Vector2(0.0, -120.0), false)
+		shots = [[0.9, "touch_0"], [1.08, "touch_1"], [1.8, "touch_2"], [2.2, "touch_3"]]
+	for i in shots.size():
+		if _auto_done & (1 << (i + 8)) == 0 and _at > float(shots[i][0]):
+			_auto_done |= 1 << (i + 8)
+			_shot(shots[i][1])
+	if _at > 3.0:
+		get_tree().quit()
+
+
+func _touch(at: Vector2, down: bool) -> void:
+	var t := InputEventScreenTouch.new()
+	t.index = 1
+	t.position = at
+	t.pressed = down
+	Input.parse_input_event(t)
 
 
 ## Running, jumping, diving, sliding and rolling. Returns how fast the legs should run, -1..1.
@@ -750,6 +813,11 @@ func _block(before_x: float) -> void:
 		var left := b.position.x - 45.0
 		var right := b.end.x + 45.0
 		if player.position.x > left and player.position.x < right:
+			if move_state == "dive" and b.size.y <= VAULT_MAX:
+				# flying into cover: he goes over it, skimming the top, and keeps his momentum
+				player.position.y = b.position.y + DIVE_LAND * player.dive
+				fall = minf(fall, -350.0)
+				continue
 			player.position.x = left if before_x <= left + 1.0 else (right if before_x >= right - 1.0 else (left if player.position.x < b.get_center().x else right))
 			run = 0.0
 			glide = 0.0

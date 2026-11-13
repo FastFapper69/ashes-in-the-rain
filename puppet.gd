@@ -328,6 +328,15 @@ func _pose() -> void:
 			d.rotation = src.rotation
 
 
+## Turn the gun arm onto `aim` at once, without the usual easing: a tap on the screen fires exactly
+## where the finger is, not where the arm happened to be pointing.
+func snap_aim(aim: Vector2) -> void:
+	scale.x = -1.0 if aim.x < 0.0 else 1.0
+	_aim_angle = Vector2(absf(aim.x), aim.y).angle()
+	_aim = Vector2.from_angle(_aim_angle - recoil)
+	_pose()
+
+
 ## The end of the barrel, in world coordinates.
 func muzzle() -> Vector2:
 	var up := Vector2(_aim.y, -_aim.x)
