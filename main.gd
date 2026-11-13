@@ -110,7 +110,7 @@ const LEGS := {
 	"shin": {"a": Vector2(80.6, 56.9), "b": Vector2(100.8, 543.5), "ppm": 1000},
 }
 var DETECTIVE := {
-	"dir": "res://art/detective/", "weapon": "revolver",
+	"dir": "res://art/detective/", "weapon": "revolver", "leg_tex": "res://art/mobster/leg.png",
 	# where things attach, in the torso drawing's pixels: the armholes, the bottom of the collar, the belt
 	"on_torso": {"shoulder": Vector2(100.0, 225.0), "far_shoulder": Vector2(400.0, 240.0), "head": Vector2(272.0, 168.0), "belt": Vector2(262.0, 596.0)},
 	"parts": {
@@ -129,7 +129,7 @@ var DETECTIVE := {
 	},
 }
 var MOBSTER := {
-	"dir": "res://art/mobster/", "weapon": "pistol",
+	"dir": "res://art/mobster/", "weapon": "pistol", "leg_tex": "res://art/mobster/leg.png",
 	"on_torso": {"shoulder": Vector2(75.0, 125.0), "far_shoulder": Vector2(300.0, 130.0), "head": Vector2(207.0, 62.0), "belt": Vector2(216.0, 673.2)},
 	"parts": {
 		"head": {"a": Vector2(165.6, 351.5), "b": Vector2(165.6, 75.6), "ppm": 1000},
@@ -175,6 +175,7 @@ var fall := 0.0                # vertical speed, pixels per second, down is posi
 var run := 0.0                 # horizontal running speed, eased towards what the player asks for
 var slide_left := 0.0          # seconds of slide remaining
 var roll_done := 0.0           # 0..1 through the tumble
+var _slow_cancelled := false   # slowed time switched off during this dive: it stays off until he lands
 var _vaulted := false          # this dive has already vaulted off a crate
 var _flip_way := 1.0
 var dive_rolls := false        # this dive ends in a roll instead of a flat landing
@@ -251,7 +252,7 @@ func _ready() -> void:
 	player.cfg = DETECTIVE
 	player.night = _undo_night(1.0)
 	add_child(player)
-	if ch["hero"] == "eddie" and not in_menu:   # the title always shows Leo: it is his story. Stand-in until Eddie has his own drawings: a paler, younger coat
+	if ch["hero"] == "eddie" and not in_menu:   # the title always shows Frank: it is his story. Stand-in until Eddie has his own drawings: a paler, younger coat
 		player.modulate = Color(0.9, 0.95, 1.1)
 	if checkpoint > 0.0 and not in_menu:
 		player.position = Vector2(checkpoint, _floor_at(checkpoint, -2000.0))
@@ -485,11 +486,14 @@ void fragment() {
 	vec2 l = (UV - box.xy) / box.zw;
 	float w = smoothstep(0.0, 0.32, l.x) * smoothstep(0.0, 0.32, 1.0 - l.x)
 			* smoothstep(0.0, 0.22, l.y) * smoothstep(0.0, 0.3, 1.0 - l.y);
-	COLOR = texture(TEXTURE, UV - shift * w) * tint;
+	vec4 t = texture(TEXTURE, UV - shift * w);
+	COLOR = t * t * tint;   // the facade's blur shader also multiplies the picture in twice: match its tone
+	COLOR.a = t.a * tint.a;
 }
 """
 var deeps: Array = []   # {sprite, center (world), box (UV)}
 var _deep_rects: Array[Rect2] = []   # the same in world space, for the blood
+const SEGMENT_TRIM := {"alley": 134.0, "bluenote": 134.0, "warehouse": 133.0, "laundry": 133.0, "subway": 53.0, "church": 58.0, "market": 58.0, "deadend": 58.0}
 const SEGMENT_MOON := 1.6   # how much brighter than the bare night the drawn streets are kept
 const SEGMENT_BASE := 0.92   # the facades meet the pavement this far down each drawing
 
@@ -510,7 +514,13 @@ func _build_segments() -> void:
 		var w := Sprite2D.new()   # no normal map: lamplight falls on the drawing as it is, like the moonlit wash
 		w.texture = diffuse
 		w.centered = false
-		w.scale = Vector2.ONE * WALL_SCALE
+		# the dark frame Gemini draws down each picture's left edge is left out, and the rest stretched a
+		# few per cent to fill the same width, so neighbouring drawings meet building to building
+		var trim: float = SEGMENT_TRIM.get(seg_name, 0.0)
+		var sx := diffuse.get_width() / (diffuse.get_width() - trim)
+		w.region_enabled = true
+		w.region_rect = Rect2(trim, 0.0, diffuse.get_width() - trim, diffuse.get_height())
+		w.scale = Vector2(WALL_SCALE * sx, WALL_SCALE)
 		var seg_w := diffuse.get_width() * WALL_SCALE
 		w.position = Vector2(x0, -diffuse.get_height() * WALL_SCALE * SEGMENT_BASE - WALL_LIFT)
 		w.z_index = -10
@@ -518,11 +528,13 @@ func _build_segments() -> void:
 		w.modulate = Color.WHITE * SEGMENT_MOON   # a moonlit wash, so the drawing still reads between the lamps
 		add_child(w)
 		for r in SEGMENT_DEEP.get(seg_name, []):
-			_add_deep(diffuse, w, r as Rect2)
+			_add_deep(diffuse, w, r as Rect2, trim)
 		var glow := Sprite2D.new()   # its lit windows and signs, pushed through the night at full strength
 		glow.texture = load("res://art/street/" + seg_name + "_lit.png")
 		glow.centered = false
-		glow.scale = Vector2.ONE * WALL_SCALE * 2.0   # the glow layer is stored at half size
+		glow.region_enabled = true   # the glow layer is stored at half size
+		glow.region_rect = Rect2(trim * 0.5, 0.0, glow.texture.get_width() - trim * 0.5, glow.texture.get_height())
+		glow.scale = Vector2(WALL_SCALE * 2.0 * sx, WALL_SCALE * 2.0)
 		glow.position = w.position
 		glow.material = additive
 		glow.modulate = _undo_night(0.55)   # added on top of the drawing: big lit shopfronts would burn out at more
@@ -533,7 +545,8 @@ func _build_segments() -> void:
 		sfx.add_loop("steam", x0 + seg_w * 0.45, -20.0, 900.0)
 		var signs: Array = SEGMENT_NEONS.get(seg_name, [])
 		for k in signs.size():
-			_add_sign("res://art/street/%s_neon%d.png" % [seg_name, k], w.position + (signs[k][0] as Vector2) * WALL_SCALE, signs[k][1], String(signs[k][2]), halo_tex, signs[k].size() > 3)
+			var p0: Vector2 = signs[k][0]
+			_add_sign("res://art/street/%s_neon%d.png" % [seg_name, k], w.position + Vector2((p0.x - trim) * sx, p0.y) * WALL_SCALE, signs[k][1], String(signs[k][2]), halo_tex, signs[k].size() > 3)
 		for f in SEGMENT_LAMPS.get(seg_name, []):
 			var at := Vector2(x0 + seg_w * float(f), -WALL_LIFT - 880.0)
 			if _room_at(at.x) != "":
@@ -581,7 +594,7 @@ func _build_segments() -> void:
 		_pavement(x0, seg_w)
 
 
-func _add_deep(tex: Texture2D, facade: Sprite2D, r: Rect2) -> void:
+func _add_deep(tex: Texture2D, facade: Sprite2D, r: Rect2, trim: float) -> void:
 	var size := Vector2(tex.get_size())
 	var px := Rect2(r.position * size, r.size * size)
 	var d := Sprite2D.new()
@@ -590,7 +603,7 @@ func _add_deep(tex: Texture2D, facade: Sprite2D, r: Rect2) -> void:
 	d.region_enabled = true
 	d.region_rect = px
 	d.scale = facade.scale
-	d.position = facade.position + px.position * facade.scale
+	d.position = facade.position + (px.position - Vector2(trim, 0.0)) * facade.scale
 	d.modulate = facade.modulate
 	d.z_index = facade.z_index
 	var sh := Shader.new()
@@ -924,7 +937,7 @@ func _build_depth() -> void:
 	disc.z_index = -29
 	disc.material = atmo.blur_material(1.0)
 	cam.add_child(disc)
-	for d in DEPTH:
+	for d in ([] if level.has("street") else DEPTH):   # the drawn streets carry their own distance
 		var layer := Node2D.new()
 		add_child(layer)
 		depth.append(layer)
@@ -1127,7 +1140,7 @@ func _process(delta: float) -> void:
 		_tick_deep()
 		if _auto == "menu":
 			_at += delta
-			if _at > 6.5 and _auto_done == 0:   # once the title is up and Leo's line typed out
+			if _at > 6.5 and _auto_done == 0:   # once the title is up and Frank's line typed out
 				_auto_done = 1
 				_shot("menu")
 			if _at > 6.8:
@@ -1439,6 +1452,21 @@ func _auto_step(delta: float) -> void:
 			fx.blood(Vector2(cx, -400.0), Vector2(1.0, 0.0))
 			fx.blood(Vector2(cx - 900.0, -400.0), Vector2(1.0, 0.0))
 		shots = [[0.9, "deep_1"], [1.9, "deep_2"]]
+	elif _auto == "seams":   # the joins between street drawings, zoomed out, no HUD, one picture each
+		hud.visible = false
+		var segs: Array = level["street"]
+		var k := int(_at / 0.6)
+		if k < segs.size() - 1:
+			var x: float = float(segs[k + 1][1])
+			player.position.x = x - 1600.0
+			cam.position = Vector2(x, CAM_Y - 260.0)
+			cam.zoom = Vector2.ONE * 0.24
+			if fmod(_at, 0.6) > 0.5 and _auto_done & (1 << k) == 0:
+				_auto_done |= 1 << k
+				_shot("seam_%d" % k)
+		else:
+			get_tree().quit()
+		return
 	elif _auto == "stunt":   # slowed time, a dive into a crate: the kick off it, the back flip, the landing
 		var bi := -1
 		for k in boxes.size():
@@ -1478,9 +1506,19 @@ func _auto_step(delta: float) -> void:
 		player.slide_side = 1.0
 		player.dive_side = 1.0
 		player.position.y = -260.0 if pose in ["jump", "dive"] else 0.0
-		cam.position = player.position + Vector2(0.0, -300.0 if pose not in ["jump", "dive"] else -420.0)
+		cam.position = player.position + Vector2(210.0, -300.0 if pose not in ["jump", "dive"] else -420.0)
 		if player.weapon != GUNS_SEEN[k]:
 			player.set_weapon(GUNS_SEEN[k])
+		if not enemies.is_empty():   # a mobster beside him in the same pose, for comparison
+			var mob = enemies[0]["node"]
+			enemies[0]["state"] = "wait"
+			mob.visible = true
+			mob.position = player.position + Vector2(420.0, 0.0)
+			mob.duck = player.duck
+			mob.air = player.air
+			mob.dive = player.dive
+			mob.slide = player.slide
+			mob.set_state(-1.0 if pose == "run" else 0.0, Vector2(-POSES[k][1].x, POSES[k][1].y), delta)
 		player.set_state(1.0 if pose == "run" else 0.0, POSES[k][1], delta)
 		if fmod(_at, 0.8) > 0.7 and _auto_done & (1 << k) == 0:
 			_auto_done |= 1 << k
@@ -2053,6 +2091,7 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 			if part == "":
 				continue
 			fx.blood(pos, fx.hit_vel, part == "head" or e["hp"] <= 1)
+			e["node"].add_wound(pos, part)
 			sfx.play("hit_flesh", 0.0, pos.x)
 			if e["boss"]:   # the boss takes a lot; at two thirds and one third of his health he calls for help
 				e["hp"] -= 3 if part == "head" else 1
@@ -2080,6 +2119,7 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 	_hurt_t = 0.3
 	stats["hits"] += 1
 	fx.blood(pos, fx.hit_vel)
+	player.add_wound(pos, "")   # he flinches
 	sfx.play("hit_flesh", 2.0)
 	if (_dt < 0.0 or _dt > 7.4) and _tt < 0.0 and (_auto == "" or _auto == "stand"):   # nobody gets hurt during the demo or the tests
 		hp -= 1
@@ -2248,7 +2288,7 @@ func _player_down() -> void:
 	sfx.play("death_sting", 0.0, INF, 0.0)
 	var killer = _nearest_enemy()
 	_drop(player, signf(player.position.x - killer.position.x) if killer != null else -player.scale.x, false)
-	if _stand:   # the prologue ends as it must: Eddie down, and the story passes to Leo
+	if _stand:   # the prologue ends as it must: Eddie down, and the story passes to Frank
 		get_tree().create_timer(1.6, true, false, true).timeout.connect(hud.caption.bind(level["outro"]))
 		if _auto == "":
 			get_tree().create_timer(9.0, true, false, true).timeout.connect(func() -> void:
@@ -2501,10 +2541,25 @@ func _build_level() -> void:
 			boss = e
 
 
+## Faces for the mobsters: the drawing and where its neck is (x in its pixels). Each kind has its
+## own few, and the boss is always Teague, the old boxer.
+const MOB_HEADS := {"fedora": 193.5, "homburg": 171.0, "cap": 136.0, "boxer": 144.0}
+const MOB_FACES := {"post": ["", "fedora", "cap", "homburg"], "tommy": ["fedora", "homburg"], "shotgun": ["cap", ""], "boss": ["boxer"]}
+
+func _mob_cfg(kind: String) -> Dictionary:
+	var c: Dictionary = MOBSTER.duplicate(true)
+	var face: String = (MOB_FACES.get(kind, [""]) as Array).pick_random()
+	if face != "":
+		var x: float = MOB_HEADS[face]
+		c["head_tex"] = "res://art/mobster/heads/%s.png" % face
+		c["parts"]["head"] = {"a": Vector2(x, 351.5), "b": Vector2(x, 75.6), "ppm": 1000}
+	return c
+
+
 ## One mobster of any kind. state: post (stands and fights), wait (off-screen until his mark), run.
 func _add_enemy(at: Vector2, kind: String, state: String, goal_x: float) -> Dictionary:
 	var m = PuppetScript.new()
-	m.cfg = MOBSTER
+	m.cfg = _mob_cfg(kind)
 	m.night = _undo_night(1.0)
 	m.position = at
 	m.modulate = ENEMY_TINT.get(kind, Color(1, 1, 1))
@@ -2802,16 +2857,24 @@ func _enemies(delta: float) -> void:
 
 ## Slowed time: Shift held, or the stopwatch button tapped on and off. It drains a meter that refills.
 func _slow_time(real: float) -> void:
-	if hud.slow_tapped:
-		slow_on = not slow_on
+	if hud.slow_tapped:   # the stopwatch toggles it, also mid-air: a tap in a slowed dive lets time run again
+		if Engine.time_scale < 1.0:
+			slow_on = false
+			_slow_cancelled = move_state in ["dive", "flip"]
+		else:
+			slow_on = true
+			_slow_cancelled = false
 		hud.slow_tapped = false
+	if move_state not in ["dive", "flip"]:
+		_slow_cancelled = false
 	# a dive slows time by itself for as long as he is in the air
 	if over:   # the fall of the detective plays in slow motion, then time runs on
 		_death_t += real
 		Engine.time_scale = 0.3 if _death_t < 1.3 else 1.0
 		hud.set_slow(slow_left, false)
 		return
-	var want := (slow_on or move_state == "dive" or move_state == "flip" or Input.is_physical_key_pressed(KEY_SHIFT)) and not over
+	var air_slow: bool = (move_state == "dive" or move_state == "flip") and not _slow_cancelled
+	var want := (slow_on or air_slow or Input.is_physical_key_pressed(KEY_SHIFT)) and not over
 	var slowed := Engine.time_scale < 1.0
 	if want and (slow_left > 0.0 if slowed else slow_left > 0.2):   # an empty meter must refill a little first
 		slow_left = maxf(0.0, slow_left - real * 0.28)

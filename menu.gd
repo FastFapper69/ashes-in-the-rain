@@ -1,6 +1,6 @@
 extends CanvasLayer
 ## The title and the case file, over the street where the story stands right now. What the
-## player sees here follows the story: the street of the map they are on, Leo's line for that
+## player sees here follows the story: the street of the map they are on, Frank's line for that
 ## moment typed out under the title, the date and the place on the stamp. The ash thickens as
 ## he gets closer to the truth (main.gd sets that from phase()).
 
@@ -11,7 +11,7 @@ const CRIMSON := Color(0.6, 0.1, 0.07)
 const AMBER := Color(0.95, 0.66, 0.13)
 const SAVE := "user://progress2.cfg"   # progress2: the maps were rebuilt longer, old progress no longer applies
 
-# What Leo says on the title, and the stamp under it, for the point the player has reached:
+# What Frank says on the title, and the stamp under it, for the point the player has reached:
 # [chapter, map] of the next map to play. A later entry wins once it is reached.
 const PHASES := [
 	[0, 0, "December 17th, 1947. A week before Christmas.\nIt hadn't snowed yet. It only rained.", "NEW YORK  ·  DEC 17, 1947  ·  11:52 PM"],
@@ -85,7 +85,7 @@ static func progress() -> Array:
 	return [-1, -1]
 
 
-## Leo's line and the stamp for where the story stands.
+## Frank's line and the stamp for where the story stands.
 static func phase() -> Array:
 	var p := progress()
 	if p[0] < 0:
@@ -97,7 +97,7 @@ static func phase() -> Array:
 	return [best[2], best[3]]
 
 
-## How thick the ash hangs over the title: thin at the start, heavier the closer Leo gets.
+## How thick the ash hangs over the title: thin at the start, heavier the closer Frank gets.
 static func ash_level() -> float:
 	var p := progress()
 	if p[0] < 0:
@@ -200,7 +200,7 @@ func _button(text: String, at: Vector2, width: float, main: bool, on_press: Call
 	return b
 
 
-## The title: the logo, Leo's line for this moment typed out beneath it, and what to do next.
+## The title: the logo, Frank's line for this moment typed out beneath it, and what to do next.
 func _title() -> void:
 	_on_case_file = false
 	var view := _new_page()

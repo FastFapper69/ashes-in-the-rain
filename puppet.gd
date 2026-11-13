@@ -26,6 +26,14 @@ const GUNS := {
 	"shotgun": {"tex": "res://art/guns/shotgun.png", "len": 1.0, "grip": Vector2(0.31, 0.42), "muzzle": Vector2(1.0, 0.07), "fore": Vector2(0.68, 0.3), "stock": true},
 }
 var weapon := ""
+var _legs := {}            # "f"/"b" -> the bending leg mesh
+var _leg_shadows := {}
+var _flinch := 0.0          # a hit knocks him back a moment
+const LEG_ROWS := 14
+const LEG_HIP := 0.06       # the leg drawing: rows of the hip joint, the knee and the ankle (top of the shoe)
+const LEG_KNEE := 0.47
+const LEG_ANKLE := 0.89
+const LEG_AXIS := 0.36      # the leg's centre line across the drawing
 var _skirt_mesh: Polygon2D   # the coat below the belt as a bending sheet instead of one stiff board
 var _skirt_shadow: Polygon2D
 const SKIRT_ROWS := 7
@@ -147,7 +155,7 @@ func _ready() -> void:
 		if not parts.has(part):
 			continue
 		var s := Sprite2D.new()
-		s.texture = _tex(String(cfg["dir"]) + part)
+		s.texture = _tex(String(cfg["head_tex"]).trim_suffix(".png")) if part == "head" and cfg.has("head_tex") else _tex(String(cfg["dir"]) + part)
 		s.centered = false
 		s.offset = -parts[part]["a"]
 		if parts[part].has("region"):   # only part of the drawing is used
@@ -161,6 +169,16 @@ func _ready() -> void:
 		_body.add_child(s)
 		_spr[row[0]] = s
 	set_weapon(String(cfg.get("weapon", "revolver")))
+	if cfg.has("leg_tex"):   # whole legs that bend at the knee, instead of a thigh and a shin on a pin
+		for side in ["b", "f"]:
+			var lm := _make_leg_mesh()
+			_body.add_child(lm)
+			_body.move_child(lm, _spr["thigh_" + side].get_index())
+			_spr["thigh_" + side].visible = false
+			_spr["shin_" + side].visible = false
+			if side == "b":
+				lm.modulate = _spr["thigh_b"].modulate
+			_legs[side] = lm
 	if _spr.has("skirt"):
 		_skirt_mesh = _make_skirt_mesh()
 		_body.add_child(_skirt_mesh)
@@ -217,6 +235,13 @@ func _build_shadow() -> void:
 		d.modulate = Color(0.0, 0.0, 0.0)
 		_shadow.add_child(d)
 		_shadow_spr[key] = d
+	for side in _legs:
+		var ls := _make_leg_mesh()
+		ls.modulate = Color(0.0, 0.0, 0.0)
+		_shadow.add_child(ls)
+		_leg_shadows[side] = ls
+		_shadow_spr["thigh_" + side].visible = false
+		_shadow_spr["shin_" + side].visible = false
 	if _skirt_mesh:
 		_skirt_shadow = _make_skirt_mesh()
 		_skirt_shadow.modulate = Color(0.0, 0.0, 0.0)
@@ -260,6 +285,11 @@ func ghost() -> CanvasGroup:
 		d.rotation = src.rotation
 		d.scale = src.scale
 		g.add_child(d)
+	for side in _legs:
+		var lg := _make_leg_mesh()
+		lg.polygon = (_legs[side] as Polygon2D).polygon
+		g.add_child(lg)
+		g.move_child(lg, 0)
 	if _skirt_mesh:
 		var m := _make_skirt_mesh()
 		m.polygon = _skirt_mesh.polygon
@@ -306,6 +336,7 @@ func set_state(dir: float, aim: Vector2, delta: float) -> void:
 	# the gun arm eases onto the target instead of snapping; the kick of a shot is added on top
 	_aim_angle = lerp_angle(_aim_angle, want.angle(), 1.0 - exp(-22.0 * delta))
 	recoil = move_toward(recoil, 0.0, delta * 1.6)
+	_flinch = move_toward(_flinch, 0.0, delta * 3.0)
 	_aim = Vector2.from_angle(_aim_angle - recoil)
 	_moving = lerpf(_moving, absf(dir), 1.0 - exp(-9.0 * delta))
 	_phase = fposmod(_phase + dir * facing * delta * 2.2, 1.0)   # walking backwards runs the cycle in reverse
@@ -361,6 +392,7 @@ func _pose() -> void:
 	if not _dead:
 		lean += t * 0.13 * (1.0 - dive)                 # leaning into a run
 		lean -= recoil * 0.22                          # each shot knocks him back a touch
+		lean -= _flinch * 0.35                         # and so does a bullet
 		lean += clampf(_aim.angle(), -0.9, 0.6) * 0.08   # the body follows the gun up or down a little
 	var breath := sin(_clock * 1.7) * 0.006 * (1.0 - t) * (0.0 if _dead else 1.0)   # breathing, standing still
 	var neck := hip + Vector2(lerpf(0.03, 0.15, t), -float(_len["torso"]) - breath).rotated(lean)
@@ -418,6 +450,9 @@ func _pose() -> void:
 	_place("thigh_f", "thigh", hip, k[0])
 	_place("shin_f", "shin", k[0], k[1])
 	var leg_f := [hip, k[0], k[1]]
+	if _legs.has("f"):
+		_bend_leg(_legs["f"], leg_f, _leg_shadows.get("f"))
+		_bend_leg(_legs["b"], leg_b, _leg_shadows.get("b"))
 
 	if _spr.has("skirt"):   # hangs from the belt, sways with speed, tips with the body
 		# in a slide it lies along the legs; crouched it falls back behind the heels; never through the pavement
@@ -554,6 +589,78 @@ func _along_leg(leg: Array, v: float) -> Vector2:
 	if u < 1.0:
 		return (leg[0] as Vector2).lerp(leg[1], u)
 	return (leg[1] as Vector2).lerp(leg[2], minf(1.0, u - 1.0))
+
+
+## A whole straight leg drawing as a strip of rows, bent along hip, knee and ankle each frame.
+func _make_leg_mesh() -> Polygon2D:
+	var m := Polygon2D.new()
+	var tex: Texture2D = _tex(String(cfg["leg_tex"]).trim_suffix(".png"))
+	m.texture = tex
+	var size := Vector2(tex.get_size())
+	var uv := PackedVector2Array()
+	for r in LEG_ROWS + 1:
+		var v := float(r) / LEG_ROWS
+		for c in 3:
+			uv.append(Vector2(size.x * c * 0.5, size.y * v))
+	m.uv = uv
+	m.polygon = uv
+	var quads := []
+	for r in LEG_ROWS:
+		for c in 2:
+			var i := r * 3 + c
+			quads.append(PackedInt32Array([i, i + 1, i + 4, i + 3]))
+	m.polygons = quads
+	m.light_mask = MASK_FIGURE
+	return m
+
+
+## Rows above the knee follow the thigh, rows below follow the shin, and round the knee the
+## direction turns smoothly, so the trouser bends instead of breaking at a pin.
+func _bend_leg(m: Polygon2D, leg: Array, shadow) -> void:
+	var tex: Texture2D = m.texture
+	var size := Vector2(tex.get_size())
+	var hip: Vector2 = leg[0]
+	var knee: Vector2 = leg[1]
+	var ankle: Vector2 = leg[2]
+	var up_dir := (knee - hip).normalized()
+	var lo_dir := (ankle - knee).normalized()
+	var ppm := (LEG_ANKLE - LEG_HIP) * size.y / ((knee - hip).length() + (ankle - knee).length())
+	var axis := LEG_AXIS * size.x
+	var pts := PackedVector2Array()
+	for r in LEG_ROWS + 1:
+		var v := float(r) / LEG_ROWS
+		var at: Vector2
+		var d: Vector2
+		if v <= LEG_KNEE:   # each bone's rows stretched to the bone, so thigh and shin meet at the knee
+			at = hip.lerp(knee, (v - LEG_HIP) / (LEG_KNEE - LEG_HIP))
+		else:
+			at = knee.lerp(ankle, (v - LEG_KNEE) / (LEG_ANKLE - LEG_KNEE))
+		var blend := smoothstep(LEG_KNEE - 0.13, LEG_KNEE + 0.13, v)
+		d = up_dir.slerp(lo_dir, blend)
+		var n := Vector2(-d.y, d.x)   # across the leg; the drawing's right (the toe) is +x
+		for c in 3:
+			var across := (size.x * c * 0.5 - axis) / ppm
+			pts.append((at - n * across) * PPM)
+	m.polygon = pts
+	if shadow:
+		(shadow as Polygon2D).polygon = pts
+
+
+## A bullet went in here: a small dark wound on the part it hit, and he flinches.
+func add_wound(world: Vector2, part: String) -> void:
+	_flinch = 1.0
+	if not _spr.has(part) or not (_spr[part] as Sprite2D).visible:
+		return
+	var host: Sprite2D = _spr[part]
+	if host.get_child_count() >= 3:
+		return
+	var w := Sprite2D.new()
+	w.texture = load("res://art/fx/blood%d.png" % (randi() % 4 + 1))
+	w.modulate = Color(0.32, 0.03, 0.03)
+	w.rotation = randf() * TAU
+	host.add_child(w)
+	w.global_position = world
+	w.global_scale = Vector2.ONE * randf_range(0.025, 0.04) * absf(global_scale.y)
 
 
 ## Put a gun in his hands: one of GUNS. Two pistols: one in each hand.

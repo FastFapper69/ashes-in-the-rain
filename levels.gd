@@ -10,7 +10,7 @@ extends RefCounted
 const CAMPAIGN := [
 	{"title": "PROLOGUE", "name": "EDDIE DOYLE", "ready": true, "hero": "eddie", "ambient": Color(0.2, 0.21, 0.27), "rain": 1.2, "maps": [
 		{"name": "THE LAST NOTE", "end": 12598.8, "boss": "", "stand": 11498.8,
-			"intro": ["December 17th, 1947. Eddie Doyle had a meeting behind the Blue Note.", "He was early. He was always early."], "outro": ["His pencil found the notebook one last time. One word: LEO.", "Eddie Doyle bled out in this alley at ten past two.", "Somebody had to call me. Somebody always does."],
+			"intro": ["December 17th, 1947. Eddie Doyle had a meeting behind the Blue Note.", "He was early. He was always early."], "outro": ["His pencil found the notebook one last time. One word: FRANK.", "Eddie Doyle bled out in this alley at ten past two.", "Somebody had to call me. Somebody always does."],
 			"hints": [[200.0, "DRAG THE STICK TO MOVE"], [1500.0, "TAP ANYWHERE TO SHOOT THERE"], [2700.0, "PULL THE STICK DOWN TO HIDE BEHIND COVER"], [4300.0, "THE RUNNING MAN BUTTON DIVES OVER CRATES"], [6100.0, "SHOOT THE RED BARREL"], [7900.0, "TAP THE STOPWATCH TO SLOW TIME"], [10898.8, "NOWHERE LEFT TO RUN"]],
 			"boxes": [["crate", 2490.3, 250.0, 248.0], ["drum", 4694.5, 160.0, 246.0], ["crate", 5394.5, 250.0, 248.0], ["crate", 6673.7, 250.0, 248.0], ["barrel", 7433.7, 120.0, 170.0], ["crate", 9050.2, 250.0, 248.0], ["crate", 11098.8, 250.0, 248.0], ["dumpster", 12048.8, 300.0, 250.0]],
 			"floors": [],
@@ -22,7 +22,7 @@ const CAMPAIGN := [
 			"street": [["subway", -3000.0], ["bluenote", 2905.2], ["deadend", 8658.4], ["church", 14430.6]],
 			"enemies": [{"x": 2940.3, "y": 0.0, "kind": "post", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 5054.5, "y": 0.0, "kind": "post", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 5844.5, "y": 0.0, "kind": "post", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 7293.7, "y": 0.0, "kind": "post", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 7613.7, "y": 0.0, "kind": "post", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 7723.7, "y": 0.0, "kind": "post", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 9800.2, "y": 0.0, "kind": "post", "trig": 8800.2, "from": 11400.2, "delay": 0.0, "run": true}, {"x": 10060.2, "y": 0.0, "kind": "post", "trig": 8800.2, "from": 11700.2, "delay": 0.0, "run": true}]},
 	]},
-	{"title": "CHAPTER I", "name": "RAIN ON HELL'S KITCHEN", "ready": true, "hero": "leo", "ambient": Color(0.2, 0.21, 0.27), "rain": 1.0, "maps": [
+	{"title": "CHAPTER I", "name": "RAIN ON HELL'S KITCHEN", "ready": true, "hero": "frank", "ambient": Color(0.2, 0.21, 0.27), "rain": 1.0, "maps": [
 		{"name": "THE ALLEY", "end": 20806.1, "boss": "", "stand": -1.0,
 			"intro": ["They pulled the sheet back for me. Eddie looked surprised.", "In his fist, a matchbook from the Blue Note."], "outro": ["The shooters ran east. So did I."],
 			"hints": [],
@@ -84,21 +84,21 @@ const CAMPAIGN := [
 			"street": [["laundry", -3000.0], ["bluenote", 2753.2], ["subway", 8506.4], ["warehouse", 14411.6]],
 			"enemies": [{"x": 1750.0, "y": 0.0, "kind": "post", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 2400.0, "y": 0.0, "kind": "post", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 3933.4, "y": 0.0, "kind": "post", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 4253.4, "y": 0.0, "kind": "post", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 4363.4, "y": 0.0, "kind": "post", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 4763.4, "y": 0.0, "kind": "tommy", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 6518.2, "y": 0.0, "kind": "post", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 7168.2, "y": 0.0, "kind": "shotgun", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 7868.2, "y": 0.0, "kind": "tommy", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 6568.2, "y": 0.0, "kind": "post", "trig": 6368.2, "from": 4668.2, "delay": 2.0, "run": true}, {"x": 12240.9, "y": 0.0, "kind": "post", "trig": 10490.9, "from": 13090.9, "delay": 0.0, "run": true}, {"x": 12440.9, "y": 0.0, "kind": "post", "trig": 10490.9, "from": 13290.9, "delay": 0.0, "run": true}, {"x": 10490.9, "y": 0.0, "kind": "post", "trig": 10490.9, "from": 9290.9, "delay": 5.0, "run": true}, {"x": 11590.9, "y": 0.0, "kind": "tommy", "trig": 10490.9, "from": 13190.9, "delay": 9.0, "run": true}, {"x": 10340.9, "y": 0.0, "kind": "shotgun", "trig": 10490.9, "from": 9090.9, "delay": 13.0, "run": true}, {"x": 14134.5, "y": 0.0, "kind": "post", "trig": 13134.5, "from": 15734.5, "delay": 0.0, "run": true}, {"x": 14394.5, "y": 0.0, "kind": "post", "trig": 13134.5, "from": 16034.5, "delay": 0.0, "run": true}, {"x": 14654.5, "y": 0.0, "kind": "shotgun", "trig": 13134.5, "from": 16334.5, "delay": 0.0, "run": true}, {"x": 16365.0, "y": 0.0, "kind": "post", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 17365.0, "y": 0.0, "kind": "boss", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}]},
 	]},
-	{"title": "CHAPTER II", "name": "THE DOCKS", "ready": false, "hero": "leo", "ambient": Color(0.16, 0.18, 0.25), "rain": 1.5, "maps": [
+	{"title": "CHAPTER II", "name": "THE DOCKS", "ready": false, "hero": "frank", "ambient": Color(0.16, 0.18, 0.25), "rain": 1.5, "maps": [
 		{"name": "PIER 17"},
 		{"name": "THE CRANES"},
 		{"name": "SANTA LUCIA"},
 		{"name": "CARGO HOLD"},
 		{"name": "HARBOR MASTER"},
 	]},
-	{"title": "CHAPTER III", "name": "UNDERGROUND", "ready": false, "hero": "leo", "ambient": Color(0.18, 0.17, 0.2), "rain": 0.0, "maps": [
+	{"title": "CHAPTER III", "name": "UNDERGROUND", "ready": false, "hero": "frank", "ambient": Color(0.18, 0.17, 0.2), "rain": 0.0, "maps": [
 		{"name": "THE PLATFORM"},
 		{"name": "THE TUNNELS"},
 		{"name": "TRAIN YARD"},
 		{"name": "THE LAST TRAIN"},
 		{"name": "THE CATACOMBS"},
 	]},
-	{"title": "CHAPTER IV", "name": "THE SAINT'S TOWER", "ready": false, "hero": "leo", "ambient": Color(0.23, 0.19, 0.21), "rain": 1.8, "maps": [
+	{"title": "CHAPTER IV", "name": "THE SAINT'S TOWER", "ready": false, "hero": "frank", "ambient": Color(0.23, 0.19, 0.21), "rain": 1.8, "maps": [
 		{"name": "ROOFTOPS"},
 		{"name": "THE BALL"},
 		{"name": "ELEVATOR SHAFT"},
