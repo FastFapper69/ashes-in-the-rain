@@ -74,6 +74,30 @@ const SCENES := {
 	],
 }
 
+## What lives in each picture, so no panel is a still: [x, y, radius (fractions of the picture), kind].
+## neon: buzzes and now and then stutters; lamp: breathes; fire: flickers fast; siren: turns on and
+## off; storm: lightning in the windows now and then; smoke: drifts up from there; fog: rolls along the bottom.
+const LIVE := {
+	49: [[0.405, 0.68, 0.07, "neon"], [0.6, 0.47, 0.06, "lamp"], [0.06, 0.4, 0.04, "lamp"], [0.2, 0.05, 0.05, "smoke"], [0.85, 0.08, 0.05, "smoke"]],
+	50: [[0.83, 0.45, 0.11, "lamp"], [0.5, 0.95, 0.0, "fog"]],
+	51: [[0.55, 0.13, 0.11, "neon"], [0.57, 0.55, 0.05, "lamp"], [0.66, 0.5, 0.05, "lamp"], [0.5, 0.95, 0.0, "fog"]],
+	52: [[0.48, 0.18, 0.13, "neon"]],
+	54: [[0.12, 0.2, 0.08, "neon"]],
+	55: [[0.44, 0.13, 0.06, "lamp"]],
+	56: [[0.6, 0.2, 0.12, "lamp"], [0.5, 0.6, 0.06, "smoke"]],
+	57: [[0.42, 0.2, 0.16, "lamp"], [0.5, 0.5, 0.06, "smoke"]],
+	59: [[0.5, 0.3, 0.16, "lamp"]],
+	60: [[0.61, 0.79, 0.05, "neon"], [0.5, 0.95, 0.0, "fog"]],
+	61: [[0.68, 0.28, 0.08, "neon"], [0.7, 0.46, 0.04, "fire"], [0.5, 0.95, 0.0, "fog"]],
+	64: [[0.06, 0.36, 0.09, "lamp"]],
+	65: [[0.1, 0.42, 0.1, "siren"], [0.8, 0.55, 0.07, "lamp"]],
+	70: [[0.1, 0.5, 0.2, "fire"], [0.9, 0.55, 0.2, "fire"], [0.45, 0.25, 0.18, "fire"], [0.8, 0.85, 0.12, "fire"], [0.5, 0.1, 0.08, "smoke"]],
+	74: [[0.81, 0.04, 0.09, "siren"], [0.12, 0.24, 0.035, "lamp"], [0.34, 0.24, 0.035, "lamp"], [0.5, 0.95, 0.0, "fog"]],
+	75: [[0.51, 0.17, 0.07, "lamp"], [0.2, 0.42, 0.04, "neon"], [0.5, 0.95, 0.0, "fog"]],
+	76: [[0.07, 0.6, 0.06, "fire"], [0.6, 0.36, 0.05, "lamp"], [0.42, 0.38, 0.05, "lamp"]],
+	77: [[0.11, 0.72, 0.12, "fire"], [0.62, 0.3, 0.2, "storm"]],
+}
+
 var scene_id := ""
 var done := Callable()    # called once the last panel has gone dark (or SKIP)
 var sound := Callable()   # func(name: String, db: float)
@@ -102,6 +126,8 @@ var _stamp: Label
 var _flash: ColorRect
 var _black: ColorRect
 var _ending := false
+var _lives: Array = []   # {node, kind, base, phase}: the lights of the picture on screen
+var _clock := 0.0
 var _shot_taken := false
 
 
@@ -168,8 +194,8 @@ func _ready() -> void:
 	_black.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_black.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_black)
-	for k in 110:
-		_drops.append(Vector3(randf(), randf(), randf_range(0.6, 1.0)))
+	for k in 170:
+		_drops.append(Vector3(randf(), randf(), randf_range(0.35, 1.0)))
 	get_viewport().size_changed.connect(_place_pic)
 	_next_panel()
 
@@ -222,12 +248,14 @@ func _process(delta: float) -> void:
 		_wait -= delta
 		if _wait <= 0.0:
 			_advance()
+	_clock += delta
+	_tick_live(delta)
 	# the rain over the page
 	_rain_on = move_toward(_rain_on, _rain_want, delta * 0.8)
 	for k in _drops.size():
 		var d: Vector3 = _drops[k]
-		d.y += delta * (1.6 + d.z * 0.9)
-		d.x -= delta * 0.12
+		d.y += delta * (0.9 + d.z * 1.6)
+		d.x -= delta * (0.08 + d.z * 0.12)
 		if d.y > 1.1:
 			d = Vector3(randf() * 1.2, -0.1 - randf() * 0.2, d.z)
 		_drops[k] = d
@@ -240,10 +268,107 @@ func _draw_rain() -> void:
 	if _rain_on <= 0.01:
 		return
 	var view := _view()
-	for d in _drops:
+	for d in _drops:   # far drops thin and faint, near ones long and brighter: depth in the rain itself
 		var p := Vector2(d.x * view.x, d.y * view.y)
-		var ln: float = 34.0 + d.z * 40.0
-		_rain.draw_line(p, p + Vector2(-0.12, 1.0).normalized() * ln, Color(0.85, 0.87, 0.92, 0.16 * d.z * _rain_on), 1.6)
+		var ln: float = 18.0 + d.z * d.z * 70.0
+		_rain.draw_line(p, p + Vector2(-0.14, 1.0).normalized() * ln, Color(0.85, 0.87, 0.92, (0.06 + 0.16 * d.z) * _rain_on), 0.8 + d.z * 1.4)
+		if d.z > 0.8 and d.y > 0.93:   # the nearest ones break on the bottom of the frame
+			_rain.draw_line(p + Vector2(-8.0, 0.0), p + Vector2(8.0, -6.0), Color(0.85, 0.87, 0.92, 0.12 * _rain_on), 1.2)
+
+
+## The picture's own lights, laid over it and moving with it.
+func _make_live(pic: Sprite2D, img: int) -> void:
+	var size: Vector2 = pic.texture.get_size()
+	var add := CanvasItemMaterial.new()
+	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	var blob: Texture2D = load("res://art/light_blob.png")
+	for l in LIVE.get(img, []):
+		var at := (Vector2(l[0], l[1]) - Vector2(0.5, 0.5)) * size
+		var kind: String = l[3]
+		var r: float = float(l[2]) * size.x
+		match kind:
+			"smoke", "fog":
+				var pt := CPUParticles2D.new()
+				pt.texture = blob
+				pt.position = at
+				pt.local_coords = true
+				if kind == "fog":   # low mist rolling across the bottom of the picture
+					pt.position = Vector2(0.0, size.y * 0.42)
+					pt.amount = 14
+					pt.lifetime = 9.0
+					pt.preprocess = 9.0
+					pt.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+					pt.emission_rect_extents = Vector2(size.x * 0.6, size.y * 0.06)
+					pt.direction = Vector2(1.0, 0.0)
+					pt.spread = 10.0
+					pt.gravity = Vector2.ZERO
+					pt.initial_velocity_min = 20.0
+					pt.initial_velocity_max = 45.0
+					pt.scale_amount_min = 3.0
+					pt.scale_amount_max = 5.0
+				else:   # a thin column drifting up and away
+					pt.amount = 10
+					pt.lifetime = 6.0
+					pt.preprocess = 6.0
+					pt.direction = Vector2(0.15, -1.0)
+					pt.spread = 12.0
+					pt.gravity = Vector2(8.0, -6.0)
+					pt.initial_velocity_min = 25.0
+					pt.initial_velocity_max = 50.0
+					pt.scale_amount_min = 0.6
+					pt.scale_amount_max = 1.4
+				var g := Gradient.new()
+				g.set_color(0, Color(0.8, 0.8, 0.82, 0.0))
+				g.add_point(0.25, Color(0.8, 0.8, 0.82, 0.13 if kind == "fog" else 0.18))
+				g.set_color(g.get_point_count() - 1, Color(0.8, 0.8, 0.82, 0.0))
+				pt.color_ramp = g
+				pic.add_child(pt)
+			_:
+				var col: Color = {"neon": Color(1.0, 0.18, 0.12), "lamp": Color(1.0, 0.8, 0.5), "fire": Color(1.0, 0.5, 0.15),
+						"siren": Color(1.0, 0.1, 0.08), "storm": Color(0.75, 0.85, 1.0)}[kind]
+				var glow := Sprite2D.new()
+				glow.texture = blob
+				glow.material = add
+				glow.position = at
+				glow.scale = Vector2.ONE * r * 2.2 / 256.0
+				glow.modulate = Color(col, 0.0)
+				pic.add_child(glow)
+				_lives.append({"node": glow, "kind": kind, "base": {"neon": 0.45, "lamp": 0.3, "fire": 0.5, "siren": 0.7, "storm": 0.0}[kind],
+						"phase": randf() * TAU, "next": randf_range(1.5, 4.0), "dip": 0.0})
+
+
+func _tick_live(delta: float) -> void:
+	for l in _lives:
+		var n: Sprite2D = l["node"]
+		if not is_instance_valid(n):
+			continue
+		var a: float = l["base"]
+		var ph: float = l["phase"]
+		l["next"] = float(l["next"]) - delta
+		match String(l["kind"]):
+			"neon":   # a steady buzz; every few seconds it stutters off and catches again
+				a *= 0.92 + 0.08 * sin(_clock * 60.0 + ph)
+				if float(l["next"]) <= 0.0:
+					l["next"] = randf_range(2.5, 6.0)
+					l["dip"] = randf_range(0.18, 0.4)
+				if float(l["dip"]) > 0.0:
+					l["dip"] = float(l["dip"]) - delta
+					a *= 0.15 if fmod(float(l["dip"]), 0.12) < 0.06 else 1.0
+			"lamp":
+				a *= 0.85 + 0.15 * sin(_clock * 1.3 + ph) * sin(_clock * 0.7 + ph * 2.0)
+			"fire":
+				a *= 0.6 + 0.4 * absf(sin(_clock * 9.0 + ph) * sin(_clock * 13.7 + ph * 3.0)) + randf() * 0.15
+			"siren":
+				a *= 1.0 if fmod(_clock + ph, 1.0) < 0.5 else 0.08
+			"storm":   # far lightning in the glass: a double flicker every so often
+				if float(l["next"]) <= 0.0:
+					l["next"] = randf_range(4.0, 8.0)
+					l["dip"] = 0.5
+				if float(l["dip"]) > 0.0:
+					l["dip"] = float(l["dip"]) - delta
+					var d: float = l["dip"]
+					a = 0.55 if (d > 0.42 or (d > 0.2 and d < 0.32)) else 0.0
+		n.modulate.a = a   # under the picture: its fade carries the lights too
 
 
 ## Where the camera is over the current picture: from its start to its end, eased, over the time the
@@ -305,6 +430,8 @@ func _next_panel() -> void:
 	_pic.texture = load("res://art/cut/%d.jpg" % int(p["img"]))
 	_pic.modulate.a = 0.0
 	_stage.add_child(_pic)
+	_lives.clear()
+	_make_live(_pic, int(p["img"]))
 	_pan_t = 0.0
 	_line = 0
 	_shot_taken = false

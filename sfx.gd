@@ -6,7 +6,7 @@ const DIR := "res://sfx/"
 const NAMES := ["shot_player", "shot_enemy", "shot_tommy", "shot_shotgun", "hit_flesh", "hit_cover", "clink", "casing",
 		"slow_in", "slow_out", "dive", "land", "body_fall", "step1", "step2", "whiz", "death_sting", "explosion", "glass",
 		"pickup", "drink", "flutter", "dry_fire", "reload_revolver", "reload_mag", "reload_shells", "reload_done",
-		"thunder", "coo", "wing", "drip", "wood_break", "wood_hit", "zap", "type", "page", "skid", "phone_ring", "match", "sting", "car_arrive", "door", "power_down", "chain", "train_pass"]
+		"thunder", "coo", "wing", "drip", "wood_break", "wood_hit", "zap", "type", "page", "skid", "phone_ring", "match", "sting", "car_arrive", "door", "power_down", "chain", "train_pass", "cyl_open", "shell_in", "cyl_spin"]
 const LOOPS := ["train_loop", "fire", "neon_hum", "lamp_hum", "steam", "city", "heartbeat", "music_base", "music_lead"]
 const VOICES := 20
 const HEAR := 2600.0   # world pixels from the listener at which a sound has faded out
@@ -93,6 +93,10 @@ func _process(delta: float) -> void:
 		mp.pitch_scale = lerpf(1.0, 0.8, slow)
 	for l in _loops:   # only the ones in earshot actually play
 		var k := absf(float(l["x"]) - listener_x) / float(l["reach"])
+		if view.size.x > 0.0 and float(l["y"]) != INF:   # a thing with a place: loud while it is in the picture, fading once it leaves it
+			var at := Vector2(float(l["x"]), float(l["y"]))
+			var d := at.distance_to(Vector2(clampf(at.x, view.position.x, view.end.x), clampf(at.y, view.position.y, view.end.y)))
+			k = d / float(l["reach"])
 		var p: AudioStreamPlayer = l["player"]
 		if k >= 1.0 or not l["on"]:
 			if p.playing:
@@ -116,11 +120,14 @@ func _process(delta: float) -> void:
 
 ## A sound that hums or hisses on its own at one place in the street (a neon sign, a lamp,
 ## steam). Returns its record, so the caller can switch it off and on.
-func add_loop(sound: String, at_x: float, volume_db: float, reach := 1400.0) -> Dictionary:
+var view := Rect2()   # the part of the world on screen (main.gd keeps it up to date)
+
+
+func add_loop(sound: String, at_x: float, volume_db: float, reach := 1400.0, at_y := INF) -> Dictionary:
 	var p := AudioStreamPlayer.new()
 	p.stream = _streams[sound]
 	add_child(p)
-	var rec := {"player": p, "x": at_x, "db": volume_db, "on": true, "reach": reach}
+	var rec := {"player": p, "x": at_x, "y": at_y, "db": volume_db, "on": true, "reach": reach}
 	_loops.append(rec)
 	return rec
 

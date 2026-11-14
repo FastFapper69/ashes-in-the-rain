@@ -43,8 +43,11 @@ const MenuScript = preload("res://menu.gd")
 const CutsceneScript = preload("res://cutscene.gd")
 const DiaryScript = preload("res://diary.gd")
 const SetpiecesScript = preload("res://setpieces.gd")
+const LoadingScript = preload("res://loading.gd")
+static var _card_up := false   # a title card is covering the screen across the reload: lift it once built
 var sets   # setpieces.gd: cars, blackouts, searchlights, fires, the crane's crate
 var _in_cut := false
+var _fight_t := 0.0   # seconds the fight music holds on after the last enemy in reach
 const CUTS := {"0:0": "eddie", "1:2": "interlude", "1:4": "teague", "2:2": "dream", "2:4": "kessler", "3:4": "briggs"}   # the cutscene after a map ("chapter:map")
 const CUTS_BEFORE := {"2:0": "docks", "3:0": "underground"}   # and before one, the first time it is played
 const BOSS_HP := 16
@@ -88,10 +91,10 @@ static var checkpoint := -1.0   # where a death sends him back to on this map; -
 # the guns: seconds between shots, rounds when picked up, pellets per shot, spread (radians), how long a
 # bullet flies, the kick of the arm, the sound
 const WEAPONS := {
-	"revolver": {"mag": 6, "reload": 1.2, "cool": 0.2, "ammo": 0, "pellets": 1, "spread": 0.0, "life": 1.4, "kick": 0.2, "sound": "shot_player", "name": "REVOLVER"},
-	"pistols": {"mag": 14, "reload": 1.35, "cool": 0.11, "ammo": 42, "pellets": 1, "spread": 0.025, "life": 1.4, "kick": 0.12, "sound": "shot_enemy", "name": "TWO PISTOLS"},
-	"tommy": {"mag": 30, "reload": 1.7, "cool": 0.085, "ammo": 60, "pellets": 1, "spread": 0.05, "life": 1.4, "kick": 0.08, "sound": "shot_tommy", "name": "TOMMY GUN"},
-	"shotgun": {"mag": 5, "reload": 1.6, "cool": 0.7, "ammo": 10, "pellets": 6, "spread": 0.15, "life": 0.3, "kick": 0.35, "sound": "shot_shotgun", "name": "SHOTGUN"},
+	"revolver": {"mag": 6, "reload": 0.85, "cool": 0.2, "ammo": 0, "pellets": 1, "spread": 0.0, "life": 1.4, "kick": 0.2, "sound": "shot_player", "name": "REVOLVER"},
+	"pistols": {"mag": 14, "reload": 0.95, "cool": 0.11, "ammo": 42, "pellets": 1, "spread": 0.025, "life": 1.4, "kick": 0.12, "sound": "shot_enemy", "name": "TWO PISTOLS"},
+	"tommy": {"mag": 30, "reload": 1.2, "cool": 0.085, "ammo": 60, "pellets": 1, "spread": 0.05, "life": 1.4, "kick": 0.08, "sound": "shot_tommy", "name": "TOMMY GUN"},
+	"shotgun": {"mag": 5, "reload": 1.1, "cool": 0.7, "ammo": 10, "pellets": 6, "spread": 0.15, "life": 0.3, "kick": 0.35, "sound": "shot_shotgun", "name": "SHOTGUN"},
 }
 const WOOD := ["crate", "crate_long"]
 const BOX_ART := {"barrel": ["drum", Color(1.0, 0.32, 0.26)], "machine": ["dumpster", Color(0.7, 0.72, 0.78)], "bar": ["crate_long", Color(0.45, 0.32, 0.26)]}
@@ -165,6 +168,7 @@ var _lightning_t := randf_range(20.0, 45.0)
 var _menu_x := 0.0   # where the camera rests behind the title
 var _lead := CAM_LEAD   # how far ahead of the detective the camera looks; swings to the side he aims at
 var _look := 1.0
+var _face := 1.0   # the way he last walked: where he looks when nobody is about
 var fore: Node2D
 var depth: Array[Node2D] = []   # the far and mid layers, moved with the camera in _process
 var depth_follow: Array[float] = []
@@ -280,6 +284,17 @@ func _ready() -> void:
 	sets = SetpiecesScript.new()
 	add_child(sets)
 	sets.setup(self)
+	if _card_up:   # the card that covered the load comes off now the street is built
+		_card_up = false
+		for n in get_tree().root.get_children():
+			if n.get_script() == LoadingScript:
+				n.queue_free()
+		var lift = LoadingScript.new()
+		lift.chapter = chapter
+		lift.map = map
+		lift.to_menu = in_menu
+		lift.lifting = true
+		add_child(lift)
 
 	fore = Node2D.new()   # foreground silhouettes, nearer than the action, so they slide past faster
 	fore.z_index = 10
@@ -333,6 +348,7 @@ func _ready() -> void:
 		menu.play = _start_map
 		menu.sound = func(n: String) -> void: sfx.play(n, -8.0 if n == "type" else -4.0, INF, 0.15)
 		add_child(menu)
+		_hide_world.call_deferred()
 		player.set_state(0.0, Vector2(1.0, 0.0), 0.0)
 		# the camera rests on the map's main street, the hero standing under the lights on the right
 		var segs: Array = level.get("street", [])
@@ -365,7 +381,15 @@ func _ready() -> void:
 			if _auto.begins_with("dive:"):   # --test=dive:1300 taps the dive button at that x
 				_dive_at = float(_auto.get_slice(":", 1))
 				_auto = "dive"
-	if _auto == "page":   # --test=page: the map's notebook page, read
+	if _auto == "card":   # --test=card: the title card between maps
+		var l = LoadingScript.new()
+		l.chapter = chapter
+		l.map = map
+		add_child(l)
+		get_tree().create_timer(3.0, true, false, true).timeout.connect(_shot.bind("card"))
+		get_tree().create_timer(3.2, true, false, true).timeout.connect(get_tree().quit)
+		_auto = "cut:card"
+	elif _auto == "page":   # --test=page: the map's notebook page, read
 		get_tree().create_timer(1.0, true, false, true).timeout.connect(_read_page)
 		get_tree().create_timer(3.0, true, false, true).timeout.connect(_shot.bind("page"))
 		get_tree().create_timer(3.6, true, false, true).timeout.connect(get_tree().quit)
@@ -441,7 +465,7 @@ func _build_street() -> void:
 			lamps.append(at)
 			var rec := {"nodes": [], "light": null, "on": true}
 			lamp_info.append(rec)
-			rec["hum"] = sfx.add_loop("lamp_hum", at.x, -26.0, 600.0)
+			rec["hum"] = sfx.add_loop("lamp_hum", at.x, -26.0, 450.0, at.y)
 			var fix := Sprite2D.new()   # the lamp itself, hung on the wall
 			fix.texture = load("res://art/props/lamp_wall.png")
 			fix.centered = false
@@ -553,7 +577,9 @@ const SEGMENT_GAIN := {"alley": 0.92, "bluenote": 0.98, "warehouse": 0.9, "laund
 		"pier17": 0.86, "cranes": 0.91, "shipping": 0.96, "quay": 0.91, "harbor": 0.86,
 		"platform": 0.95, "tunnel": 1.12, "yard": 0.85}
 const SEGMENT_MOON := 1.6   # how much brighter than the bare night the drawn streets are kept
-const SEGMENT_BASE := 0.92   # the facades meet the pavement this far down each drawing
+const SEGMENT_BASE := 0.92
+const ROOM_SCALE := 1.15   # interiors: see _build_room
+var _room_tops: Array = []   # [x0, x1, y of the ceiling] of each interior   # the facades meet the pavement this far down each drawing
 
 
 ## The street as a run of different drawn segments, each with its own buildings and a view into the
@@ -612,7 +638,7 @@ func _build_segments() -> void:
 		_stain_hosts.append([w.position.x, w.position.x + seg_w, host])
 		atmo.add_mist(self, x0, seg_w, -WALL_LIFT, _undo_night(0.8))
 		atmo.add_steam(self, Vector2(x0 + seg_w * 0.45, -20.0))
-		sfx.add_loop("steam", x0 + seg_w * 0.45, -20.0, 900.0)
+		sfx.add_loop("steam", x0 + seg_w * 0.45, -20.0, 600.0, -20.0)
 		var signs: Array = SEGMENT_NEONS.get(seg_name, [])
 		for k in signs.size():
 			var p0: Vector2 = signs[k][0]
@@ -624,7 +650,7 @@ func _build_segments() -> void:
 			lamps.append(at)
 			var rec := {"nodes": [], "light": null, "on": true}
 			lamp_info.append(rec)
-			rec["hum"] = sfx.add_loop("lamp_hum", at.x, -26.0, 600.0)
+			rec["hum"] = sfx.add_loop("lamp_hum", at.x, -26.0, 450.0, at.y)
 			var fix := Sprite2D.new()
 			fix.texture = load("res://art/props/lamp_wall.png")
 			fix.centered = false
@@ -780,7 +806,7 @@ func _add_sign(path: String, top_left: Vector2, col: Color, mode: String, halo_t
 	l.range_item_cull_mask = MASK_LIT
 	add_child(l)
 	rec["light"] = l
-	rec["hum"] = sfx.add_loop("neon_hum", mid.x, -15.0, 1500.0)
+	rec["hum"] = sfx.add_loop("neon_hum", mid.x, -16.0, 500.0, mid.y)
 	neons.append(rec)
 
 
@@ -969,17 +995,19 @@ func _tick_music() -> void:
 	if _in_cut:   # the tune, soft, under the story
 		sfx.music_want = Vector2(-13.0, -12.0)
 		return
-	var fight := false
+	# the tune swells when a fight starts and settles only a while after the last shot: no flipping
+	# back and forth every time somebody steps in or out of range
 	for e in enemies:
-		if e["alive"] and e["state"] != "wait" and absf(e["node"].position.x - player.position.x) < 2600.0:
-			fight = true
+		if e["alive"] and e["seen"] and e["state"] != "wait" and absf(e["node"].position.x - player.position.x) < 2300.0:
+			_fight_t = 5.0
 			break
+	_fight_t = maxf(0.0, _fight_t - get_process_delta_time())
 	if over:
 		sfx.music_want = Vector2(-80.0, -80.0)
-	elif fight:
-		sfx.music_want = Vector2(-21.0, -80.0)
+	elif _fight_t > 0.0:
+		sfx.music_want = Vector2(-14.0, -15.0)
 	else:
-		sfx.music_want = Vector2(-15.0, -13.0)
+		sfx.music_want = Vector2(-18.0, -80.0)
 
 
 ## The sky: clouds drifting, and now and then lightning far off, the thunder a moment later.
@@ -1284,17 +1312,18 @@ func _process(delta: float) -> void:
 		fore.position.x = -cam.position.x * 0.35
 		for i in depth.size():
 			depth[i].position.x = cam.position.x * depth_follow[i]
-		atmo.blow_ash(_time)
-		_tick_neons(delta)
-		_tick_birds(delta)
-		_tick_deep()
-		_tick_sky(delta)
 		if _auto == "menu":
 			_at += delta
 			if _at > 6.5 and _auto_done == 0:   # once the title is up and Frank's line typed out
 				_auto_done = 1
 				_shot("menu")
-			if _at > 6.8:
+				for c in get_children():
+					if c.has_method("_case_file"):
+						c._case_file()
+			if _at > 6.75 and _auto_done == 1:
+				_auto_done = 2
+				_shot("casefile")
+			if _at > 7.0:
 				get_tree().quit()
 		return
 	if _auto != "" and not _auto.begins_with("cut:"):
@@ -1317,9 +1346,14 @@ func _process(delta: float) -> void:
 	var aim: Vector2 = get_global_mouse_position() - chest
 	if hud.touch_seen and hud.aim_left > 0.0:   # on a phone: a finger on the screen is where he shoots
 		aim = get_viewport().get_canvas_transform().affine_inverse() * hud.aim_at - chest
-	elif hud.touch_seen:   # no finger: he aims at the nearest mobster, or ahead when there is none
-		var near = _nearest_enemy()
-		aim = (near.position + SHOULDER + Vector2(0.0, DUCK_DROP * near.duck) - chest) if near != null else Vector2(1.0 if dir >= 0.0 else -1.0, 0.0)
+	elif hud.touch_seen:   # no finger: he keeps his gun on a mobster he can see, the way he is going
+		if dir != 0.0:
+			_face = signf(dir)
+		var near = _nearest_enemy(_face if dir != 0.0 else 0.0)
+		if near != null:
+			aim = near.position + SHOULDER + Vector2(0.0, DUCK_DROP * near.duck) - chest
+		else:
+			aim = Vector2(_face, 0.0)   # nobody about: he looks the way he last went, not always right
 	if _dt >= 0.0:
 		_dt += delta
 	var demo: bool = _dt >= 0.0 and _dt < 7.4 and dir == 0.0   # self-running start for the automatic pictures
@@ -1440,6 +1474,8 @@ func _process(delta: float) -> void:
 	atmo.set_slow(_slow_look)
 	sfx.slow = _slow_look
 	sfx.listener_x = player.position.x
+	var half: Vector2 = get_viewport().get_visible_rect().size / cam.zoom * 0.5
+	sfx.view = Rect2(cam.get_screen_center_position() - half, half * 2.0)
 	fx.slow = _slow_look
 	_cast_shadow(player)
 	for e in enemies:
@@ -1449,9 +1485,12 @@ func _process(delta: float) -> void:
 	# to give him room on that side. It leans a touch into the aim, trails him softly and does not
 	# bob with jumps.
 	var aim_n := aim.normalized() if aim.length() > 1.0 else Vector2(signf(_lead), 0.0)
-	if absf(aim.x) > 60.0 and not over:
-		_look = signf(aim.x)
-	_lead = lerpf(_lead, CAM_LEAD * _look, 1.0 - exp(-2.4 * real))
+	if not over:   # the camera looks where he faces: where he aims, or where he runs when nothing's aimed at
+		if hud.touch_seen and hud.aim_left <= 0.0 and dir != 0.0 and _nearest_enemy(signf(dir)) == null:
+			_look = signf(dir)
+		elif absf(aim.x) > 20.0:
+			_look = signf(aim.x)
+	_lead = lerpf(_lead, CAM_LEAD * _look, 1.0 - exp(-3.6 * real))
 	var want_y := CAM_Y + clampf(player.position.y * 0.45, -330.0, 0.0) + clampf(aim_n.y, -0.6, 0.6) * 90.0
 	cam.position = Vector2(lerpf(cam.position.x, player.position.x + _lead, 1.0 - exp(-5.5 * real)),
 			lerpf(cam.position.y, want_y, 1.0 - exp(-3.0 * real)))
@@ -1626,6 +1665,21 @@ func _auto_step(delta: float) -> void:
 		hud.move = 1.0 if _at < 2.2 else 0.0
 		hp = PLAYER_HP
 		shots = [[0.9, "vault_1"], [1.0, "vault_2"], [1.1, "vault_3"], [1.2, "vault_4"], [1.3, "vault_5"], [1.4, "vault_6"], [1.5, "vault_7"], [1.6, "vault_8"]]
+	elif _auto == "reload":   # the revolver emptied and loaded again, close up
+		if _auto_done & 1 == 0:
+			_auto_done |= 1
+			for e in enemies:
+				e["node"].position.x += 60000.0
+				e["goal"] = e["node"].position.x
+			hud.visible = false
+		cam.zoom = Vector2.ONE * 1.1
+		cam.rotation = 0.0
+		cam.position = player.position + Vector2(60.0, -330.0)
+		if _at > 0.4 and _auto_done & 2 == 0:
+			_auto_done |= 2
+			mag = 0
+			_start_reload()
+		shots = [[0.55, "reload_1"], [0.75, "reload_2"], [1.0, "reload_3"], [1.12, "reload_4"]]
 	elif _auto == "wound":   # a mobster shot in the chest and the thigh, close up: the hits must show
 		var e: Dictionary = enemies[0]
 		var m = e["node"]
@@ -2081,7 +2135,7 @@ func _block(before_x: float) -> void:
 		var left := b.position.x - 45.0
 		var right := b.end.x + 45.0
 		if player.position.x > left and player.position.x < right:
-			if move_state == "dive" and b.size.y <= VAULT_MAX:
+			if move_state == "dive" and b.size.y <= VAULT_MAX and box_info[boxes.find(b)]["kind"] != "car":
 				# launched too close to clear it: held at its side, he is lifted over the top in a few
 				# frames instead of being dropped onto it, and flies on
 				player.position.x = left if player.position.x < b.get_center().x else right
@@ -2100,7 +2154,7 @@ func _vault_box(way: float) -> int:
 	var px: float = player.position.x
 	for i in boxes.size():
 		var b: Rect2 = boxes[i]
-		if b.size.y > VAULT_MAX or absf(b.end.y - player.position.y) > 4.0 or box_info[i]["kind"] == "barrel":
+		if b.size.y > VAULT_MAX or absf(b.end.y - player.position.y) > 4.0 or box_info[i]["kind"] in ["barrel", "car"]:
 			continue
 		var near: float = b.position.x - 45.0 if way > 0.0 else b.end.x + 45.0
 		var gap: float = (near - px) * way
@@ -2132,8 +2186,9 @@ func _try_vault() -> void:
 		return
 	var feet: float = player.position.y - DIVE_LAND * player.dive
 	var hands_x: float = player.position.x + signf(glide) * 20.0
-	for b in boxes:
-		if b.size.y > VAULT_MAX or hands_x < b.position.x or hands_x > b.end.x:
+	for bi in boxes.size():
+		var b: Rect2 = boxes[bi]
+		if b.size.y > VAULT_MAX or hands_x < b.position.x or hands_x > b.end.x or box_info[bi]["kind"] == "car":
 			continue
 		var gap: float = b.position.y - feet
 		if gap >= -10.0 and gap < 95.0:
@@ -2259,12 +2314,29 @@ func _start_reload() -> void:
 	var full := int(WEAPONS[weapon]["mag"])
 	if reloading > 0.0 or mag >= full or (weapon != "revolver" and ammo <= 0):
 		return
-	reloading = float(WEAPONS[weapon]["reload"])
-	sfx.play("reload_" + ("revolver" if weapon == "revolver" else ("shells" if weapon == "shotgun" else "mag")), -1.0)
-	if weapon == "revolver":   # the empties tumble out of the cylinder onto the stones
-		for k in full - mag:
-			get_tree().create_timer(0.04 * k, false).timeout.connect(func() -> void:
+	var dur := float(WEAPONS[weapon]["reload"])
+	reloading = dur
+	var missing := full - mag
+	var later := func(t: float, what: Callable) -> void:
+		get_tree().create_timer(t, false).timeout.connect(func() -> void:
+			if reloading > 0.0 and not over:
+				what.call())
+	if weapon == "revolver":
+		# latch and cylinder out; the empties tumble onto the stones; a round into each chamber;
+		# a spin of the cylinder with the thumb; it snaps shut (reload_done, in _tick_reload)
+		sfx.play("cyl_open", 0.0)
+		for k in missing:
+			later.call(0.08 + 0.03 * k, func() -> void:
 				fx.casing(player.position + Vector2(-player.scale.x * 20.0, -300.0), -player.scale.x))
+		for k in missing:
+			later.call(0.2 + (dur * 0.5) * k / maxf(1.0, missing), func() -> void: sfx.play("shell_in", -3.0, INF, 0.08))
+		later.call(dur * 0.74, func() -> void: sfx.play("cyl_spin", -2.0, INF, 0.03))
+	elif weapon == "shotgun":   # shell after shell thumbed into the tube
+		var n := mini(missing, ammo)
+		for k in n:
+			later.call(0.08 + (dur * 0.75) * k / maxf(1.0, n), func() -> void: sfx.play("shell_in", -2.0, INF, 0.1))
+	else:
+		sfx.play("reload_mag", -1.0)
 
 
 func _tick_reload(delta: float) -> void:
@@ -2274,6 +2346,7 @@ func _tick_reload(delta: float) -> void:
 	_idle_fire += delta
 	if reloading <= 0.0 and mag < int(WEAPONS[weapon]["mag"]) and _idle_fire > 2.2 and not over:
 		_start_reload()
+	player.reload = 0.0 if reloading <= 0.0 else 1.0 - reloading / float(WEAPONS[weapon]["reload"])
 	if reloading > 0.0:
 		reloading -= delta
 		if reloading <= 0.0:
@@ -2307,7 +2380,20 @@ func _fire(shooter, from_player: bool, kind := "") -> void:
 	var w: Dictionary = WEAPONS[gun]
 	fx.muzzle(at, d, gun)
 	_scare_birds(at, 1300.0)
-	for k in int(w["pellets"]):
+	var point_blank := false
+	if from_player:   # a man right on top of him, between his chest and the muzzle: hit at point blank
+		var chest: Vector2 = player.position + SHOULDER + Vector2(0.0, DUCK_DROP * player.duck)
+		for e in enemies:
+			if point_blank or not e["alive"] or e["state"] == "wait" or absf(e["node"].position.x - player.position.x) > 200.0:
+				continue
+			for j in 6:
+				var p: Vector2 = chest.lerp(at + d * 60.0, j / 5.0)
+				if e["node"].hit_part(p) != "":
+					fx.hit_vel = d * BULLET_SPEED
+					_bullet_hit(p, true)
+					point_blank = true
+					break
+	for k in (0 if point_blank and int(w["pellets"]) == 1 else int(w["pellets"])):
 		var spread: float = w["spread"]
 		fx.shoot(at, d.rotated(randf_range(-spread, spread)) * BULLET_SPEED, from_player, w["life"])
 	if gun != "revolver":   # a revolver keeps its empties until it is reloaded
@@ -2441,7 +2527,12 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 				if e["hp"] > 0:   # still up: knocked back a step, off his aim for a moment
 					var m2 = e["node"]
 					var back: float = signf(m2.position.x - player.position.x) * (70.0 if part == "torso" else 40.0)
-					m2.create_tween().tween_property(m2, "position:x", m2.position.x + back, 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+					var clear := true   # never knocked into a crate, where bullets could no longer reach him
+					for bx in boxes:
+						if bx.grow(30.0).has_point(Vector2(m2.position.x + back, m2.position.y - 60.0)):
+							clear = false
+					if clear and e["state"] == "post":
+						m2.create_tween().tween_property(m2, "position:x", m2.position.x + back, 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 					e["cool"] = maxf(float(e["cool"]), 0.7)
 					e["timer"] = maxf(float(e["timer"]), 0.6)
 
@@ -2640,7 +2731,7 @@ func _player_down() -> void:
 				chapter += 1
 				map = 0
 				checkpoint = -1.0
-				get_tree().reload_current_scene()))
+				_travel(true)))
 		return
 	get_tree().create_timer(1.1, true, false, true).timeout.connect(hud.banner.bind("LIGHTS OUT"))
 	if _auto == "":
@@ -2699,7 +2790,7 @@ func _map_cleared() -> void:
 			map = next_m
 			checkpoint = -1.0
 			in_menu = to_menu
-			get_tree().reload_current_scene()
+			_travel(not to_menu)
 		if cut != "":   # the story takes over for a page or two, then the next map
 			get_tree().create_timer(3.0).timeout.connect(_play_cut.bind(cut, go))
 		else:
@@ -2722,12 +2813,22 @@ func _play_cut(id: String, then: Callable, test := false) -> void:
 	add_child(c)
 
 
+## Under the painted title the street is not shown or heard: only the rain and the music play.
+func _hide_world() -> void:
+	for n in get_children():
+		if n is CanvasItem:
+			(n as CanvasItem).visible = false
+	for l in sfx._loops:
+		l["on"] = false
+	set_physics_process(false)
+
+
 func _start_map(c: int, m: int) -> void:
 	chapter = c
 	map = m
 	checkpoint = -1.0
 	in_menu = false
-	get_tree().reload_current_scene()
+	_travel(true)
 
 
 ## Doors, checkpoints, the tutorial's hints, and the prologue's last stand.
@@ -2790,7 +2891,20 @@ func _rate() -> void:
 
 func _restart() -> void:
 	Engine.time_scale = 1.0
-	get_tree().reload_current_scene()
+	_travel(false)
+
+
+## To the next map (or back to it, or to the title): through black, with the map's title card when
+## `card`, so the screen is never a bare grey while it loads. The new map lifts the card.
+func _travel(card: bool) -> void:
+	var l = LoadingScript.new()
+	l.chapter = chapter
+	l.map = map
+	l.to_menu = in_menu or not card
+	l.then = func() -> void:
+		_card_up = true
+		get_tree().reload_current_scene()
+	get_tree().root.add_child(l)
 
 
 ## A figure shot dead, pushed by the bullet towards `push` (-1 / 1). Two ways down: blown off his feet
@@ -2913,8 +3027,9 @@ func _build_level() -> void:
 	for rp in level["ramps"]:
 		ramps.append(rp)
 		_stairs(Vector2(float(rp[0]), float(rp[1])), Vector2(float(rp[2]), float(rp[3])))
-	for l in level["lamps"]:   # the rooms' lamps are drawn in their pictures: here only their light
+	for l in level["lamps"]:   # the rooms' lamps: a shaded bulb hanging on its cord from the ceiling, and its light
 		var at := Vector2(float(l[0]), float(l[1]))
+		_pendant(at)
 		lamps.append(at + Vector2(0.0, 8.0))
 		lamp_info.append({"nodes": [], "light": _lamp_light(at + Vector2(0.0, -8.0)), "on": true, "fixed": true})
 	if in_menu:
@@ -3028,10 +3143,12 @@ func _build_room(x0: float, x1: float, style: String) -> void:
 	wall.centered = false
 	wall.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	wall.region_enabled = true
-	var src_w := (x1 - x0) / WALL_SCALE
+	# The interiors were drawn close up: at the street's scale a door in them came out three men tall.
+	# At ROOM_SCALE a door is a head taller than him; above the drawing a dark ceiling.
+	var src_w := (x1 - x0) / ROOM_SCALE
 	wall.region_rect = Rect2(maxf(0.0, (tex.get_width() - src_w) * 0.5), 0.0, src_w, tex.get_height())
-	wall.scale = Vector2.ONE * WALL_SCALE
-	var top := -tex.get_height() * WALL_SCALE * SEGMENT_BASE
+	wall.scale = Vector2.ONE * ROOM_SCALE
+	var top := -tex.get_height() * ROOM_SCALE * SEGMENT_BASE
 	wall.position = Vector2(x0, top)
 	wall.z_index = -5
 	wall.modulate = Color(0.8, 0.78, 0.76)
@@ -3041,6 +3158,12 @@ func _build_room(x0: float, x1: float, style: String) -> void:
 	roof.color = Color(0.0, 0.0, 0.0)
 	roof.z_index = 9
 	add_child(roof)
+	var fade := Polygon2D.new()   # the top of the drawing dissolves into the dark ceiling, no hard edge
+	fade.polygon = PackedVector2Array([Vector2(x0, top), Vector2(x1, top), Vector2(x1, top + 260.0), Vector2(x0, top + 260.0)])
+	fade.vertex_colors = PackedColorArray([Color(0, 0, 0, 1), Color(0, 0, 0, 1), Color(0, 0, 0, 0), Color(0, 0, 0, 0)])
+	fade.z_index = -4
+	add_child(fade)
+	_room_tops.append([x0, x1, top])
 	for x in [x0, x1]:   # the doorways: a black gap in a thick frame
 		var door := Polygon2D.new()
 		door.polygon = PackedVector2Array([Vector2(-70, 0), Vector2(70, 0), Vector2(70, -520), Vector2(-70, -520)])
@@ -3060,6 +3183,42 @@ func _build_room(x0: float, x1: float, style: String) -> void:
 		wall_side.position = Vector2(x, 0.0)
 		wall_side.z_index = 9
 		add_child(wall_side)
+
+
+## A lamp hanging from an interior's ceiling: cord, enamel shade, the bulb glowing under it.
+func _pendant(at: Vector2) -> void:
+	var ceiling := at.y - 600.0
+	for r in _room_tops:
+		if at.x >= float(r[0]) and at.x <= float(r[1]):
+			ceiling = float(r[2])
+	var n := Node2D.new()
+	n.position = at
+	n.z_index = -3
+	add_child(n)
+	var cord := Line2D.new()
+	cord.points = PackedVector2Array([Vector2(0.0, ceiling - at.y), Vector2(0.0, -40.0)])
+	cord.width = 5.0
+	cord.default_color = Color(0.03, 0.03, 0.03)
+	n.add_child(cord)
+	var shade := Polygon2D.new()
+	shade.polygon = PackedVector2Array([Vector2(-14, -44), Vector2(14, -44), Vector2(46, -4), Vector2(-46, -4)])
+	shade.color = Color(0.08, 0.08, 0.075)
+	n.add_child(shade)
+	var rim := Line2D.new()
+	rim.points = PackedVector2Array([Vector2(-48, -4), Vector2(48, -4)])
+	rim.width = 6.0
+	rim.default_color = Color(0.22, 0.2, 0.17)
+	n.add_child(rim)
+	var bulb := Sprite2D.new()
+	bulb.texture = load("res://art/light_blob.png")
+	var add := CanvasItemMaterial.new()
+	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	add.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+	bulb.material = add
+	bulb.position = Vector2(0.0, 2.0)
+	bulb.scale = Vector2(0.42, 0.22)
+	bulb.modulate = _undo_night(0.9) * LAMP_COLOR
+	n.add_child(bulb)
 
 
 ## A landing indoors.
@@ -3283,10 +3442,16 @@ func _all_down() -> bool:
 
 
 ## The closest mobster still standing and near enough to matter, or null.
-func _nearest_enemy():
+## The nearest mobster on screen and in sight; on one side only (+1 / -1) or either (0).
+func _nearest_enemy(side := 0.0):
 	var best = null
 	for e in enemies:
-		if e["alive"] and e["state"] != "wait" and (best == null or absf(e["node"].position.x - player.position.x) < absf(best.position.x - player.position.x)):
+		if not e["alive"] or e["state"] == "wait" or not e["node"].visible:
+			continue
+		var dx: float = e["node"].position.x - player.position.x
+		if absf(dx) > SIGHT or (side != 0.0 and signf(dx) != side):
+			continue
+		if best == null or absf(dx) < absf(best.position.x - player.position.x):
 			best = e["node"]
 	return best
 

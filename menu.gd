@@ -44,6 +44,18 @@ var _type_t := 0.0
 var _font_type: FontFile
 var _font_head: FontVariation
 var _on_case_file := false
+# The title is a painted scene, not the game's street: one picture for each part of the story, the
+# camera drifting slowly over it, rain and ash across it, its lights alive.
+const KEY_ART := {0: 78, 1: 78, 2: 79, 3: 80, 4: 80}
+const KEY_LIVE := {78: [[0.655, 0.49, 0.11, "neon"], [0.62, 0.84, 0.07, "neon"], [0.795, 0.14, 0.06, "lamp"], [0.915, 0.46, 0.02, "lamp"]],
+	79: [[0.632, 0.83, 0.03, "neon"], [0.495, 0.53, 0.03, "lamp"]],
+	80: [[0.497, 0.44, 0.025, "neon"], [0.51, 0.6, 0.06, "lamp"], [0.70, 0.27, 0.035, "lamp"], [0.955, 0.13, 0.03, "lamp"]]}
+var _back: Control
+var _art: TextureRect
+var _rain: Control
+var _drops: Array = []
+var _lights: Array = []
+var _clock := 0.0
 
 
 static func is_done(chapter: int, map: int) -> bool:
@@ -160,6 +172,7 @@ func _ready() -> void:
 	for c in Levels.CAMPAIGN.size():   # the case file opens on the furthest chapter that is open
 		if is_open(c, 0):
 			_chapter = c
+	_make_back()
 	_title()
 	# a phone turned while the title is up: lay the page out again for the new shape
 	get_viewport().size_changed.connect(func() -> void:
@@ -170,6 +183,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	_tick_back(delta)
 	if _type_label == null or not is_instance_valid(_type_label):
 		return
 	if _type_label.visible_characters < _type_text.length():
@@ -182,6 +196,133 @@ func _process(delta: float) -> void:
 				_type_t = -0.25
 			if ch != " " and ch != "\n" and sound.is_valid():
 				sound.call("type")
+
+
+## The painted scene behind the title and the case file.
+func _make_back() -> void:
+	_back = Control.new()
+	_back.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_back.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_back)
+	var black := ColorRect.new()
+	black.color = Color.BLACK
+	black.set_anchors_preset(Control.PRESET_FULL_RECT)
+	black.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_back.add_child(black)
+	var ch := maxi(0, progress()[0])
+	var img: int = KEY_ART.get(ch, 78)
+	_art = TextureRect.new()
+	_art.texture = load("res://art/ui/key_%d.jpg" % img)
+	_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_art.stretch_mode = TextureRect.STRETCH_SCALE
+	_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_art.modulate = Color(0, 0, 0)
+	_back.add_child(_art)
+	create_tween().tween_property(_art, "modulate", Color.WHITE, 2.5)   # out of the dark
+	var add := CanvasItemMaterial.new()
+	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	for l in KEY_LIVE.get(img, []):
+		var g := TextureRect.new()
+		g.texture = load("res://art/light_blob.png")
+		g.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		g.stretch_mode = TextureRect.STRETCH_SCALE
+		g.material = add
+		g.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var col := Color(1.0, 0.16, 0.1) if l[3] == "neon" else Color(1.0, 0.8, 0.5)
+		g.modulate = Color(col, 0.0)
+		_art.add_child(g)
+		_lights.append({"node": g, "at": Vector2(l[0], l[1]), "r": float(l[2]), "kind": l[3], "next": randf_range(2.0, 5.0), "dip": 0.0, "phase": randf() * TAU})
+	var ash := CPUParticles2D.new()   # the ash, thicker the further the story has gone
+	ash.texture = load("res://art/light_blob.png")
+	ash.amount = int(20 + 50 * ash_level())
+	ash.lifetime = 12.0
+	ash.preprocess = 12.0
+	ash.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	ash.direction = Vector2(0.3, 1.0)
+	ash.spread = 25.0
+	ash.gravity = Vector2(6.0, 10.0)
+	ash.initial_velocity_min = 20.0
+	ash.initial_velocity_max = 45.0
+	ash.scale_amount_min = 0.025
+	ash.scale_amount_max = 0.06
+	ash.color = Color(0.75, 0.74, 0.72, 0.55)
+	ash.name = "Ash"
+	_back.add_child(ash)
+	_rain = Control.new()
+	_rain.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_rain.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_rain.draw.connect(_draw_rain)
+	_back.add_child(_rain)
+	for k in 190:
+		_drops.append(Vector3(randf() * 1.2, randf(), randf_range(0.3, 1.0)))
+	var vig := TextureRect.new()   # the corners fall away into black, like the end of a lamp's reach
+	var vg := GradientTexture2D.new()
+	vg.fill = GradientTexture2D.FILL_RADIAL
+	vg.fill_from = Vector2(0.55, 0.45)
+	vg.fill_to = Vector2(1.15, 1.1)
+	var gr := Gradient.new()
+	gr.set_color(0, Color(0, 0, 0, 0))
+	gr.add_point(0.5, Color(0, 0, 0, 0))
+	gr.set_color(gr.get_point_count() - 1, Color(0, 0, 0, 0.7))
+	vg.gradient = gr
+	vig.texture = vg
+	vig.stretch_mode = TextureRect.STRETCH_SCALE
+	vig.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	vig.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vig.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_back.add_child(vig)
+
+
+func _tick_back(delta: float) -> void:
+	if _art == null:
+		return
+	_clock += delta
+	var view := get_viewport().get_visible_rect().size
+	var tex := _art.texture.get_size()
+	# a slow push in and drift, never showing an edge: a camera breathing over the picture
+	var zoom := 1.06 + 0.04 * sin(_clock * 0.05)
+	var sc := maxf(view.x / tex.x, view.y / tex.y) * zoom
+	var size := tex * sc
+	_art.size = size
+	var slack := size - view
+	_art.position = -slack * Vector2(0.5 + 0.45 * sin(_clock * 0.037), 0.5 + 0.4 * sin(_clock * 0.029 + 1.0))
+	for l in _lights:
+		var n: TextureRect = l["node"]
+		var r: float = float(l["r"]) * size.x * 1.1
+		n.size = Vector2(r, r) * 2.0
+		n.position = (l["at"] as Vector2) * size - Vector2(r, r)
+		var a := 0.42 if l["kind"] == "neon" else 0.32
+		l["next"] = float(l["next"]) - delta
+		if l["kind"] == "neon":
+			a *= 0.92 + 0.08 * sin(_clock * 60.0 + float(l["phase"]))
+			if float(l["next"]) <= 0.0:
+				l["next"] = randf_range(3.0, 7.0)
+				l["dip"] = randf_range(0.15, 0.4)
+			if float(l["dip"]) > 0.0:
+				l["dip"] = float(l["dip"]) - delta
+				a *= 0.15 if fmod(float(l["dip"]), 0.12) < 0.06 else 1.0
+		else:
+			a *= 0.85 + 0.15 * sin(_clock * 1.2 + float(l["phase"]))
+		n.modulate.a = a
+	var ash: CPUParticles2D = _back.get_node("Ash")
+	ash.position = Vector2(view.x * 0.5, -40.0)
+	ash.emission_rect_extents = Vector2(view.x * 0.7, 20.0)
+	for k in _drops.size():
+		var d: Vector3 = _drops[k]
+		d.y += delta * (0.9 + d.z * 1.6)
+		d.x -= delta * (0.08 + d.z * 0.12)
+		if d.y > 1.1:
+			d = Vector3(randf() * 1.2, -0.1 - randf() * 0.2, d.z)
+		_drops[k] = d
+	_rain.queue_redraw()
+
+
+func _draw_rain() -> void:
+	var view := get_viewport().get_visible_rect().size
+	for d in _drops:
+		var p := Vector2(d.x * view.x, d.y * view.y)
+		var ln: float = 18.0 + d.z * d.z * 70.0
+		_rain.draw_line(p, p + Vector2(-0.14, 1.0).normalized() * ln, Color(0.85, 0.87, 0.92, 0.05 + 0.15 * d.z), 0.8 + d.z * 1.4)
 
 
 func _label(text: String, font: Font, font_size: int, color: Color, outline := 0) -> Label:
@@ -255,7 +396,7 @@ func _title() -> void:
 		return
 	var shade := TextureRect.new()   # the left of the street darkened so the words read; the right stays open
 	var g := Gradient.new()
-	g.set_color(0, Color(0.0, 0.0, 0.0, 0.82))
+	g.set_color(0, Color(0.0, 0.0, 0.0, 0.5))
 	g.set_color(1, Color(0.0, 0.0, 0.0, 0.0))
 	var gt := GradientTexture2D.new()
 	gt.gradient = g
@@ -280,19 +421,11 @@ func _title() -> void:
 	logo.modulate.a = 0.0
 	_page.add_child(logo)
 	var tw := logo.create_tween()
-	tw.tween_property(logo, "modulate:a", 1.0, 1.6).set_delay(0.3)
+	tw.tween_property(logo, "modulate:a", 1.0, 1.6).set_delay(1.2)
 
 	var ph := phase()
-	_type_text = String(ph[0])
-	_type_label = _label(_type_text, _font_type, 26, PAPER, 6)
-	_type_label.position = Vector2(left, view.y * 0.53)
-	_type_label.size = Vector2(view.x * 0.5, 80.0)
-	_type_label.visible_characters = 0
-	_type_t = -1.8   # after the title has come up
-	_page.add_child(_type_label)
-
 	var p := progress()
-	var y := view.y * 0.68
+	var y := view.y * 0.05 + lh + view.y * 0.07
 	if p[0] >= 0 and Levels.CAMPAIGN[p[0]]["ready"]:
 		var ch: Dictionary = Levels.CAMPAIGN[p[0]]
 		var what := "BEGIN" if p[0] == 0 and p[1] == 0 else "CONTINUE"

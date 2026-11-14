@@ -100,3 +100,23 @@ for k in range(28):
 h = sum(np.sin(2 * np.pi * f * tt) for f in (311, 370, 466)) * ((tt > 0.2) & (tt < 1.4)) * np.minimum(1, (tt - 0.2) / 0.05)
 x += lp(np.sign(h) * 0.25 + h * 0.1, 3000) * 0.5
 save('train_pass.wav', reverb(x, 1.0, 0.3), 0.85)
+
+# reloading a revolver by hand: the latch and the cylinder swinging out, a round pushed into a chamber,
+# the cylinder spun with the thumb (a ratchet running down), each a short dry metallic sound
+def tick(f, sec, decay, amp=1.0):
+    tt = t(sec)
+    return amp * (np.sin(2 * np.pi * f * tt) * 0.6 + bp(noise(sec), f * 0.7, min(f * 3.0, 11000))) * np.exp(-tt / decay)
+x = np.zeros(int(SR * 0.3))
+x[:len(t(0.05))] += tick(3200, 0.05, 0.006)
+at = int(SR * 0.05); y = tick(1400, 0.2, 0.03, 0.6); x[at:at + len(y)] += y[:len(x) - at]
+save('cyl_open.wav', reverb(x, 0.3, 0.08), 0.55)
+x = tick(2600, 0.12, 0.012)
+y = tick(900, 0.095, 0.02, 0.7); at = int(SR * 0.025); x[at:at + len(y)] += y[:len(x) - at]
+save('shell_in.wav', x, 0.45)
+x = np.zeros(int(SR * 0.6))
+tm = 0.0; gap = 0.018
+while tm < 0.5:
+    at = int(SR * tm); y = tick(4200 + rng.uniform(-300, 300), 0.02, 0.003, 0.8 - tm)
+    x[at:at + len(y)] += y[:len(x) - at]
+    tm += gap; gap *= 1.09
+save('cyl_spin.wav', reverb(x, 0.25, 0.08), 0.5)

@@ -320,7 +320,7 @@ func _add_beam(pivot: Vector2, base_deg: float) -> void:
 	var half := atan2(256.0 * 1.15 * 0.45, ln)   # the bright core of the cone, not its soft edge
 	_beams.append({"sprite": s, "light": l, "pivot": pivot, "base": deg_to_rad(base_deg), "swing": deg_to_rad(32.0),
 			"speed": 0.42, "phase": randf() * TAU, "len": ln, "half": half, "angle": 0.0})
-	game.sfx.add_loop("lamp_hum", pivot.x, -22.0, 900.0)
+	game.sfx.add_loop("lamp_hum", pivot.x, -22.0, 600.0, pivot.y)
 
 
 # ---- fire --------------------------------------------------------------------------------------
@@ -351,7 +351,7 @@ func _burn(seg_name: String) -> void:
 			tw.tween_property(heat, "energy", randf_range(0.8, 1.6), randf_range(0.06, 0.18))
 		for f in FIRES.get(seg_name, []):   # fractions of the drawing, to where it stands once trimmed and stretched
 			_flames(Vector2(x0 + (f.x * tex.get_width() - trim) * sx * game.WALL_SCALE, top + h * f.y))
-		game.sfx.add_loop("fire", x0 + w * 0.27, -4.0, 2600.0)
+		game.sfx.add_loop("fire", x0 + w * 0.27, -4.0, 1600.0, top + h * 0.4)
 		return
 
 
