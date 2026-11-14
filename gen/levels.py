@@ -14,12 +14,38 @@ BOX = {"crate": (250, 248, True), "drum": (160, 246, False), "crate_long": (330,
 SEGMENTS = {"alley": 3028, "bluenote": 3028, "warehouse": 3028, "laundry": 3028, "subway": 3108, "church": 3108, "market": 3038, "deadend": 3038,
             "pier17": 3034, "cranes": 3034, "shipping": 3034, "quay": 3034, "harbor": 3034,
             "platform": 3034, "tunnel": 3034, "yard": 3034}
+SEG_SIZE = {"deadend": 0.8}   # shown smaller: see main.gd SEGMENT_SIZE
 STREET_POOL = ["alley", "warehouse", "laundry", "subway", "church", "market"]
 DOCKS_POOL = ["pier17", "cranes", "shipping", "quay", "harbor"]
 UNDER_POOL = ["platform", "tunnel"]
 CRANE_CRATE = (0.3863 + 0.0783 / 2)   # where the crate hangs in the crane yard drawing (see main.gd CRANE_CUT)
 F1, F2 = -370.0, -740.0   # floor heights: first and second storey
 JUMP_REACH = 282.0
+LAND_W = [547, 748, 949, 1149]   # the baked fire-escape landings (gen/iron.py)
+STAIR_RUN = 261                  # one storey of the iron stairs
+TRIM = {"alley": 134, "bluenote": 134, "warehouse": 133, "laundry": 133, "subway": 53, "church": 58, "market": 58, "deadend": 58}
+_MASKS = {}
+
+
+def facade(street, xa, xb, ya, yb):
+    """How much of that stretch of the street is solid wall in the drawings (0..1): a fire escape is
+    bolted to a building, never hung in front of the sky or an alley's mouth."""
+    import numpy as np
+    tot = n = 0.0
+    for i, (name, x0) in enumerate(street):
+        w = SEGMENTS[name]; trim = TRIM.get(name, 132); sx = w / (w - trim)
+        x1 = x0 + w * 1.9
+        a, b = max(xa, x0), min(xb, x1)
+        if b <= a: continue
+        if name not in _MASKS:
+            _MASKS[name] = np.asarray(Image.open(f"/home/claude/repo/art/street/{name}_solid.png"))[..., 3] > 128
+        m = _MASKS[name]
+        cx = lambda wx: int(((wx - x0) / (1.9 * sx) + trim) / 2)
+        cy = lambda wy: int(((wy + 1344 * 1.9 * 0.92 + 60) / 1.9) / 2)
+        cut = m[max(0, cy(ya)):max(1, cy(yb)), max(0, cx(a)):max(1, cx(b))]
+        if cut.size:
+            tot += cut.mean() * (b - a); n += (b - a)
+    return tot / n if n else 0.0
 
 
 class Chunk:
@@ -31,6 +57,7 @@ class Chunk:
         self.end = 0.0
         self.street = []
         self.events = []
+        self.iron = []
 
     def box(self, kind, x): self.boxes.append([kind, x]); return self
     def plat(self, x, y, w, style="catwalk"): self.plats.append([x, y, w, style]); return self
@@ -70,14 +97,17 @@ def chunk(name, hard):
         for i in range(n):
             c.runner(1000 + i * 260, 0, 2600 + i * 300, kind="shotgun" if i == 2 else "post")
     elif name == "catwalk":
-        c = Chunk(1800).box("crate_long", 0).plat(400, F1, 1180).foe(900, F1).foe(1500)
+        c = Chunk(1800).box("crate_long", 0).plat(400, F1, LAND_W[3]).foe(900, F1).foe(1500)
         if hard > 0.5: c.foe(1250, F1)
     elif name == "high_ground":
-        c = Chunk(2000).box("crate_long", 0).box("drum", 1450).plat(380, F1, 1180).foe(800, F1).foe(1300, F1, kind="tommy" if hard > 0.6 else "post").foe(1780)
+        c = Chunk(2000).box("crate_long", 0).box("drum", 1450).plat(380, F1, LAND_W[3]).foe(800, F1).foe(1300, F1, kind="tommy" if hard > 0.6 else "post").foe(1780)
     elif name == "fire_escape":   # up the iron stairs two storeys, fighting on every landing, then a drop
-        c = (Chunk(2900).ramp(150, 0, 650, F1).plat(650, F1, 950, "escape").ramp(1600, F1, 2100, F2).plat(2100, F2, 700, "escape")
-             .foe(1300, F1).foe(1900, 0.0).foe(2650, F2, kind="tommy" if hard > 0.4 else "post").foe(2300, 0.0, kind="shotgun" if hard > 0.6 else "post")
-             .pick("flask", 2500, F2))
+        # a fire escape on a building: a flight up to the first landing, a second flight from its far end
+        a = 650; b = a + LAND_W[2]
+        c = (Chunk(2900).ramp(a - STAIR_RUN, 0, a, F1).plat(a, F1, LAND_W[2], "escape")
+             .ramp(b, F1, b + STAIR_RUN, F2).plat(b + STAIR_RUN, F2, LAND_W[1], "escape")
+             .foe(1300, F1).foe(1900, 0.0).foe(2400, F2, kind="tommy" if hard > 0.4 else "post").foe(2750, 0.0, kind="shotgun" if hard > 0.6 else "post")
+             .pick("flask", 2250, F2))
     elif name == "laundry":   # an interior: machines for cover, steam, a shotgunner in the back
         c = (Chunk(2700).room(0, 2700, "laundry").box("machine", 500).box("machine", 1300).box("machine", 2050)
              .lamp(400).lamp(1250).lamp(2150).foe(1000).foe(1750, kind="shotgun").foe(2450).pick("flask", 1180))
@@ -133,6 +163,19 @@ def chunk(name, hard):
 
 
 def build(mp):
+    """Built again with the ironwork moved along until every fire escape hangs on solid wall."""
+    nudge = {}
+    for tries in range(60):
+        m = _build(mp, nudge)
+        bad = [i for i, xa, xb, ya, yb in m.iron if facade(m.street, xa, xb, ya, yb) < 0.93]
+        if not bad or mp.get("pool") is DOCKS_POOL:
+            return m
+        nudge[bad[0]] = nudge.get(bad[0], 0) + 160
+    print("  no wall found for the ironwork of", mp["name"])
+    return m
+
+
+def _build(mp, nudge):
     rng = random.Random(mp["seed"])
     x = 1900.0   # the first of them out of sight of the start
     out = Chunk(0)
@@ -141,6 +184,12 @@ def build(mp):
     for i, name in enumerate(picks):
         hard = mp["start"] + (mp["end"] - mp["start"]) * i / max(1, n - 1)
         c = chunk(name, hard)
+        x += nudge.get(i, 0)
+        if c.plats and not c.rooms:
+            if mp.get("pool") is DOCKS_POOL:   # no wall on the quay: the walkway stands on its own legs
+                c.plats = [[px, py, pw, "gantry"] for px, py, pw, st in c.plats]
+            xs = [p[0] for p in c.plats] + [r[0] for r in c.ramps]
+            out.iron.append((i, x + min(xs) - 40, x + max(p[0] + p[2] for p in c.plats) + 40, min(p[1] for p in c.plats) - 300, -150.0))
         for k, bx in c.boxes: out.boxes.append([k, x + bx])
         for px, py, pw, st in c.plats: out.plats.append([x + px, py, pw, st])
         for a, b, cc, d in c.ramps: out.ramps.append([x + a, b, x + cc, d])
@@ -215,7 +264,7 @@ def street(mp, m, rng):
     while x < m.end + 2500:
         if i == 1 and mp.get("feature"):
             name = mp["feature"]
-        elif m.stand and "deadend" not in [q[0] for q in seq] and x + SEGMENTS["deadend"] * 1.9 > m.stand + 1000:
+        elif m.stand and "deadend" not in [q[0] for q in seq] and x + SEGMENTS["deadend"] * 1.9 * SEG_SIZE["deadend"] > m.stand + 1000:
             name = "deadend"
         else:   # each segment once before any comes back
             used = [q[0] for q in seq]
@@ -223,7 +272,7 @@ def street(mp, m, rng):
             name = rng.choice(fresh if fresh else ([s for s in pool if s != last] or pool))
         seq.append([name, x])
         last = name
-        x += SEGMENTS[name] * 1.9
+        x += SEGMENTS[name] * 1.9 * SEG_SIZE.get(name, 1.0)
         i += 1
     return seq
 

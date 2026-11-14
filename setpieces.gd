@@ -176,7 +176,7 @@ func _car(ev: Dictionary) -> void:
 	car.flip_h = side > 0.0
 	var h := car.texture.get_height()
 	car.position = Vector2(stop + side * 2900.0, -h * 0.5 + 8.0)
-	car.scale = Vector2.ONE * 1.12
+	car.scale = Vector2.ONE   # 1000 px: a sedan four and a half metres long beside a 400 px man
 	car.modulate = Color(0.78, 0.78, 0.84)
 	car.z_index = -1
 	add_child(car)
@@ -197,9 +197,15 @@ func _car(ev: Dictionary) -> void:
 	tw.tween_property(car, "rotation", -0.02 * side, 0.12)   # it rocks on its springs as it stops
 	tw.tween_property(car, "rotation", 0.0, 0.25)
 	tw.tween_callback(func() -> void:
-		var cover := Rect2(stop - CAR_W * 0.42, -CAR_COVER_H, CAR_W * 0.84, CAR_COVER_H)
-		if not cover.has_point(game.player.position + Vector2(0.0, -40.0)):
-			game.boxes.append(cover)   # steel to hide behind, for them or for him
+		# steel to hide behind, in the car's own outline: the boot, the cabin up to its roof, the bonnet
+		# (the drawing: 1000 wide, nose to the right)
+		var fwd := -side
+		for part in [[-390.0, -260.0, 240.0], [-260.0, 110.0, 336.0], [110.0, 460.0, 254.0]]:
+			var xa := stop + minf(float(part[0]) * fwd, float(part[1]) * fwd)
+			var cover := Rect2(xa, -float(part[2]), absf(float(part[1]) - float(part[0])), float(part[2]))
+			if cover.grow(50.0).has_point(game.player.position + Vector2(0.0, -40.0)):
+				continue
+			game.boxes.append(cover)
 			game.box_info.append({"kind": "car", "sprite": car, "hp": 999, "wood": false})
 		for i in ev["men"]:
 			game.get_tree().create_timer(0.35 + i * 0.45, false).timeout.connect(func() -> void:

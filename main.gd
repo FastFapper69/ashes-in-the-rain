@@ -104,7 +104,7 @@ const WOOD := ["crate", "crate_long", "kegs", "milk_crates", "fruit_cart", "benc
 # How far down each drawing its top surface is, the line a man stands on: the drawings are seen a
 # little from above, so the top of the picture is the far edge of the lid, not where feet go.
 const TOP_INSET := {"crate": 0.05, "crate_long": 0.07, "drum": 0.05, "dumpster": 0.06, "washer": 0.15, "laundry_cart": 0.2,
-	"linen_table": 0.3, "wash_tub": 0.2, "bench": 0.02, "newsstand": 0.05, "paper_bundles": 0.06, "cable_spool": 0.03,
+	"linen_table": 0.3, "wash_tub": 0.2, "bench": 0.02, "newsstand": 0.05, "paper_bundles": 0.06, "cable_spool": 0.03, "fruit_cart": 0.03,
 	"kegs": 0.05, "milk_crates": 0.1, "mailbox": 0.05, "desk": 0.25, "filing": 0.03, "safe": 0.05, "court_bench": 0.02}
 ## The lamps painted into each interior, as fractions of its drawing, and their colour. A room's
 ## light comes from these and only these: a soft glow on the bulb and a round, soft pool of light
@@ -125,23 +125,32 @@ const BULB_COLORS := {"warm": Color(1.0, 0.72, 0.4), "sky": Color(0.75, 0.82, 0.
 # newsstands, an office desks and a safe. Collision stays the kind's box; the drawing keeps its own
 # proportions, standing on the ground in the middle of it. One of the list, picked by where it stands.
 const PROP_SETS := {
-	"laundry": {"machine": ["washer"], "crate": ["laundry_cart", "washer"], "crate_long": ["linen_table"], "drum": ["wash_tub"], "dumpster": ["laundry_cart"]},
-	"subway": {"crate": ["paper_bundles", "crate", "cable_spool"], "crate_long": ["bench"], "dumpster": ["newsstand"], "drum": ["mailbox"]},
-	"platform": {"crate": ["paper_bundles", "cable_spool", "crate"], "crate_long": ["bench"], "dumpster": ["newsstand"]},
-	"tunnel": {"crate": ["cable_spool", "crate", "paper_bundles"]},
-	"yard": {"crate": ["cable_spool", "crate"]},
-	"market": {"crate": ["milk_crates", "crate", "kegs"], "crate_long": ["fruit_cart"], "drum": ["mailbox", "drum"]},
-	"bluenote": {"crate": ["kegs", "milk_crates", "crate"], "drum": ["mailbox"]},
-	"alley": {"crate": ["crate", "kegs", "milk_crates"]},
-	"church": {"crate": ["crate", "paper_bundles", "milk_crates"], "drum": ["mailbox"]},
-	"deadend": {"crate": ["crate", "kegs"]},
-	"warehouse": {"crate": ["crate", "kegs", "cable_spool"]},
-	"harbor": {"crate": ["crate", "cable_spool", "kegs"]}, "quay": {"crate": ["crate", "kegs"]},
-	"pier17": {"crate": ["crate", "cable_spool"]}, "shipping": {"crate": ["crate", "kegs", "cable_spool"]},
-	"tenement": {"crate": ["paper_bundles", "milk_crates"], "crate_long": ["bench"]},
-	"office": {"crate_long": ["desk"], "machine": ["filing"], "crate": ["safe", "filing"]},
-	"cityhall": {"crate": ["safe"], "machine": ["filing"], "crate_long": ["court_bench", "desk"]},
+	"laundry": {"crate": ["crate", "laundry_cart"]},
+	"subway": {"crate": ["paper_bundles", "crate"], "crate_long": ["bench"], "drum": ["mailbox"]},
+	"platform": {"crate": ["paper_bundles", "crate"], "crate_long": ["bench"]},
+	"tunnel": {"crate": ["cable_spool", "crate"]}, "yard": {"crate": ["cable_spool", "crate"]},
+	"market": {"crate": ["milk_crates", "crate", "kegs"], "drum": ["mailbox", "drum"]},
+	"bluenote": {"crate": ["kegs", "milk_crates", "crate"]}, "alley": {"crate": ["crate", "milk_crates"]},
+	"church": {"crate": ["crate", "paper_bundles"], "drum": ["mailbox"]}, "deadend": {"crate": ["crate", "kegs"]},
+	"warehouse": {"crate": ["crate", "cable_spool"]}, "harbor": {"crate": ["crate", "cable_spool", "kegs"]},
+	"quay": {"crate": ["crate", "kegs"]}, "pier17": {"crate": ["crate", "cable_spool"]}, "shipping": {"crate": ["crate", "kegs"]},
+	"room:laundry": {"machine": ["washer"], "crate": ["laundry_cart"], "crate_long": ["linen_table"], "drum": ["wash_tub"]},
+	"room:tenement": {"crate": ["milk_crates", "paper_bundles"], "crate_long": ["court_bench"]},
+	"room:office": {"crate_long": ["desk"], "machine": ["filing"], "crate": ["safe"]},
+	"room:cityhall": {"crate": ["paper_bundles"], "machine": ["paper_bundles"], "crate_long": ["court_bench"]},
+
 }
+# How tall each thing really is next to a man (he is 400 high): the height of the surface he could
+# stand on. The drawing is scaled to that and nothing else, and the cover is exactly the drawing.
+const PROP_H := {"washer": 258.0, "laundry_cart": 215.0, "linen_table": 195.0, "wash_tub": 190.0, "bench": 200.0,
+	"paper_bundles": 170.0, "cable_spool": 250.0, "kegs": 250.0, "milk_crates": 200.0, "mailbox": 250.0, "desk": 175.0,
+	"filing": 255.0, "safe": 245.0, "court_bench": 215.0}
+const IRON_LAND_W := [547.0, 748.0, 949.0, 1149.0]
+const IRON_DECK := 193.5    # down the landing drawing to where feet stand
+const IRON_SPLIT := 236.0   # below this row: brackets and legs
+const IRON_FOOT := Vector2(49.5, 550.8)   # the lowest tread in the flight drawing
+const INDOOR_ONLY := ["washer", "wash_tub", "linen_table", "desk", "filing", "safe", "court_bench"]
+const OUTDOOR_ONLY := ["mailbox", "fruit_cart", "dumpster", "hydrant", "bench"]
 const BOX_ART := {"barrel": ["drum", Color(1.0, 0.32, 0.26)], "machine": ["dumpster", Color(0.7, 0.72, 0.78)], "bar": ["crate_long", Color(0.45, 0.32, 0.26)]}
 const ENEMY_MAG := {"post": 6, "tommy": 3, "shotgun": 4, "boss": 5}   # shots (a tommy gunner's: bursts) before a reload
 const ENEMY_TINT := {"post": Color(1, 1, 1), "tommy": Color(0.82, 0.86, 1.0), "shotgun": Color(1.0, 0.9, 0.78), "boss": Color(1, 1, 1)}
@@ -253,6 +262,8 @@ var _sprint_side := 0.0
 var _coyote := 0.0            # and one pressed a moment after he stepped off an edge
 var _step_half := 0
 var _w_was := false
+var _spawn_x := INF
+var _spawn_wait := 0.0
 var _grace := 3.0             # seconds after a start or a checkpoint before anybody may fire
 var _vault := {}              # the speed vault in progress: from, to, top, t
 var glide := 0.0               # horizontal speed of a dive
@@ -643,10 +654,14 @@ const SEGMENT_TRIM := {"alley": 134.0, "bluenote": 134.0, "warehouse": 133.0, "l
 const SEGMENT_GAIN := {"alley": 0.92, "bluenote": 0.98, "warehouse": 0.9, "laundry": 1.02, "subway": 1.07, "church": 1.0, "market": 1.05, "deadend": 1.1,
 		"pier17": 0.86, "cranes": 0.91, "shipping": 0.96, "quay": 0.91, "harbor": 0.86,
 		"platform": 0.95, "tunnel": 1.12, "yard": 0.85}
+# A drawing whose doors and bins came out too big for a man is shown smaller (gen/levels.py SEG_SIZE).
+const SEGMENT_SIZE := {"deadend": 0.8}
+var _sign_scale := WALL_SCALE
 const SEGMENT_MOON := 1.6   # how much brighter than the bare night the drawn streets are kept
 const SEGMENT_BASE := 0.92
 const ROOM_SCALE := 0.75   # interiors: see _build_room
 const ROOM_ZOOM := 0.58    # indoors the camera comes in closer: a room is small, the people in it are not
+var _veils: Array = []   # [x0, x1, node]: the dark over each interior seen from afar
 var _room_tops: Array = []   # [x0, x1, y of the ceiling] of each interior   # the facades meet the pavement this far down each drawing
 
 
@@ -661,6 +676,8 @@ func _build_segments() -> void:
 	unshaded.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
 	for seg in level["street"]:
 		var seg_name := String(seg[0])
+		var ws: float = WALL_SCALE * float(SEGMENT_SIZE.get(seg_name, 1.0))
+		_sign_scale = ws
 		var x0 := float(seg[1])
 		var diffuse: Texture2D = load("res://art/street/" + seg_name + ".png")
 		var w := Sprite2D.new()   # no normal map: lamplight falls on the drawing as it is, like the moonlit wash
@@ -672,9 +689,9 @@ func _build_segments() -> void:
 		var sx := diffuse.get_width() / (diffuse.get_width() - trim)
 		w.region_enabled = true
 		w.region_rect = Rect2(trim, 0.0, diffuse.get_width() - trim, diffuse.get_height())
-		w.scale = Vector2(WALL_SCALE * sx, WALL_SCALE)
-		var seg_w := diffuse.get_width() * WALL_SCALE
-		w.position = Vector2(x0, -diffuse.get_height() * WALL_SCALE * SEGMENT_BASE - WALL_LIFT)
+		w.scale = Vector2(ws * sx, ws)
+		var seg_w := diffuse.get_width() * ws
+		w.position = Vector2(x0, -diffuse.get_height() * ws * SEGMENT_BASE - WALL_LIFT)
 		w.z_index = -10
 		w.material = atmo.blur_material(1.4)
 		w.modulate = Color.WHITE * SEGMENT_MOON * float(SEGMENT_GAIN.get(seg_name, 1.0))   # a moonlit wash, so the drawing reads between the lamps
@@ -686,7 +703,7 @@ func _build_segments() -> void:
 		glow.centered = false
 		glow.region_enabled = true   # the glow layer is stored at half size
 		glow.region_rect = Rect2(trim * 0.5, 0.0, glow.texture.get_width() - trim * 0.5, glow.texture.get_height())
-		glow.scale = Vector2(WALL_SCALE * 2.0 * sx, WALL_SCALE * 2.0)
+		glow.scale = Vector2(ws * 2.0 * sx, ws * 2.0)
 		glow.position = w.position
 		glow.material = additive
 		glow.modulate = _undo_night(0.55)   # added on top of the drawing: big lit shopfronts would burn out at more
@@ -710,7 +727,7 @@ func _build_segments() -> void:
 		var signs: Array = SEGMENT_NEONS.get(seg_name, [])
 		for k in signs.size():
 			var p0: Vector2 = signs[k][0]
-			_add_sign("res://art/street/%s_neon%d.png" % [seg_name, k], w.position + Vector2((p0.x - trim) * sx, p0.y) * WALL_SCALE, signs[k][1], String(signs[k][2]), halo_tex, signs[k].size() > 3)
+			_add_sign("res://art/street/%s_neon%d.png" % [seg_name, k], w.position + Vector2((p0.x - trim) * sx, p0.y) * ws, signs[k][1], String(signs[k][2]), halo_tex, signs[k].size() > 3)
 		for f in SEGMENT_LAMPS.get(seg_name, []):
 			var at := Vector2(x0 + seg_w * float(f), -WALL_LIFT - 880.0)
 			if _room_at(at.x) != "":
@@ -828,7 +845,7 @@ func _wall_at(p: Vector2) -> bool:
 ## round it, it throws coloured light on whoever passes and shines in the wet pavement below.
 func _add_sign(path: String, top_left: Vector2, col: Color, mode: String, halo_tex: Texture2D, wash := false) -> void:
 	var tex: Texture2D = load(path)
-	var size := tex.get_size() * WALL_SCALE
+	var size := tex.get_size() * _sign_scale
 	var mid := top_left + size * 0.5
 	if _room_at(mid.x) != "":
 		return
@@ -910,7 +927,7 @@ func _tick_neons(delta: float) -> void:
 
 ## Things standing right by the camera, out of focus: bollards, a hydrant, a parked car, a lamp
 ## whose lantern blooms into a soft disc. Each map deals them in its own order and spacing.
-const FORE_PROPS := {"bollard": 3.0, "hydrant": 2.0, "trash": 2.0, "lamp": 2.0, "railing": 1.0, "sign": 1.0, "car": 0.7}
+const FORE_PROPS := {"bollard": 2.0, "hydrant": 2.0, "lamp": 2.0, "railing": 1.0}   # only what stands at a kerb; no cars or crates sliding past the lens
 func _scatter_fore() -> void:
 	if level.get("under", false):   # no hydrants and lamp posts down in the subway
 		return
@@ -1541,7 +1558,19 @@ func _process(delta: float) -> void:
 		_fire(player, true)
 		_pop = 0.15
 
-	_grace = maxf(0.0, _grace - delta)
+	# Nobody fires at a man who has only just arrived. The count does not run under the title card,
+	# and it does not start until he has moved or fired himself (or stood there a good while).
+	if _spawn_x == INF:
+		_spawn_x = player.position.x
+		_spawn_wait = 6.0
+	if not _card_up:
+		if _spawn_wait > 0.0:
+			_spawn_wait -= delta / Engine.time_scale
+			if absf(player.position.x - _spawn_x) > 140.0 or (_spawn_wait < 5.6 and _idle_fire < 0.2) or _spawn_wait <= 0.0:
+				_spawn_wait = 0.0
+				_grace = 1.6
+		else:
+			_grace = maxf(0.0, _grace - delta)
 	if (hud.pause_tapped or Input.is_action_just_pressed("ui_cancel")) and not over and not cleared and not _in_cut:
 		hud.pause_tapped = false
 		_pause()
@@ -2272,7 +2301,10 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 func _floor_at(x: float, feet: float) -> float:
 	var best := 0.0
 	_last_kind = "ground"
-	for b in boxes:
+	for bi in boxes.size():
+		var b: Rect2 = boxes[bi]
+		if box_info[bi]["kind"] == "car":
+			continue   # nobody climbs on it either: it is behind him
 		if x > b.position.x - 20.0 and x < b.end.x + 20.0 and feet <= b.position.y + 14.0 and b.position.y < best:
 			best = b.position.y
 			_last_kind = "box"
@@ -2304,6 +2336,8 @@ func _block(before_x: float) -> void:
 	for b in boxes:
 		if feet <= b.position.y + 14.0:
 			continue   # he is on top of it or above it
+		if box_info[boxes.find(b)]["kind"] == "car":
+			continue   # parked at the kerb: it never bars the way
 		var left := b.position.x - 45.0
 		var right := b.end.x + 45.0
 		if player.position.x > left and player.position.x < right:
@@ -2658,6 +2692,10 @@ func _in_dark(x: float) -> bool:
 func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 	for i in boxes.size():   # cover stops bullets from both sides; wood gives way, a barrel goes up
 		if boxes[i].has_point(pos):
+			# the car stands at the far kerb: a man walks past in front of it, and there it hides
+			# nobody; beside it, its steel stops what comes from the other side
+			if box_info[i]["kind"] == "car" and player.position.x > boxes[i].position.x - 60.0 and player.position.x < boxes[i].end.x + 60.0:
+				continue
 			_hit_box(i, pos)
 			return true
 	if from_player and sets.bullet(pos):
@@ -3019,12 +3057,18 @@ func _start_map(c: int, m: int) -> void:
 ## Doors, checkpoints, the tutorial's hints, and the prologue's last stand.
 func _map_events(delta: float) -> void:
 	stats["time"] += delta
+	var dry := 0.0   # 1 indoors, falling off over the last steps to a door: the rain thins under the eaves, never cuts
+	for v in _veils:
+		var gap: float = maxf(maxf(float(v[0]) - player.position.x, player.position.x - float(v[1])), 0.0)
+		(v[2] as Polygon2D).color.a = clampf((gap - 700.0) / 800.0, 0.0, 1.0)
+		dry = maxf(dry, 1.0 - clampf(gap / 450.0, 0.0, 1.0))
+	for rn in [atmo.rain_far, atmo.rain_near, atmo.splashes]:
+		rn.modulate.a = 1.0 - dry
 	var room := _room_at(player.position.x)
 	if room != _room:   # through a door: a cut through black, no rain indoors
 		_room = room
 		hud.flash()
-		atmo.rain_far.visible = room == ""
-		atmo.rain_near.visible = room == ""
+		pass
 		if atmo.splashes:
 			atmo.splashes.visible = room == ""
 	var cps: Array = level["checkpoints"]
@@ -3215,10 +3259,8 @@ func _build_level() -> void:
 		var cx := float(spec[1]) + bw * 0.5
 		var sx: float
 		var sy: float
-		if local:   # its own proportions, its top surface at the height of the cover
-			sy = bh / (tex.get_height() * (1.0 - inset))
-			if tex.get_width() * sy > bw * 1.6:
-				sy = bw * 1.6 / tex.get_width()
+		if local:   # its own proportions at its real size
+			sy = float(PROP_H.get(art, bh)) / (tex.get_height() * (1.0 - inset))
 			sx = sy
 		else:
 			sx = bw / tex.get_width()
@@ -3236,21 +3278,45 @@ func _build_level() -> void:
 			s.modulate = Color(0.84, 0.82, 0.79)   # the new drawings came out paler than the old crates: match them
 		add_child(s)
 		boxes.append(Rect2(cx - w * 0.5, -top, w, top))
+		if _auto != "":   # the audit: everything in its place and the right size beside a man
+			var why := ""
+			if art in INDOOR_ONLY and not place.begins_with("room:"):
+				why = "indoor thing outdoors"
+			elif art in OUTDOOR_ONLY and place.begins_with("room:"):
+				why = "street thing indoors"
+			elif top < 110.0:
+				why = "too small beside a man"
+			elif top > 262.0 and kind != "bar":
+				why = "too tall to get over: it would block the street"
+			if why != "":
+				print("AUDIT BAD ", why, ": ", art, " in ", place, " at ", cx, " top ", top)
 		box_info.append({"kind": kind, "sprite": s, "hp": 7, "wood": kind in WOOD and (not local or art in WOOD)})
-	var cat_tex: Texture2D = load("res://art/props/catwalk.png")
 	for c in level["floors"]:
 		var r := Rect2(float(c[0]), float(c[1]), float(c[2]), 0.0)
 		catwalks.append(r)
-		if String(c[3]) == "floor":   # a landing indoors: a dark beam and a rail
+		if String(c[3]) == "floor":
 			_slab(r)
 			continue
-		var cat := Sprite2D.new()
-		cat.texture = cat_tex
-		cat.centered = false
-		cat.scale = Vector2.ONE * (r.size.x / cat_tex.get_width())
-		cat.position = r.position - Vector2(0.0, 215.0 * cat.scale.y)   # its floor is 215 px down the drawing
-		cat.z_index = -2
-		add_child(cat)
+		# Ironwork baked at the game's scale (gen/iron.py): a landing bolted to the wall, or on the
+		# docks a walkway on its own legs. Deck and railing in front of the man on it; brackets behind.
+		var path := "res://art/props/iron_walk.png"
+		if String(c[3]) != "gantry":
+			var n := 0
+			for k in IRON_LAND_W.size():
+				if absf(IRON_LAND_W[k] - r.size.x) < absf(IRON_LAND_W[n] - r.size.x):
+					n = k
+			path = "res://art/props/iron_land_%d.png" % n
+		var it: Texture2D = load(path)
+		var ox := r.position.x + (r.size.x - it.get_width()) * 0.5
+		for part in 2:
+			var sp := Sprite2D.new()
+			sp.texture = it
+			sp.centered = false
+			sp.region_enabled = true
+			sp.region_rect = Rect2(0.0, 0.0, it.get_width(), IRON_SPLIT) if part == 0 else Rect2(0.0, IRON_SPLIT, it.get_width(), it.get_height() - IRON_SPLIT)
+			sp.position = Vector2(ox, r.position.y - IRON_DECK + (0.0 if part == 0 else IRON_SPLIT))
+			sp.z_index = 2 if part == 0 else -2
+			add_child(sp)
 	for rp in level["ramps"]:
 		ramps.append(rp)
 		_stairs(Vector2(float(rp[0]), float(rp[1])), Vector2(float(rp[2]), float(rp[3])))
@@ -3393,6 +3459,12 @@ func _build_room(x0: float, x1: float, style: String) -> void:
 	fade.z_index = -4
 	add_child(fade)
 	_room_tops.append([x0, x1, top])
+	var veil := Polygon2D.new()   # from down the street the inside is dark: it opens up as he comes to the door
+	veil.polygon = PackedVector2Array([Vector2(x0, top), Vector2(x1, top), Vector2(x1, 40.0), Vector2(x0, 40.0)])
+	veil.color = Color(0, 0, 0, 1)
+	veil.z_index = 8
+	add_child(veil)
+	_veils.append([x0, x1, veil])
 	# Each end of the room goes off into darkness, the way a hallway runs on past the lamp: no drawn
 	# door frame stuck on the picture, and the street beyond is not seen through the wall.
 	for side: float in [-1.0, 1.0]:
@@ -3403,6 +3475,12 @@ func _build_room(x0: float, x1: float, style: String) -> void:
 		dark.vertex_colors = PackedColorArray([Color(0, 0, 0, 0), Color(0, 0, 0, 1), Color(0, 0, 0, 1), Color(0, 0, 0, 0)])
 		dark.z_index = -4
 		add_child(dark)
+		var out_x: float = x + side * 460.0   # outside, the street sinks into the building's shadow: no hard edge
+		var shade := Polygon2D.new()
+		shade.polygon = PackedVector2Array([Vector2(x, -4200), Vector2(out_x, -4200), Vector2(out_x, 40.0), Vector2(x, 40.0)])
+		shade.vertex_colors = PackedColorArray([Color(0, 0, 0, 1), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 1)])
+		shade.z_index = -4
+		add_child(shade)
 		var wall_side := Polygon2D.new()   # the outside wall of the building, cut away above the door
 		wall_side.polygon = PackedVector2Array([Vector2(-60, -560), Vector2(60, -560), Vector2(60, -3200), Vector2(-60, -3200)])
 		wall_side.color = Color(0.0, 0.0, 0.0)
@@ -3502,34 +3580,22 @@ func _slab(r: Rect2) -> void:
 
 ## A flight of iron stairs from a to b: the stringer and the treads, in ink.
 func _stairs(a: Vector2, b: Vector2) -> void:
-	var line := Line2D.new()
-	line.points = PackedVector2Array([a + Vector2(0, 14), b + Vector2(0, 14)])
-	line.width = 24.0
-	line.default_color = Color(0.16, 0.16, 0.17)
-	line.z_index = -3
-	add_child(line)
-	var n := int(absf(b.y - a.y) / 34.0)
-	for k in n:
-		var p := a.lerp(b, (k + 0.5) / n)
-		var tread := Line2D.new()
-		tread.points = PackedVector2Array([p + Vector2(-20, 0), p + Vector2(20, 0)])
-		tread.width = 9.0
-		tread.default_color = Color(0.42, 0.41, 0.4)
-		tread.z_index = -3
-		add_child(tread)
-	var rail := Line2D.new()
-	rail.points = PackedVector2Array([a + Vector2(0, -100), b + Vector2(0, -100)])
-	rail.width = 6.0
-	rail.default_color = Color(0.3, 0.3, 0.31)
-	rail.z_index = -3
-	add_child(rail)
+	var st := Sprite2D.new()   # one storey of iron stairs, its treads along the line he walks
+	st.texture = load("res://art/props/iron_flight.png")
+	st.centered = false
+	st.flip_h = b.x < a.x
+	st.position = a - IRON_FOOT if b.x > a.x else Vector2(a.x - (st.texture.get_width() - IRON_FOOT.x), a.y - IRON_FOOT.y)
+	st.z_index = -2
+	add_child(st)
+	if _auto != "" and (absf(absf(b.x - a.x) - 261.0) > 3.0 or absf(absf(b.y - a.y) - 370.0) > 3.0):
+		print("AUDIT BAD stairs do not match their drawing: ", a, b)
 
 
 ## What kind of place a spot on the map is: the room it is in, or else the street drawing behind it.
 func _place_at(x: float) -> String:
 	var room := _room_at(x)
 	if room != "":
-		return room
+		return "room:" + room
 	var seg := ""
 	for sg in level.get("street", []):
 		if x >= float(sg[1]):
@@ -3571,8 +3637,13 @@ func _add_page(at: Vector2) -> void:
 	var holder := Node2D.new()
 	# on the street it is nailed to the wall at chest height; left on a crate, it is nailed to the
 	# crate's face, just under the lid, where a man walking past sees it
-	var on_box := at.y < -10.0
-	holder.position = at + (Vector2(0.0, 40.0) if on_box else Vector2(0.0, -330.0))
+	var on_box := false
+	for b in boxes:
+		if at.x > b.position.x and at.x < b.end.x:
+			on_box = true
+			holder.position = Vector2(at.x, maxf(b.position.y + 55.0, -300.0))
+	if not on_box:
+		holder.position = Vector2(at.x, -330.0)
 	holder.z_index = -1   # on the wall: people pass in front of it
 	add_child(holder)
 	var note := "res://art/items/notes/%d_%d.png" % [chapter, map]   # this page small, its own writing and stains
