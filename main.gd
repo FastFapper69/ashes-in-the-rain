@@ -195,6 +195,8 @@ var _slow_cancelled := false   # slowed time switched off during this dive: it s
 var _vaulted := false          # this dive has already vaulted off a crate
 var _flip_way := 1.0
 var dive_rolls := false        # this dive ends in a roll instead of a flat landing
+var _grace := 3.0             # seconds after a start or a checkpoint before anybody may fire
+var _vault := {}              # the speed vault in progress: from, to, top, t
 var glide := 0.0               # horizontal speed of a dive
 var over := false              # the detective is down
 var _time := 0.0
@@ -379,6 +381,8 @@ func _ready() -> void:
 
 
 func _build_street() -> void:
+	if float(level.get("moving", 0.0)) > 0.0:   # the last train: setpieces.gd pours the tunnel past instead
+		return
 	if level.has("street") and level["street"].size() > 0:
 		_build_segments()
 		return
@@ -809,6 +813,8 @@ func _tick_neons(delta: float) -> void:
 ## whose lantern blooms into a soft disc. Each map deals them in its own order and spacing.
 const FORE_PROPS := {"bollard": 3.0, "hydrant": 2.0, "trash": 2.0, "lamp": 2.0, "railing": 1.0, "sign": 1.0, "car": 0.7}
 func _scatter_fore() -> void:
+	if level.get("under", false):   # no hydrants and lamp posts down in the subway
+		return
 	var rng := RandomNumberGenerator.new()
 	rng.seed = chapter * 1000 + map * 17 + 5
 	var additive := CanvasItemMaterial.new()
@@ -1413,6 +1419,7 @@ func _process(delta: float) -> void:
 		_fire(player, true)
 		_pop = 0.15
 
+	_grace = maxf(0.0, _grace - delta)
 	_enemies(delta)
 	_pickups()
 	_map_events(delta)
@@ -1604,6 +1611,58 @@ func _auto_step(delta: float) -> void:
 			fx.blood(Vector2(cx, -400.0), Vector2(1.0, 0.0))
 			fx.blood(Vector2(cx - 900.0, -400.0), Vector2(1.0, 0.0))
 		shots = [[0.9, "deep_1"], [1.9, "deep_2"]]
+	elif _auto == "vault":   # running at a low crate: the speed vault over it, frame by frame
+		var bi := -1
+		for k in boxes.size():
+			if box_info[k]["wood"] and boxes[k].size.y < 270.0:
+				bi = k
+				break
+		if _at < 0.05 and bi >= 0:
+			for e in enemies:
+				e["node"].position.x += 60000.0
+				e["goal"] = e["node"].position.x
+			player.position.x = boxes[bi].position.x - 900.0
+			cam.position.x = player.position.x + _lead
+		hud.move = 1.0 if _at < 2.2 else 0.0
+		hp = PLAYER_HP
+		shots = [[0.9, "vault_1"], [1.0, "vault_2"], [1.1, "vault_3"], [1.2, "vault_4"], [1.3, "vault_5"], [1.4, "vault_6"], [1.5, "vault_7"], [1.6, "vault_8"]]
+	elif _auto == "wound":   # a mobster shot in the chest and the thigh, close up: the hits must show
+		var e: Dictionary = enemies[0]
+		var m = e["node"]
+		if _auto_done & 1 == 0:
+			_auto_done |= 1
+			for o in enemies.slice(1):
+				o["node"].position.x += 60000.0
+			e["state"] = "post"
+			e["hp"] = 99
+			m.visible = true
+			m.position = Vector2(1400.0, 0.0)
+			player.position.x = 600.0
+			hud.visible = false
+		cam.zoom = Vector2.ONE * 1.0
+		cam.rotation = 0.0
+		cam.position = m.position + Vector2(0.0, -320.0)
+		hp = PLAYER_HP
+		if _at > 0.5 and _auto_done & 2 == 0:
+			_auto_done |= 2
+			var tb: Array = m._bones["torso"]
+			_bullet_hit(m.to_global((tb[0] + tb[1]) * 0.5), true)
+		if _at > 0.62 and _auto_done & 4 == 0:
+			_auto_done |= 4
+			_shot("wound_1")
+		if _at > 1.1 and _auto_done & 8 == 0:
+			_auto_done |= 8
+			var lb: Array = m._bones["thigh_f"] if m._bones.has("thigh_f") else m._bones["torso"]
+			_bullet_hit(m.to_global(lb[0].lerp(lb[1], 0.6)), true)
+		if _at > 1.22 and _auto_done & 16 == 0:
+			_auto_done |= 16
+			_shot("wound_2")
+		if _at > 2.6 and _auto_done & 32 == 0:
+			_auto_done |= 32
+			_shot("wound_3")
+		if _at > 2.8:
+			get_tree().quit()
+		return
 	elif _auto == "crane":   # the crate on the crane's chains: shot down onto the two under it
 		var c: Dictionary = sets._crates[0]
 		if _at < 0.05 or _auto_done & 1 == 0:
@@ -1834,6 +1893,10 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 		elif can_act and jump:
 			move_state = "jump"
 			fall = -JUMP_SPEED
+		elif can_act and absf(run) > 380.0 and player.duck < 0.3:   # running at a low crate: over it without breaking stride
+			var vb := _vault_box(signf(run))
+			if vb >= 0:
+				_start_vault(vb, signf(run))
 
 	_drop_t = maxf(0.0, _drop_t - delta)
 	if move_state == "ground" and slide and player.dive < 0.05:   # stick pulled down on a landing or the stairs: he drops through
@@ -1936,6 +1999,28 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			steps.restart()
 			sfx.play("land", -2.0)
 			sfx.play("skid", -8.0, INF, 0.1)
+	elif move_state == "vault":   # a speed vault: one hand on the crate, legs swung over the side, landing running
+		_vault["t"] = minf(1.0, float(_vault["t"]) + delta / float(_vault["dur"]))
+		var t: float = _vault["t"]
+		var a: Vector2 = _vault["from"]
+		var b: Vector2 = _vault["to"]
+		var c: Vector2 = _vault["ctrl"]
+		player.position = a * (1.0 - t) * (1.0 - t) + c * 2.0 * (1.0 - t) * t + b * t * t
+		var lift := sin(t * PI)
+		player.air = lift
+		player.crouch = 0.35 * lift
+		player.roll = 0.28 * lift * float(_vault["way"]) * facing   # the body tips forward over the hand
+		if t > 0.3 and not _vault.get("planted", false):
+			_vault["planted"] = true   # the hand meets the top
+			sfx.play("land", -12.0, INF, 0.1)
+			fx.chip(Vector2(float(_vault["hand"]), float(_vault["top"])))
+		if t >= 1.0:
+			player.roll = 0.0
+			player.air = 0.0
+			player.crouch = 0.35
+			move_state = "ground"
+			steps.restart()
+			sfx.play("step1", -4.0)
 	elif move_state == "slide":   # dropping into it, riding it out on the hip, then pushing back up
 		slide_left -= delta
 		run = move_toward(run, 0.0, 500.0 * delta)
@@ -1987,6 +2072,8 @@ func _floor_at(x: float, feet: float) -> float:
 
 ## Crates and the like stop him when he runs, slides or dives into their side.
 func _block(before_x: float) -> void:
+	if move_state == "vault":
+		return
 	var feet: float = player.position.y - DIVE_LAND * player.dive
 	for b in boxes:
 		if feet <= b.position.y + 14.0:
@@ -2008,6 +2095,38 @@ func _block(before_x: float) -> void:
 
 ## A dive that carries him just over a crate: his hands touch its top and he pushes off it, a
 ## parkour vault, tucking into a forward somersault and landing on his feet further on.
+## A low crate just ahead on his floor, nothing standing right behind it: the one to vault (or -1).
+func _vault_box(way: float) -> int:
+	var px: float = player.position.x
+	for i in boxes.size():
+		var b: Rect2 = boxes[i]
+		if b.size.y > VAULT_MAX or absf(b.end.y - player.position.y) > 4.0 or box_info[i]["kind"] == "barrel":
+			continue
+		var near: float = b.position.x - 45.0 if way > 0.0 else b.end.x + 45.0
+		var gap: float = (near - px) * way
+		if gap < -5.0 or gap > 90.0:
+			continue
+		var land: float = (b.end.x if way > 0.0 else b.position.x) + way * 150.0
+		for o in boxes:   # somewhere to come down
+			if o != b and land > o.position.x - 60.0 and land < o.end.x + 60.0:
+				return -1
+		return i
+	return -1
+
+
+func _start_vault(i: int, way: float) -> void:
+	var b: Rect2 = boxes[i]
+	var land: float = (b.end.x if way > 0.0 else b.position.x) + way * 150.0
+	var from: Vector2 = player.position
+	var to := Vector2(land, _floor_at(land, player.position.y - 10.0))
+	var top := b.position.y - 70.0   # his hips skim the top
+	_vault = {"t": 0.0, "from": from, "to": to, "ctrl": Vector2((from.x + to.x) * 0.5, 2.0 * top - (from.y + to.y) * 0.5),
+			"dur": clampf(absf(to.x - from.x) / maxf(absf(run), 600.0), 0.32, 0.55), "way": way, "top": b.position.y,
+			"hand": b.get_center().x - way * b.size.x * 0.15}
+	move_state = "vault"
+	sfx.play("dive", -10.0, INF, 0.1)
+
+
 func _try_vault() -> void:
 	if _vaulted or player.dive < 0.5:
 		return
@@ -2319,6 +2438,13 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 						return true
 			else:
 				e["hp"] -= MOBSTER_HP if part == "head" else 1   # a head shot always kills
+				if e["hp"] > 0:   # still up: knocked back a step, off his aim for a moment
+					var m2 = e["node"]
+					var back: float = signf(m2.position.x - player.position.x) * (70.0 if part == "torso" else 40.0)
+					m2.create_tween().tween_property(m2, "position:x", m2.position.x + back, 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+					e["cool"] = maxf(float(e["cool"]), 0.7)
+					e["timer"] = maxf(float(e["timer"]), 0.6)
+
 			e["seen"] = true   # being shot at wakes him up, however far away
 			if e["hp"] <= 0:
 				_kill(e, part == "head", false, part)
@@ -3222,7 +3348,7 @@ func _enemies(delta: float) -> void:
 		var hiding: bool = e["cover"] and side > 0.0   # his cover only works while the detective is on its far side
 		var want_duck: float = 0.0
 		var walk := 0.0
-		var may_fire: bool = not over and not cleared and absf(to_player.x) < SIGHT * 1.3 and not _player_covered(side)
+		var may_fire: bool = not over and not cleared and _grace <= 0.0 and absf(to_player.x) < SIGHT * 1.3 and not _player_covered(side)
 		e["timer"] -= delta
 		if hiding:
 			if e["up"]:

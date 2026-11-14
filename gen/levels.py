@@ -109,6 +109,20 @@ def chunk(name, hard):
     elif name == "office":   # the harbor master's: filing cabinets and a counter for cover
         c = (Chunk(2400).room(0, 2400, "office").box("crate_long", 500).box("machine", 1500).lamp(600).lamp(1700)
              .foe(1150).foe(2000, kind="shotgun").foe(2300).pick("flask", 1000))
+    # ---- underground --------------------------------------------------------------------------------
+    elif name == "train_platform":   # along the tracks under the platform edge; a train roars by on the far rails
+        c = (Chunk(2400).box("drum", 250).box("crate_long", 1100).foe(700).foe(1650, kind="shotgun" if hard > 0.5 else "post").foe(2250)
+             .event("train_pass", 300))
+    elif name == "cityhall":   # the closed station: chandeliers, boarded booths, rain through the skylight
+        c = (Chunk(2600).room(0, 2600, "cityhall").box("crate", 500).box("machine", 1500).lamp(700).lamp(1800)
+             .foe(1100).foe(2000, kind="tommy" if hard > 0.4 else "post").foe(2450).pick("flask", 900))
+    elif name == "catacombs":   # the speakeasy in the sewer vaults: the bar and the tables for cover
+        c = (Chunk(2800).room(0, 2800, "catacombs").box("crate", 400).box("crate_long", 1300).box("drum", 2200).lamp(500).lamp(1500).lamp(2400)
+             .foe(900).foe(1850, kind="shotgun").foe(2600, kind="tommy" if hard > 0.5 else "post"))
+    elif name == "roof_vents":   # on top of the moving train: the vent housings are all the cover there is
+        c = Chunk(2000).foe(950).foe(1850, kind="tommy" if hard > 0.5 else "post")
+    elif name == "roof_rush":   # they climb up from the cars behind and in front
+        c = Chunk(1800).foe(300).runner(1200, 100, 2900).runner(1500, 200, 3200, kind="shotgun").runner(-200, 600, -1400)
     elif name == "breather":
         c = Chunk(700)
     elif name == "pistols_cache":   # a dead man's guns on the pavement
@@ -120,7 +134,7 @@ def chunk(name, hard):
 
 def build(mp):
     rng = random.Random(mp["seed"])
-    x = 1300.0
+    x = 1900.0   # the first of them out of sight of the start
     out = Chunk(0)
     picks = list(mp["fixed"])
     n = len(picks)
@@ -138,7 +152,7 @@ def build(mp):
             ev = list(ev)
             if ev[0] == "car": ev[1] += x; ev[2] += x
             elif ev[0] == "blackout": ev[1] += x
-            elif ev[0] == "searchlight": ev[1] += x
+            elif ev[0] in ("searchlight", "train_pass"): ev[1] += x
             out.events.append(ev)
         out.checks += [x + cx for cx in c.checks]
         for en in c.enemies:
@@ -155,7 +169,10 @@ def build(mp):
     if extra:
         extra(out, x)
     elif mp.get("boss"):
-        out.boxes += [["crate", x + 300], ["dumpster", x + 1500]]
+        if mp.get("boss_room"):   # the fight in a room of its own
+            out.rooms.append([x - 200, x + 2700, mp["boss_room"]])
+            out.lamps += [[x + 400, -760.0], [x + 1400, -760.0], [x + 2300, -760.0]]
+        out.boxes += [["crate", x + 300], ["crate_long" if mp.get("boss_room") else "dumpster", x + 1500]]
         out.enemies += [{"x": x + 1050, "y": 0.0, "kind": "post", "trig": None, "from": None, "delay": 0.0, "run": False},
                         {"x": x + 2050, "y": 0.0, "kind": "boss", "trig": None, "from": None, "delay": 0.0, "run": False}]
         out.checks.append(x - 100)
@@ -167,8 +184,11 @@ def build(mp):
         out.end = x + 1600
     if mp.get("diary"):   # a page of Eddie's notebook, left on top of a crate partway along: a climb off the road
         cands = sorted([b for b in out.boxes if b[0] in ("crate", "crate_long", "dumpster", "machine", "drum") and 2500 < b[1] < out.end - 2500], key=lambda b: b[1])
-        b = cands[min(len(cands) - 1, mp.get("page", len(cands) // 2))]
-        out.pickups.append(["page", b[1] + BOX[b[0]][0] / 2, -BOX[b[0]][1]])
+        if cands:
+            b = cands[min(len(cands) - 1, mp.get("page", len(cands) // 2))]
+            out.pickups.append(["page", b[1] + BOX[b[0]][0] / 2, -BOX[b[0]][1]])
+        else:   # nothing to climb: it lies where the fight is thickest, halfway along
+            out.pickups.append(["page", out.end * 0.55, 0.0])
     out.checks = sorted(set(round(c) for c in out.checks if 800 < c < out.end - 500))
     out.street = street(mp, out, rng)
     for e in mp.get("events", []):
@@ -189,7 +209,7 @@ def street(mp, m, rng):
     """The run of drawn segments under the map: the map's own feature segment early on, no segment twice
     in a row, and (in the prologue) the dead-end alley under the last stand."""
     seq, x = [], -3000.0
-    pool = [s for s in mp.get("pool", STREET_POOL) if s != mp.get("feature")]
+    pool = [s for s in mp.get("pool", STREET_POOL) if s != mp.get("feature")] or [mp["feature"]]
     last = None
     i = 0
     while x < m.end + 2500:
@@ -200,7 +220,7 @@ def street(mp, m, rng):
         else:   # each segment once before any comes back
             used = [q[0] for q in seq]
             fresh = [s for s in pool if s not in used]
-            name = rng.choice(fresh if fresh else [s for s in pool if s != last])
+            name = rng.choice(fresh if fresh else ([s for s in pool if s != last] or pool))
         seq.append([name, x])
         last = name
         x += SEGMENTS[name] * 1.9
@@ -339,8 +359,35 @@ CAMPAIGN = [
      "diary": "Dec 12. If anything happens to me, the report is in the harbor office, second drawer. Frank, if you're reading this, then you already know that I know.",
      "outro": ["Kessler gave me a key on a chain. It had been warm against his chest for eight years.", "In the second drawer, the report. At the bottom, a name I knew better than my own."]},
   ]},
-  {"title": "CHAPTER III", "name": "UNDERGROUND", "ready": False, "hero": "frank", "ambient": [0.18, 0.17, 0.2], "rain": 0.0, "maps": [
-    {"name": "THE PLATFORM"}, {"name": "THE TUNNELS"}, {"name": "TRAIN YARD"}, {"name": "THE LAST TRAIN"}, {"name": "THE CATACOMBS"}]},
+  {"title": "CHAPTER III", "name": "UNDERGROUND", "ready": False, "hero": "frank", "ambient": [0.17, 0.16, 0.2], "rain": 0.0, "maps": [
+    {"name": "14TH STREET", "seed": 301, "feature": "platform", "pool": UNDER_POOL, "under": True, "cops": True, "start": 0.5, "end": 0.75, "ash": 0.2,
+     "fixed": ["train_platform", "crate_cover", "rush", "breather", "train_platform", "drum_duo", "gauntlet"],
+     "intro": ["The cuffs came off on the third stair. Thirty years of falling down stairs teaches a man something."],
+     "diary": "Dec 13. Rourke called me into his office and asked about my 'little crusade'. He offered me a drink. He has never once offered me a drink.",
+     "outro": ["Briggs's men knew the stations. I knew the tunnels. Eddie and I used to cut through them on bad nights."]},
+    {"name": "THE TUNNELS", "seed": 302, "feature": "tunnel", "pool": UNDER_POOL, "under": True, "cops": True, "start": 0.55, "end": 0.8, "ash": 0.15,
+     "fixed": ["blackout", "drum_duo", "train_platform", "cityhall", "ambush_behind", "blackout", "rush", "gauntlet"],
+     "intro": ["Down here the dark has a sound. It sounds like trains that never come."],
+     "diary": "Dec 14. Found a fireman's helmet in a pawnshop on Ninth. Engine 54. Same company as Frank's old man. The pawnbroker said a cop sold it. Years ago.",
+     "outro": ["Briggs was counting his shells out loud somewhere behind me. A man who counts like that has never missed."]},
+    {"name": "TRAIN YARD", "seed": 303, "feature": "yard", "pool": ["yard"], "cops": True, "rain": 1.6, "start": 0.55, "end": 0.8, "ash": 0.4,
+     "fixed": ["drum_duo", "car_ambush", "searchlight_yard", "breather", "crate_cover", "blackout", "gauntlet"],
+     "intro": ["The yard was the only way out that didn't have a badge standing in it."],
+     "diary": "Dec 15. 1931. A tenement on West 47th burned with nine families inside. Engine 54 got there first. One fireman went in for the kids and didn't come out. Patrick Malone.",
+     "outro": ["The last train out of the yard was an empty one. I've never been so glad of an empty thing."]},
+    {"name": "THE LAST TRAIN", "seed": 304, "feature": "tunnel", "pool": ["tunnel"], "under": True, "cops": True, "moving": 2600, "start": 0.55, "end": 0.85, "ash": 0.0,
+     "fixed": ["roof_vents", "breather", "roof_rush", "roof_vents", "breather", "roof_rush", "roof_vents"],
+     "intro": ["They caught up with me on the roof of the express. Fifty feet of tunnel to every second, and the girders hang low."],
+     "hints": [[2400, "RED LIGHT: A GIRDER. GET DOWN."]],
+     "diary": "Dec 16. The fire marshal's 1931 report has a witness: a fireman who ran out before the roof came down. Declan Rourke. He was the first man out.",
+     "outro": ["The train ran out of tunnel under the old Bowery. Under that, the Catacombs."]},
+    {"name": "THE CATACOMBS", "seed": 305, "feature": "platform", "pool": UNDER_POOL, "under": True, "cops": True, "start": 0.6, "end": 0.9, "ash": 0.3,
+     "boss": "briggs", "boss_room": "catacombs",
+     "fixed": ["crate_cover", "catacombs", "breather", "train_platform", "rush", "catacombs"],
+     "intro": ["Lieutenant Harlan Briggs. Four Bronze Stars and not one bent dollar. The only honest man who ever hunted me."],
+     "diary": "Dec 17, morning. Tonight I'll know. If it's who I think it is, Frank, I'm sorry. Not for finding it. For it being you.",
+     "outro": ["Briggs had found the other half of the truth in Rourke's desk. He gave it to me like a man handing back a wallet."]},
+  ]},
   {"title": "CHAPTER IV", "name": "THE SAINT'S TOWER", "ready": False, "hero": "frank", "ambient": [0.23, 0.19, 0.21], "rain": 1.8, "maps": [
     {"name": "ROOFTOPS"}, {"name": "THE BALL"}, {"name": "ELEVATOR SHAFT"}, {"name": "PENTHOUSE"}, {"name": "THE SPIRE"}]},
 ]

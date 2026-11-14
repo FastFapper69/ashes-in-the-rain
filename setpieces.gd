@@ -48,8 +48,7 @@ func setup(main) -> void:
 				_events.append({"kind": kind, "trig": float(ev[1]), "done": false})
 	_speed = float(game.level.get("moving", 0.0))
 	if _speed > 0.0:
-		_make_band()
-		_make_train()
+		_make_moving.call_deferred()   # after main.gd has made its camera
 	# every crane yard keeps its crate hanging over the street
 	for seg in game.level.get("street", []):
 		if String(seg[0]) == "cranes":
@@ -70,7 +69,7 @@ func tick(delta: float) -> void:
 				_blackout(ev)
 			"train_pass":
 				_train_pass()
-	if _speed > 0.0:
+	if _speed > 0.0 and _band != null:
 		_tick_moving(delta)
 	if _blackout_t > 0.0:
 		_blackout_t -= delta
@@ -533,6 +532,11 @@ func _train_pass() -> void:
 	var tw := root.create_tween()
 	tw.tween_property(root, "position:x", root.position.x - 3.0 * w - 7000.0, 2.6)
 	tw.tween_callback(root.queue_free)
+
+
+func _make_moving() -> void:
+	_make_band()
+	_make_train()
 
 
 ## The last train: the tunnel wall pours past behind the cars, which carry the fight on their roofs.

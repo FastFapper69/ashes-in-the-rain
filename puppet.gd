@@ -29,6 +29,9 @@ var weapon := ""
 var _legs := {}            # "f"/"b" -> the bending leg mesh
 var _leg_shadows := {}
 var _flinch := 0.0          # a hit knocks him back a moment
+var _hit_part := ""         # where the last bullet hit him: the reaction depends on it
+var _hit_dip := 0.0         # a leg hit: the knee buckles
+var _wounds: Array = []     # where he has been hit, kept on the bones as he moves
 const LEG_ROWS := 14
 const LEG_HIP := 0.06       # the leg drawing: rows of the hip joint, the knee and the ankle (top of the shoe)
 const LEG_KNEE := 0.47
@@ -336,7 +339,9 @@ func set_state(dir: float, aim: Vector2, delta: float) -> void:
 	# the gun arm eases onto the target instead of snapping; the kick of a shot is added on top
 	_aim_angle = lerp_angle(_aim_angle, want.angle(), 1.0 - exp(-22.0 * delta))
 	recoil = move_toward(recoil, 0.0, delta * 1.6)
-	_flinch = move_toward(_flinch, 0.0, delta * 3.0)
+	_flinch = move_toward(_flinch, 0.0, delta * 2.2)
+	_hit_dip = move_toward(_hit_dip, 0.0, delta * 2.5)
+
 	_aim = Vector2.from_angle(_aim_angle - recoil)
 	_moving = lerpf(_moving, absf(dir), 1.0 - exp(-9.0 * delta))
 	_phase = fposmod(_phase + dir * facing * delta * 2.2, 1.0)   # walking backwards runs the cycle in reverse
@@ -385,14 +390,15 @@ func _pose() -> void:
 	# in a jump the knees come up; in a dive the legs trail straight; in a slide they lead
 	foot_a = foot_a.lerp(Vector2(0.16, -0.36), air).lerp(Vector2(0.07, 0.0), dive).lerp(Vector2(0.74 * slide_side, -0.03), slide)
 	foot_b = foot_b.lerp(Vector2(-0.14, -0.2), air).lerp(Vector2(-0.09, -0.05), dive).lerp(Vector2(0.3 * slide_side, 0.0), slide)
-	var drop := minf(0.62, crouch * 0.3 + slide * 0.5 + duck * 0.58)   # how far the hips sink
+	var drop := minf(0.62, crouch * 0.3 + slide * 0.5 + duck * 0.58 + _hit_dip * 0.16)   # how far the hips sink
 	var hip := Vector2(-0.1 * slide * slide_side, -(l1 + l2) * 0.985 - ankle + drop + lerpf(0.01, 0.04 + 0.035 * cos(th * 2.0), t))
 	var legs_lean := dive * 1.35 * dive_side + roll        # the legs follow a dive or a tumble
 	var lean := legs_lean - slide * 0.75 * slide_side + crouch * 0.25 + duck * 0.32   # the torso also lies back in a slide, bows in a crouch
 	if not _dead:
 		lean += t * 0.13 * (1.0 - dive)                 # leaning into a run
 		lean -= recoil * 0.22                          # each shot knocks him back a touch
-		lean -= _flinch * 0.35                         # and so does a bullet
+		lean -= _flinch * (0.6 if _hit_part == "torso" else 0.35)   # and a bullet much more: rocked back
+		lean -= sin(_flinch * PI) * 0.12 * _hit_dip              # a leg hit folds him forward a moment
 		lean += clampf(_aim.angle(), -0.9, 0.6) * 0.08   # the body follows the gun up or down a little
 	var breath := sin(_clock * 1.7) * 0.006 * (1.0 - t) * (0.0 if _dead else 1.0)   # breathing, standing still
 	var neck := hip + Vector2(lerpf(0.03, 0.15, t), -float(_len["torso"]) - breath).rotated(lean)
@@ -481,6 +487,8 @@ func _pose() -> void:
 			var d: Node2D = _shadow_spr[key]
 			d.position = src.position
 			d.rotation = src.rotation
+	for w in _wounds:   # the wounds go where the bones went
+		_place_wound(w)
 
 
 ## Turn the gun arm onto `aim` at once, without the usual easing: a tap on the screen fires exactly
@@ -649,18 +657,71 @@ func _bend_leg(m: Polygon2D, leg: Array, shadow) -> void:
 ## A bullet went in here: a small dark wound on the part it hit, and he flinches.
 func add_wound(world: Vector2, part: String) -> void:
 	_flinch = 1.0
-	if not _spr.has(part) or not (_spr[part] as Sprite2D).visible:
+	_hit_part = part
+	if part.begins_with("thigh") or part.begins_with("shin"):
+		_hit_dip = 1.0                 # a leg gives under him
+	elif part.begins_with("uarm") or part.begins_with("farm"):
+		recoil = maxf(recoil, 0.55)    # the gun arm jerks off its aim
+	if not _bones.has(part) or _wounds.size() >= 8:
 		return
-	var host: Sprite2D = _spr[part]
-	if host.get_child_count() >= 3:
+	# The wound rides on its bone (the legs and the coat bend, so a sprite on a part would slide off):
+	# how far along the bone, and how far to the side of it.
+	var bone: Array = _bones[part]
+	var a: Vector2 = bone[0]
+	var ab: Vector2 = bone[1] - a
+	var p := to_local(world)
+	var t := clampf((p - a).dot(ab) / maxf(ab.length_squared(), 0.001), 0.0, 1.0)
+	var n := ab.normalized().orthogonal()
+	var w := Node2D.new()
+	w.set_meta("bone", part)
+	w.set_meta("t", t)
+	w.set_meta("off", (p - (a + ab * t)).dot(n) * 0.7)
+	w.set_meta("spin", randf() * TAU)
+	add_child(w)
+	_wounds.append(w)
+	# plain to see: a wet stain soaking out through the cloth, the dark hole in it, a run of blood below
+	var size := randf_range(46.0, 62.0) / absf(global_scale.y)
+	var tex: Texture2D = load("res://art/fx/blood%d.png" % (randi() % 4 + 1))
+	var stain := Sprite2D.new()
+	stain.texture = tex
+	stain.modulate = Color(0.6, 0.05, 0.04, 0.95)
+	stain.light_mask = MASK_FIGURE
+	stain.scale = Vector2.ONE * size / 352.0 * 0.3
+	w.add_child(stain)
+	stain.create_tween().tween_property(stain, "scale", Vector2.ONE * size / 352.0, 0.7).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	var hole := Sprite2D.new()
+	hole.texture = tex
+	hole.modulate = Color(0.07, 0.0, 0.0)
+	hole.light_mask = MASK_FIGURE
+	hole.rotation = randf() * TAU
+	hole.scale = Vector2.ONE * size * 0.3 / 352.0
+	w.add_child(hole)
+	var run := Line2D.new()
+	run.width = 7.0 / absf(global_scale.y)
+	run.default_color = Color(0.5, 0.03, 0.03, 0.9)
+	run.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	run.end_cap_mode = Line2D.LINE_CAP_ROUND
+	run.light_mask = MASK_FIGURE
+	run.points = PackedVector2Array([Vector2.ZERO, Vector2.ZERO])
+	add_child(run)
+	w.set_meta("run", run)
+	w.set_meta("born", _clock)
+	_place_wound(w)
+
+
+## Keep a wound on its bone, and its trickle running straight down from it, longer for a second or two.
+func _place_wound(w: Node2D) -> void:
+	var bone: Array = _bones.get(String(w.get_meta("bone")), [])
+	if bone.is_empty():
 		return
-	var w := Sprite2D.new()
-	w.texture = load("res://art/fx/blood%d.png" % (randi() % 4 + 1))
-	w.modulate = Color(0.32, 0.03, 0.03)
-	w.rotation = randf() * TAU
-	host.add_child(w)
-	w.global_position = world
-	w.global_scale = Vector2.ONE * randf_range(0.025, 0.04) * absf(global_scale.y)
+	var a: Vector2 = bone[0]
+	var ab: Vector2 = bone[1] - a
+	w.position = a + ab * float(w.get_meta("t")) + ab.normalized().orthogonal() * float(w.get_meta("off"))
+	w.rotation = ab.angle() + float(w.get_meta("spin"))
+	var run: Line2D = w.get_meta("run")
+	var k := clampf((_clock - float(w.get_meta("born"))) / 1.4, 0.0, 1.0)
+	run.set_point_position(0, w.position)
+	run.set_point_position(1, w.position + Vector2(0.0, 75.0 * k / absf(global_scale.y)))
 
 
 ## Put a gun in his hands: one of GUNS. Two pistols: one in each hand.
