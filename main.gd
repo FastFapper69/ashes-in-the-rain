@@ -738,6 +738,7 @@ const SEGMENT_GAIN := {"alley": 0.92, "bluenote": 0.98, "warehouse": 0.9, "laund
 # A drawing whose doors and bins came out too big for a man is shown smaller (gen/levels.py SEG_SIZE).
 const SEGMENT_SIZE := {"deadend": 0.8}
 var _sign_scale := WALL_SCALE
+const ROOM_BASE := 0.95     # an interior's painting under the night grade, before its lamps' pools
 const SEGMENT_MOON := 1.6   # how much brighter than the bare night the drawn streets are kept
 const SEGMENT_BASE := 0.92
 const ROOM_SCALE := 0.75   # interiors: see _build_room
@@ -2047,6 +2048,30 @@ func _auto_step(delta: float) -> void:
 			_auto_done |= 1 << (k + 32)
 			print("tops ", idx, " ", box_info[idx]["kind"], " ", b, " feet ", player.position)
 			_shot("tops_%02d" % k)
+	elif _auto.begins_with("bulbs:"):   # --test=bulbs:x: stand in a room, picture, shoot out its bulbs, picture
+		var x := float(_auto.trim_prefix("bulbs:"))
+		hp = PLAYER_HP
+		_grace = 99.0
+		if _auto_done & 1 == 0:
+			_auto_done |= 1
+			player.position = Vector2(x, 0.0)
+			for e in enemies:
+				e["alive"] = false
+				e["node"].visible = false
+		cam.position.x = player.position.x + _lead
+		if _at > 1.5 and _auto_done & 2 == 0:
+			_auto_done |= 2
+			_shot("bulbs_0")
+		if _at > 1.8 and _auto_done & 8 == 0:
+			_auto_done |= 8
+			for i in lamps.size():
+				if lamp_info[i].has("off") and absf(lamps[i].x - x) < 1400.0:
+					_lamp_out(i)
+		if _at > 3.0 and _auto_done & 4 == 0:
+			_auto_done |= 4
+			_shot("bulbs_1")
+			get_tree().quit()
+		return
 	elif _auto == "give":   # the nearest mobster gives up: pictures as he raises his hands and as he backs off
 		hp = PLAYER_HP
 		_grace = 99.0
@@ -2862,7 +2887,7 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 		return true
 	if from_player:
 		for i in lamps.size():
-			if lamp_info[i]["on"] and not lamp_info[i].get("fixed", false) and pos.distance_to(lamps[i] + Vector2(0.0, -8.0)) < 38.0:
+			if lamp_info[i]["on"] and not lamp_info[i].get("fixed", false) and pos.distance_to(lamps[i] + Vector2(0.0, -8.0)) < float(lamp_info[i].get("r", 38.0)):
 				_lamp_out(i)
 				return true
 		for e in enemies:
@@ -3139,6 +3164,8 @@ func _lamp_out(i: int) -> void:
 	tw.tween_callback(func() -> void:
 		for n in rec["nodes"]:
 			n.visible = false
+		if rec.has("off"):
+			rec["off"].visible = true
 		if light != null:
 			light.enabled = false)
 
@@ -3663,7 +3690,11 @@ func _build_room(x0: float, x1: float, style: String) -> void:
 	var top := -tex.get_height() * ROOM_SCALE * SEGMENT_BASE
 	wall.position = Vector2(x0, top)
 	wall.z_index = -5
-	wall.modulate = Color(0.8, 0.78, 0.76)   # lit by its own painted lamps (below): pools of light, dark corners
+	# The painting already has its lamps' light in it: it takes no lamplight of its own (one big
+	# drawing redrawn once per light cost the phone its frame rate). It sits dim, and each painted
+	# lamp lays a soft pool on it (below) that goes dark when the bulb is shot out.
+	wall.light_mask = 0
+	wall.modulate = Color.WHITE * ROOM_BASE
 	add_child(wall)
 	var roof := Polygon2D.new()   # everything above the ceiling is solid black
 	roof.polygon = PackedVector2Array([Vector2(x0, -4200), Vector2(x1, -4200), Vector2(x1, top + 2.0), Vector2(x0, top + 2.0)])
@@ -3712,27 +3743,53 @@ func _build_room(x0: float, x1: float, style: String) -> void:
 			continue
 		var col: Color = BULB_COLORS.get(String(b[2]), BULB_COLORS["warm"])
 		var sky: bool = String(b[2]) == "sky"
+		var add := CanvasItemMaterial.new()
+		add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		add.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+		var nodes: Array = []
+		var pool := Sprite2D.new()   # the pool of light on the painted room round the lamp
+		pool.texture = _soft_glow()
+		pool.position = at + Vector2(0.0, 110.0)   # spreading from the bulb itself, falling off down the wall
+		var low: bool = float(b[1]) > 0.45   # a table or wall lamp lights its corner, a ceiling lamp the room
+		pool.scale = (Vector2(2.4, 2.0) if low else Vector2(4.2, 3.6)) if not sky else Vector2(6.0, 5.0)
+		pool.material = add
+		pool.light_mask = 0
+		pool.modulate = _undo_night(0.1 if not sky else 0.045) * col.lerp(Color.WHITE, 0.8)   # warm, not orange
+		pool.z_index = -4
+		add_child(pool)
+		nodes.append(pool)
 		if not sky:   # daylight through a skylight has no bulb to glow
 			var halo := Sprite2D.new()
 			halo.texture = _soft_glow()
 			halo.position = at
-			halo.scale = Vector2.ONE * (0.5 if String(b[2]) == "candle" else 0.8)
-			var add := CanvasItemMaterial.new()
-			add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
-			add.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+			halo.scale = Vector2.ONE * (0.32 if String(b[2]) == "candle" else 0.5)   # a warm breath round the bulb, not a white disc
 			halo.material = add
-			halo.modulate = _undo_night(0.22) * col
+			halo.light_mask = 0
+			halo.modulate = _undo_night(0.09) * col
 			halo.z_index = -4
 			add_child(halo)
-		var p := PointLight2D.new()   # round and soft: no cone painted onto the wall
+			nodes.append(halo)
+		var p := PointLight2D.new()   # on the people and things in the room only, not on the painting
 		p.texture = load("res://art/light_blob.png")
-		p.texture_scale = 5.5 if not sky else 7.0
+		p.texture_scale = (2.0 if low else 3.4) if not sky else 4.5
 		p.position = at + Vector2(0.0, 260.0)
 		p.color = col
-		p.energy = 0.9 if not sky else 0.5
+		p.energy = 0.85 if not sky else 0.45
 		p.height = 140.0
 		p.range_item_cull_mask = MASK_LIT
 		add_child(p)
+		if not sky:   # a bulb can be shot out like any street lamp: the room round it goes dark
+			var off := Sprite2D.new()   # the painted bulb itself, dead: an ink shadow over its glow
+			off.texture = load("res://art/fx_pool.png")
+			off.position = at + Vector2(0.0, 6.0)
+			off.scale = Vector2.ONE * (0.32 if low else 0.5)
+			off.modulate = Color(1, 1, 1, 0.6)
+			off.light_mask = 0
+			off.z_index = -4
+			off.visible = false
+			add_child(off)
+			lamps.append(at)
+			lamp_info.append({"nodes": nodes, "light": p, "on": true, "off": off, "r": 52.0})
 
 
 ## A lamp hanging from an interior's ceiling: cord, enamel shade, the bulb glowing under it.

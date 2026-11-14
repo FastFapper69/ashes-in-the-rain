@@ -308,10 +308,18 @@ func _draw_ammo() -> void:
 
 
 ## A short word low on the screen that fades: CHECKPOINT, a gun picked up.
+var _toast: Label
 func toast(text: String) -> void:
 	var view := get_viewport().get_visible_rect().size
+	if is_instance_valid(_toast):   # one at a time: a new one replaces the last, never prints over it
+		_toast.queue_free()
 	var l := Label.new()
+	_toast = l
 	l.text = text
+	var head := FontVariation.new()
+	head.base_font = load("res://fonts/Oswald.ttf")
+	head.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): 600}
+	l.add_theme_font_override("font", head)
 	l.add_theme_font_size_override("font_size", 34)
 	l.add_theme_color_override("font_color", PAPER)
 	l.add_theme_color_override("font_outline_color", INK)
