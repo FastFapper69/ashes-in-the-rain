@@ -697,7 +697,7 @@ func add_wound(world: Vector2, part: String) -> void:
 	hole.scale = Vector2.ONE * size * 0.3 / 352.0
 	w.add_child(hole)
 	var run := Line2D.new()
-	run.width = 7.0 / absf(global_scale.y)
+	run.width = 5.0 / absf(global_scale.y)
 	run.default_color = Color(0.5, 0.03, 0.03, 0.9)
 	run.begin_cap_mode = Line2D.LINE_CAP_ROUND
 	run.end_cap_mode = Line2D.LINE_CAP_ROUND
@@ -718,10 +718,20 @@ func _place_wound(w: Node2D) -> void:
 	var ab: Vector2 = bone[1] - a
 	w.position = a + ab * float(w.get_meta("t")) + ab.normalized().orthogonal() * float(w.get_meta("off"))
 	w.rotation = ab.angle() + float(w.get_meta("spin"))
+	# the trickle runs down the body along the bone, never off it into the air; none from the arms,
+	# which swing about (the stain shows there), and it stops where the bone ends
 	var run: Line2D = w.get_meta("run")
-	var k := clampf((_clock - float(w.get_meta("born"))) / 1.4, 0.0, 1.0)
+	var part := String(w.get_meta("bone"))
+	if part.begins_with("uarm") or part.begins_with("farm") or part == "head":
+		run.visible = false
+		return
+	var down: Vector2 = ab if ab.y >= 0.0 else -ab
+	var t: float = w.get_meta("t")
+	var left: float = ab.length() * ((1.0 - t) if ab.y >= 0.0 else t)   # what is left of the bone below the wound
+	var k := clampf((_clock - float(w.get_meta("born"))) / 1.6, 0.0, 1.0)
+	var reach := minf(42.0 / absf(global_scale.y) * k, left * 0.8)
 	run.set_point_position(0, w.position)
-	run.set_point_position(1, w.position + Vector2(0.0, 75.0 * k / absf(global_scale.y)))
+	run.set_point_position(1, w.position + down.normalized() * reach)
 
 
 ## Put a gun in his hands: one of GUNS. Two pistols: one in each hand.
