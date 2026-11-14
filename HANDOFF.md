@@ -61,3 +61,13 @@ Read this first when picking the project up in a new chat. Reply to the user in 
 - Block 6 left: room breaching and lightning (chapter IV). Block 7: content (chapter IV, menus II/III, train yard).
 - Endings (Snow / Ash) wait for chapter IV.
 - Not yet heard back: FPS on the iPhone in interiors after the lighting fix.
+
+
+## Vícepatrové levely – prototyp TENEMENTS (kap. I mapa 4), 14. 11. 2026
+- Lešení (`scaffold` chunk v gen/levels.py): 3 patra po 448.5 px + žebříky cik-cak (rope kind `ladder`: x, top, bottom), nahoře střechy.
+- Střechy: `roofs()` v levels.py → level["roof"] {x0, x1, y=-1794, goal, pics, checks}; hráč jde po střechách DOLEVA, mapa končí u firewallu (goal). Kresby art/street/roof_a/b.png (art_src 107/108) v měřítku 0.95, chůze na 0.828 výšky kresby; okrajové kresby za firewally jen jako kulisa.
+- Pod střechami jen fasády tenrow_a/b (art_src 111/112, SEG_SIZE 0.675): jejich římsa navazuje přesně na spodek střech.
+- main.gd: _build_roofs, _scaffold, _cam_rise (kamera jede s ním nahoru), roof checkpoints (checkpoint_y), _swap_boxes (bedny střechy vs ulice), runneři na střeše se budí když jde doleva, bot leze po žebřících (_bot_ladder).
+- Uličky do hloubky: DEEP_SPLIT (alley, warehouse, laundry, subway, market): zadní konec ujíždí, boční stěny se natahují/naklání jako ploché roviny (žádné ohýbání čar).
+- Hotové kresby nepoužité zatím: 104 Bowery stanice, 105 servisní lávka v tunelu, 106 čerpací stanice (kap. III), 103 = station14 už ve hře.
+- POZOR look test: na x s deníkem (page) se hra zastaví čtením → test visí.
