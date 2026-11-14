@@ -50,6 +50,22 @@ const SCENES := {
 		{"img": 65, "from": [0.7, 0.4, 1.2], "to": [0.4, 0.45, 1.0], "rain": 0.8, "sound": "door",
 			"lines": ["\"Frank Malone. You're under arrest for the murder of Eddie Doyle.\"", "Declan Rourke taught me how to tie a tie. He coughed into my mother's handkerchief and wouldn't look me in the eye."]},
 	],
+	"underground": [
+		{"img": 74, "from": [0.62, 0.5, 1.15], "to": [0.45, 0.5, 1.0], "rain": 1.2, "sound": "door",
+			"lines": ["They put me in the back of a radio car with my own cuffs on.", "The kid up front had a mother who prayed for him. I made sure she'd still have him in the morning. Then I went for the stairs."]},
+		{"img": 75, "from": [0.4, 0.4, 1.0], "to": [0.68, 0.35, 1.25], "rain": 0.0, "hit": 1,
+			"lines": ["Lieutenant Harlan Briggs. Four Bronze Stars and not one bent dollar.", "He counted every shell out loud. In the war they said he never had to count past one."]},
+	],
+	"briggs": [
+		{"img": 76, "from": [0.3, 0.42, 1.2], "to": [0.62, 0.5, 1.25], "rain": 0.0,
+			"lines": ["I had him. Eight years of guilt and one finger on a trigger.", "\"Go on, Malone. I've seen what you signed. I've also seen what they paid you. Two hundred. It doesn't add up.\""]},
+		{"img": 76, "from": [0.62, 0.5, 1.25], "to": [0.5, 0.5, 1.0], "rain": 0.0, "when": ["briggs", "spared"],
+			"lines": ["I put the gun down. He gave me the other half of the truth, out of Rourke's own desk, like a man handing back a wallet."]},
+		{"img": 76, "from": [0.62, 0.5, 1.25], "to": [0.5, 0.5, 1.0], "rain": 0.0, "when": ["briggs", "killed"], "hit": 1,
+			"lines": ["The only honest man who ever hunted me. Eddie would have written that down.", "I didn't."]},
+		{"img": 77, "from": [0.3, 0.45, 1.15], "to": [0.55, 0.45, 1.0], "rain": 1.4,
+			"lines": ["Up in the Saint's tower, two old men were drinking to me.", "\"He'll come,\" Rourke said. \"He always comes. He's his father's son.\""]},
+	],
 	"docks": [
 		{"img": 60, "from": [0.3, 0.55, 1.12], "to": [0.6, 0.45, 1.0], "rain": 1.2,
 			"lines": ["The waterfront at four in the morning. The ash was thicker down here.", "Pier 17 had been dead for eight years. Nobody told the smoke."]},
@@ -92,7 +108,11 @@ var _shot_taken := false
 func _ready() -> void:
 	layer = 30
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	_panels = SCENES.get(scene_id, [])
+	_panels = []
+	for p in SCENES.get(scene_id, []):   # a panel that belongs to one of the player's choices only
+		if p.has("when") and load("res://menu.gd").story(String(p["when"][0])) != String(p["when"][1]):
+			continue
+		_panels.append(p)
 	_font_type = load("res://fonts/SpecialElite.ttf")
 	_font_head = FontVariation.new()
 	_font_head.base_font = load("res://fonts/Oswald.ttf")

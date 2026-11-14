@@ -45,8 +45,8 @@ const DiaryScript = preload("res://diary.gd")
 const SetpiecesScript = preload("res://setpieces.gd")
 var sets   # setpieces.gd: cars, blackouts, searchlights, fires, the crane's crate
 var _in_cut := false
-const CUTS := {"0:0": "eddie", "1:2": "interlude", "1:4": "teague", "2:2": "dream", "2:4": "kessler"}   # the cutscene after a map ("chapter:map")
-const CUTS_BEFORE := {"2:0": "docks"}   # and before one, the first time it is played
+const CUTS := {"0:0": "eddie", "1:2": "interlude", "1:4": "teague", "2:2": "dream", "2:4": "kessler", "3:4": "briggs"}   # the cutscene after a map ("chapter:map")
+const CUTS_BEFORE := {"2:0": "docks", "3:0": "underground"}   # and before one, the first time it is played
 const BOSS_HP := 16
 const BOSS_NAMES := {"teague": "MICKEY 'CANVAS' TEAGUE", "kessler": "BRUNO KESSLER", "briggs": "LT. HARLAN BRIGGS"}
 const BOSS_FACES := {"teague": "boxer", "kessler": "cap", "briggs": "briggs"}
@@ -3005,7 +3005,8 @@ func _add_shield(m) -> void:
 		r.polygon = pts
 		r.color = Color(0.45, 0.46, 0.5)
 		plate.add_child(r)
-	plate.position = Vector2(95.0, -560.0)
+	plate.scale = Vector2(0.62, 0.62)   # chest to knee, an arm's width
+	plate.position = Vector2(48.0, -200.0)
 	plate.name = "Shield"
 	m.add_child(plate)
 
@@ -3203,11 +3204,11 @@ func _say(m, text: String) -> void:
 	var l := Label.new()
 	l.text = text
 	l.add_theme_font_override("font", load("res://fonts/SpecialElite.ttf"))
-	l.add_theme_font_size_override("font_size", 46)
+	l.add_theme_font_size_override("font_size", 88)
 	l.add_theme_color_override("font_color", Color(0.95, 0.92, 0.85) * Color(_undo_night(0.5), 1.0))
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	l.add_theme_constant_override("outline_size", 12)
-	l.position = m.position + Vector2(-60.0, -760.0)
+	l.position = m.position + Vector2(-90.0, -620.0)
 	l.z_index = 20
 	add_child(l)
 	var tw := l.create_tween()
@@ -3225,7 +3226,7 @@ func _briggs_down(e: Dictionary) -> void:
 	var sh: Node2D = m.get_node_or_null("Shield")
 	if sh:
 		var tw := sh.create_tween()
-		tw.tween_property(sh, "position", sh.position + Vector2(140.0, 520.0), 0.4)
+		tw.tween_property(sh, "position", sh.position + Vector2(90.0, 170.0), 0.4)
 		tw.parallel().tween_property(sh, "rotation", 1.4, 0.4)
 	sfx.play("body_fall", 0.0, m.position.x, 0.05)
 	_say(m, "GO ON, MALONE.")
@@ -3387,7 +3388,7 @@ func _enemies(delta: float) -> void:
 					m.position.x += walk * 210.0 * delta
 				var sh: Node2D = m.get_node_or_null("Shield")
 				if sh:
-					sh.position.y = -560.0 + (300.0 if float(e["reload_t"]) > 0.0 else 0.0)   # lowered while he loads
+					sh.position.y = -200.0 + (120.0 if float(e["reload_t"]) > 0.0 else 0.0)   # lowered while he loads
 				in_range = absf(to_player.x) < 900.0
 			if e["cool"] <= 0.0 and may_fire and in_range:
 				e["aim_off"] = randf_range(-150.0, 110.0) * _aim_spread()

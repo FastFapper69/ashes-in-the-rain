@@ -546,7 +546,7 @@ func _make_band() -> void:
 	var trim: float = game.SEGMENT_TRIM.get("tunnel", 0.0)
 	var sx: float = tex.get_width() / (tex.get_width() - trim)
 	_band_w = tex.get_width() * game.WALL_SCALE
-	_band_top = -tex.get_height() * game.WALL_SCALE * game.SEGMENT_BASE - game.WALL_LIFT - 520.0   # the roofs are higher than the rails
+	_band_top = -tex.get_height() * game.WALL_SCALE * game.SEGMENT_BASE - game.WALL_LIFT + 720.0   # its rails down level with the wheels, under the roofs
 	_band = Node2D.new()
 	_band.z_index = -10
 	game.cam.add_child(_band)

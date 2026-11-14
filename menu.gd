@@ -26,6 +26,11 @@ const PHASES := [
 	[2, 3, "Below decks it smelled of tar and other people's prayers.", "THE SANTA LUCIA  ·  DEC 19, 1947  ·  5:50 AM"],
 	[2, 4, "Kessler ran for his office.\nMen like him always run toward their paperwork.", "HARBOR MASTER  ·  DEC 19, 1947  ·  6:20 AM"],
 	[3, 0, "They read me my rights in the rain.\nEddie would have written it down.", "10TH PRECINCT  ·  DEC 19, 1947  ·  7:00 AM"],
+	[3, 1, "Briggs's men knew the stations.\nI knew the tunnels.", "UNDER 14TH STREET  ·  DEC 19, 1947  ·  8:40 AM"],
+	[3, 2, "Down here the dark has a sound.\nIt sounds like trains that never come.", "THE TUNNELS  ·  DEC 19, 1947  ·  10:15 AM"],
+	[3, 3, "The yard was the only way out\nthat didn't have a badge standing in it.", "TRAIN YARD  ·  DEC 19, 1947  ·  NOON"],
+	[3, 4, "The last train ran out of tunnel\nunder the old Bowery.", "THE BOWERY  ·  DEC 19, 1947  ·  1:30 PM"],
+	[4, 0, "Two old men in a tower were drinking to me.\nI meant to spoil it for them.", "MIDTOWN  ·  DEC 24, 1947  ·  CHRISTMAS EVE"],
 ]
 const ENDING := ["For the first time that winter, it snowed.", "NEW YORK  ·  DEC 24, 1947"]
 

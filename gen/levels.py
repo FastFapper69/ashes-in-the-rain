@@ -359,7 +359,7 @@ CAMPAIGN = [
      "diary": "Dec 12. If anything happens to me, the report is in the harbor office, second drawer. Frank, if you're reading this, then you already know that I know.",
      "outro": ["Kessler gave me a key on a chain. It had been warm against his chest for eight years.", "In the second drawer, the report. At the bottom, a name I knew better than my own."]},
   ]},
-  {"title": "CHAPTER III", "name": "UNDERGROUND", "ready": False, "hero": "frank", "ambient": [0.17, 0.16, 0.2], "rain": 0.0, "maps": [
+  {"title": "CHAPTER III", "name": "UNDERGROUND", "ready": True, "hero": "frank", "ambient": [0.17, 0.16, 0.2], "rain": 0.0, "maps": [
     {"name": "14TH STREET", "seed": 301, "feature": "platform", "pool": UNDER_POOL, "under": True, "cops": True, "start": 0.5, "end": 0.75, "ash": 0.2,
      "fixed": ["train_platform", "crate_cover", "rush", "breather", "train_platform", "drum_duo", "gauntlet"],
      "intro": ["The cuffs came off on the third stair. Thirty years of falling down stairs teaches a man something."],
@@ -386,7 +386,7 @@ CAMPAIGN = [
      "fixed": ["crate_cover", "catacombs", "breather", "train_platform", "rush", "catacombs"],
      "intro": ["Lieutenant Harlan Briggs. Four Bronze Stars and not one bent dollar. The only honest man who ever hunted me."],
      "diary": "Dec 17, morning. Tonight I'll know. If it's who I think it is, Frank, I'm sorry. Not for finding it. For it being you.",
-     "outro": ["Briggs had found the other half of the truth in Rourke's desk. He gave it to me like a man handing back a wallet."]},
+     "outro": ["The Catacombs went quiet. Somewhere above us the rain was coming down harder."]},
   ]},
   {"title": "CHAPTER IV", "name": "THE SAINT'S TOWER", "ready": False, "hero": "frank", "ambient": [0.23, 0.19, 0.21], "rain": 1.8, "maps": [
     {"name": "ROOFTOPS"}, {"name": "THE BALL"}, {"name": "ELEVATOR SHAFT"}, {"name": "PENTHOUSE"}, {"name": "THE SPIRE"}]},
@@ -456,7 +456,7 @@ if __name__ == "__main__":
     for ch in CAMPAIGN:
         maps = []
         for mp in ch["maps"]:
-            if not ch["ready"]:
+            if "seed" not in mp:   # written up, not yet built: a name in the case file
                 maps.append({"name": mp["name"]}); continue
             m = build(mp)
             m.hints = [[h[0], h[1]] for h in mp.get("hints", [])] + m.hints
