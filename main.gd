@@ -52,6 +52,25 @@ static var _card_up := false   # a title card is covering the screen across the 
 var sets   # setpieces.gd: cars, blackouts, searchlights, fires, the crane's crate
 var _in_cut := false
 var _fight_t := 0.0   # seconds the fight music holds on after the last enemy in reach
+## What a man let go says on his way out: one statement a map, the other half of Eddie's notebook.
+## Frank only gets it by letting someone live (menu.gd: testimony, counted as evidence for the end).
+const TESTIMONY := {
+	"1:0": "\"The reporter? Mickey said scare him. Somebody else said more than that.\"",
+	"1:1": "\"We wasn't the first ones in that alley. A cop's car was parked at the end. Lights off.\"",
+	"1:2": "\"The laundry don't wash shirts. It washes money for the Saint. Mickey just signs.\"",
+	"1:3": "\"Mickey's scared, Frank. Scared of a man downtown with a cough.\"",
+	"1:4": "\"The girl? Leave her be. She's the only one Eddie told everything.\"",
+	"2:0": "\"Kessler keeps the old keys on a nail in his office. Never moved 'em. Eight years.\"",
+	"2:1": "\"Sully ain't a drunk. Sully saw the chains. Then he started drinking.\"",
+	"2:2": "\"Eleven crates went on the Santa Lucia that night. They didn't weigh like machine parts.\"",
+	"2:3": "\"The hold's got a second manifest. The real one. Kessler's too scared to burn it.\"",
+	"2:4": "\"Kessler takes his orders from a captain. Not a ship's captain.\"",
+	"3:0": "\"Briggs ain't on the take. That's what scares the others.\"",
+	"3:1": "\"They told us you shot the reporter. Briggs didn't buy it. Rourke made him.\"",
+	"3:2": "\"Rourke's got a file on you in his desk. Only half of it. He keeps the other half on him.\"",
+	"3:3": "\"The trains run late tonight because somebody paid them to. Somebody wants you in the tunnels.\"",
+	"3:4": "\"The Saint's throwing a ball Christmas Eve. Rourke's the guest of honour.\"",
+}
 const CUTS := {"0:0": "eddie", "1:2": "interlude", "1:4": "teague", "2:2": "dream", "2:4": "kessler", "3:4": "briggs"}   # the cutscene after a map ("chapter:map")
 const CUTS_BEFORE := {"2:0": "docks", "3:0": "underground"}   # and before one, the first time it is played
 const BOSS_HP := 16
@@ -2046,12 +2065,13 @@ func _auto_step(delta: float) -> void:
 			first["hp"] = 1
 			_give_up(first, 0.3)
 		cam.position.x = player.position.x + 350.0
-		for t in [1.2, 2.2, 3.4, 4.6]:
-			var bit := 1 << (1 + [1.2, 2.2, 3.4, 4.6].find(t))
-			if _at > t and _auto_done & bit == 0:
+		var times := [1.2, 2.2, 3.4, 8.0]
+		for i in times.size():
+			var bit := 1 << (1 + i)
+			if _at > times[i] and _auto_done & bit == 0:
 				_auto_done |= bit
-				_shot("give_%d" % [1.2, 2.2, 3.4, 4.6].find(t))
-		if _at > 5.5:
+				_shot("give_%d" % i)
+		if _at > 8.4:
 			print("GIVE spared ", stats["spared"], " all down ", _all_down())
 			get_tree().quit()
 		return
@@ -4241,6 +4261,11 @@ func _giving_up(e: Dictionary, delta: float) -> void:
 			e["spared"] = true
 			m.visible = false
 			stats["spared"] += 1
+			var key := "%d:%d" % [chapter, map]
+			if stats["spared"] == 1 and TESTIMONY.has(key):   # the first man let go on a map talks on his way out
+				hud.caption(["He talked before he ran.", String(TESTIMONY[key])])
+				if _auto == "":
+					MenuScript.set_story("testimony_" + key.replace(":", "-"), "yes")
 			return
 	m.set_state(walk, to_player.normalized() * 100.0, delta)
 

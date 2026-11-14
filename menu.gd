@@ -242,6 +242,27 @@ static func spared_total() -> int:
 	return _sum("spared")
 
 
+## What Frank holds against the Saint at the end: Eddie's pages found and statements heard.
+static func evidence() -> int:
+	var n := 0
+	for c in Levels.CAMPAIGN.size():
+		for m in Levels.CAMPAIGN[c]["maps"].size():
+			n += 1 if has_page(c, m) else 0
+			n += 1 if story("testimony_%d-%d" % [c, m]) == "yes" else 0
+	return n
+
+
+## The ending the player has earned so far: "snow" (low ash, Briggs alive, at least half the
+## evidence) or "ash". Chapter IV reads this when it is built.
+static func ending() -> String:
+	var total := 0
+	for c in Levels.CAMPAIGN.size():
+		total += (Levels.CAMPAIGN[c]["maps"] as Array).size() * 2
+	if guilt() < 4 and story("briggs") == "spared" and evidence() * 2 >= total:
+		return "snow"
+	return "ash"
+
+
 func _ready() -> void:
 	layer = 20
 	_font_type = load("res://fonts/SpecialElite.ttf")

@@ -11,6 +11,10 @@ const TYPE_STEP := 0.032   # seconds per letter
 ## Every cutscene: a list of panels. A panel: its picture (art/cut/<img>.jpg); where the camera starts
 ## and ends ([x, y] of the picture to centre on, as fractions, and a zoom where 1.0 just fills the
 ## screen); the lines (a line in quotes is somebody speaking); and its weather and sounds.
+## A Frank who has shot men with their hands up tells it harder: "hard" swaps a panel's lines
+## ([index, line]) once the ash (menu.gd guilt) has reached this much.
+const HARD_AT := 3
+
 const SCENES := {
 	"eddie": [
 		{"img": 49, "from": [0.5, 0.4, 1.12], "to": [0.62, 0.5, 1.0], "rain": 1.0, "stamp": "NEW YORK  ·  DECEMBER 18, 1947  ·  2:10 A.M.",
@@ -32,17 +36,20 @@ const SCENES := {
 	],
 	"teague": [
 		{"img": 56, "from": [0.3, 0.6, 1.15], "to": [0.55, 0.5, 1.0], "rain": 0.0,
-			"lines": ["Mickey went down on cue, like always.", "\"Feed my birds, Frank... Pier Seventeen. Ask your boss.\""]},
+			"lines": ["Mickey went down on cue, like always.", "\"Feed my birds, Frank... Pier Seventeen. Ask your boss.\""],
+			"hard": [[0, "Mickey went down. This time nobody had paid him to."]]},
 		{"img": 57, "from": [0.5, 0.42, 1.0], "to": [0.47, 0.38, 1.16], "rain": 0.0,
 			"lines": ["Rosie Kowalski came down off the stage like it was the last song of the night.", "Eddie's girl. She'd been holding something for him."]},
 		{"img": 58, "from": [0.45, 0.5, 1.0], "to": [0.52, 0.48, 1.2], "rain": 0.0,
 			"lines": ["\"He said if anything happened, you'd know what to do.\""]},
 		{"img": 59, "from": [0.4, 0.5, 1.0], "to": [0.62, 0.45, 1.55], "rain": 0.0, "hit": 1,
-			"lines": ["Pier 17. Eleven dead. Who signed the report?", "Everybody on the West Side remembered that fire. I remembered it as well as anybody."]},
+			"lines": ["Pier 17. Eleven dead. Who signed the report?", "Everybody on the West Side remembered that fire. I remembered it as well as anybody."],
+			"hard": [[1, "Everybody on the West Side remembered that fire. I'd spent eight years learning how not to."]]},
 	],
 	"dream": [
 		{"img": 70, "from": [0.72, 0.5, 1.25], "to": [0.5, 0.45, 1.0], "rain": 0.0, "hit": 1,
-			"lines": ["That night I dreamed I was twenty-six again, with a new badge and a clean conscience.", "The doors were chained. Somebody on the other side kept knocking. I counted the hands. Eleven.", "I woke up before I could see whose side of the door I was on."]},
+			"lines": ["That night I dreamed I was twenty-six again, with a new badge and a clean conscience.", "The doors were chained. Somebody on the other side kept knocking. I counted the hands. Eleven.", "I woke up before I could see whose side of the door I was on."],
+			"hard": [[2, "I woke up knowing exactly whose side of the door I was on. I'd been adding hands to it all week."]]},
 	],
 	"kessler": [
 		{"img": 64, "from": [0.35, 0.45, 1.05], "to": [0.55, 0.62, 1.4], "rain": 0.0, "hit": 1,
@@ -58,7 +65,8 @@ const SCENES := {
 	],
 	"briggs": [
 		{"img": 76, "from": [0.3, 0.42, 1.2], "to": [0.62, 0.5, 1.25], "rain": 0.0,
-			"lines": ["I had him. Eight years of guilt and one finger on a trigger.", "\"Go on, Malone. I've seen what you signed. I've also seen what they paid you. Two hundred. It doesn't add up.\""]},
+			"lines": ["I had him. Eight years of guilt and one finger on a trigger.", "\"Go on, Malone. I've seen what you signed. I've also seen what they paid you. Two hundred. It doesn't add up.\""],
+			"hard": [[0, "I had him. Men had put their hands up for me all week. Not all of them walked away."]]},
 		{"img": 76, "from": [0.62, 0.5, 1.25], "to": [0.5, 0.5, 1.0], "rain": 0.0, "when": ["briggs", "spared"],
 			"lines": ["I put the gun down. He gave me the other half of the truth, out of Rourke's own desk, like a man handing back a wallet."]},
 		{"img": 76, "from": [0.62, 0.5, 1.25], "to": [0.5, 0.5, 1.0], "rain": 0.0, "when": ["briggs", "killed"], "hit": 1,
@@ -68,7 +76,8 @@ const SCENES := {
 	],
 	"docks": [
 		{"img": 60, "from": [0.3, 0.55, 1.12], "to": [0.6, 0.45, 1.0], "rain": 1.2,
-			"lines": ["The waterfront at four in the morning. The ash was thicker down here.", "Pier 17 had been dead for eight years. Nobody told the smoke."]},
+			"lines": ["The waterfront at four in the morning. The ash was thicker down here.", "Pier 17 had been dead for eight years. Nobody told the smoke."],
+			"hard": [[0, "The waterfront at four in the morning. The ash was thicker down here, or I was carrying more of it."]]},
 		{"img": 61, "from": [0.5, 0.4, 1.0], "to": [0.5, 0.3, 1.25], "rain": 0.0, "sound": "match",
 			"lines": ["Bruno Kessler. Dock master since '38. Sleeps with every door open.", "A man who sleeps like that knows what a locked door costs."]},
 	],
@@ -138,6 +147,12 @@ func _ready() -> void:
 	for p in SCENES.get(scene_id, []):   # a panel that belongs to one of the player's choices only
 		if p.has("when") and load("res://menu.gd").story(String(p["when"][0])) != String(p["when"][1]):
 			continue
+		if p.has("hard") and load("res://menu.gd").guilt() >= HARD_AT:   # the ash shows in how he tells it
+			p = p.duplicate()
+			var lines: Array = (p["lines"] as Array).duplicate()
+			for pair in p["hard"]:
+				lines[int(pair[0])] = pair[1]
+			p["lines"] = lines
 		_panels.append(p)
 	_font_type = load("res://fonts/SpecialElite.ttf")
 	_font_head = FontVariation.new()
