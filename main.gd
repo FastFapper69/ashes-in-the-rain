@@ -3575,7 +3575,8 @@ func _add_page(at: Vector2) -> void:
 	holder.position = at + (Vector2(0.0, 40.0) if on_box else Vector2(0.0, -330.0))
 	holder.z_index = -1   # on the wall: people pass in front of it
 	add_child(holder)
-	var tex: Texture2D = load("res://art/items/page_note.png")   # the page small, its writing still legible as writing
+	var note := "res://art/items/notes/%d_%d.png" % [chapter, map]   # this page small, its own writing and stains
+	var tex: Texture2D = load(note if ResourceLoader.exists(note) else "res://art/items/page_note.png")
 	var page := Sprite2D.new()
 	page.texture = tex
 	page.scale = Vector2.ONE * (130.0 / tex.get_width())
@@ -3648,6 +3649,7 @@ func _read_page() -> void:
 	MenuScript.mark_page(chapter, map)
 	var d = DiaryScript.new()
 	d.text = String(level.get("diary", ""))
+	d.paper = "res://art/ui/pages/%d_%d.png" % [chapter, map]
 	d.found = MenuScript.pages(chapter)
 	d.total = Levels.CAMPAIGN[chapter]["maps"].size()
 	d.sound = func(n: String, db: float) -> void: sfx.play(n, db, INF, 0.0)

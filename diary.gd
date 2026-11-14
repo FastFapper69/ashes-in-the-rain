@@ -7,6 +7,7 @@ const GRAPHITE := Color(0.17, 0.17, 0.19)
 const PAPER := Color(0.93, 0.89, 0.8)
 
 var text := ""
+var paper := ""   # this page's own sheet (gen/notes.py): torn, folded and yellowed its own way
 var found := 1      # pages of this chapter found so far, this one included
 var total := 5
 var sound := Callable()   # func(name: String, db: float)
@@ -36,7 +37,7 @@ func _ready() -> void:
 	head.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): 600}
 	# The page itself, left of centre: Eddie's hand, smudged, stained, partly lost. It can afford to
 	# be hard to read, since what it says is typed out clean beside it.
-	var tex: Texture2D = load("res://art/ui/diary_page.png")
+	var tex: Texture2D = load(paper if paper != "" and ResourceLoader.exists(paper) else "res://art/ui/diary_page_clean.png")
 	var h := minf(view.y * 0.8, view.x * 0.52 * tex.get_height() / tex.get_width())
 	var w := h * tex.get_width() / tex.get_height()
 	_page = Control.new()
