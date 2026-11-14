@@ -12,7 +12,7 @@ Read this first when picking the project up in a new chat. Reply to the user in 
 1. `git clone` the repo (main), download Godot 4.7.2 stable linux + export templates.
 2. `godot --headless --import`
 3. Web export (art/_src holds generator inputs and art kept for later; it is not exported): `godot --headless --export-release Web build/index.html` (pck must stay < 100 MB, now ~94 MB; `export_presets.cfg` exclude_filter keeps unused art out).
-4. Deploy: commit sources to `main`; copy `build/index.{pck,html,js,wasm}` into a `gh-pages` worktree, commit, push, check `git rev-parse HEAD == origin/gh-pages`.
+4. Deploy: copy sources into the `main` clone (never copy a `.git` folder over it); commit; copy `build/index.{pck,html,js,wasm}` into a `gh-pages` worktree, commit, push, check `git rev-parse HEAD == origin/gh-pages`.
 5. Commit trailer:
    `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` and the current `Claude-Session:` link.
 
