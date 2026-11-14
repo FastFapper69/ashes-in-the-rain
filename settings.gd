@@ -6,6 +6,7 @@ const PAPER := Color(0.93, 0.89, 0.8)
 const INK := Color(0.05, 0.05, 0.06)
 const CRIMSON := Color(0.6, 0.1, 0.07)
 const MenuScript = preload("res://menu.gd")
+const Paper = preload("res://paper.gd")
 
 var done := Callable()
 var sound := Callable()   # func(name: String)
@@ -27,20 +28,14 @@ func _ready() -> void:
 	dim.color = Color(0, 0, 0, 0.75)
 	dim.size = view
 	add_child(dim)
-	var card := Panel.new()
-	var st := StyleBoxFlat.new()
-	st.bg_color = PAPER
-	st.border_color = INK
-	st.set_border_width_all(5)
-	st.shadow_color = Color(0, 0, 0, 0.6)
-	st.shadow_offset = Vector2(9, 9)
-	card.add_theme_stylebox_override("panel", st)
+	var card := Paper.card("caption", Vector2.ZERO, 0.08)   # an inked comic panel of old paper
+	card.mouse_filter = Control.MOUSE_FILTER_STOP
 	card.size = Vector2(minf(820.0, view.x * 0.7), minf(580.0, view.y * 0.86))
 	card.position = (view - card.size) * 0.5
 	card.rotation = deg_to_rad(-0.6)
 	add_child(card)
 	var title := _label("SETTINGS", _head, 54, INK)
-	title.position = Vector2(40.0, 22.0)
+	title.position = Vector2(52.0, 30.0)
 	card.add_child(title)
 	var y := 112.0
 	var step := (card.size.y - 112.0 - 120.0) / 4.0
@@ -48,7 +43,7 @@ func _ready() -> void:
 	_row(card, y + step, "SOUND", "sound", true)
 	_row(card, y + step * 2.0, "SCREEN SHAKE", "shake", false)
 	_row(card, y + step * 3.0, "AIM ASSIST", "assist", false)
-	var back := _button("BACK", Vector2(40.0, card.size.y - 88.0), 220.0, true)
+	var back := _button("BACK", Vector2(52.0, card.size.y - 100.0), 220.0, true)
 	back.pressed.connect(func() -> void:
 		_click()
 		if done.is_valid():
@@ -59,9 +54,9 @@ func _ready() -> void:
 
 func _row(card: Control, y: float, text: String, key: String, volume: bool) -> void:
 	var l := _label(text, _type, 34, INK)
-	l.position = Vector2(44.0, y)
+	l.position = Vector2(56.0, y)
 	card.add_child(l)
-	var x := card.size.x - 340.0
+	var x := card.size.x - 356.0
 	if volume:
 		var minus := _button("-", Vector2(x, y - 6.0), 64.0, false)
 		var plus := _button("+", Vector2(x + 220.0, y - 6.0), 64.0, false)
@@ -118,21 +113,8 @@ func _label(t: String, font: Font, size: int, col: Color) -> Label:
 
 
 func _button(t: String, at: Vector2, w: float, main: bool) -> Button:
-	var b := Button.new()
-	b.text = t
-	b.focus_mode = Control.FOCUS_NONE
-	b.add_theme_font_override("font", _head)
-	b.add_theme_font_size_override("font_size", 36)
-	for state in ["normal", "hover", "pressed", "focus"]:
-		var st := StyleBoxFlat.new()
-		st.bg_color = INK if main else PAPER.darkened(0.12)
-		if state == "pressed":
-			st.bg_color = st.bg_color.darkened(0.2) if not main else CRIMSON
-		st.border_color = INK
-		st.set_border_width_all(3)
-		b.add_theme_stylebox_override(state, st)
-	for c in ["font_color", "font_hover_color", "font_pressed_color"]:
-		b.add_theme_color_override(c, PAPER if main else INK)
+	var b := Paper.button("tape" if main else ("tag" if w < 100.0 else "strip"), t, _head, 36, Vector2(w, 60.0))
+	if w < 100.0:   # the little + and - squares: plain torn tape
+		b = Paper.button("tape", t, _head, 36, Vector2(w, 60.0))
 	b.position = at
-	b.size = Vector2(w, 60.0)
 	return b

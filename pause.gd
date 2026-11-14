@@ -51,7 +51,7 @@ func _ready() -> void:
 		var b := _button(String(item[0]), Vector2(x, y), 400.0, bool(item[2]))
 		b.pressed.connect(item[1])
 		_root.add_child(b)
-		y += 92.0
+		y += 84.0
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -99,27 +99,6 @@ func _click() -> void:
 
 
 func _button(t: String, at: Vector2, w: float, main: bool) -> Button:
-	var b := Button.new()
-	b.text = t
-	b.focus_mode = Control.FOCUS_NONE
-	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	b.add_theme_font_override("font", _head)
-	b.add_theme_font_size_override("font_size", 38 if main else 32)
-	for state in ["normal", "hover", "pressed", "focus"]:
-		var st := StyleBoxFlat.new()
-		st.bg_color = PAPER if main else PAPER.darkened(0.12)
-		if state == "pressed":
-			st.bg_color = st.bg_color.darkened(0.2)
-		st.border_color = INK
-		st.set_border_width_all(4)
-		st.content_margin_left = 22.0
-		st.shadow_color = Color(0, 0, 0, 0.55)
-		st.shadow_offset = Vector2(6, 6)
-		b.add_theme_stylebox_override(state, st)
-	for c in ["font_color", "font_hover_color"]:
-		b.add_theme_color_override(c, INK)
-	b.add_theme_color_override("font_pressed_color", CRIMSON)
+	var b: Button = load("res://paper.gd").button("tape" if main else "strip", t, _head, 36, Vector2(w, 60.0))
 	b.position = at
-	b.size = Vector2(w, 70.0 if main else 62.0)
-	b.rotation = deg_to_rad(randf_range(-0.8, 0.8))
 	return b

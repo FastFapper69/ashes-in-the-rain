@@ -158,23 +158,18 @@ func caption(lines: Array) -> void:
 	var tw := create_tween()
 	for i in lines.size():
 		var panel := PanelContainer.new()
-		var style := StyleBoxFlat.new()
-		style.bg_color = PAPER
-		style.border_color = INK
-		style.set_border_width_all(4)
-		style.set_content_margin_all(9)
-		style.content_margin_left = 16
-		style.content_margin_right = 16
-		style.bg_color = Color(PAPER, 0.92)
-		style.shadow_color = Color(0.0, 0.0, 0.0, 0.5)
-		style.shadow_offset = Vector2(6.0, 6.0)
+		var style: StyleBoxTexture = load("res://paper.gd").box("caption_s", 0.09)   # an inked comic caption box
+		style.set_content_margin_all(19)
+		style.content_margin_left = 26
+		style.content_margin_right = 26
 		panel.add_theme_stylebox_override("panel", style)
 		panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var l := Label.new()
 		l.text = String(lines[i]).to_upper()
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		l.custom_minimum_size = Vector2(minf(500.0, 40.0 + String(lines[i]).length() * 13.0), 0.0)
-		l.add_theme_font_size_override("font_size", 23)
+		l.add_theme_font_override("font", load("res://fonts/ComicNeue-BoldItalic.woff"))   # comic lettering: slanted bold capitals
+		l.add_theme_font_size_override("font_size", 24)
 		l.add_theme_color_override("font_color", INK)
 		panel.add_child(l)
 		panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN

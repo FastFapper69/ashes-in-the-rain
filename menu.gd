@@ -5,6 +5,7 @@ extends CanvasLayer
 ## he gets closer to the truth (main.gd sets that from phase()).
 
 const Levels = preload("res://levels.gd")
+const Paper = preload("res://paper.gd")
 const PAPER := Color(0.93, 0.89, 0.8)
 const INK := Color(0.05, 0.05, 0.06)
 const CRIMSON := Color(0.6, 0.1, 0.07)
@@ -46,15 +47,17 @@ var _font_head: FontVariation
 var _on_case_file := false
 # The title is a painted scene, not the game's street: one picture for each part of the story, the
 # camera drifting slowly over it, rain and ash across it, its lights alive.
-const KEY_ART := {0: 78, 1: 78, 2: 79, 3: 80, 4: 80}
+const KEY_ART := {0: 86, 1: 86, 2: 79, 3: 80, 4: 80}   # 86: the street in layers, the detective a layer of his own
 ## The lamps (gen/key_neon.py): the box each painted lamp and its cone sit in. Their glow is cut
 ## from the painting itself, so it has the lamp's own shape and never floats as a disc in the air.
 const KEY_LAMPS := {78: [[0.70, 0.0, 0.90, 0.55]], 79: [[0.44, 0.40, 0.56, 0.80]], 80: [[0.65, 0.15, 0.76, 0.42]]}
 ## The painted neon (gen/key_neon.py): the box each picture's red light and its reflections sit in.
 ## A glow in the exact shape of the letters goes on over it, and a dark copy of those same pixels
 ## goes over the picture whenever the tube cuts out, so the street's red goes out with the sign.
-const KEY_NEON := {78: [0.40, 0.40, 0.80, 1.0], 79: [0.55, 0.72, 0.72, 0.92], 80: [0.43, 0.36, 0.56, 0.55]}
+const KEY_NEON := {86: [0.40, 0.42, 0.66, 1.0], 78: [0.40, 0.40, 0.80, 1.0], 79: [0.55, 0.72, 0.72, 0.92], 80: [0.43, 0.36, 0.56, 0.55]}
 var _neon: Dictionary = {}
+var _frank: TextureRect   # the detective under his lamp: nearer than the street, so he slides against it
+var _frank_glow: TextureRect
 var _back: Control
 var _art: TextureRect
 var _rain: Control
@@ -281,6 +284,23 @@ func _make_back() -> void:
 			n.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			_art.add_child(n)
 		_neon = {"off": off, "glow": glow, "box": KEY_NEON[img], "next": randf_range(2.5, 5.0), "dip": 0.0}
+	if img == 86:
+		_frank = TextureRect.new()
+		_frank.texture = load("res://art/ui/menu/frank.png")
+		_frank.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_frank.stretch_mode = TextureRect.STRETCH_SCALE
+		_frank.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_frank.modulate = Color(0, 0, 0)
+		_back.add_child(_frank)
+		create_tween().tween_property(_frank, "modulate", Color.WHITE, 2.5)
+		_frank_glow = TextureRect.new()   # the lantern's light, cut from the lantern itself
+		_frank_glow.texture = load("res://art/ui/menu/frank_glow.png")
+		_frank_glow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_frank_glow.stretch_mode = TextureRect.STRETCH_SCALE
+		_frank_glow.material = add
+		_frank_glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_frank_glow.modulate = Color(1.0, 0.8, 0.5, 0.0)
+		_frank.add_child(_frank_glow)
 	var ash := CPUParticles2D.new()   # the ash, thicker the further the story has gone
 	ash.texture = load("res://art/light_blob.png")
 	ash.amount = int(20 + 50 * ash_level())
@@ -341,6 +361,14 @@ func _tick_back(delta: float) -> void:
 		n.position = Vector2(float(b[0]), float(b[1])) * size
 		n.size = Vector2(float(b[2]) - float(b[0]), float(b[3]) - float(b[1])) * size
 		n.modulate.a = 0.35 + 0.1 * sin(_clock * 1.3 + float(l["phase"])) + 0.04 * sin(_clock * 7.0 + float(l["phase"]))
+	if _frank != null:   # nearer the eye: he moves the other way, half as far again
+		var fh := view.y * 1.16
+		var fw := fh * _frank.texture.get_width() / _frank.texture.get_height()
+		_frank.size = Vector2(fw, fh)
+		_frank.position = Vector2(view.x * 0.8 - fw * 0.5 - view.x * 0.022 * sin(_clock * 0.037), view.y * 0.035 - view.y * 0.012 * sin(_clock * 0.029 + 1.0))
+		_frank_glow.position = Vector2(fw * 0.6, 0.0)
+		_frank_glow.size = Vector2(fw * 0.4, fh * 0.26)
+		_frank_glow.modulate.a = 0.5 + 0.06 * sin(_clock * 1.3) + 0.03 * sin(_clock * 7.0)
 	if not _neon.is_empty():
 		var b: Array = _neon["box"]
 		var lit := 0.94 + 0.06 * sin(_clock * 53.0)   # the hum of a tube
@@ -413,29 +441,54 @@ func _new_page() -> Vector2:
 
 ## A button like a strip of paper pasted on the page: ink caption, slightly askew.
 func _button(text: String, at: Vector2, width: float, main: bool, on_press: Callable) -> Button:
-	var b := Button.new()
-	b.text = text
-	b.add_theme_font_override("font", _font_head)
-	b.add_theme_font_size_override("font_size", 40 if main else 30)
-	b.add_theme_color_override("font_color", INK)
-	b.add_theme_color_override("font_hover_color", CRIMSON)
-	b.add_theme_color_override("font_pressed_color", CRIMSON)
-	var bg := PAPER if main else PAPER.darkened(0.12)
-	for state in ["normal", "hover", "focus"]:
-		var st := _box(bg, INK, 4)
-		st.content_margin_left = 22.0
-		st.content_margin_right = 22.0
-		b.add_theme_stylebox_override(state, st)
-	b.add_theme_stylebox_override("pressed", _box(bg.darkened(0.15), INK, 4))
+	var b := Paper.button("tape" if main else "strip", text, _font_head, 40 if main else 30, Vector2(width, 66.0 if main else 54.0))
 	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	b.focus_mode = Control.FOCUS_NONE
 	b.position = at
-	b.size = Vector2(width, 66.0 if main else 54.0)
 	b.rotation = deg_to_rad(randf_range(-1.2, 0.8))
 	b.pressed.connect(func() -> void:
 		if sound.is_valid():
 			sound.call("page")
 		on_press.call())
+	_page.add_child(b)
+	return b
+
+
+## One of the title's papers: the drawing itself is the button, whole and unstretched.
+func _paper(kind: String, at: Vector2, size: Vector2, tilt: float, on_press: Callable) -> TextureButton:
+	var tex: Texture2D = load("res://art/ui/paper/%s.png" % kind)
+	var b := TextureButton.new()
+	b.texture_normal = tex
+	b.ignore_texture_size = true
+	b.stretch_mode = TextureButton.STRETCH_SCALE
+	b.focus_mode = Control.FOCUS_NONE
+	b.position = at
+	b.size = size
+	b.pivot_offset = size * 0.5
+	b.rotation = deg_to_rad(tilt)
+	var shadow := TextureRect.new()
+	shadow.texture = tex
+	shadow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	shadow.stretch_mode = TextureRect.STRETCH_SCALE
+	shadow.size = size
+	shadow.position = Vector2(6.0, 8.0)
+	shadow.modulate = Color(0, 0, 0, 0.55)
+	shadow.show_behind_parent = true
+	shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.add_child(shadow)
+	b.button_down.connect(func() -> void:   # a thumb on it: it sinks to the wall
+		b.scale = Vector2(0.97, 0.97)
+		b.modulate = Color(0.82, 0.8, 0.76)
+		shadow.position = Vector2(2.0, 3.0))
+	b.button_up.connect(func() -> void:
+		b.scale = Vector2.ONE
+		b.modulate = Color.WHITE
+		shadow.position = Vector2(6.0, 8.0))
+	b.pressed.connect(func() -> void:
+		if sound.is_valid():
+			sound.call("page")
+		on_press.call())
+	b.modulate.a = 0.0
+	b.create_tween().tween_property(b, "modulate:a", 1.0, 0.8).set_delay(1.8)
 	_page.add_child(b)
 	return b
 
@@ -449,12 +502,13 @@ func _title() -> void:
 		return
 	var shade := TextureRect.new()   # the left of the street darkened so the words read; the right stays open
 	var g := Gradient.new()
-	g.set_color(0, Color(0.0, 0.0, 0.0, 0.5))
-	g.set_color(1, Color(0.0, 0.0, 0.0, 0.0))
+	g.set_color(0, Color(0.0, 0.0, 0.0, 0.86))   # a calm, dark ground for the title and the papers
+	g.add_point(0.45, Color(0.0, 0.0, 0.0, 0.55))
+	g.set_color(g.get_point_count() - 1, Color(0.0, 0.0, 0.0, 0.0))
 	var gt := GradientTexture2D.new()
 	gt.gradient = g
-	gt.fill_from = Vector2(0.3, 0.0)
-	gt.fill_to = Vector2(0.75, 0.0)
+	gt.fill_from = Vector2(0.0, 0.0)
+	gt.fill_to = Vector2(0.5, 0.0)
 	shade.texture = gt
 	shade.size = view
 	shade.stretch_mode = TextureRect.STRETCH_SCALE
@@ -467,7 +521,7 @@ func _title() -> void:
 	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT
 	var aspect := float(logo.texture.get_width()) / logo.texture.get_height()
-	var lh := minf(view.y * 0.46, view.x * 0.42 / aspect)   # never wider than the left part of the screen
+	var lh := minf(view.y * 0.4, view.x * 0.36 / aspect)   # never wider than the left part of the screen
 	logo.size = Vector2(lh * aspect, lh)
 	logo.position = Vector2(left, view.y * 0.05)
 	logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -478,27 +532,44 @@ func _title() -> void:
 
 	var ph := phase()
 	var p := progress()
-	var y := view.y * 0.05 + lh + view.y * 0.07
+	# The papers on the wall under the title: today's clipping (the map to play), the case folder,
+	# and a tag for the settings. Real pieces of paper, each a little askew, with a shadow under it.
+	var u := view.y / 720.0
+	var y := view.y * 0.05 + lh + 14.0 * u
 	if p[0] >= 0 and Levels.CAMPAIGN[p[0]]["ready"]:
 		var ch: Dictionary = Levels.CAMPAIGN[p[0]]
 		var what := "BEGIN" if p[0] == 0 and p[1] == 0 else "CONTINUE"
-		var sub := "%s  ·  %s" % [String(ch["title"]), String(ch["maps"][p[1]]["name"])]
-		_button(what, Vector2(left, y), 300.0, true, func() -> void: play.call(p[0], p[1]))
-		var subl := _label(sub, _font_type, 18, Color(PAPER, 0.8), 5)
-		subl.position = Vector2(left + 4.0, y + 72.0)
-		subl.size = Vector2(600.0, 26.0)
-		_page.add_child(subl)
-		y += 112.0
-	_button("CASE FILE", Vector2(left, y), 300.0, false, _case_file)
-	_button("SETTINGS", Vector2(left, y + 72.0), 300.0, false, func() -> void:
+		var clip := _paper("clip", Vector2(left, y), Vector2(330.0, 182.0) * u, -1.6, func() -> void: play.call(p[0], p[1]))
+		var sub := _label("%s  ·  %s" % [String(ch["title"]), String(ch["maps"][p[1]]["name"])], _font_type, int(15 * u), Color(INK, 0.85))
+		sub.position = Vector2(26.0, 30.0) * u
+		sub.size = Vector2(280.0, 22.0) * u
+		sub.clip_text = true
+		clip.add_child(sub)
+		var big := _label(what, _font_head, int(62 * u), INK)
+		big.position = Vector2(24.0, 70.0) * u
+		big.size = Vector2(290.0, 90.0) * u
+		clip.add_child(big)
+		y += 196.0 * u
+	var folder := _paper("folder", Vector2(left, y), Vector2(206.0, 159.0) * u, 1.4, _case_file)
+	var cf := _label("CASE\nFILE", _font_head, int(34 * u), CRIMSON)
+	cf.add_theme_constant_override("line_spacing", int(-8 * u))
+	cf.position = Vector2(78.0, 44.0) * u
+	cf.size = Vector2(120.0, 90.0) * u
+	cf.rotation = deg_to_rad(-5.0)
+	folder.add_child(cf)
+	var tag := _paper("tag", Vector2(left + 222.0 * u, y + 34.0 * u), Vector2(236.0, 97.0) * u, -2.4, func() -> void:
 		var st = load("res://settings.gd").new()
 		st.sound = sound
 		_page.visible = false
 		st.done = func() -> void: _page.visible = true
 		add_child(st))
+	var tl := _label("SETTINGS", _font_head, int(25 * u), INK)
+	tl.position = Vector2(24.0, 28.0) * u
+	tl.size = Vector2(150.0, 50.0) * u
+	tag.add_child(tl)
 
 	var stamp := _label(String(ph[1]), _font_type, 20, Color(PAPER, 0.75), 5)
-	stamp.position = Vector2(view.x - 640.0, view.y - 52.0)
+	stamp.position = Vector2(view.x * 0.68 - 600.0, view.y - 52.0)   # on the wet street, clear of the detective
 	stamp.size = Vector2(600.0, 30.0)
 	stamp.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_page.add_child(stamp)
@@ -545,9 +616,9 @@ func _case_file() -> void:
 		panel.rotation = deg_to_rad(-1.2 if m % 2 == 0 else 1.0)
 		panel.focus_mode = Control.FOCUS_NONE
 		var bg := PAPER if open else Color(0.2, 0.2, 0.22)
-		for state in ["normal", "hover", "focus", "disabled"]:
-			panel.add_theme_stylebox_override(state, _box(bg, INK, 6))
-		panel.add_theme_stylebox_override("pressed", _box(bg.darkened(0.15), INK, 6))
+		for state in ["normal", "hover", "focus", "disabled", "pressed"]:   # each map an inked comic panel of old paper
+			var tint := Color.WHITE if open else Color(0.3, 0.3, 0.32)
+			panel.add_theme_stylebox_override(state, Paper.box("caption", 0.08, tint.darkened(0.15) if state == "pressed" else tint, Vector2(w, h)))
 		panel.disabled = not open
 		if open:
 			panel.pressed.connect(func() -> void: play.call(_chapter, m))
@@ -595,9 +666,9 @@ func _case_file() -> void:
 		b.text = "<" if side < 0 else ">"
 		b.add_theme_font_override("font", _font_head)
 		b.add_theme_font_size_override("font_size", 64)
-		b.add_theme_color_override("font_color", PAPER)
+		b.add_theme_color_override("font_color", INK)
 		for state in ["normal", "hover", "pressed", "focus"]:
-			b.add_theme_stylebox_override(state, _box(Color(0.08, 0.08, 0.09, 0.9), PAPER, 4))
+			b.add_theme_stylebox_override(state, Paper.box("caption_s", 0.09, Color(0.8, 0.77, 0.72) if state == "pressed" else Color.WHITE, Vector2(80.0, 120.0)))
 		b.focus_mode = Control.FOCUS_NONE
 		b.size = Vector2(80.0, 120.0)
 		b.position = Vector2(24.0 if side < 0 else view.x - 104.0, y0 + h * 0.5 - 60.0)
