@@ -378,7 +378,7 @@ func _ready() -> void:
 		if arg.begins_with("--map="):
 			map = int(arg.trim_prefix("--map="))
 		if arg.begins_with("--test="):
-			in_menu = arg == "--test=menu" or arg == "--test=instincts" or arg == "--test=neon" or arg == "--test=paperkit" or arg.begins_with("--test=ui")
+			in_menu = arg == "--test=menu" or arg == "--test=instincts" or arg == "--test=titleset" or arg == "--test=neon" or arg == "--test=paperkit" or arg.begins_with("--test=ui")
 	var picked := false
 	for arg in OS.get_cmdline_user_args():
 		picked = picked or arg.begins_with("--chapter=")
@@ -497,6 +497,12 @@ func _ready() -> void:
 		hud.visible = false
 		var menu = MenuScript.new()
 		menu.play = _start_map
+		menu.restart = func() -> void:   # a new start: the title over the prologue's street
+			checkpoint = -1.0
+			in_menu = true
+			chapter = 0
+			map = 0
+			get_tree().reload_current_scene()
 		menu.sound = func(n: String) -> void: sfx.play(n, -8.0 if n == "type" else -4.0, INF, 0.15)
 		add_child(menu)
 		_hide_world.call_deferred()
@@ -1594,6 +1600,18 @@ func _process(delta: float) -> void:
 				_auto_done = 2
 				_shot("neon_off")
 			if _at > 5.8:
+				get_tree().quit()
+		if _auto == "titleset":   # the settings card from the title, with the erase line armed
+			_at += delta
+			if _at > 6.6 and _auto_done == 0:
+				_auto_done = 1
+				for c in get_children():
+					if c.has_method("_open_settings"):
+						c._open_settings()
+			if _at > 6.9 and _auto_done == 1:
+				_auto_done = 2
+				_shot("titleset")
+			if _at > 7.1:
 				get_tree().quit()
 		if _auto == "instincts":   # Frank's board in the case file (with --leads=N, --progress=N)
 			_at += delta

@@ -9,6 +9,7 @@ const MenuScript = preload("res://menu.gd")
 const Paper = preload("res://paper.gd")
 
 var done := Callable()
+var erase := Callable()   # set only on the title: wipes the progress (two taps, the second within a few seconds)
 var sound := Callable()   # func(name: String)
 
 var _head: FontVariation
@@ -29,7 +30,7 @@ func _ready() -> void:
 	dim.color = Color(0, 0, 0, 0.75)
 	dim.size = view
 	add_child(dim)
-	var size := Vector2(minf(720.0, view.x - 96.0), 480.0)
+	var size := Vector2(minf(720.0, view.x - 96.0), 560.0 if erase.is_valid() else 480.0)
 	_card = Paper.sheet("panel", size)   # an inked comic panel of old paper
 	_card.position = (view - size) * 0.5
 	_card.rotation = deg_to_rad(-0.5)
@@ -45,10 +46,13 @@ func _ready() -> void:
 	# four rows evenly between the title and the back button, each centred on its line
 	var top := inner.position.y + 18.0 + 56.0 + 14.0
 	var bottom := inner.end.y - 20.0 - 56.0 - 14.0
-	var step := (bottom - top) / 4.0
 	var rows := [["MUSIC", "music", true], ["SOUND", "sound", true], ["SCREEN SHAKE", "shake", false], ["AIM ASSIST", "assist", false]]
+	var n := rows.size() + (1 if erase.is_valid() else 0)
+	var step := (bottom - top) / float(n)
 	for i in rows.size():
 		_row(top + step * (i + 0.5), left, right, String(rows[i][0]), String(rows[i][1]), bool(rows[i][2]))
+	if erase.is_valid():
+		_erase_row(top + step * (rows.size() + 0.5), left, right)
 	var back: Control = Paper.button("tape", Vector2(170.0, 56.0), func() -> void:
 		if done.is_valid():
 			done.call()
@@ -87,6 +91,35 @@ func _row(mid_y: float, left: float, right: float, text: String, key: String, vo
 		_card.add_child(t)
 		_rows[key] = Paper.write(t, "", _head, 26, INK)
 	_show()
+
+
+## The last line: start the story over. The first tap asks, a second within four seconds does it.
+func _erase_row(mid_y: float, left: float, right: float) -> void:
+	var l := _label("PROGRESS", _type, 26, INK)
+	l.position = Vector2(left, mid_y - 20.0)
+	l.size = Vector2(300.0, 40.0)
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_card.add_child(l)
+	var w := 240.0
+	var t: Control
+	var word: Label
+	var armed := [false]
+	t = Paper.button("tape", Vector2(w, 52.0), func() -> void:
+		if armed[0]:
+			queue_free()
+			erase.call()
+			return
+		armed[0] = true
+		word.text = "SURE? TAP AGAIN"
+		word.add_theme_color_override("font_color", CRIMSON)
+		get_tree().create_timer(4.0, true, false, true).timeout.connect(func() -> void:
+			if is_instance_valid(word):
+				armed[0] = false
+				word.text = "ERASE ALL"
+				word.add_theme_color_override("font_color", INK)), sound)
+	t.position = Vector2(right - w, mid_y - 26.0)
+	_card.add_child(t)
+	word = Paper.write(t, "ERASE ALL", _head, 24, INK)
 
 
 func _step(key: String, by: int) -> void:

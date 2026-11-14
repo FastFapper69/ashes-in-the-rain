@@ -24,6 +24,15 @@ static func _save() -> ConfigFile:
 	return _cfg
 
 
+## A new start: everything Frank has done is forgotten; the settings stay as they are.
+static func erase_progress() -> void:
+	var cfg := _save()
+	for sec in cfg.get_sections():
+		if sec != "settings":
+			cfg.erase_section(sec)
+	_store()
+
+
 static func _store() -> void:
 	if _cfg != null:
 		_cfg.save(SAVE)
@@ -52,6 +61,7 @@ const PHASES := [
 const ENDING := ["For the first time that winter, it snowed.", "NEW YORK  ·  DEC 24, 1947"]
 
 var play := Callable()    # func(chapter: int, map: int), set by main.gd
+var restart := Callable()   # main.gd: builds the title again after the progress is erased
 var sound := Callable()   # func(name: String), set by main.gd
 var _chapter := 0
 var _page: Control
@@ -569,6 +579,7 @@ func _title() -> void:
 	const MAIN := Rect2(0, 0.178, 1, 0.184)
 	const LINE_1 := Rect2(0, 0.405, 1, 0.115)
 	const LINE_2 := Rect2(0, 0.565, 1, 0.115)
+	const LINE_3 := Rect2(0, 0.725, 1, 0.115)
 	if p[0] >= 0 and Levels.CAMPAIGN[p[0]]["ready"]:   # the one main action: the biggest line
 		var ch: Dictionary = Levels.CAMPAIGN[p[0]]
 		var what := "BEGIN" if p[0] == 0 and p[1] == 0 else "CONTINUE"
@@ -581,13 +592,16 @@ func _title() -> void:
 		Paper.write(report, "TO BE CONTINUED", _font_head, 28, INK, HORIZONTAL_ALIGNMENT_LEFT, MAIN, 8.0)
 	var cf := Paper.write(report, "CASE FILE", _font_head, 30, CRIMSON, HORIZONTAL_ALIGNMENT_LEFT, LINE_1, 8.0)
 	Paper.line_button(report, cf, LINE_1, _case_file, sound)
-	var st_l := Paper.write(report, "SETTINGS", _font_head, 30, INK, HORIZONTAL_ALIGNMENT_LEFT, LINE_2, 8.0)
-	Paper.line_button(report, st_l, LINE_2, func() -> void:
-		var st = load("res://settings.gd").new()
-		st.sound = sound
-		_page.visible = false
-		st.done = func() -> void: _page.visible = true
-		add_child(st), sound)
+	var st_line := LINE_2
+	if Instincts.reached(1):   # Frank's board, right on the sheet once the story is his
+		var left := Instincts.unspent()
+		var il := Paper.write(report, "INSTINCTS", _font_head, 30, CRIMSON if left > 0 else INK, HORIZONTAL_ALIGNMENT_LEFT, LINE_2, 8.0)
+		Paper.line_button(report, il, LINE_2, _instincts.bind(_title), sound)
+		if left > 0:   # how many leads wait to be spent, typed small at the end of the line
+			Paper.write(report, "%d NEW" % left, _font_type, 17, CRIMSON, HORIZONTAL_ALIGNMENT_RIGHT, LINE_2, 10.0).set_meta("decor", true)
+		st_line = LINE_3
+	var st_l := Paper.write(report, "SETTINGS", _font_head, 30, INK, HORIZONTAL_ALIGNMENT_LEFT, st_line, 8.0)
+	Paper.line_button(report, st_l, st_line, _open_settings, sound)
 	for k in papers.size():   # they come out of the dark one after another
 		var n: Control = papers[k]
 		n.modulate.a = 0.0
@@ -692,15 +706,19 @@ func _case_file() -> void:
 	Paper.write(back, "BACK", _font_head, 24, INK)
 	if Instincts.reached(1):   # Frank's board, once the story is his
 		var left := Instincts.unspent()
-		var ib := _paper("tape", Vector2(view.x - M - 300.0, view.y - M - 60.0), Vector2(300.0, 60.0), TILT[2], _instincts)
+		var ib := _paper("tape", Vector2(view.x - M - 300.0, view.y - M - 60.0), Vector2(300.0, 60.0), TILT[2], _instincts.bind(_case_file))
 		Paper.write(ib, "INSTINCTS" if left == 0 else "INSTINCTS (%d NEW)" % left, _font_head, 24, CRIMSON if left > 0 else INK)
 
 
 ## The marks a closed case earned, inked like a rubber stamp: up to three stars, the rest outlined.
 ## Frank's instincts: a cork board, one row of index cards per branch, pinned with red yarn between
 ## the cards he has. A card he can have says what it costs; one he cannot says why.
-func _instincts() -> void:
+func _instincts(back_to := Callable()) -> void:
 	_on_case_file = true
+	if back_to.is_valid():
+		_instincts_back = back_to
+	elif not _instincts_back.is_valid():
+		_instincts_back = _case_file
 	var view := _new_page()
 	if view.x < view.y:
 		_portrait_note(view)
@@ -782,7 +800,7 @@ func _instincts() -> void:
 						yarn.add_point((pins[i] as Vector2).lerp(pins[i + 1], u) + Vector2(0.0, 14.0 * sin(PI * u)))
 			_page.add_child(yarn)
 
-	var back := _paper("tape", Vector2(M, view.y - M - 60.0), Vector2(180.0, 60.0), TILT[5], _case_file)
+	var back := _paper("tape", Vector2(M, view.y - M - 60.0), Vector2(180.0, 60.0), TILT[5], _instincts_back)
 	Paper.write(back, "BACK", _font_head, 24, INK)
 	if Instincts.spent() > 0:
 		var reset := _paper("tape", Vector2(view.x - M - 300.0, view.y - M - 60.0), Vector2(300.0, 60.0), TILT[1], func() -> void:
@@ -790,6 +808,29 @@ func _instincts() -> void:
 				Instincts.unpin(b, 0)
 			_instincts())
 		Paper.write(reset, "TAKE ALL CARDS DOWN", _font_head, 22, INK)
+
+
+var _instincts_back := Callable()
+
+
+## The settings card over the title, with the one thing only the title offers: erasing the progress.
+func _open_settings() -> void:
+	var st = load("res://settings.gd").new()
+	st.sound = sound
+	st.erase = _erase
+	_page.visible = false
+	st.done = func() -> void: _page.visible = true
+	add_child(st)
+
+
+## Progress wiped: the title is built again from nothing, the street back at the prologue.
+func _erase() -> void:
+	erase_progress()
+	Instincts.forget()
+	if restart.is_valid():
+		restart.call()
+	else:
+		_title()
 
 
 func _pin_card(branch: String, tier: int) -> void:
