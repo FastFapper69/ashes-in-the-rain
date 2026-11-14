@@ -40,6 +40,7 @@ const DUCK_DROP := 116.0   # how much lower the chest is when crouched, px
 const Levels = preload("res://levels.gd")   # the chapters, made by gen/levels.py
 const RUNNER_SPEED := 560.0
 const MenuScript = preload("res://menu.gd")
+const Instincts = preload("res://instincts.gd")
 const CutsceneScript = preload("res://cutscene.gd")
 const DiaryScript = preload("res://diary.gd")
 const SetpiecesScript = preload("res://setpieces.gd")
@@ -377,7 +378,7 @@ func _ready() -> void:
 		if arg.begins_with("--map="):
 			map = int(arg.trim_prefix("--map="))
 		if arg.begins_with("--test="):
-			in_menu = arg == "--test=menu" or arg == "--test=neon" or arg == "--test=paperkit" or arg.begins_with("--test=ui")
+			in_menu = arg == "--test=menu" or arg == "--test=instincts" or arg == "--test=neon" or arg == "--test=paperkit" or arg.begins_with("--test=ui")
 	var picked := false
 	for arg in OS.get_cmdline_user_args():
 		picked = picked or arg.begins_with("--chapter=")
@@ -1568,6 +1569,24 @@ func _process(delta: float) -> void:
 				_shot("neon_off")
 			if _at > 5.8:
 				get_tree().quit()
+		if _auto == "instincts":   # Frank's board in the case file (with --leads=N, --progress=N)
+			_at += delta
+			if _at > 6.6 and _auto_done == 0:
+				_auto_done = 1
+				for b in Instincts.BRANCHES:   # a clean board, then what --pin=lead0,time1,... asks for
+					Instincts.unpin(b, 0)
+				for arg in OS.get_cmdline_user_args():
+					if arg.begins_with("--pin="):
+						for k in arg.trim_prefix("--pin=").split(","):
+							Instincts.pin(k.rstrip("0123456789"), int(k.right(1)))
+				for c in get_children():
+					if c.has_method("_instincts"):
+						c._instincts()
+			if _at > 6.9 and _auto_done == 1:
+				_auto_done = 2
+				_shot("instincts")
+			if _at > 7.1:
+				get_tree().quit()
 		if _auto == "menu":
 			_at += delta
 			if _at > 6.5 and _auto_done == 0:   # once the title is up and Frank's line typed out
@@ -1594,6 +1613,7 @@ func _process(delta: float) -> void:
 		var vp := get_viewport().get_viewport_rid()
 		print("fps ", Engine.get_frames_per_second(), "  script ms ", snappedf(Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0, 0.1), "  gpu ms ", snappedf(RenderingServer.viewport_get_measured_render_time_gpu(vp), 0.1), "  cpu-render ms ", snappedf(RenderingServer.viewport_get_measured_render_time_cpu(vp), 0.1), "  draws ", Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME), "  window ", get_window().size)
 	var real := delta / Engine.time_scale   # the slow-time meter runs on the wall clock
+	_last_round_t = maxf(0.0, _last_round_t - delta)
 	var dir := 0.0
 	if Input.is_physical_key_pressed(KEY_D):
 		dir += 1.0
@@ -2468,7 +2488,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			steps.restart()
 			sfx.play("land", -4.0)
 	elif move_state == "dive":
-		fall += GRAVITY * delta
+		fall += _dive_g() * delta
 		player.position.y += fall * delta
 		player.position.x += glide * delta
 		player.dive = move_toward(player.dive, 1.0, delta * 6.0)
@@ -2677,8 +2697,12 @@ func _try_vault() -> void:
 			sfx.play("land", -12.0, INF, 0.15)
 			fx.chip(Vector2(hands_x, b.position.y))
 			if Engine.time_scale < 1.0:
-				slow_left = minf(1.0, slow_left + 0.1)   # a little slowed time back for the style
+				slow_left = minf(1.0, slow_left + (0.15 if _knack("time", 1) else 0.1))   # a little slowed time back for the style
 			return
+
+
+func _dive_g() -> float:
+	return GRAVITY * (0.8 if _knack("time", 2) else 1.0)
 
 
 func _start_dive(way: float, facing: float, up: float, from_run: bool) -> void:
@@ -2716,7 +2740,7 @@ func _dive_vaults(way: float, up: float) -> bool:
 	var f := up
 	var dt := 1.0 / 60.0
 	for i in 90:
-		f += GRAVITY * dt
+		f += _dive_g() * dt
 		y += f * dt
 		x += DIVE_SPEED.x * way * dt
 		d = move_toward(d, 1.0, 6.0 * dt)
@@ -2745,7 +2769,7 @@ func _dive_clears(way: float, up: float, strict: bool) -> bool:
 	var f := up
 	var dt := 1.0 / 60.0
 	for i in 120:
-		f += GRAVITY * dt
+		f += _dive_g() * dt
 		y += f * dt
 		x += DIVE_SPEED.x * way * dt
 		d = move_toward(d, 1.0, 6.0 * dt)
@@ -2791,7 +2815,7 @@ func _start_reload() -> void:
 	var full := int(WEAPONS[weapon]["mag"])
 	if reloading > 0.0 or mag >= full or (weapon != "revolver" and ammo <= 0):
 		return
-	var dur := float(WEAPONS[weapon]["reload"])
+	var dur := float(WEAPONS[weapon]["reload"]) * (0.67 if _knack("lead", 0) else 1.0)
 	reloading = dur
 	var missing := full - mag
 	var later := func(t: float, what: Callable) -> void:
@@ -2823,7 +2847,7 @@ func _tick_reload(delta: float) -> void:
 	_idle_fire += delta
 	if reloading <= 0.0 and mag < int(WEAPONS[weapon]["mag"]) and _idle_fire > 2.2 and not over:
 		_start_reload()
-	player.reload = 0.0 if reloading <= 0.0 else 1.0 - reloading / float(WEAPONS[weapon]["reload"])
+	player.reload = 0.0 if reloading <= 0.0 else 1.0 - reloading / (float(WEAPONS[weapon]["reload"]) * (0.67 if _knack("lead", 0) else 1.0))
 	if reloading > 0.0:
 		reloading -= delta
 		if reloading <= 0.0:
@@ -2842,7 +2866,7 @@ func _tick_reload(delta: float) -> void:
 
 func _show_ammo() -> void:
 	var w: Dictionary = WEAPONS[weapon]
-	var left := 0.0 if reloading <= 0.0 else 1.0 - reloading / float(w["reload"])
+	var left := 0.0 if reloading <= 0.0 else 1.0 - reloading / (float(w["reload"]) * (0.67 if _knack("lead", 0) else 1.0))
 	hud.set_ammo(String(w["name"]) if weapon != "revolver" else "", mag, int(w["mag"]), ammo if weapon != "revolver" else -1, left)
 
 
@@ -2873,7 +2897,7 @@ func _fire(shooter, from_player: bool, kind := "") -> void:
 					point_blank = true
 					break
 	for k in (0 if point_blank and int(w["pellets"]) == 1 else int(w["pellets"])):
-		var spread: float = w["spread"]
+		var spread: float = float(w["spread"]) * (0.5 if from_player and _knack("lead", 1) else 1.0)
 		fx.shoot(at, d.rotated(randf_range(-spread, spread)) * BULLET_SPEED, from_player, w["life"])
 	if gun != "revolver":   # a revolver keeps its empties until it is reloaded
 		fx.casing(at - d * 50.0, signf(d.x))
@@ -2894,6 +2918,9 @@ func _fire(shooter, from_player: bool, kind := "") -> void:
 		_word(["rattat"], at + Vector2(signf(d.x) * 120.0, -150.0), 0.26, d)
 	shooter.next_hand()
 	if from_player:
+		if mag == 1 and _knack("lead", 3) and gun == "revolver":   # the last round: it finds its man
+			_last_round_t = 0.6
+			slow_on = true
 		mag -= 1
 		_idle_fire = 0.0
 		_clicked = false
@@ -2985,6 +3012,10 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 			# nobody; beside it, its steel stops what comes from the other side
 			if box_info[i]["kind"] == "car" and player.position.x > boxes[i].position.x - 60.0 and player.position.x < boxes[i].end.x + 60.0:
 				continue
+			if from_player and box_info[i]["wood"] and _knack("lead", 2):   # through the planks and on
+				if randf() < 0.2:
+					fx.spark(pos)
+				continue
 			_hit_box(i, pos)
 			return true
 	if from_player and sets.bullet(pos):
@@ -3017,7 +3048,7 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 				e["hp"] = 0
 				_kill(e, part == "head", true, part)
 				return true
-			if part.begins_with("farm") and slow_on and not e["boss"] and chapter > 0 and e["state"] != "give":
+			if part.begins_with("farm") and (slow_on or _knack("mercy", 1)) and not e["boss"] and chapter > 0 and e["state"] != "give":
 				fx.spark(pos)   # the gun is shot out of his hand: he has nothing left to fight with
 				sfx.play("hit_cover", -2.0, pos.x, 0.12)
 				_word(["zing"], pos + Vector2(0.0, -90.0), 0.16)
@@ -3046,7 +3077,7 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 						_briggs_down(e)
 						return true
 			else:
-				e["hp"] -= mob_hp if part == "head" else 1   # a head shot always kills
+				e["hp"] -= mob_hp if (part == "head" or _last_round_t > 0.0) else 1   # a head shot always kills
 				if e["hp"] > 0:   # still up: knocked back a step, off his aim for a moment
 					var m2 = e["node"]
 					var back: float = signf(m2.position.x - player.position.x) * (70.0 if part == "torso" else 40.0)
@@ -3083,6 +3114,11 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 		hud.set_health(float(hp) / max_hp)
 		if hp <= 0:
 			_player_down()
+		elif hp == 1 and _knack("time", 3) and not _last_chance_used:   # time slows by itself, once a map
+			_last_chance_used = true
+			slow_left = 1.0
+			slow_on = true
+			hud.toast("LAST CHANCE")
 	return true
 
 
@@ -3135,7 +3171,7 @@ func _morale(at: Vector2, ugly: bool) -> void:
 				others += 1
 		if others > 0:
 			continue
-		var chance := 1.0 if int(e2["hp"]) < mob_hp else (0.65 if ugly else 0.4) + (0.25 if e2.get("shaken", false) else 0.0)
+		var chance := 1.0 if int(e2["hp"]) < mob_hp else (0.65 if ugly else 0.4) + (0.25 if e2.get("shaken", false) else 0.0) + (0.25 if _knack("mercy", 0) else 0.0)
 		if randf() < chance:
 			_give_up(e2, 0.55)
 
@@ -3294,7 +3330,7 @@ func _lamp_out(i: int) -> void:
 func _bullets_clash(at: Vector2) -> void:
 	fx.word("res://art/fx/word_clink.png", at + Vector2(0.0, -110.0), 0.22)
 	sfx.play("clink", -3.0, at.x)
-	slow_left = minf(1.0, slow_left + 0.15)   # a little slowed time back as a reward
+	slow_left = minf(1.0, slow_left + (0.225 if _knack("time", 1) else 0.15))   # a little slowed time back as a reward
 
 
 ## The detective is shot dead: he goes down in slow motion, the screen says so, and the level restarts.
@@ -3468,11 +3504,12 @@ func _map_events(delta: float) -> void:
 			hp = 1
 
 
-## Score card: one star for finishing, one for taking few hits, one for style (head shots and slowed-time kills).
+## Score card: one star for finishing, one for taking two hits at most, one for style (head shots and
+## slowed-time kills). Frank's stars are his leads: his experience and what pins his instincts.
 func _rate() -> void:
 	var kills: int = stats["kills"]
 	var stars := 1
-	if stats["hits"] <= 3:
+	if stats["hits"] <= 2:
 		stars += 1
 	if kills > 0 and (stats["heads"] + stats["slow"]) * 2 >= kills:
 		stars += 1
@@ -3803,7 +3840,7 @@ func _build_level() -> void:
 ## in anger for eight years: fewer hits to put him down, a shorter slowed time that comes back slower.
 ## His first streets are thin and forgiving, and every map after asks a little more: more of the mob,
 ## harder men, tighter aim, shorter pauses, more of them firing at once. Frank grows into it as he goes
-## (for now by chapter; the skill tree will take that over).
+## (his rank and his instincts: instincts.gd).
 ## Rows: step (Frank's maps counted from chapter I map 1) -> mobsters per 10,000 px of street,
 ## body hits per mobster, aim spread, pause between shots, men firing at once, share of plain gunmen
 ## swapped for a Tommy gun or a shotgun.
@@ -3815,11 +3852,16 @@ const CURVE := [
 	[10, {"density": 11.0, "mob_hp": 3, "aim": 0.92, "pause": 0.92, "shooters": 3, "heavy": 0.2}],
 	[15, {"density": 13.5, "mob_hp": 4, "aim": 0.85, "pause": 0.85, "shooters": 3, "heavy": 0.3}],
 ]
-# Frank by chapter until the skill tree: hits he can take, how fast slowed time drains and refills.
-const FRANK := {1: {"hp": 3, "drain": 0.4, "refill": 0.1}, 2: {"hp": 4, "drain": 0.34, "refill": 0.12}, 3: {"hp": 5, "drain": 0.3, "refill": 0.13}, 4: {"hp": 5, "drain": 0.28, "refill": 0.14}}
 const EDDIE := {"hp": PLAYER_HP, "drain": 0.28, "refill": 0.14, "density": -1.0, "mob_hp": MOBSTER_HP, "aim": 1.0, "pause": 1.0, "shooters": 2, "heavy": 0.0}
 var diff: Dictionary = EDDIE
+var _last_chance_used := false
+var _last_round_t := 0.0   # the LAST ROUND instinct: seconds the last bullet still kills whatever it hits
 var diff_step := -1   # -1 in the prologue
+
+
+## An instinct Frank has pinned (never Eddie's: the prologue is played as it is).
+func _knack(branch: String, tier: int) -> bool:
+	return diff_step >= 0 and Instincts.has(branch, tier)
 
 
 func _set_difficulty(hero: String) -> void:
@@ -3837,7 +3879,10 @@ func _set_difficulty(hero: String) -> void:
 		diff = EDDIE.duplicate()
 	else:
 		diff = _curve_at(step)
-		diff.merge(FRANK.get(clampi(chapter, 1, 4), FRANK[1]))
+		var r := Instincts.rank()
+		diff["hp"] = r[0]
+		diff["drain"] = float(r[1]) * (0.8 if _knack("time", 0) else 1.0)
+		diff["refill"] = r[2]
 	max_hp = int(diff["hp"])
 	mob_hp = int(diff["mob_hp"])
 	hp = max_hp
@@ -4512,7 +4557,7 @@ func _man_under(screen: Vector2) -> bool:
 			continue
 		var m = e["node"]
 		var top: float = m.position.y - 400.0 * m.size + DUCK_DROP * m.duck
-		if absf(w.x - m.position.x) < 80.0 and w.y > top and w.y < m.position.y + 30.0:
+		if absf(w.x - m.position.x) < (130.0 if _knack("lead", 1) else 80.0) and w.y > top and w.y < m.position.y + 30.0:
 			return true
 	return false
 
@@ -4841,6 +4886,17 @@ func _giving_up(e: Dictionary, delta: float) -> void:
 			e["spared"] = true
 			m.visible = false
 			stats["spared"] += 1
+			if _knack("mercy", 3) and hp < max_hp and not over:   # letting him go puts something back in Frank
+				hp += 1
+				hud.set_health(float(hp) / max_hp)
+				hud.toast("SECOND WIND")
+			if _knack("mercy", 2) and stats["spared"] == 1:
+				var page_x := INF
+				for pk in pickups:
+					if pk["kind"] == "page" and is_instance_valid(pk["node"]):
+						page_x = float(pk["at"].x)
+				if page_x != INF:
+					hud.caption(["He told me where to look.", "Eddie's page: %s." % ("up ahead" if page_x > player.position.x else "back the way I came")])
 			var key := "%d:%d" % [chapter, map]
 			if stats["spared"] == 1 and TESTIMONY.has(key):   # the first man let go on a map talks on his way out
 				hud.caption(["He talked before he ran.", String(TESTIMONY[key])])

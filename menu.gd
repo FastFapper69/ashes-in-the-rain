@@ -6,6 +6,7 @@ extends CanvasLayer
 
 const Levels = preload("res://levels.gd")
 const Paper = preload("res://paper.gd")
+const Instincts = preload("res://instincts.gd")
 const PAPER := Color(0.93, 0.89, 0.8)
 const INK := Color(0.05, 0.05, 0.06)
 const CRIMSON := Color(0.6, 0.1, 0.07)
@@ -696,9 +697,116 @@ func _case_file() -> void:
 		_page.add_child(soon)
 	var back := _paper("tape", Vector2(M, view.y - M - 60.0), Vector2(180.0, 60.0), TILT[5], _title)
 	Paper.write(back, "BACK", _font_head, 24, INK)
+	if Instincts.reached(1):   # Frank's board, once the story is his
+		var left := Instincts.unspent()
+		var ib := _paper("tape", Vector2(view.x - M - 300.0, view.y - M - 60.0), Vector2(300.0, 60.0), TILT[2], _instincts)
+		Paper.write(ib, "INSTINCTS" if left == 0 else "INSTINCTS (%d NEW)" % left, _font_head, 24, CRIMSON if left > 0 else INK)
 
 
 ## The marks a closed case earned, inked like a rubber stamp: up to three stars, the rest outlined.
+## Frank's instincts: a cork board, one row of index cards per branch, pinned with red yarn between
+## the cards he has. A card he can have says what it costs; one he cannot says why.
+func _instincts() -> void:
+	_on_case_file = true
+	var view := _new_page()
+	if view.x < view.y:
+		_portrait_note(view)
+		return
+	var board := TextureRect.new()
+	board.texture = load("res://art/ui/instincts/board.jpg")
+	board.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	board.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	board.size = view
+	board.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_page.add_child(board)
+	var title := _label("FRANK'S INSTINCTS", _font_head, 44, PAPER, 12)
+	title.position = Vector2(0.0, 14.0)
+	title.size = Vector2(view.x, 56.0)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_page.add_child(title)
+	var r := Instincts.rank()
+	var nr := Instincts.next_rank()
+	var line := "%d LEADS TO SPEND        TAKES %d HITS" % [Instincts.unspent(), r[0]]
+	if not nr.is_empty():
+		line += ", %d FROM %d LEADS EARNED" % [nr[1], nr[0]]
+	var sub := _label(line, _font_type, 20, PAPER, 6)
+	sub.position = Vector2(0.0, 82.0)
+	sub.size = Vector2(view.x, 28.0)
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_page.add_child(sub)
+
+	var tag_w := 130.0
+	var gap := 14.0
+	var top := 122.0
+	var bottom := view.y - M - 60.0 - 16.0
+	var h := minf((bottom - top - 2.0 * 12.0) / 3.0, ((view.x - 2.0 * M - tag_w - GAP - 4.0 * gap) / 5.0) * 1096.0 / 1496.0)
+	var w := roundf(h * 1496.0 / 1096.0)
+	h = roundf(h)
+	var x0 := (view.x - (tag_w + GAP + 5.0 * w + 4.0 * gap)) * 0.5
+	for bi in 3:
+		var branch: String = Instincts.BRANCHES[bi]
+		var y := top + bi * (h + 12.0)
+		var tag := Paper.sheet("tag", Vector2(tag_w, 64.0))
+		tag.position = Vector2(x0, y + (h - 64.0) * 0.5)
+		tag.rotation = deg_to_rad(TILT[bi + 2])
+		_page.add_child(tag)
+		Paper.write(tag, String(Instincts.BRANCH_NAMES[branch]), _font_head, 20, INK)
+		var pins: Array = []
+		for t in 5:
+			var at := Vector2(x0 + tag_w + GAP + t * (w + gap), y)
+			var why := Instincts.why_locked(branch, t)
+			var have := Instincts.owned(branch, t)
+			var card: Control
+			if have or why == "":
+				card = _paper("card", at, Vector2(w, h), TILT[(t + bi) % TILT.size()] * 0.6, _pin_card.bind(branch, t))
+			else:
+				card = Paper.sheet("card", Vector2(w, h))
+				card.position = at
+				card.rotation = deg_to_rad(TILT[(t + bi) % TILT.size()] * 0.6)
+				_page.add_child(card)
+				(card.get_node("Drawing") as TextureRect).modulate = Color(0.62, 0.6, 0.57)
+			var info: Array = Instincts.CARDS[branch][t]
+			Paper.write(card, String(info[0]), _font_head, 15, INK, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0, 1, 0.24), 4.0)
+			Paper.write(card, String(info[1]), _font_type, 12, INK, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0.24, 1, 0.5), 6.0)
+			var foot := "PINNED" if have else (why if why != "" else "PIN IT: %d LEADS" % Instincts.COST[t])
+			Paper.write(card, foot, _font_head, 13, CRIMSON if (have or why == "") else INK, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0.74, 1, 0.26), 4.0)
+			if have:   # the head of the card's own pin, turned with the card
+				var half := Vector2(w, h) * 0.5
+				pins.append(at + half + (Vector2(w * 0.535, h * 0.06) - half).rotated(card.rotation))
+		if pins.size() > 1:   # red yarn from pin to pin along what he has
+			var yarn := Line2D.new()
+			yarn.texture = load("res://art/ui/instincts/yarn.png")
+			yarn.texture_mode = Line2D.LINE_TEXTURE_TILE
+			yarn.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+			yarn.width = 9.0
+			yarn.default_color = Color(1, 1, 1)
+			yarn.joint_mode = Line2D.LINE_JOINT_ROUND
+			for i in pins.size():   # it hangs a little between the pins, the way yarn does
+				yarn.add_point(pins[i])
+				if i + 1 < pins.size():
+					for k in range(1, 6):
+						var u := k / 6.0
+						yarn.add_point((pins[i] as Vector2).lerp(pins[i + 1], u) + Vector2(0.0, 14.0 * sin(PI * u)))
+			_page.add_child(yarn)
+
+	var back := _paper("tape", Vector2(M, view.y - M - 60.0), Vector2(180.0, 60.0), TILT[5], _case_file)
+	Paper.write(back, "BACK", _font_head, 24, INK)
+	if Instincts.spent() > 0:
+		var reset := _paper("tape", Vector2(view.x - M - 300.0, view.y - M - 60.0), Vector2(300.0, 60.0), TILT[1], func() -> void:
+			for b in Instincts.BRANCHES:
+				Instincts.unpin(b, 0)
+			_instincts())
+		Paper.write(reset, "TAKE ALL CARDS DOWN", _font_head, 22, INK)
+
+
+func _pin_card(branch: String, tier: int) -> void:
+	if Instincts.owned(branch, tier):
+		Instincts.unpin(branch, tier)
+	else:
+		Instincts.pin(branch, tier)
+	_instincts()
+
+
 func _stars(card: Control, part: Rect2, n: int) -> void:
 	var inner: Rect2 = card.get_meta("inner")
 	var area := Rect2(inner.position + inner.size * part.position, inner.size * part.size)

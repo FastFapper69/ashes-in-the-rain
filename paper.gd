@@ -24,6 +24,7 @@ const KINDS := {
 	"tag": {"src": "tag", "fixed": true, "inner": [50, 56, 360, 56]},   # the body, clear of the eyelet
 	"folder": {"src": "folder_full", "fixed": true, "inner": [80, 400, 90, 100]},   # the cover under its label
 	"clip": {"src": "clip", "fixed": true, "inner": [40, 26, 40, 28]},
+	"card": {"src": "index_card", "path": "res://art/ui/card/index_card.png", "fixed": true, "inner": [70, 250, 80, 70]},   # a ruled index card, its pin above the text
 	"report": {"src": "report", "fixed": true, "inner": [50, 30, 50, 60]},   # one police report sheet, its paperclip top right
 	"minus": {"src": "badge_minus", "fixed": true, "inner": [60, 60, 60, 60]},   # printed badges, the HUD's family
 	"plus": {"src": "badge_plus", "fixed": true, "inner": [60, 60, 60, 60]},
@@ -41,7 +42,7 @@ static func _source(kind: String, wide: bool) -> Image:
 	if _src.has(key):
 		return _src[key]
 	var k: Dictionary = KINDS[kind]
-	var tex: Texture2D = load("res://art/ui/paper/src/%s.png" % k["src"])
+	var tex: Texture2D = load(k.get("path", "res://art/ui/paper/src/%s.png" % k["src"]))
 	var img := tex.get_image()
 	if img.is_compressed():
 		img.decompress()

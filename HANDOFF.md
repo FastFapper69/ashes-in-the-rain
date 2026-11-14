@@ -4,7 +4,7 @@ Read this first when picking the project up in a new chat. Reply to the user in 
 
 ## Where things live
 - GitHub: `FastFapper69/ink-and-lead` – `main` = sources, `gh-pages` = web build (https://fastfapper69.github.io/ink-and-lead/). The user plays on an iPhone 17.
-- PC project folder: `C:\Users\super\Documents\MobileGames\Ink and Lead` (Gemini images in `art_src`, numbered; last used **96**, next is **97**).
+- PC project folder: `C:\Users\super\Documents\MobileGames\Ink and Lead` (Gemini images in `art_src`, numbered; last used **98**, next is **99**).
 - Docs (claude.ai): GDD `aac76a8f-a825-409f-a7d5-7834fe45049d` (tab Úkoly = task list by blocks 1–7), story doc `c223d676-08b8-42df-ae12-8f2cdf9b9dc3`, Gemini briefs `855fd524-d34d-495e-a18c-22e6eefa5dee`.
 - UI rules: `.claude/skills/ui-papir/SKILL.md` (paper.gd kit, mandatory `UI BAD` audit at 1280 and 1560 wide).
 
@@ -37,9 +37,12 @@ Read this first when picking the project up in a new chat. Reply to the user in 
 - Visual unity block (badges, paper variants, print layer, fonts), surrender / disarm / ash (guilt) system, testimony pages, interiors (shootable bulbs that break, darker rooms, FPS), death poses fixed, enemy squad AI (roles, flank, cover, morale, max two shooters, director, callouts), touch fix (first joystick tap no longer fires).
 - Art audit of all cutscene panels: dream panel 70 redrawn (art_src/96.jpg, hands only through gaps, empty-handed patrolman, line "I counted eleven knocks."), real text on 56, 59, 61, 64, 65.
 
+- Difficulty curve (main.gd CURVE, `--test=curve`, `--step=N`): prologue Eddie at full strength; Frank weak and mob grows map by map (density per 10k px, toughness, aim, pace, shooters, heavy guns).
+- Skill tree (instincts.gd, menu `_instincts`, `--test=instincts --leads=N --pin=lead0,...`, `--instincts=all` in play): leads = Frank's stars + testimonies; leads earned set Frank's rank (3/4/5 hits at 0/10/24 leads); 12 of 15 cards work in play.
+
 ## Next
 - Block 1: pasted posters in street paintings; lighter hatching on character parts.
-- Block 4: skill tree (INSTINCTS cork board, Lead / Time / Conscience branches).
+- Skill tree cards still to build when chapter IV exists: DEAD EYE, SHOOT THEM DOWN, ALLY (they open in chapter IV).
 - Block 5: sound – cutscene SFX per panel, music that follows the action, rain only where it rains (not in the fire dream, muffled indoors), try an AI voice for Frank's narration (English, one voice, check licence).
 - Block 6: chapter mechanics; block 7: content (chapter IV, menus II/III, train yard).
 - Endings (Snow / Ash) wait for chapter IV.
