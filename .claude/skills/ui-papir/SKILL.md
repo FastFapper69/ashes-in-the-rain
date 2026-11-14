@@ -37,3 +37,13 @@ Uživatel: „Neodevzdávej mi odpad.“ Každá obrazovka se před odesláním 
 - Testy: `--test=menu --progress=N` (titul + spis pro stav hráče, N = hotové mapy), `--test=pause` (pauza + nastavení),
   `--test=page`, `--test=card`, `--test=choice` (volba + popisky ve hře), `--test=cut:<id>`, `--test=paperkit` (všechny druhy papíru).
 - Pak snímky **opravdu prohlédnout zvětšené** (výřez 2–3×): zarovnání, vzduch kolem textu, nic se nedotýká kresby (kroužek štítku, sponka).
+
+## Jednotný vzhled (Gemini art review, 14. 11. 2026)
+- **Tři písma, nic dalšího:** Oswald (nadpisy, tlačítka), Special Elite (dokumenty, data, opis deníku),
+  Comic Neue Bold Italic (popisky a řeč v komiksu). Ručně psaný ReenieBeanie jen jako Eddieho písmo na samotné stránce deníku.
+- **Tlačítka na obrazovce hry** jsou tištěné odznaky (`art/ui/badge_*.png`, rodina stopek): tmavý kotouč, krémový prstenec.
+  Žádné ploché vektorové ikony ani kreslené kroužky z kódu.
+- **Více voleb na jednom papíře:** `Paper.line_button(box, label, part, on_press, sound)` – řádek listu jako tlačítko (titulka: policejní hlášení `report`).
+- **Žádné dva sousední papíry stejné:** `Paper.sheet` je střídavě zrcadlí a stárne o odstín; nové druhy přidávat se stejným pravidlem.
+- Paleta: tuš #0D0D0F, uhel #2B2A29, sépie #7A7062, novinový papír #DFD3BE, jantar jen u zdrojů světla, karmín jen krev a neon.
+- Přes vše leží jeden list papíru (`PRINT_SHADER` v main.gd, vrstva 100): nové vrstvy UI nikdy nad 99.
