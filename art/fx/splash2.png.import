@@ -15,9 +15,9 @@ dest_files=["res://.godot/imported/splash2.png-688e0404bc61138a6094a1e2d26bc525.
 
 [params]
 
-compress/mode=0
+compress/mode=1
 compress/high_quality=false
-compress/lossy_quality=0.7
+compress/lossy_quality=0.85
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
