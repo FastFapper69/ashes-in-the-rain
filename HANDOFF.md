@@ -46,10 +46,18 @@ Read this first when picking the project up in a new chat. Reply to the user in 
 - Pasted bills in the streets reprinted with real 1947 notices (gen/fix_posters.py, originals in art/_src/street); the Palace marquee and one-sheets fixed.
 - Character hatching: a softening pass was tried and looked smudged (worse, more AI-like); left as drawn.
 
+- Ropes (elevation): climb ropes up fire escapes, zip lines from roofs down to the street (one hand, gun out, slowed time), crane swings over cargo stacks in the docks (art/props/rope.png, stack.png). gen/levels.py Chunk.rope(kind,...); main.gd `_add_rope`, `_on_rope`, `_grab_rope`; `--test=rope:climb|zip|swing`. The bot backs off and retries a missed swing.
+- Voice: all 88 narration lines read by Artlist "Gravity" (ElevenLabs Multilingual v2, speed 0.9, stability 0.35), voice/<md5[:10]>.mp3 (gen/voice_lines.py lists them; 64 kbps mono, -16 LUFS). Changing a line's text needs a new recording (the key is the md5 of the text).
+- Music and sound from Artlist: The Magnetic Buzz - Keep Your Head Down (sfx/music_jazz.ogg, in play), Rotem Cinamon - Dusk (music_dusk.ogg, title and story); the jazz replaces the base+lead stems whenever nothing is fighting (sfx.gd MELODIES, `melody`). Revolvers: dfMG SW .38 (shot_player), DT Sound Point Blank (shot_enemy). Rain: SoundBits heavy rain + city hum (rain_loop.ogg), West Wolf wet streets lowpassed (rain_in.ogg). Long loops are Ogg now (sfx.gd `_looped`).
+- Story fixes: Mickey is fought in his club (boss_room "club", beer kegs for cover), Kessler in his harbor office (boss_room "office"); panels 56/57 redrawn (art_src/100, 102: Mickey in a suit, two pigeons in a closed cage, no flock); Rosie brings Eddie's diary (not the notebook the police took).
+- Diary pages hang on the wall just before a crate at ground reach (never on a crate or cabinet).
+- Sky: a mirrored copy under the sky so a high jump never shows black under it. `--test=look:x --high` frames the camera as high as a jump.
+- art_src numbering: last used 102.
+
 ## Next
 - Skill tree cards still to build when chapter IV exists: DEAD EYE, SHOOT THEM DOWN, ALLY (they open in chapter IV).
-- Block 5 left: real recordings instead of synthesis (gunshots, impacts, steps), AI voice for Frank (ElevenLabs Starter, ~6k chars of narration), mix to -16 LUFS.
-- pck is ~90 MB of GitHub's 100 MB: new heavy assets need something removed or compressed first.
+- Ideas from the player: melee with a pipe when passing a man (cooldown, a good animation); inner-voice barks when nearly dead (Sin City style: 'get up, old man'); new backdrops so streets repeat less, and subway backdrops that make sense (tracks on the walls, scale).
+- pck is ~97 MB of GitHub's 100 MB: optimise next (street normal maps ~3.3 MB each are the biggest).
 - Block 6 left: room breaching and lightning (chapter IV). Block 7: content (chapter IV, menus II/III, train yard).
 - Endings (Snow / Ash) wait for chapter IV.
 - Not yet heard back: FPS on the iPhone in interiors after the lighting fix.
