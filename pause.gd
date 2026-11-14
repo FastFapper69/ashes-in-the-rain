@@ -28,30 +28,36 @@ func _ready() -> void:
 	_root.size = view
 	add_child(_root)
 	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.7)
+	dim.color = Color(0, 0, 0, 0.82)
 	dim.size = view
 	_root.add_child(dim)
-	var x := view.x * 0.5 - 200.0
+	# the map's caption at the top, PAUSED under it, then the four tapes, all on one centre line
+	var Paper = load("res://paper.gd")
+	var cap: Control = Paper.caption(title, load("res://fonts/ComicNeue-BoldItalic.woff"), 20)
+	cap.position = Vector2(view.x * 0.5 - cap.size.x * 0.5, 40.0)
+	_root.add_child(cap)
 	var top := Label.new()
 	top.text = "PAUSED"
 	top.add_theme_font_override("font", _head)
-	top.add_theme_font_size_override("font_size", 72)
+	top.add_theme_font_size_override("font_size", 60)
 	top.add_theme_color_override("font_color", PAPER)
-	top.position = Vector2(x, view.y * 0.1)
+	top.add_theme_color_override("font_outline_color", INK)
+	top.add_theme_constant_override("outline_size", 12)
+	top.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	top.position = Vector2(0.0, 140.0)
+	top.size = Vector2(view.x, 80.0)
 	_root.add_child(top)
-	var sub := Label.new()
-	sub.text = title
-	sub.add_theme_font_override("font", load("res://fonts/SpecialElite.ttf"))
-	sub.add_theme_font_size_override("font_size", 26)
-	sub.add_theme_color_override("font_color", Color(PAPER, 0.7))
-	sub.position = Vector2(x + 4.0, view.y * 0.1 + 100.0)
-	_root.add_child(sub)
-	var y := view.y * 0.1 + 170.0
-	for item in [["RESUME", _resume, true], ["RESTART CHECKPOINT", _restart, false], ["SETTINGS", _settings, false], ["QUIT TO TITLE", _quit, false]]:
-		var b := _button(String(item[0]), Vector2(x, y), 400.0, bool(item[2]))
-		b.pressed.connect(item[1])
+	var y := 236.0
+	var bw := 380.0
+	var items := [["RESUME", _resume, "tape"], ["RESTART CHECKPOINT", _restart, "strip"], ["SETTINGS", _settings, "strip"], ["QUIT TO TITLE", _quit, "strip"]]
+	for i in items.size():
+		var it: Array = items[i]
+		var b: Control = Paper.button(String(it[2]), Vector2(bw, 64.0 if i == 0 else 56.0), it[1])
+		b.position = Vector2(view.x * 0.5 - bw * 0.5, y)
+		b.rotation = deg_to_rad([-0.8, 0.6, -0.4, 0.7][i])
 		_root.add_child(b)
-		y += 84.0
+		Paper.write(b, String(it[0]), _head, 30 if i == 0 else 26, Paper.INK)
+		y += (64.0 if i == 0 else 56.0) + 18.0
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -96,9 +102,3 @@ func _settings() -> void:
 func _click() -> void:
 	if sound.is_valid():
 		sound.call("page")
-
-
-func _button(t: String, at: Vector2, w: float, main: bool) -> Button:
-	var b: Button = load("res://paper.gd").button("tape" if main else "strip", t, _head, 36, Vector2(w, 60.0))
-	b.position = at
-	return b

@@ -63,7 +63,7 @@ func _card(view: Vector2) -> void:
 	var type: Font = load("res://fonts/SpecialElite.ttf")
 	var x := view.x * 0.12
 	var y := view.y * 0.32
-	var top := _text("%s   ·   %d / %d" % [String(ch["title"]), map + 1, ch["maps"].size()], type, 26, Color(PAPER, 0.7))
+	var top := _text("%s, CASE %d OF %d" % [String(ch["title"]), map + 1, ch["maps"].size()], type, 26, Color(PAPER, 0.7))
 	top.position = Vector2(x, y)
 	_root.add_child(top)
 	var name := _text(String(ch["maps"][map]["name"]), head, 92, PAPER)
@@ -77,11 +77,12 @@ func _card(view: Vector2) -> void:
 	create_tween().tween_property(rule, "size:x", minf(view.x * 0.4, 560.0), 0.9).set_delay(0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	for ph in MenuScript.PHASES:   # where and when, and Frank's line for it
 		if int(ph[0]) == chapter and int(ph[1]) == map:
-			var stamp := _text(String(ph[3]), type, 24, Color(PAPER, 0.75))
+			var Paper = load("res://paper.gd")
+			var stamp := _text(Paper.place_time(String(ph[3])), type, 24, Color(PAPER, 0.75))
 			stamp.position = Vector2(x, y + 190.0)
 			_root.add_child(stamp)
 			var line := _text(String(ph[2]), type, 26, Color(PAPER, 0.55))
-			line.position = Vector2(x, y + 250.0)
+			line.position = Vector2(x, y + 264.0)
 			_root.add_child(line)
 
 

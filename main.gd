@@ -274,6 +274,7 @@ var _probe := 0.0
 var _auto := ""   # a scripted test run from the command line; empty in normal play
 var _at := 0.0
 var _auto_done := 0
+var _bot_fight := 0.0
 var _dive_at := 1380.0
 var _bot_x := 0.0
 var _tour: Array = []
@@ -305,7 +306,7 @@ func _ready() -> void:
 		if arg.begins_with("--map="):
 			map = int(arg.trim_prefix("--map="))
 		if arg.begins_with("--test="):
-			in_menu = arg == "--test=menu" or arg == "--test=neon"
+			in_menu = arg == "--test=menu" or arg == "--test=neon" or arg == "--test=paperkit" or arg.begins_with("--test=ui")
 	var picked := false
 	for arg in OS.get_cmdline_user_args():
 		picked = picked or arg.begins_with("--chapter=")
@@ -467,6 +468,23 @@ func _ready() -> void:
 		get_tree().create_timer(3.0, true, false, true).timeout.connect(_shot.bind("card"))
 		get_tree().create_timer(3.2, true, false, true).timeout.connect(get_tree().quit)
 		_auto = "cut:card"
+	elif _auto == "choice":   # --test=choice: the question at the end of chapter III
+		get_tree().create_timer(1.0, true, false, true).timeout.connect(func() -> void:
+			var c = ChoiceScript.new()
+			c.question = "Briggs is on his knees. He counted every shell. He never once called you a murderer."
+			c.options = ["LET HIM LIVE", "FINISH IT"]
+			c.done = func(_i: int) -> void: pass
+			add_child(c))
+		get_tree().create_timer(2.6, true, false, true).timeout.connect(_shot.bind("choice"))
+		get_tree().create_timer(2.6, true, false, true).timeout.connect(func() -> void: hud.caption(["The shooters hadn't gone far. Rain doesn't wash a trail away that fast.", "Neither does whiskey. I'd tried."]))
+		get_tree().create_timer(5.0, true, false, true).timeout.connect(func() -> void:
+			for c in get_children():
+				if c.get_script() == ChoiceScript:
+					c.queue_free()
+			get_tree().paused = false)
+		get_tree().create_timer(6.2, true, false, true).timeout.connect(_shot.bind("caption"))
+		get_tree().create_timer(6.5, true, false, true).timeout.connect(get_tree().quit)
+		_auto = "cut:choice"
 	elif _auto == "page":   # --test=page: the map's notebook page, read
 		get_tree().create_timer(1.0, true, false, true).timeout.connect(_read_page)
 		get_tree().create_timer(3.0, true, false, true).timeout.connect(_shot.bind("page"))
@@ -1402,6 +1420,39 @@ func _process(delta: float) -> void:
 		fore.position.x = -cam.position.x * 0.35
 		for i in depth.size():
 			depth[i].position.x = cam.position.x * depth_follow[i]
+		if _auto == "paperkit":   # every paper at the sizes the screens use, on a dark ground
+			_at += delta
+			if _auto_done == 0 and _at > 0.5:
+				_auto_done = 1
+				var Paper = load("res://paper.gd")
+				var lay := CanvasLayer.new()
+				lay.layer = 90
+				add_child(lay)
+				var bg := ColorRect.new()
+				bg.color = Color(0.12, 0.12, 0.13)
+				bg.size = get_viewport().get_visible_rect().size
+				lay.add_child(bg)
+				var f := FontVariation.new()
+				f.base_font = load("res://fonts/Oswald.ttf")
+				var x := 20.0
+				for spec in [["panel", Vector2(200, 300)], ["panel", Vector2(520, 96)], ["panel", Vector2(700, 470)], ["panel", Vector2(60, 56)]]:
+					var b: Control = Paper.sheet(spec[0], spec[1])
+					b.position = Vector2(x, 20.0)
+					lay.add_child(b)
+					Paper.write(b, "LOREM IPSUM DOLOR", f, 22, Paper.INK)
+					x += spec[1].x + 20.0
+				x = 20.0
+				for spec in [["tape", Vector2(220, 60)], ["tape", Vector2(400, 60)], ["strip", Vector2(300, 56)], ["tag", Vector2(240, 100)], ["folder", Vector2(150, 194)], ["clip", Vector2(330, 182)]]:
+					var b: Control = Paper.sheet(spec[0], spec[1])
+					b.position = Vector2(x, 520.0)
+					lay.add_child(b)
+					Paper.write(b, "BACK", f, 26, Paper.INK)
+					x += spec[1].x + 16.0
+			if _at > 1.5 and _auto_done == 1:
+				_auto_done = 2
+				_shot("paperkit")
+			if _at > 1.7:
+				get_tree().quit()
 		if _auto == "neon":   # the painted neon lit, then cut out
 			_at += delta
 			for c in get_children():
@@ -1661,6 +1712,9 @@ func _auto_step(delta: float) -> void:
 	elif _auto == "play":   # a bot plays the chapter: walks right, stops to fight, jumps what blocks it
 		var near = _nearest_enemy()
 		var fight: bool = near != null and absf(near.position.x - player.position.x) < 1500.0
+		_bot_fight = _bot_fight + delta if fight else 0.0
+		if _bot_fight > 8.0:   # a man dug in behind cover: walk up on him, as a player would
+			fight = absf(near.position.x - player.position.x) < 420.0
 		hud.move = 0.0 if fight else 1.0
 		if near != null and absf(near.position.x - player.position.x) < 1900.0:
 			hud.fire_tapped = true
@@ -3126,7 +3180,7 @@ func _restart() -> void:
 func _pause() -> void:
 	hud.release_all()
 	var p = PauseScript.new()
-	p.title = "%s  ·  %s" % [String(Levels.CAMPAIGN[chapter]["title"]), String(level["name"])]
+	p.title = "%s\n%s" % [String(Levels.CAMPAIGN[chapter]["title"]), String(level["name"])]
 	p.sound = func(n: String) -> void: sfx.play(n, -4.0, INF, 0.1)
 	p.on_close = func() -> void:
 		hud.release_all()
@@ -3721,7 +3775,7 @@ func _read_page() -> void:
 	var d = DiaryScript.new()
 	d.text = String(level.get("diary", ""))
 	d.paper = "res://art/ui/pages/%d_%d.png" % [chapter, map]
-	d.found = MenuScript.pages(chapter)
+	d.found = map + 1   # this page's place in the chapter
 	d.total = Levels.CAMPAIGN[chapter]["maps"].size()
 	d.sound = func(n: String, db: float) -> void: sfx.play(n, db, INF, 0.0)
 	d.done = hud.release_all
@@ -4070,6 +4124,22 @@ func _cast_shadow(p) -> void:
 
 func _shot(shot_name: String) -> void:
 	print("shot ", shot_name, "  fps ", Engine.get_frames_per_second())
+	# every screen of paper and text is checked as it is pictured: text past its box or its paper's
+	# inner line, text over text, paper over paper, anything at the screen's edge, "A · B" strings
+	var view := get_viewport().get_visible_rect().size
+	var top := -1
+	for n in get_tree().root.find_children("*", "CanvasLayer", true, false):
+		if n.visible and (n as CanvasLayer).layer >= 20 and (n as CanvasLayer).layer > top:
+			top = (n as CanvasLayer).layer
+	for n in get_tree().root.find_children("*", "CanvasLayer", true, false):
+		var cl := n as CanvasLayer
+		if cl.visible and cl.layer == top:
+			for line in load("res://paper.gd").audit(cl, view):
+				print("UI BAD [", shot_name, "] ", line)
+	if shot_name.begins_with("film") or shot_name.begins_with("cap"):
+		for line in load("res://paper.gd").audit(hud, view):
+			if "caption" in line or "inner line" in line or "overlap" in line:
+				print("UI BAD [", shot_name, "] ", line)
 	if _tt >= 0.0:
 		var states := []
 		for e in enemies:

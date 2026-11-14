@@ -242,7 +242,7 @@ func _process(delta: float) -> void:
 		if _typing.visible_characters >= _typing.text.length():
 			_wait = 1.0 if fast else 1.8 + _typing.text.length() * 0.035
 	elif _wait > 0.0:
-		if fast and not _shot_taken and shot.is_valid() and _line == _panels[_i]["lines"].size() - 1:
+		if fast and not _shot_taken and shot.is_valid() and _line == _panels[_i]["lines"].size() - 1 and _wait < 0.6:   # once the last box is in
 			_shot_taken = true
 			shot.call("cut_%s_%d" % [scene_id, _i])
 		_wait -= delta
@@ -487,30 +487,16 @@ func _show_line() -> void:
 		_typing.visible_characters = _typing.text.length()
 	var speech := text.begins_with("\"")
 	var view := _view()
-	var box := PanelContainer.new()
-	var style := StyleBoxFlat.new()
-	style.bg_color = SPEECH if speech else PAPER
-	style.border_color = INK
-	style.set_border_width_all(4)
-	style.set_content_margin_all(16)
-	style.content_margin_left = 24
-	style.content_margin_right = 24
-	style.shadow_color = Color(0, 0, 0, 0.55)
-	style.shadow_offset = Vector2(7, 7)
+	# a comic caption box sized to its words; a spoken line is a spoken caption, on whiter paper
+	var Paper = load("res://paper.gd")
+	var box: Control = Paper.caption(text.to_upper(), _cap_font(), 26, minf(view.x * 0.42, 620.0))
 	if speech:
-		style.set_corner_radius_all(26)
-	box.add_theme_stylebox_override("panel", style)
-	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var l := Label.new()
-	l.text = text if speech else text.to_upper()
-	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l.add_theme_font_override("font", _font_type)
-	l.add_theme_font_size_override("font_size", 30)
-	l.add_theme_color_override("font_color", INK)
+		(box.get_node("Drawing") as TextureRect).modulate = Color(1.06, 1.06, 1.1)
+	var l: Label
+	for c in box.get_children():
+		if c is Label:
+			l = c
 	l.visible_characters = 0
-	var w := minf(view.x * 0.46, 40.0 + text.length() * 16.5)
-	l.custom_minimum_size = Vector2(maxf(w, 260.0), 0.0)
-	box.add_child(l)
 	add_child(box)
 	move_child(box, _black.get_index())
 	var n := _boxes.size()
@@ -523,21 +509,23 @@ func _show_line() -> void:
 
 
 ## Once the box knows how tall its wrapped text is: where it goes on the page.
-func _place_box(box: PanelContainer, n: int) -> void:
+func _place_box(box: Control, n: int) -> void:
 	if not is_instance_valid(box):
 		return
-	box.reset_size()
-	var l: Label = box.get_child(0)
-	var text_h := _font_type.get_multiline_string_size(l.text, HORIZONTAL_ALIGNMENT_LEFT, l.custom_minimum_size.x + 8.0, 30).y
-	box.size.y = maxf(box.size.y, text_h + 40.0)
 	var view := _view()
-	var margin := Vector2(46.0, 44.0)
-	var y_top := 30.0 + float(n / 2) * 140.0
-	if n % 2 == 0:
-		box.position = Vector2(margin.x + n * 20.0, y_top + margin.y * 0.4)
+	var margin := Vector2(48.0, 44.0)
+	if n % 2 == 0:   # the first of a pair at the top left, the next at the bottom right
+		box.position = Vector2(margin.x + float(n / 2) * 24.0, margin.y + float(n / 2) * 150.0)
 	else:
-		box.position = Vector2(view.x - box.size.x - margin.x, view.y - box.size.y - margin.y - float(n / 2) * 140.0)
+		box.position = Vector2(view.x - box.size.x - margin.x, view.y - box.size.y - margin.y - float(n / 2) * 150.0)
 	box.create_tween().tween_property(box, "modulate:a", 1.0, 0.25)
+
+
+var _cap_f: Font
+func _cap_font() -> Font:
+	if _cap_f == null:
+		_cap_f = load("res://fonts/ComicNeue-BoldItalic.woff")
+	return _cap_f
 
 
 func _finish() -> void:

@@ -66,7 +66,21 @@ var _lights: Array = []
 var _clock := 0.0
 
 
+## Tests can set how far the player has got: --progress=N, the first N maps of the campaign done.
+static func _test_progress() -> int:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--progress="):
+			return int(a.substr(11))
+	return -1
+
+
 static func is_done(chapter: int, map: int) -> bool:
+	var tp := _test_progress()
+	if tp >= 0:
+		var k := 0
+		for c in chapter:
+			k += (Levels.CAMPAIGN[c]["maps"] as Array).size()
+		return k + map < tp
 	var cfg := ConfigFile.new()
 	cfg.load(SAVE)
 	return bool(cfg.get_value("done", "%d-%d" % [chapter, map], false))
@@ -439,61 +453,22 @@ func _new_page() -> Vector2:
 	return view
 
 
-## A button like a strip of paper pasted on the page: ink caption, slightly askew.
-func _button(text: String, at: Vector2, width: float, main: bool, on_press: Callable) -> Button:
-	var b := Paper.button("tape" if main else "strip", text, _font_head, 40 if main else 30, Vector2(width, 66.0 if main else 54.0))
-	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	b.position = at
-	b.rotation = deg_to_rad(randf_range(-1.2, 0.8))
-	b.pressed.connect(func() -> void:
-		if sound.is_valid():
-			sound.call("page")
-		on_press.call())
-	_page.add_child(b)
-	return b
+const M := 48.0     # the margin round every screen
+const GAP := 16.0   # between papers in a group
+const TILT := [-1.2, 0.8, -0.6, 1.1, -0.9, 0.5]   # each paper a little askew, the same each time
 
 
-## One of the title's papers: the drawing itself is the button, whole and unstretched.
-func _paper(kind: String, at: Vector2, size: Vector2, tilt: float, on_press: Callable) -> TextureButton:
-	var tex: Texture2D = load("res://art/ui/paper/%s.png" % kind)
-	var b := TextureButton.new()
-	b.texture_normal = tex
-	b.ignore_texture_size = true
-	b.stretch_mode = TextureButton.STRETCH_SCALE
-	b.focus_mode = Control.FOCUS_NONE
+## A paper button on the page.
+func _paper(kind: String, at: Vector2, size: Vector2, tilt: float, on_press: Callable) -> Control:
+	var b: Control = Paper.button(kind, size, on_press, sound)
 	b.position = at
-	b.size = size
-	b.pivot_offset = size * 0.5
 	b.rotation = deg_to_rad(tilt)
-	var shadow := TextureRect.new()
-	shadow.texture = tex
-	shadow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	shadow.stretch_mode = TextureRect.STRETCH_SCALE
-	shadow.size = size
-	shadow.position = Vector2(6.0, 8.0)
-	shadow.modulate = Color(0, 0, 0, 0.55)
-	shadow.show_behind_parent = true
-	shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	b.add_child(shadow)
-	b.button_down.connect(func() -> void:   # a thumb on it: it sinks to the wall
-		b.scale = Vector2(0.97, 0.97)
-		b.modulate = Color(0.82, 0.8, 0.76)
-		shadow.position = Vector2(2.0, 3.0))
-	b.button_up.connect(func() -> void:
-		b.scale = Vector2.ONE
-		b.modulate = Color.WHITE
-		shadow.position = Vector2(6.0, 8.0))
-	b.pressed.connect(func() -> void:
-		if sound.is_valid():
-			sound.call("page")
-		on_press.call())
-	b.modulate.a = 0.0
-	b.create_tween().tween_property(b, "modulate:a", 1.0, 0.8).set_delay(1.8)
 	_page.add_child(b)
 	return b
 
 
-## The title: the logo, Frank's line for this moment typed out beneath it, and what to do next.
+## The title: the logo, and under it the papers pinned to the wall: today's clipping (the one thing to
+## do), the case folder and the settings tag. A place and time caption sits down on the street.
 func _title() -> void:
 	_on_case_file = false
 	var view := _new_page()
@@ -502,7 +477,7 @@ func _title() -> void:
 		return
 	var shade := TextureRect.new()   # the left of the street darkened so the words read; the right stays open
 	var g := Gradient.new()
-	g.set_color(0, Color(0.0, 0.0, 0.0, 0.86))   # a calm, dark ground for the title and the papers
+	g.set_color(0, Color(0.0, 0.0, 0.0, 0.86))
 	g.add_point(0.45, Color(0.0, 0.0, 0.0, 0.55))
 	g.set_color(g.get_point_count() - 1, Color(0.0, 0.0, 0.0, 0.0))
 	var gt := GradientTexture2D.new()
@@ -515,67 +490,72 @@ func _title() -> void:
 	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_page.add_child(shade)
 
-	var left := view.x * 0.06
 	var logo := TextureRect.new()
 	logo.texture = load("res://art/ui/title.png")
 	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT
 	var aspect := float(logo.texture.get_width()) / logo.texture.get_height()
-	var lh := minf(view.y * 0.4, view.x * 0.36 / aspect)   # never wider than the left part of the screen
+	var lh := 250.0
 	logo.size = Vector2(lh * aspect, lh)
-	logo.position = Vector2(left, view.y * 0.05)
+	logo.position = Vector2(M, 36.0)
 	logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	logo.modulate.a = 0.0
 	_page.add_child(logo)
-	var tw := logo.create_tween()
-	tw.tween_property(logo, "modulate:a", 1.0, 1.6).set_delay(1.2)
+	logo.create_tween().tween_property(logo, "modulate:a", 1.0, 1.6).set_delay(1.2)
 
 	var ph := phase()
 	var p := progress()
-	# The papers on the wall under the title: today's clipping (the map to play), the case folder,
-	# and a tag for the settings. Real pieces of paper, each a little askew, with a shadow under it.
-	var u := view.y / 720.0
-	var y := view.y * 0.05 + lh + 14.0 * u
-	if p[0] >= 0 and Levels.CAMPAIGN[p[0]]["ready"]:
+	var y := 36.0 + lh + GAP
+	var papers: Array = []
+	if p[0] >= 0 and Levels.CAMPAIGN[p[0]]["ready"]:   # the one main action: the biggest paper
 		var ch: Dictionary = Levels.CAMPAIGN[p[0]]
 		var what := "BEGIN" if p[0] == 0 and p[1] == 0 else "CONTINUE"
-		var clip := _paper("clip", Vector2(left, y), Vector2(330.0, 182.0) * u, -1.6, func() -> void: play.call(p[0], p[1]))
-		var sub := _label("%s  ·  %s" % [String(ch["title"]), String(ch["maps"][p[1]]["name"])], _font_type, int(15 * u), Color(INK, 0.85))
-		sub.position = Vector2(26.0, 30.0) * u
-		sub.size = Vector2(280.0, 22.0) * u
-		sub.clip_text = true
-		clip.add_child(sub)
-		var big := _label(what, _font_head, int(62 * u), INK)
-		big.position = Vector2(24.0, 70.0) * u
-		big.size = Vector2(290.0, 90.0) * u
-		clip.add_child(big)
-		y += 196.0 * u
-	var folder := _paper("folder", Vector2(left, y), Vector2(206.0, 159.0) * u, 1.4, _case_file)
-	var cf := _label("CASE\nFILE", _font_head, int(34 * u), CRIMSON)
-	cf.add_theme_constant_override("line_spacing", int(-8 * u))
-	cf.position = Vector2(78.0, 44.0) * u
-	cf.size = Vector2(120.0, 90.0) * u
-	cf.rotation = deg_to_rad(-5.0)
-	folder.add_child(cf)
-	var tag := _paper("tag", Vector2(left + 222.0 * u, y + 34.0 * u), Vector2(236.0, 97.0) * u, -2.4, func() -> void:
+		var clip := _paper("clip", Vector2(M, y), Vector2(312.0, 172.0), TILT[0], func() -> void: play.call(p[0], p[1]))
+		Paper.write(clip, String(ch["maps"][p[1]]["name"]), _font_type, 18, Color(INK, 0.85), HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0, 1, 0.31), 8.0)
+		Paper.write(clip, what, _font_head, 56, INK, HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0.35, 1, 0.65), 10.0)
+		papers.append(clip)
+		y += 172.0 + GAP
+	elif p[0] >= 0:   # caught up with the story: the clipping says what comes next, and is not a button
+		var ch: Dictionary = Levels.CAMPAIGN[p[0]]
+		var clip := Paper.sheet("clip", Vector2(312.0, 172.0))
+		clip.position = Vector2(M, y)
+		clip.rotation = deg_to_rad(TILT[0])
+		_page.add_child(clip)
+		Paper.write(clip, String(ch["title"]), _font_type, 18, Color(INK, 0.85), HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0, 1, 0.31), 8.0)
+		var tbc := Paper.write(clip, "TO BE\nCONTINUED", _font_head, 30, INK, HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0.35, 1, 0.65), 10.0)
+		tbc.add_theme_constant_override("line_spacing", -8)
+		papers.append(clip)
+		y += 172.0 + GAP
+	var folder := _paper("folder", Vector2(M, y), Vector2(124.0, 160.0), TILT[1], _case_file)
+	var cf := Paper.write(folder, "CASE\nFILE", _font_head, 26, CRIMSON)
+	cf.add_theme_constant_override("line_spacing", -10)
+	var tag := _paper("tag", Vector2(M + 124.0 + GAP * 1.5, y + 160.0 * 0.5 - 46.0), Vector2(220.0, 92.0), TILT[2], func() -> void:
 		var st = load("res://settings.gd").new()
 		st.sound = sound
 		_page.visible = false
 		st.done = func() -> void: _page.visible = true
 		add_child(st))
-	var tl := _label("SETTINGS", _font_head, int(25 * u), INK)
-	tl.position = Vector2(24.0, 28.0) * u
-	tl.size = Vector2(150.0, 50.0) * u
-	tag.add_child(tl)
+	Paper.write(tag, "SETTINGS", _font_head, 22, INK)
+	papers += [folder, tag]
+	for k in papers.size():   # they come out of the dark one after another
+		var n: Control = papers[k]
+		n.modulate.a = 0.0
+		n.create_tween().tween_property(n, "modulate:a", 1.0, 0.6).set_delay(1.6 + k * 0.15)
 
-	var stamp := _label(String(ph[1]), _font_type, 20, Color(PAPER, 0.75), 5)
-	stamp.position = Vector2(view.x * 0.68 - 600.0, view.y - 52.0)   # on the wet street, clear of the detective
-	stamp.size = Vector2(600.0, 30.0)
-	stamp.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_page.add_child(stamp)
+	var cap := Paper.caption(Paper.place_time(String(ph[1])), _font_caption(), 19)   # where and when: a comic's location caption
+	cap.position = Vector2(view.x * 0.4, view.y - M - cap.size.y)
+	cap.rotation = deg_to_rad(-0.6)
+	_page.add_child(cap)
 
 
-## The case file: one chapter at a time, its maps as pasted comic panels.
+var _cap_font: Font
+func _font_caption() -> Font:
+	if _cap_font == null:
+		_cap_font = load("res://fonts/ComicNeue-BoldItalic.woff")
+	return _cap_font
+
+
+## The case file: one chapter at a time, its maps as comic panels pinned in a row.
 func _case_file() -> void:
 	_on_case_file = true
 	var view := _new_page()
@@ -584,101 +564,107 @@ func _case_file() -> void:
 		return
 	_type_label = null
 	var shade := ColorRect.new()
-	shade.color = Color(0.0, 0.0, 0.0, 0.55)
+	shade.color = Color(0.0, 0.0, 0.0, 0.62)
 	shade.size = view
 	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_page.add_child(shade)
 
 	var ch: Dictionary = Levels.CAMPAIGN[_chapter]
-	var t1 := _label(String(ch["title"]), _font_type, 26, Color(0.75, 0.72, 0.66), 6)
-	t1.position = Vector2(0.0, view.y * 0.07)
-	t1.size = Vector2(view.x, 36.0)
+	var head_y := 34.0
+	var t1 := _label(String(ch["title"]), _font_type, 22, Color(0.78, 0.75, 0.68), 6)
+	t1.position = Vector2(0.0, head_y)
+	t1.size = Vector2(view.x, 30.0)
 	t1.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_page.add_child(t1)
-	var t2 := _label(String(ch["name"]), _font_head, 56, PAPER, 14)
-	t2.position = Vector2(0.0, view.y * 0.07 + 34.0)
-	t2.size = Vector2(view.x, 76.0)
+	var t2 := _label(String(ch["name"]), _font_head, 50, PAPER, 12)
+	t2.position = Vector2(0.0, head_y + 30.0)
+	t2.size = Vector2(view.x, 70.0)
 	t2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_page.add_child(t2)
-
-	var maps: Array = ch["maps"]
-	var gap := 22.0
-	var w := minf(250.0, (view.x - 320.0 - gap * (maps.size() - 1)) / maps.size())
-	var h := w * 1.25
-	var x0 := (view.x - (w * maps.size() + gap * (maps.size() - 1))) * 0.5
-	var y0 := view.y * 0.07 + 140.0
-	for m in maps.size():
-		var open := is_open(_chapter, m)
-		var done := is_done(_chapter, m)
-		var panel := Button.new()
-		panel.position = Vector2(x0 + m * (w + gap), y0 + (12.0 if m % 2 == 1 else 0.0))   # off-line, like hand-pasted panels
-		panel.size = Vector2(w, h)
-		panel.rotation = deg_to_rad(-1.2 if m % 2 == 0 else 1.0)
-		panel.focus_mode = Control.FOCUS_NONE
-		var bg := PAPER if open else Color(0.2, 0.2, 0.22)
-		for state in ["normal", "hover", "focus", "disabled", "pressed"]:   # each map an inked comic panel of old paper
-			var tint := Color.WHITE if open else Color(0.3, 0.3, 0.32)
-			panel.add_theme_stylebox_override(state, Paper.box("caption", 0.08, tint.darkened(0.15) if state == "pressed" else tint, Vector2(w, h)))
-		panel.disabled = not open
-		if open:
-			panel.pressed.connect(func() -> void: play.call(_chapter, m))
-		_page.add_child(panel)
-		var num := _label(str(m + 1), _font_head, 76, INK if open else Color(0.4, 0.4, 0.42))
-		num.position = Vector2(0.0, h * 0.03)
-		num.size = Vector2(w, 100.0)
-		num.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		panel.add_child(num)
-		var nm := _label(String(maps[m]["name"]), _font_type, 20, INK if open else Color(0.45, 0.45, 0.47))
-		nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		nm.position = Vector2(8.0, h * 0.45)
-		nm.size = Vector2(w - 16.0, 60.0)
-		panel.add_child(nm)
-		var tag := ""
-		if not ch["ready"]:
-			tag = "SOON"
-		elif done:
-			tag = "CLOSED" + ("  " + "I".repeat(stars(_chapter, m)) if stars(_chapter, m) > 0 else "")
-		elif open:
-			tag = "PLAY"
-		else:
-			tag = "LOCKED"
-		var stamp := _label(tag, _font_head, 32, CRIMSON if done or tag == "PLAY" else Color(0.55, 0.55, 0.57))
-		stamp.position = Vector2(0.0, h - 50.0)
-		stamp.size = Vector2(w, 44.0)
-		stamp.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		if done:
-			stamp.rotation = deg_to_rad(-8.0)
-		panel.add_child(stamp)
-
-	if not ch["ready"]:
-		var soon := _label("THE INVESTIGATION CONTINUES SOON", _font_type, 26, PAPER, 6)
-		soon.position = Vector2(0.0, y0 + h + 40.0)
-		soon.size = Vector2(view.x, 40.0)
-		soon.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_page.add_child(soon)
-
-	for side in [-1, 1]:   # turning the pages of the file
+	for side in [-1, 1]:   # turning the pages of the file: the tape says where it goes
 		var to: int = _chapter + side
 		if to < 0 or to >= Levels.CAMPAIGN.size():
 			continue
-		var b := Button.new()
-		b.text = "<" if side < 0 else ">"
-		b.add_theme_font_override("font", _font_head)
-		b.add_theme_font_size_override("font_size", 64)
-		b.add_theme_color_override("font_color", INK)
-		for state in ["normal", "hover", "pressed", "focus"]:
-			b.add_theme_stylebox_override(state, Paper.box("caption_s", 0.09, Color(0.8, 0.77, 0.72) if state == "pressed" else Color.WHITE, Vector2(80.0, 120.0)))
-		b.focus_mode = Control.FOCUS_NONE
-		b.size = Vector2(80.0, 120.0)
-		b.position = Vector2(24.0 if side < 0 else view.x - 104.0, y0 + h * 0.5 - 60.0)
-		b.pressed.connect(func() -> void:
+		var name_to := String(Levels.CAMPAIGN[to]["title"])
+		var tw := 220.0
+		var at := Vector2(M if side < 0 else view.x - M - tw, head_y + 30.0)
+		var b := _paper("tape", at, Vector2(tw, 60.0), TILT[3] if side < 0 else TILT[4], func() -> void:
 			_chapter = to
-			if sound.is_valid():
-				sound.call("page")
 			_case_file())
-		_page.add_child(b)
-	_button("BACK", Vector2(view.x * 0.06, view.y - 100.0), 180.0, false, _title)
+		Paper.write(b, ("\u2039  " + name_to) if side < 0 else (name_to + "  \u203a"), _font_head, 22, INK)
+
+	var maps: Array = ch["maps"]
+	var gap := 24.0
+	var w := minf(214.0, (view.x - 2.0 * M - gap * (maps.size() - 1)) / maps.size())
+	var h: float = roundf(w * 1.5)
+	var x0 := (view.x - (w * maps.size() + gap * (maps.size() - 1))) * 0.5
+	var y0 := 150.0
+	for m in maps.size():
+		var open := is_open(_chapter, m)
+		var done := is_done(_chapter, m)
+		var now: bool = open and not done and bool(ch["ready"])
+		var at := Vector2(x0 + m * (w + gap), y0)
+		var card: Control
+		if open and ch["ready"]:
+			card = _paper("panel", at, Vector2(w, h), TILT[m % TILT.size()], func() -> void: play.call(_chapter, m))
+		else:
+			card = Paper.sheet("panel", Vector2(w, h))
+			card.position = at
+			card.rotation = deg_to_rad(TILT[m % TILT.size()])
+			_page.add_child(card)
+			(card.get_node("Drawing") as TextureRect).modulate = Color(0.58, 0.56, 0.53)   # an unopened file, in the dark
+		var ink: Color = INK
+		Paper.write(card, str(m + 1), _font_head, 64, ink, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0, 1, 0.36), 4.0)
+		Paper.write(card, String(maps[m]["name"]), _font_type, 18, ink, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0.36, 1, 0.28), 10.0)
+		var low := Rect2(0, 0.64, 1, 0.36)
+		if not ch["ready"]:
+			Paper.write(card, "SOON", _font_head, 30, Color(0.1, 0.1, 0.1), HORIZONTAL_ALIGNMENT_CENTER, low, 10.0)
+		elif done:   # a closed case: the stamp, and the marks it earned
+			var st := Paper.write(card, "CLOSED", _font_head, 32, CRIMSON, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0.64, 1, 0.2), 8.0)
+			st.pivot_offset = st.size * 0.5
+			st.rotation = deg_to_rad(-5.0)
+			_stars(card, Rect2(0, 0.84, 1, 0.16), stars(_chapter, m))
+		elif now:   # the next case: the one thing to do on this screen
+			Paper.write(card, "PLAY", _font_head, 40, CRIMSON, HORIZONTAL_ALIGNMENT_CENTER, low, 10.0)
+			card.scale = Vector2(1.05, 1.05)
+			card.z_index = 1
+		else:   # locked: it says why
+			Paper.write(card, "LOCKED\nCLOSE CASE %d FIRST" % m, _font_head, 20, INK, HORIZONTAL_ALIGNMENT_CENTER, low, 10.0)
+
+	if not ch["ready"]:
+		var soon := _label("THE INVESTIGATION CONTINUES SOON", _font_type, 24, PAPER, 6)
+		soon.position = Vector2(0.0, y0 + h + 34.0)
+		soon.size = Vector2(view.x, 34.0)
+		soon.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_page.add_child(soon)
+	var back := _paper("tape", Vector2(M, view.y - M - 60.0), Vector2(180.0, 60.0), TILT[5], _title)
+	Paper.write(back, "BACK", _font_head, 24, INK)
+
+
+## The marks a closed case earned, inked like a rubber stamp: up to three stars, the rest outlined.
+func _stars(card: Control, part: Rect2, n: int) -> void:
+	var inner: Rect2 = card.get_meta("inner")
+	var area := Rect2(inner.position + inner.size * part.position, inner.size * part.size)
+	var c := Control.new()
+	c.position = area.position
+	c.size = area.size
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	c.draw.connect(func() -> void:
+		var r := minf(area.size.y * 0.36, 11.0)
+		for i in 3:
+			var at := Vector2(area.size.x * 0.5 + (i - 1) * r * 2.8, area.size.y * 0.5)
+			var pts := PackedVector2Array()
+			for k in 10:
+				var a := -PI * 0.5 + k * PI / 5.0
+				pts.append(at + Vector2(cos(a), sin(a)) * (r if k % 2 == 0 else r * 0.42))
+			if i < n:
+				c.draw_colored_polygon(pts, CRIMSON)
+			else:
+				pts.append(pts[0])
+				c.draw_polyline(pts, Color(CRIMSON, 0.7), 1.6, true))
+	card.add_child(c)
+	if card.has_node("Hit"):
+		card.move_child(card.get_node("Hit"), card.get_child_count() - 1)
 
 
 ## Upright phone: the title, small, and a word to turn it sideways.

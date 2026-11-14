@@ -15,7 +15,7 @@ var done := Callable()
 
 var _page: Control
 var _closing := false
-var _button: Button
+var _button: Control
 var _age := 0.0
 
 
@@ -68,6 +68,7 @@ func _ready() -> void:
 	var fs := int(h * 0.075)
 	var ghost := _hand(w, h, fs, Color(GRAPHITE, 0.25))   # graphite smeared by a thumb
 	ghost.position += Vector2(fs * 0.12, fs * 0.1)
+	ghost.set_meta("decor", true)
 	var hand := _hand(w, h, fs, GRAPHITE)
 	for n in [ghost, hand]:
 		n.modulate.a = 0.0
@@ -116,50 +117,43 @@ func _ready() -> void:
 	fade.size = Vector2(view.x - side_x + view.x * 0.12, view.y)
 	fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(fade)
+	# One column to the right of the page, laid out as a group and centred on the screen's height:
+	# the header, the typed copy, and under it the one way to put the page away.
+	var Paper = load("res://paper.gd")
+	var col_x := side_x + 24.0
+	var col_w := view.x - col_x - 48.0
+	var type: Font = load("res://fonts/SpecialElite.ttf")
 	var title := Label.new()
 	title.text = "EDDIE DOYLE'S NOTEBOOK\nPAGE %d OF %d" % [found, total]
 	title.add_theme_font_override("font", head)
 	title.add_theme_font_size_override("font_size", 22)
 	title.add_theme_color_override("font_color", Color(0.85, 0.22, 0.18))
-	title.position = Vector2(side_x + 20.0, view.y * 0.14)
-	title.size = Vector2(view.x - side_x - 70.0, 60.0)
+	title.size = Vector2(col_w, 60.0)
 	add_child(title)
 	var copy := Label.new()
 	copy.text = text
 	copy.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	copy.add_theme_font_override("font", load("res://fonts/SpecialElite.ttf"))
-	copy.add_theme_font_size_override("font_size", 26)
+	copy.add_theme_font_override("font", type)
+	copy.add_theme_font_size_override("font_size", 24)
 	copy.add_theme_color_override("font_color", PAPER)
 	copy.add_theme_constant_override("line_spacing", 6)
-	copy.position = Vector2(side_x + 20.0, view.y * 0.14 + 78.0)
-	copy.size = Vector2(view.x - side_x - 70.0, view.y * 0.55)
+	var ch: float = type.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, col_w, 24).y + 6.0 * 6.0
+	copy.size = Vector2(col_w, ch)
 	add_child(copy)
+	# Only this puts it away: a stray tap meant for a mobster must not throw the page away.
+	_button = Paper.button("tape", Vector2(240.0, 60.0), close, func(_n: String) -> void: pass)
+	Paper.write(_button, "PUT IT AWAY", head, 24, Paper.INK)
+	add_child(_button)
+	var total_h := 86.0 + ch + 30.0 + 60.0
+	var y := (view.y - total_h) * 0.5
+	title.position = Vector2(col_x, y)
+	copy.position = Vector2(col_x, y + 86.0)
+	_button.position = Vector2(col_x - 6.0, y + 86.0 + ch + 30.0)
+	_button.rotation = deg_to_rad(-1.2)
 	for n in [fade, title, copy]:
 		n.modulate.a = 0.0
 		create_tween().tween_property(n, "modulate:a", 1.0, 0.5).set_delay(0.25)
-	# Only this puts it away: a stray tap meant for a mobster must not throw the page away.
-	_button = Button.new()
-	_button.text = "PUT IT AWAY"
-	_button.add_theme_font_override("font", head)
-	_button.add_theme_font_size_override("font_size", 26)
-	for st_name in ["normal", "hover", "pressed", "focus"]:
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = PAPER if st_name != "pressed" else PAPER.darkened(0.15)
-		sb.border_color = GRAPHITE
-		sb.set_border_width_all(3)
-		sb.set_content_margin_all(12)
-		sb.content_margin_left = 26
-		sb.content_margin_right = 26
-		sb.shadow_color = Color(0, 0, 0, 0.5)
-		sb.shadow_offset = Vector2(4.0, 5.0) if st_name != "pressed" else Vector2(1.0, 1.0)
-		_button.add_theme_stylebox_override(st_name, sb)
-	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
-		_button.add_theme_color_override(c, GRAPHITE)
-	_button.position = Vector2(side_x + 20.0, view.y * 0.78)
-	_button.rotation = deg_to_rad(-1.5)
-	_button.pressed.connect(close)
 	_button.modulate.a = 0.0
-	add_child(_button)
 	create_tween().tween_property(_button, "modulate:a", 1.0, 0.4).set_delay(0.6)
 	_page.scale = Vector2(0.9, 0.9)
 	_page.modulate.a = 0.0

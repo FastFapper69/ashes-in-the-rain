@@ -148,35 +148,27 @@ var _boss_fill: ColorRect
 ## The detective's narration, in comic captions: cream boxes with black lettering at the top of the
 ## screen, one line after another, then gone.
 func caption(lines: Array) -> void:
-	var box := VBoxContainer.new()
-	# Up in the corner under his portrait, small: the narration sits beside the action, never on it
+	# Up in the corner under his portrait, small: the narration sits beside the action, never on it.
+	# Each line its own inked caption box, sized to its words (the drawing is never stretched out of shape).
+	var Paper = load("res://paper.gd")
+	var font: Font = load("res://fonts/ComicNeue-BoldItalic.woff")
+	var fs := 22
+	var box := Control.new()
 	box.position = Vector2(28.0, 128.0)
-	box.custom_minimum_size = Vector2(560.0, 0.0)
-	box.add_theme_constant_override("separation", 8)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(box)
 	var tw := create_tween()
+	var y := 0.0
 	for i in lines.size():
-		var panel := PanelContainer.new()
-		var style: StyleBoxTexture = load("res://paper.gd").box("caption_s", 0.09)   # an inked comic caption box
-		style.set_content_margin_all(19)
-		style.content_margin_left = 26
-		style.content_margin_right = 26
-		panel.add_theme_stylebox_override("panel", style)
-		panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var l := Label.new()
-		l.text = String(lines[i]).to_upper()
-		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		l.custom_minimum_size = Vector2(minf(500.0, 40.0 + String(lines[i]).length() * 13.0), 0.0)
-		l.add_theme_font_override("font", load("res://fonts/ComicNeue-BoldItalic.woff"))   # comic lettering: slanted bold capitals
-		l.add_theme_font_size_override("font_size", 24)
-		l.add_theme_color_override("font_color", INK)
-		panel.add_child(l)
-		panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-		panel.modulate.a = 0.0
-		box.add_child(panel)
-		tw.tween_property(panel, "modulate:a", 1.0, 0.35)
-		tw.tween_interval(1.2 + String(lines[i]).length() * 0.028)
+		var text := String(lines[i]).to_upper()
+		var cap: Control = Paper.caption(text, font, fs, 460.0)
+		cap.position = Vector2(0.0, y)
+		cap.modulate.a = 0.0
+		box.add_child(cap)
+		var h: float = cap.size.y
+		y += h + 8.0
+		tw.tween_property(cap, "modulate:a", 1.0, 0.35)
+		tw.tween_interval(1.2 + text.length() * 0.028)
 	tw.tween_interval(1.2)
 	tw.tween_property(box, "modulate:a", 0.0, 0.6)
 	tw.tween_callback(box.queue_free)

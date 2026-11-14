@@ -1,77 +1,316 @@
 extends RefCounted
-## The game's paper: buttons, cards and comic lettering boxes cut from inked drawings (gen/menu_layers.py),
-## so nothing on screen is a flat digital rectangle. One look for the menu, the settings, the pause
-## card and the narration.
+## The game's paper: buttons, cards and comic lettering boxes made from inked drawings (art/ui/paper/src,
+## cut by gen/menu_layers.py). Rules, learned the hard way (Pixel Krypta and this game):
+##  - a drawing is never stretched out of shape: it is scaled evenly, and where a box is longer than the
+##    drawing, the plain middle of the drawing is repeated (mirrored, so there is no seam) while its
+##    ends, torn edges, corners and halftone stay exactly as drawn. Every box gets its own texture,
+##    baked at its own size;
+##  - text sits inside the drawing's inner line, with about one letter of air all round, and audit()
+##    checks every screen: text past its box, text over text, boxes over boxes, anything off screen;
+##  - one main action per screen; a locked thing says why it is locked; no "A · B · C" strings.
 
 const INK := Color(0.07, 0.06, 0.06)
 const CRIMSON := Color(0.55, 0.09, 0.07)
+const PAPER := Color(0.93, 0.89, 0.8)
+const BAKE := 2.0   # textures are baked at twice the layout size: sharp on a phone's screen
+
+## Each drawing: its file, the ends that must never stretch (caps, source px: left, top, right, bottom)
+## and the area where text may go (inner, source px from each edge). "rot": the drawing turned on its
+## side; "fixed": never extended, only scaled evenly and centred in its box.
+const KINDS := {
+	"panel": {"src": "cap_full", "scale": 0.6, "caps": [290, 290, 245, 330], "inner": [50, 50, 50, 54]},
+	"tape": {"src": "tape", "fit": "h", "caps": [330, 0, 330, 0], "inner": [80, 14, 80, 14]},
+	"strip": {"src": "strip_full", "rot": true, "fit": "h", "caps": [330, 0, 330, 0], "inner": [80, 14, 80, 14]},
+	"tag": {"src": "tag", "fixed": true, "inner": [50, 56, 360, 56]},   # the body, clear of the eyelet
+	"folder": {"src": "folder_full", "fixed": true, "inner": [80, 400, 90, 100]},   # the cover under its label
+	"clip": {"src": "clip", "fixed": true, "inner": [40, 26, 40, 28]},
+}
+# "scale": the same stroke and halftone on every box of the kind (bake px per source px);
+# "fit": "h" scaled to the box's height, then made longer or shorter in the middle;
+# "fixed": scaled evenly to fit and centred, never lengthened.
+
+static var _src := {}
+static var _baked := {}
 
 
-## A drawing stretched as a box: its torn or inked edges keep their size, only the middle stretches.
-static func box(kind: String, margin := 0.12, tint := Color.WHITE, fit := Vector2(9999, 9999)) -> StyleBoxTexture:
-	var tex: Texture2D = load("res://art/ui/paper/%s.png" % kind)
-	var s := StyleBoxTexture.new()
-	s.texture = tex
-	var mx := minf(tex.get_width() * margin, fit.x * 0.3)   # never more edge than the thing is wide
-	var my := minf(minf(tex.get_height() * 0.3, mx), fit.y * 0.3)
-	s.content_margin_top = 2.0
-	s.content_margin_bottom = 2.0
-	s.texture_margin_left = mx
-	s.texture_margin_right = mx
-	s.texture_margin_top = my
-	s.texture_margin_bottom = my
-	s.modulate_color = tint
-	return s
+static func _source(kind: String, wide: bool) -> Image:
+	var key := kind + ("/w" if wide else "")
+	if _src.has(key):
+		return _src[key]
+	var k: Dictionary = KINDS[kind]
+	var tex: Texture2D = load("res://art/ui/paper/src/%s.png" % k["src"])
+	var img := tex.get_image()
+	if img.is_compressed():
+		img.decompress()
+	img.convert(Image.FORMAT_RGBA8)
+	if k.get("rot", false):
+		img.rotate_90(COUNTERCLOCKWISE)
+	if wide:
+		img.rotate_90(COUNTERCLOCKWISE)
+	_src[key] = img
+	return img
 
 
-## A button that is a piece of paper: a strip of tape, a tag, a clipping. Pressed, it darkens and
-## sinks a little, like a thumb on it.
-static func button(kind: String, text: String, font: Font, font_size: int, size: Vector2, color := INK) -> Button:
-	var b := Button.new()
-	b.text = text
-	b.focus_mode = Control.FOCUS_NONE
-	b.add_theme_font_override("font", font)
-	b.add_theme_font_size_override("font_size", font_size)
-	for c in ["font_color", "font_hover_color", "font_focus_color"]:
-		b.add_theme_color_override(c, color)
-	b.add_theme_color_override("font_pressed_color", CRIMSON)
-	for state in ["normal", "hover", "focus", "pressed"]:
-		var st := box(kind, 0.12, Color(0.8, 0.77, 0.72) if state == "pressed" else Color.WHITE, size)
-		st.content_margin_left = minf(size.y * 0.42, size.x * 0.2)
-		st.content_margin_right = minf(size.y * 0.42, size.x * 0.2)
-		b.add_theme_stylebox_override(state, st)
+## The drawing's insets turned with it (a panel used wide is the tall drawing on its side).
+static func _turn(v: Array, wide: bool) -> Array:
+	return [v[1], v[2], v[3], v[0]] if wide else v
+
+
+## The texture for a box of this kind and size (layout px), and where its text may go (layout px).
+static func make(kind: String, size: Vector2) -> Dictionary:
+	var k: Dictionary = KINDS[kind]
+	var wide: bool = kind == "panel" and size.x > size.y
+	var key := "%s %d %d" % [kind, int(size.x), int(size.y)]
+	if _baked.has(key):
+		return _baked[key]
+	var src := _source(kind, wide)
+	var t := Vector2i(int(round(size.x * BAKE)), int(round(size.y * BAKE)))
+	var s := minf(float(t.x) / src.get_width(), float(t.y) / src.get_height())
+	if k.has("scale"):   # the same stroke on every box, a heavier one only on a big card
+		s = clampf(s, float(k["scale"]), 1.0)
+		# a small box: the whole drawing smaller, so its corners (halftone and all) fit in whole
+		var cp: Array = _turn(k["caps"], wide)
+		s = maxf(0.22, minf(s, minf(float(t.x) / (cp[0] + cp[2]), float(t.y) / (cp[1] + cp[3]))))
+	elif k.get("fit", "") == "h":
+		s = float(t.y) / src.get_height()
+	var img := src.duplicate()
+	img.resize(maxi(2, int(round(src.get_width() * s))), maxi(2, int(round(src.get_height() * s))), Image.INTERPOLATE_LANCZOS)
+	var inner: Array = _turn(k["inner"], wide)
+	var off := Vector2.ZERO
+	if not k.get("fixed", false):
+		var caps: Array = _turn(k["caps"], wide)
+		img = _fit(img, t.x, int(caps[0] * s), int(caps[2] * s), true)
+		img = _fit(img, t.y, int(caps[1] * s), int(caps[3] * s), false)
+	else:   # drawn as it is, centred in the box
+		off = (Vector2(t) - Vector2(img.get_size())) * 0.5 / BAKE
+	var tex := ImageTexture.create_from_image(img)
+	var draw := Vector2(img.get_size()) / BAKE
+	if not k.get("fixed", false):   # lengthened or shortened ends keep their insets
+		var cut := [inner[0], inner[1], inner[2], inner[3]]
+		inner = cut
+	var r := Rect2(off + Vector2(inner[0], inner[1]) * s / BAKE, draw - Vector2(inner[0] + inner[2], inner[1] + inner[3]) * s / BAKE)
+	var out := {"tex": tex, "size": draw, "off": off, "inner": r}
+	_baked[key] = out
+	return out
+
+
+## Made to length along one axis: both ends stay exactly as drawn; the plain middle between them is
+## drawn longer or shorter along that axis only (a straight frame line stays the same line).
+static func _fit(img: Image, target: int, a: int, b: int, horizontal: bool) -> Image:
+	var n := img.get_width() if horizontal else img.get_height()
+	var m := img.get_height() if horizontal else img.get_width()
+	if n == target:
+		return img
+	if a + b >= target - 2:   # a box smaller than the two ends: keep as much of each end as fits
+		var k := float(target - 2) / (a + b)
+		a = int(a * k)
+		b = int(b * k)
+	var out := Image.create_empty(target if horizontal else m, m if horizontal else target, false, Image.FORMAT_RGBA8)
+	var piece := func(from: int, length: int) -> Rect2i:
+		return Rect2i(from, 0, length, m) if horizontal else Rect2i(0, from, m, length)
+	var at := func(p: int) -> Vector2i:
+		return Vector2i(p, 0) if horizontal else Vector2i(0, p)
+	out.blit_rect(img, piece.call(0, a), at.call(0))
+	out.blit_rect(img, piece.call(n - b, b), at.call(target - b))
+	var mid := img.get_region(piece.call(a, n - a - b))
+	var span := target - a - b
+	if horizontal:
+		mid.resize(span, m, Image.INTERPOLATE_LANCZOS)
+	else:
+		mid.resize(m, span, Image.INTERPOLATE_LANCZOS)
+	out.blit_rect(mid, piece.call(0, span), at.call(a))
+	return out
+
+
+## A piece of paper on the screen: the drawing at this size, with its shadow. meta "inner" = text area.
+static func sheet(kind: String, size: Vector2, shadow := true) -> Control:
+	var d := make(kind, size)
+	var box := Control.new()   # the box itself: the drawing sits in it
+	box.size = size
+	box.pivot_offset = size * 0.5
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.set_meta("paper", true)
+	box.set_meta("inner", d["inner"])
+	if shadow:
+		var sh := TextureRect.new()
+		sh.texture = d["tex"]
+		sh.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		sh.stretch_mode = TextureRect.STRETCH_SCALE
+		sh.position = d["off"] + Vector2(5.0, 7.0)
+		sh.size = d["size"]
+		sh.modulate = Color(0, 0, 0, 0.5)
+		sh.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		sh.name = "Shadow"
+		box.add_child(sh)
+	var r := TextureRect.new()
+	r.texture = d["tex"]
+	r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	r.stretch_mode = TextureRect.STRETCH_SCALE
+	r.position = d["off"]
+	r.size = d["size"]
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	r.name = "Drawing"
+	box.add_child(r)
+	return box
+
+
+## Paper that is a button: pressed, it darkens and sinks to the surface it lies on.
+static func button(kind: String, size: Vector2, on_press: Callable, sound := Callable()) -> Control:
+	var box := sheet(kind, size)
+	var b := TextureButton.new()   # an invisible hit area over the whole box
 	b.size = size
-	b.pivot_offset = size * 0.5
-	b.button_down.connect(func() -> void: b.scale = Vector2(0.97, 0.97))
-	b.button_up.connect(func() -> void: b.scale = Vector2.ONE)
-	var shadow := NinePatchRect.new()   # it lies on something
-	var tex: Texture2D = load("res://art/ui/paper/%s.png" % kind)
-	shadow.texture = tex
-	var mx := int(minf(tex.get_width() * 0.12, size.x * 0.3))
-	var my := int(minf(minf(tex.get_height() * 0.3, mx), size.y * 0.3))
-	shadow.patch_margin_left = mx
-	shadow.patch_margin_right = mx
-	shadow.patch_margin_top = my
-	shadow.patch_margin_bottom = my
-	shadow.size = size
-	shadow.position = Vector2(5.0, 7.0)
-	shadow.modulate = Color(0, 0, 0, 0.5)
-	shadow.show_behind_parent = true
-	shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	b.add_child(shadow)
-	return b
+	b.focus_mode = Control.FOCUS_NONE
+	b.name = "Hit"
+	box.add_child(b)
+	box.set_meta("button", true)
+	var drawing: TextureRect = box.get_node("Drawing")
+	var sh: TextureRect = box.get_node("Shadow")
+	var rest := sh.position
+	b.button_down.connect(func() -> void:
+		box.scale = Vector2(0.97, 0.97)
+		drawing.modulate = Color(0.8, 0.78, 0.74)
+		sh.position = rest - Vector2(3.0, 4.0))
+	b.button_up.connect(func() -> void:
+		box.scale = Vector2.ONE
+		drawing.modulate = Color.WHITE
+		sh.position = rest)
+	b.pressed.connect(func() -> void:
+		if sound.is_valid():
+			sound.call("page")
+		on_press.call())
+	return box
 
 
-## A card of paper to put things on (the settings, the pause card), or a narration box.
-static func card(kind: String, size: Vector2, margin := 0.1) -> NinePatchRect:
-	var n := NinePatchRect.new()
-	var tex: Texture2D = load("res://art/ui/paper/%s.png" % kind)
-	n.texture = tex
-	var m := int(tex.get_width() * margin)
-	n.patch_margin_left = m
-	n.patch_margin_right = m
-	n.patch_margin_top = m
-	n.patch_margin_bottom = m
-	n.size = size
-	n.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	return n
+## Text on a piece of paper, inside its inner line with about a letter's width of air, aligned as asked.
+## part: a share of the text area as fractions (x, y, w, h), for papers that carry more than one line.
+static func write(box: Control, text: String, font: Font, size: int, color := INK, align := HORIZONTAL_ALIGNMENT_CENTER,
+		part := Rect2(0, 0, 1, 1), air := -1.0) -> Label:
+	var inner: Rect2 = box.get_meta("inner")
+	var pad := size * 0.45 if air < 0.0 else air   # a letter's width of air at the sides; the font's own
+	var area := Rect2(inner.position + inner.size * part.position, inner.size * part.size)   # line box gives it above and below
+	area = area.grow_individual(-pad, -minf(pad, size * 0.12), -pad, -minf(pad, size * 0.12))
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_override("font", font)
+	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_color_override("font_color", color)
+	l.horizontal_alignment = align
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.position = area.position
+	l.size = area.size
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	l.set_meta("inside", true)
+	box.add_child(l)
+	if box.has_node("Hit"):
+		box.move_child(box.get_node("Hit"), box.get_child_count() - 1)
+	return l
+
+
+## A comic caption box that fits its words: about a letter of air round them, left-justified as
+## captions are lettered, never wider than max_w. Returns the box (its size is known at once).
+static func caption(text: String, font: Font, fs: int, max_w := 460.0) -> Control:
+	var air := fs * 0.5
+	var ts: Vector2 = font.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, max_w, fs)
+	var need := ts + Vector2(air * 2.0 + 2.0, fs * 0.24 + 4.0)   # what the inner line must hold
+	var size := need + Vector2(32.0, 32.0)
+	for i in 2:   # measure the panel's inner line at this size and make the box hold the words exactly
+		var inner: Rect2 = make("panel", size)["inner"]
+		size += need - inner.size
+		size = size.ceil()
+	var box := sheet("panel", size)
+	write(box, text, font, fs, INK, HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0, 1, 1), air)
+	return box
+
+
+## A place and a time as a comic letterer sets them: "HELL'S KITCHEN · DEC 18, 1947 · 2:10 AM" becomes
+## two lines, the place, then the date and the hour.
+static func place_time(s: String) -> String:
+	var parts := s.split("·")
+	for i in parts.size():
+		parts[i] = parts[i].strip_edges()
+	if parts.size() < 2:
+		return s
+	return parts[0] + "\n" + ", ".join(parts.slice(1))
+
+
+# ---- the check -------------------------------------------------------------------------------------
+
+## Where the letters of a label actually are, on screen.
+static func _ink(l: Label) -> Rect2:
+	var font := l.get_theme_font("font")
+	var fs := l.get_theme_font_size("font_size")
+	var width := l.size.x if l.autowrap_mode != TextServer.AUTOWRAP_OFF else -1.0
+	var ts := font.get_multiline_string_size(l.text, HORIZONTAL_ALIGNMENT_LEFT, width, fs)
+	ts.y += maxf(0.0, l.get_line_count() - 1) * l.get_theme_constant("line_spacing")
+	var x := 0.0
+	if l.horizontal_alignment == HORIZONTAL_ALIGNMENT_CENTER:
+		x = (l.size.x - ts.x) * 0.5
+	elif l.horizontal_alignment == HORIZONTAL_ALIGNMENT_RIGHT:
+		x = l.size.x - ts.x
+	var y := 0.0
+	if l.vertical_alignment == VERTICAL_ALIGNMENT_CENTER:
+		y = (l.size.y - ts.y) * 0.5
+	elif l.vertical_alignment == VERTICAL_ALIGNMENT_BOTTOM:
+		y = l.size.y - ts.y
+	var p := Vector2(x, y)
+	var xf := l.get_global_transform()
+	var r := Rect2(xf * p, Vector2.ZERO)
+	for q in [p + Vector2(ts.x, 0), p + Vector2(0, ts.y), p + ts]:
+		r = r.expand(xf * q)
+	return r
+
+
+static func _area(c: Control, rect: Rect2) -> Rect2:
+	var xf := c.get_global_transform()
+	var r := Rect2(xf * rect.position, Vector2.ZERO)
+	for q in [Vector2(rect.end.x, rect.position.y), Vector2(rect.position.x, rect.end.y), rect.end]:
+		r = r.expand(xf * q)
+	return r
+
+
+## Everything wrong with a screen's text and paper, as lines to print. Empty = fine.
+static func audit(root: Node, view: Vector2) -> Array:
+	var bad: Array = []
+	var labels: Array = []
+	var papers: Array = []
+	for n in root.find_children("*", "Control", true, false):
+		var c := n as Control
+		if not c.is_visible_in_tree():
+			continue
+		if c is Label and (c as Label).text.strip_edges() != "" and not c.has_meta("decor"):
+			labels.append(c)
+		if c.has_meta("paper") and c.get_meta("paper"):
+			papers.append(c)
+	for l: Label in labels:
+		var ink := _ink(l)
+		var say := l.text.replace("\n", " ")
+		if "·" in l.text:
+			bad.append("dot chain in \"%s\"" % say)
+		if l.autowrap_mode == TextServer.AUTOWRAP_OFF and l.get_minimum_size().x > l.size.x + 1.0:
+			bad.append("\"%s\" is wider than its box" % say)
+		if l.get_visible_line_count() < l.get_line_count():
+			bad.append("\"%s\" has more lines than fit" % say)
+		if l.has_meta("inside"):
+			var box := l.get_parent() as Control
+			var area := _area(box, box.get_meta("inner"))
+			if not area.grow(1.5).encloses(ink):
+				bad.append("\"%s\" runs over the inner line of its paper" % say)
+		if ink.position.x < 8.0 or ink.position.y < 8.0 or ink.end.x > view.x - 8.0 or ink.end.y > view.y - 8.0:
+			bad.append("\"%s\" is at the screen edge" % say)
+	for i in labels.size():
+		for j in range(i + 1, labels.size()):
+			var o := _ink(labels[i]).intersection(_ink(labels[j]))
+			if o.size.x > 2.0 and o.size.y > 2.0:
+				bad.append("\"%s\" and \"%s\" overlap" % [labels[i].text.replace("\n", " "), labels[j].text.replace("\n", " ")])
+	for i in papers.size():
+		var r := _area(papers[i], Rect2(Vector2.ZERO, papers[i].size))
+		if r.position.x < 6.0 or r.position.y < 6.0 or r.end.x > view.x - 6.0 or r.end.y > view.y - 6.0:
+			bad.append("a paper is at the screen edge: %s" % r)
+		for j in range(i + 1, papers.size()):
+			if papers[i].is_ancestor_of(papers[j]) or papers[j].is_ancestor_of(papers[i]):
+				continue
+			var o := r.intersection(_area(papers[j], Rect2(Vector2.ZERO, papers[j].size)))
+			if o.size.x > 4.0 and o.size.y > 4.0:
+				bad.append("papers overlap: %s" % o)
+	return bad
