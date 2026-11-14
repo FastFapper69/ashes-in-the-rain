@@ -132,7 +132,7 @@ const WOOD := ["crate", "crate_long", "kegs", "barrel", "milk_crates", "fruit_ca
 const TOP_INSET := {"crate": 0.01, "crate_long": 0.07, "drum": 0.01, "dumpster": 0.04, "washer": 0.01, "laundry_cart": 0.12,
 	"trash_can": 0.08, "sacks": 0.06, "barrel": 0.01,
 	"linen_table": 0.3, "wash_tub": 0.2, "bench": 0.02, "newsstand": 0.05, "paper_bundles": 0.03, "cable_spool": 0.0, "fruit_cart": 0.03,
-	"kegs": 0.0, "milk_crates": 0.17, "mailbox": 0.02, "desk": 0.03, "filing": 0.01, "safe": 0.01, "court_bench": 0.02}
+	"kegs": 0.0, "stack": 0.01, "milk_crates": 0.17, "mailbox": 0.02, "desk": 0.03, "filing": 0.01, "safe": 0.01, "court_bench": 0.02}
 ## The lamps painted into each interior, as fractions of its drawing, and their colour. A room's
 ## light comes from these and only these: a soft glow on the bulb and a round, soft pool of light
 ## round it (never a hard-edged cone), on the drawing and on everyone in it.
@@ -164,6 +164,7 @@ const PROP_SETS := {
 	"quay": {"crate": ["crate", "sacks"], "drum": ["barrel", "drum"]}, "pier17": {"crate": ["crate", "cable_spool"]}, "shipping": {"crate": ["crate", "sacks"], "drum": ["drum", "barrel"]},
 	"room:laundry": {"machine": ["washer"], "crate": ["laundry_cart"], "crate_long": ["linen_table"], "drum": ["wash_tub"]},
 	"room:tenement": {"crate": ["milk_crates", "paper_bundles"], "crate_long": ["court_bench"]},
+	"room:club": {"crate_long": ["kegs"], "crate": ["kegs"]},   # no shipping crates in a nightclub: beer kegs by the bar
 	"room:office": {"crate_long": ["desk"], "machine": ["filing"], "crate": ["safe"]},
 	"room:cityhall": {"crate": ["paper_bundles"], "machine": ["paper_bundles"], "crate_long": ["court_bench"]},
 
@@ -273,7 +274,7 @@ var _idle_fire := 0.0      # seconds since the last shot: a gun not quite full i
 var _clicked := false      # dry-fired on this empty gun already: the next tap reloads instead
 var slow_on := false           # toggled by the stopwatch button
 var slow_left := 1.0           # 1 = full meter
-var move_state := "ground"     # ground, jump, dive, roll, slide or flip
+var move_state := "ground"     # ground, jump, dive, roll, slide, flip, vault; on a rope: climb, zip, swing
 var fall := 0.0                # vertical speed, pixels per second, down is positive
 var run := 0.0                 # horizontal running speed, eased towards what the player asks for
 var slide_left := 0.0          # seconds of slide remaining
@@ -312,6 +313,7 @@ var _bot_fight := 0.0
 var _dive_at := 1380.0
 var _bot_x := 0.0
 var _tour: Array = []
+var _bot_back := 0.0
 var _bot_stuck := 0.0
 var _bot_log := 0.0
 var _snap := 0
@@ -493,6 +495,7 @@ func _ready() -> void:
 	hud = HudScript.new()
 	add_child(hud)
 	hud.set_segments(max_hp)
+	hud.voice = sfx.voice
 	hud.target_at = _man_under
 	_shake_on = bool(MenuScript.setting("shake"))
 	_assist = bool(MenuScript.setting("assist"))
@@ -1197,6 +1200,7 @@ func _tick_birds(delta: float) -> void:
 func _tick_music() -> void:
 	if _in_cut:   # the cutscene sets its own music and sound
 		return
+	sfx.melody = "jazz"
 	sfx.rain_want = 0.0 if level.get("under", false) else _rain()
 	sfx.indoor = move_toward(sfx.indoor, 1.0 if _room_at(player.position.x) != "" else 0.0, get_process_delta_time() * 2.0)
 	var near := 0
@@ -1329,6 +1333,13 @@ void fragment() {
 	sky.material = _sky_mat
 	sky.texture_repeat = CanvasItem.TEXTURE_REPEAT_MIRROR
 	cam.add_child(sky)
+	# the same sky again, upside down, under it: when he jumps off a crate the camera rises and the
+	# street drops on the screen; without this a black band opened between the sky and the roofs
+	var under := sky.duplicate() as Sprite2D
+	under.flip_v = true
+	under.position.y = sky.position.y + sky_tex.get_height() * 1.1 - 2.0
+	under.material = _sky_mat
+	cam.add_child(under)
 	# the moon: just over the roofs, seen through the gaps between buildings and from the rooftops
 	var moon_tex: Texture2D = load("res://art/bg/moon.png")
 	var additive := CanvasItemMaterial.new()
@@ -1549,6 +1560,7 @@ func _process(delta: float) -> void:
 	if in_menu:   # the title over the street: the rain, the signs, the birds, a slow drift of the camera
 		sfx.listener_x = cam.position.x
 		sfx.music_want = [-9.0, -7.0, -80.0, -80.0]
+		sfx.melody = "dusk"
 		sfx.rain_want = _rain()
 		cam.position.x = _menu_x + sin(_time * 0.09) * 160.0
 		cam.position.y = CAM_Y + sin(_time * 0.13) * 20.0
@@ -1750,6 +1762,9 @@ func _process(delta: float) -> void:
 	if hud.fire_tapped and fire_cool > 0.0:   # tapped a moment too early: kept, not lost
 		_fire_buf = 0.2
 	_tick_reload(delta)
+	if move_state in ["climb", "swing"]:   # both hands on the rope
+		hud.fire_tapped = false
+		_fire_buf = 0.0
 	if (hud.fire_tapped or _fire_buf > 0.0) and fire_cool == 0.0 and not over and not _queued_shot and mag <= 0:
 		_fire_buf = 0.0   # the hammer falls on an empty chamber
 		fire_cool = 0.35
@@ -1886,10 +1901,23 @@ func _auto_step(delta: float) -> void:
 		if _bot_fight > 8.0:   # a man dug in behind cover: walk up on him, as a player would
 			fight = absf(near.position.x - player.position.x) < 420.0
 		hud.move = 0.0 if fight else 1.0
+		if _bot_back > 0.0:   # missed the crane rope: back off and take a run at it again
+			_bot_back -= delta
+			hud.move = -1.0
 		if near != null and absf(near.position.x - player.position.x) < 1900.0:
 			hud.fire_tapped = true
 		if hud.move > 0.0 and move_state == "ground":
+			for r in _ropes:   # a crane rope before a wall of cargo: jump for it
+				if r["kind"] == "swing" and player.position.x > (r["a"] as Vector2).x - 110.0 and player.position.x < (r["a"] as Vector2).x - 40.0:
+					hud.jump_tapped = true
+					print("BOT swing at ", int(player.position.x))
 			_bot_stuck = _bot_stuck + delta if player.position.x - _bot_x < 1.0 else 0.0
+			if _bot_stuck > 1.5:
+				for r in _ropes:
+					var rx: float = (r["a"] as Vector2).x
+					if r["kind"] == "swing" and player.position.x > rx - 40.0 and player.position.x < rx + 900.0:
+						_bot_back = 0.25 + (player.position.x - rx + 300.0) / 450.0
+						_bot_stuck = 0.0
 			if _bot_stuck > 0.3:
 				hud.jump_tapped = true
 				print("BOT jump at ", int(player.position.x))
@@ -1901,7 +1929,12 @@ func _auto_step(delta: float) -> void:
 			var left := 0
 			for e in enemies:
 				left += 1 if e["alive"] else 0
-			print("BOT t ", int(_at), " x ", int(player.position.x), " / ", int(level_end), " mobsters left ", left)
+			print("BOT t ", int(_at), " x ", int(player.position.x), " / ", int(level_end), " mobsters left ", left, " move ", move_state, " hp ", hp, " in_cut ", _in_cut, " over ", over)
+			var near_e := []
+			for e in enemies:
+				if e["alive"] and absf(e["node"].position.x - player.position.x) < 1600.0:
+					near_e.append("%s/%s@%d" % [e.get("boss", false), e["state"], int(e["node"].position.x)])
+			print("BOT near ", near_e)
 		if DisplayServer.get_name() != "headless":   # with a screen: a few pictures of the chapter in play, then stop
 			var film := OS.get_cmdline_user_args().has("--film")   # a strip of frames, every 0.15 s from 6 s
 			if film:
@@ -2324,6 +2357,49 @@ func _auto_step(delta: float) -> void:
 			print("RICOCHET box ", box_info[int(_kick_target)]["kind"], " ", boxes[int(_kick_target)], " player ", player.position, " line ", _aim_line.visible if _aim_line else false, " pts ", _aim_line.points.size() if _aim_line else 0, " ts ", Engine.time_scale, " diff ", diff_step, " ch ", chapter, " over ", over, " rel ", reloading)
 			get_tree().quit()
 		return
+	elif _auto.begins_with("rope:"):   # --test=rope:climb / zip / swing: the first rope of that kind, used, in pictures
+		var what := _auto.trim_prefix("rope:")
+		var r = null
+		for ro in _ropes:
+			if ro["kind"] == what and r == null:
+				r = ro
+		if r == null:
+			print("ROPE none of kind ", what)
+			get_tree().quit()
+			return
+		_grace = 99.0
+		hp = max_hp
+		if _auto_done & 1 == 0:
+			_auto_done |= 1
+			for e in enemies:
+				e["alive"] = false
+				e["node"].visible = false
+			var a: Vector2 = r["a"]
+			if what == "climb":
+				player.position = Vector2(a.x - 150.0, 0.0)
+			elif what == "zip":
+				player.position = Vector2(a.x - 260.0, float(r["top"]))
+			else:
+				player.position = Vector2(a.x - 800.0, 0.0)
+			move_state = "ground"
+			print("ROPE start ", player.position, " rope ", r["a"], " ", r["b"], " hang_top ", player.hang_top)
+		hud.move = 1.0 if (what != "climb" or _at < 0.3) else 0.0
+		if what == "climb" and _at > 0.35 and _auto_done & 2 == 0:
+			_auto_done |= 2
+			hud.jump_tapped = true
+		if what == "swing" and move_state == "ground" and player.position.x > (r["a"] as Vector2).x - 110.0 and player.position.x < (r["a"] as Vector2).x - 40.0:
+			hud.jump_tapped = true
+		cam.position.x = player.position.x + 200.0
+		var times := [0.5, 0.8, 1.1, 1.4, 1.7, 2.0, 2.4, 2.8, 3.4]
+		for i in times.size():
+			var bit := 1 << (2 + i)
+			if _at > times[i] and _auto_done & bit == 0:
+				_auto_done |= bit
+				print("ROPE t ", times[i], " ", move_state, " at ", Vector2i(player.position), " rot ", snappedf(player.rotation, 0.01))
+				_shot("rope_%s_%d" % [what, i])
+		if _at > 3.6:
+			get_tree().quit()
+		return
 	elif _auto == "kick":   # a dive into the nearest mobster: the kick, him on his back, what he does next
 		hp = max_hp
 		_grace = 99.0
@@ -2366,6 +2442,8 @@ func _auto_step(delta: float) -> void:
 			_auto_done |= 1 << (k + 16)
 			player.position = Vector2(float(xs[k]), _floor_at(float(xs[k]), -2000.0))
 			cam.position.x = player.position.x + _lead
+		if OS.get_cmdline_user_args().has("--high"):   # the camera as high as a jump off a stack takes it
+			cam.position.y = CAM_Y - 330.0
 		if fmod(_at, 2.6) > 2.3 and _auto_done & (1 << k) == 0:
 			_auto_done |= 1 << k
 			_shot("look_%d" % k)
@@ -2567,6 +2645,15 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 	hud.dive_tapped = false
 	var facing := -1.0 if aim.x < 0.0 else 1.0
 	var legs := 0.0
+	_rope_cool = maxf(0.0, _rope_cool - delta)
+	_fling = maxf(0.0, _fling - delta)
+	if move_state in ["climb", "zip", "swing"]:
+		_on_rope(dir, jump, duck_held, delta)
+		if move_state in ["climb", "zip", "swing"]:
+			player.ground = _floor_at(player.position.x, player.position.y) - player.position.y
+			return 0.0
+	elif move_state in ["jump", "dive"] and _rope_cool <= 0.0:
+		_grab_rope()
 
 	if move_state == "ground":
 		var can_act: bool = player.dive < 0.05 and player.slide < 0.3 and not over   # back on his feet first
@@ -2623,7 +2710,8 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 	elif move_state == "jump":
 		fall += GRAVITY * delta
 		player.position.y += fall * delta
-		run = move_toward(run, dir * RUN_SPEED, RUN_ACCEL * 0.5 * delta)
+		if _fling <= 0.0:   # flung off a rope he keeps the swing's speed a moment
+			run = move_toward(run, dir * RUN_SPEED, RUN_ACCEL * 0.5 * delta)
 		player.position.x += run * delta
 		player.air = move_toward(player.air, 1.0, delta * 8.0)
 		if jump and _coyote > 0.0:
@@ -4037,7 +4125,7 @@ func _build_level() -> void:
 				why = "street thing indoors"
 			elif top < 110.0:
 				why = "too small beside a man"
-			elif top > 262.0 and kind != "bar":
+			elif top > 262.0 and kind != "bar" and kind != "stack":   # a cargo stack is meant to be swung over
 				why = "too tall to get over: it would block the street"
 			if why != "":
 				print("AUDIT BAD ", why, ": ", art, " in ", place, " at ", cx, " top ", top)
@@ -4071,6 +4159,8 @@ func _build_level() -> void:
 	for rp in level["ramps"]:
 		ramps.append(rp)
 		_stairs(Vector2(float(rp[0]), float(rp[1])), Vector2(float(rp[2]), float(rp[3])))
+	for ro in level.get("ropes", []):
+		_add_rope(ro)
 	for l in level["lamps"]:   # the rooms' lamps: a shaded bulb hanging on its cord from the ceiling, and its light
 		var at := Vector2(float(l[0]), float(l[1]))
 		if ROOM_BULBS.has(_room_at(at.x)):
@@ -4661,15 +4751,17 @@ func _add_pickup(kind: String, at: Vector2) -> void:
 ## found: the real page, small, a little crooked, its corner lifting in the draught.
 func _add_page(at: Vector2) -> void:
 	var holder := Node2D.new()
-	# on the street it is nailed to the wall at chest height; left on a crate, it is nailed to the
-	# crate's face, just under the lid, where a man walking past sees it
-	var on_box := false
-	for b in boxes:
-		if at.x > b.position.x and at.x < b.end.x:
-			on_box = true
-			holder.position = Vector2(at.x, maxf(b.position.y + 55.0, -300.0))
-	if not on_box:
-		holder.position = Vector2(at.x, -330.0)
+	# nailed to the wall at chest height, never on a crate or a cabinet: where it would land on one,
+	# it moves to the bare wall just before it, where a man walking past reaches it
+	for _try in 4:
+		var moved := false
+		for b in boxes:
+			if at.x > b.position.x - 70.0 and at.x < b.end.x + 70.0:
+				at.x = b.position.x - 140.0
+				moved = true
+		if not moved:
+			break
+	holder.position = Vector2(at.x, at.y - 330.0)
 	holder.z_index = -1   # on the wall: people pass in front of it
 	add_child(holder)
 	var note := "res://art/items/notes/%d_%d.png" % [chapter, map]   # this page small, its own writing and stains
@@ -4703,9 +4795,7 @@ func _add_page(at: Vector2) -> void:
 	var r0 := page.rotation
 	tw.tween_property(page, "rotation", r0 + 0.05, 1.3).set_trans(Tween.TRANS_SINE)
 	tw.tween_property(page, "rotation", r0 - 0.02, 1.6).set_trans(Tween.TRANS_SINE)
-	if on_box:
-		holder.z_index = 0   # on the crate's face, in front of the crate
-	pickups.append({"kind": "page", "node": holder, "at": Vector2(at.x, 0.0) if on_box else at, "reach": 220.0 if on_box else 160.0})
+	pickups.append({"kind": "page", "node": holder, "at": at, "reach": 160.0})
 
 
 func _pickups() -> void:
@@ -5248,7 +5338,7 @@ func _hook_man(e: Dictionary, m, to_player: Vector2, delta: float) -> void:
 		for k in boxes.size():
 			if boxes[k].grow(25.0).has_point(Vector2(m.position.x + step * 8.0, m.position.y - 60.0)):
 				blocked = k
-		if blocked >= 0 and same_floor:   # over the crate, the way the flankers go
+		if blocked >= 0 and same_floor and boxes[blocked].size.y <= 270.0:   # over the crate, the way the flankers go
 			var bx: Rect2 = boxes[blocked]
 			var far: float = (bx.end.x + 90.0) if walk > 0.0 else (bx.position.x - 90.0)
 			if absf(player.position.x - far) > 140.0:
@@ -5453,7 +5543,7 @@ func _tick_aim_line() -> void:
 		if hit < 0:
 			continue
 		var info: Dictionary = box_info[hit]
-		if bounced or info["wood"] or info["kind"] == "barrel":
+		if bounced or info["wood"] or info["kind"] in ["barrel", "stack"]:
 			pts.append(p)
 			ended = true
 			break
@@ -5470,13 +5560,266 @@ func _tick_aim_line() -> void:
 	_aim_line.visible = true
 
 
+## ---- Ropes: up a fire escape hand over hand, down a cable from the roof with the gun out, across
+## the quay on a crane's rope. Grabbed by jumping (or running off a landing) with his hands on it.
+const ROPE_REACH := 392.0       # feet to fists, arms straight up (the puppet's hang_top: 1.95 m)
+const SWING_ANCHOR := -1460.0   # the crane's jib, above the top of the picture
+const SWING_BOTTOM := -650.0   # the rope's end: within reach of a jump
+const SWING_AMP := 1.33         # how far out he swings (radians)
+const SWING_LET_GO := 0.98      # and where he lets go, on the way up
+var _ropes: Array = []
+var _rope = null
+var _rope_cool := 0.0
+var _fling := 0.0
+var _hand := Vector2.ZERO        # where his fists are on the rope
+var _rope_v := 0.0               # along the rope / cable, px per second
+var _theta := 0.0                # swing: the rope's angle from straight down (+ = the way he swings)
+var _omega := 0.0
+var _swing_dir := 1.0
+var _climbed := 0.0
+var _mantle_t := -1.0
+var _mantle_from := Vector2.ZERO
+var _mantle_to := Vector2.ZERO
+
+
+func _rope_line(tex_tint: Color, width: float) -> Line2D:
+	var l := Line2D.new()
+	l.texture = load("res://art/props/rope.png")
+	l.texture_mode = Line2D.LINE_TEXTURE_TILE
+	l.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	l.width = width
+	l.default_color = tex_tint
+	l.joint_mode = Line2D.LINE_JOINT_ROUND
+	l.z_index = -1
+	add_child(l)
+	return l
+
+
+func _add_rope(ro: Array) -> void:
+	var kind := String(ro[0])
+	var r := {"kind": kind}
+	if kind == "climb":   # knotted to the landing's rail, the end coiled on the stones
+		var x := float(ro[1])
+		r["a"] = Vector2(x, float(ro[2]) - 92.0)
+		r["b"] = Vector2(x, -10.0)
+		r["top"] = float(ro[2])
+		var l := _rope_line(_undo_night(0.7), 13.0)
+		l.points = PackedVector2Array([r["a"], r["b"], Vector2(x + 26.0, -4.0), Vector2(x + 58.0, -8.0), Vector2(x + 40.0, -2.0)])
+		r["line"] = l
+	elif kind == "zip":   # a cable from the roof, over the landing's end, down to a drum on the street
+		var s0 := Vector2(float(ro[1]), float(ro[2]) - ROPE_REACH - 6.0)
+		var drum := Vector2(float(ro[3]) + 330.0, -226.0)
+		var best := INF
+		for b in boxes:   # made fast round the drum that stands at its foot
+			if absf(b.get_center().x - (float(ro[3]) + 330.0)) < best and b.position.y > -300.0:
+				best = absf(b.get_center().x - (float(ro[3]) + 330.0))
+				drum = Vector2(b.get_center().x, b.position.y + 22.0)
+		var d := (drum - s0).normalized()
+		var end_y := -ROPE_REACH - 30.0   # he lets go with his feet just off the ground
+		var e := s0 + d * ((end_y - s0.y) / d.y)
+		r["a"] = s0
+		r["b"] = e
+		r["d"] = d
+		r["top"] = float(ro[2])
+		var l := _rope_line(_undo_night(0.42) * Color(0.8, 0.82, 0.86), 7.0)
+		l.points = PackedVector2Array([s0 - d * 1900.0, drum])
+		r["line"] = l
+		var hook := Sprite2D.new()   # a cargo hook hung over the cable: what he rides down on
+		hook.texture = load("res://art/guns/hook.png")
+		hook.scale = Vector2.ONE * (64.0 / hook.texture.get_width())
+		hook.rotation = -PI * 0.5
+		hook.z_index = 1
+		hook.modulate = _undo_night(0.7)
+		add_child(hook)
+		r["hook"] = hook
+		r["rest"] = s0
+		hook.position = s0 + Vector2(0.0, 22.0)
+	elif kind == "swing":   # from a crane's jib out of the picture, a cargo hook on its end
+		var x := float(ro[1])
+		r["a"] = Vector2(x, SWING_ANCHOR)
+		r["b"] = Vector2(x, SWING_BOTTOM)
+		r["line"] = _rope_line(_undo_night(0.55), 12.0)
+		var hook := Sprite2D.new()
+		hook.texture = load("res://art/guns/hook.png")
+		hook.scale = Vector2.ONE * (84.0 / hook.texture.get_width())
+		hook.rotation = PI * 0.5
+		hook.z_index = -1
+		hook.modulate = _undo_night(0.75)
+		add_child(hook)
+		r["hook"] = hook
+		_draw_swing(r, 0.0, SWING_BOTTOM - SWING_ANCHOR)
+	_ropes.append(r)
+
+
+func _draw_swing(r: Dictionary, th: float, grip_len: float) -> void:
+	var a: Vector2 = r["a"]
+	var d := Vector2(sin(th), cos(th))
+	var full: float = SWING_BOTTOM - SWING_ANCHOR
+	var end := a + d * maxf(full, grip_len + 40.0)
+	(r["line"] as Line2D).points = PackedVector2Array([a, end])
+	var hook: Sprite2D = r["hook"]
+	hook.position = end + d * 30.0
+	hook.rotation = PI * 0.5 - th
+
+
+## Where his fists are now (world), from the pose: a little in front of his chest, arms straight up.
+func _fists() -> Vector2:
+	return player.position + Vector2(0.06 * PlayerPPM() * signf(player.scale.x), -ROPE_REACH)
+
+
+static func PlayerPPM() -> float:
+	return 200.0
+
+
+func _grab_rope() -> void:
+	if _rope_cool > 0.0 or diff_step < -1:
+		return
+	var fists := _fists()
+	for r in _ropes:
+		var a: Vector2 = r["a"]
+		var b: Vector2 = r["b"]
+		if r["kind"] == "swing":
+			a = Vector2(a.x, -1250.0)   # only the low part is in reach
+		var near := Geometry2D.get_closest_point_to_segment(fists, a, b)
+		if near.distance_to(fists) > (60.0 if r["kind"] == "climb" else 85.0):
+			continue
+		if r["kind"] == "climb" and fall < -200.0 and near.y > -200.0:
+			continue
+		_rope = r
+		_hand = near
+		move_state = String(r["kind"])
+		player.hang = 1.0
+		player.air = 0.0
+		player.dive = 0.0
+		player.roll = 0.0
+		sfx.play("land", -10.0, INF, 0.1)
+		if move_state == "climb":
+			player.hang_one = false
+			_rope_v = 0.0
+			_climbed = 0.0
+		elif move_state == "zip":
+			player.hang_one = true
+			player.hang_cycle = -1.0
+			_rope_v = maxf(250.0, absf(run) * 0.6)
+			sfx.play("skid", -6.0, INF, 0.05)
+		else:
+			player.hang_one = false
+			player.hang_cycle = -1.0
+			var g := GRAVITY / (SWING_BOTTOM - SWING_ANCHOR)
+			var rel := (near - (r["a"] as Vector2))
+			_swing_dir = signf(run) if absf(run) > 50.0 else (signf(player.scale.x))
+			_theta = clampf(atan2(rel.x, rel.y) * _swing_dir, -SWING_AMP + 0.05, SWING_AMP - 0.05)
+			_omega = sqrt(maxf(0.0, 2.0 * g * (cos(_theta) - cos(SWING_AMP))))
+			sfx.play("creak", -8.0, near.x, 0.1)
+		return
+
+
+func _let_go(vx: float, vy: float) -> void:
+	move_state = "jump"
+	player.hang = 0.0
+	player.hang_one = false
+	player.hang_cycle = -1.0
+	player.rotation = 0.0
+	run = vx
+	fall = vy
+	_rope_cool = 0.45
+	if _rope != null and _rope["kind"] == "swing":
+		_draw_swing(_rope, 0.0, 0.0)
+	_rope = null
+
+
+func _on_rope(dir: float, jump: bool, down: bool, delta: float) -> void:
+	var r: Dictionary = _rope
+	player.ground = 0.0
+	if move_state == "climb":
+		var top: float = r["top"]
+		if jump:   # lets go
+			_let_go(signf(player.scale.x) * 160.0, 0.0)
+			return
+		var v := 700.0 if down else -330.0   # up hand over hand; the stick down slides him down
+		_hand.y = clampf(_hand.y + v * delta, (r["a"] as Vector2).y, (r["b"] as Vector2).y)
+		_climbed += absf(v * delta)
+		player.hang_cycle = fmod(_climbed / 260.0, 1.0) if not down else -1.0
+		player.position = Vector2((r["a"] as Vector2).x - 12.0 * signf(player.scale.x), _hand.y + ROPE_REACH)
+		if not down and fmod(_climbed, 130.0) < 330.0 * delta:
+			sfx.play("step1", -14.0, INF, 0.2)
+		if _mantle_t >= 0.0:   # hands on the rail: he hauls himself up and over it onto the landing
+			_mantle_t += delta
+			var k := clampf(_mantle_t / 0.45, 0.0, 1.0)
+			var e := k * k * (3.0 - 2.0 * k)
+			player.position = _mantle_from.lerp(_mantle_to, e) + Vector2(0.0, -sin(e * PI) * 60.0)
+			player.hang = 1.0 - e
+			player.hang_cycle = -1.0
+			player.crouch = sin(e * PI) * 0.8
+			if k >= 1.0:
+				_mantle_t = -1.0
+				_let_go(0.0, 0.0)
+				move_state = "ground"
+				player.position = _mantle_to
+				player.crouch = 0.4
+				sfx.play("land", -8.0)
+			return
+		if not down and _hand.y <= (r["a"] as Vector2).y + 1.0:   # at the rail
+			_mantle_t = 0.0
+			_mantle_from = player.position
+			_mantle_to = Vector2(player.position.x + 90.0, top)
+			for c in catwalks:
+				if absf(c.position.y - top) < 2.0 and player.position.x > c.position.x - 160.0 and player.position.x < c.end.x + 160.0:
+					var into := 1.0 if absf(player.position.x - c.position.x) < absf(player.position.x - c.end.x) else -1.0
+					_mantle_to = Vector2((c.position.x + 90.0) if into > 0.0 else (c.end.x - 90.0), top)
+			sfx.play("hit_cover", -14.0, INF, 0.1)   # his hand on the iron
+			return
+		if down and player.position.y >= -2.0:
+			player.position.y = 0.0
+			_let_go(0.0, 0.0)
+			move_state = "ground"
+			return
+	elif move_state == "zip":
+		var d: Vector2 = r["d"]
+		_rope_v = minf(1250.0, _rope_v + GRAVITY * d.y * 0.55 * delta)
+		_hand += d * _rope_v * delta
+		player.position = _hand + Vector2(-0.06 * PlayerPPM() * signf(player.scale.x) * 0.0, ROPE_REACH)
+		player.air = move_toward(player.air, 0.8, delta * 6.0)
+		(r["hook"] as Sprite2D).position = _hand + Vector2(0.0, -6.0)
+		if jump or _hand.x * signf(d.x) >= (r["b"] as Vector2).x * signf(d.x):
+			_let_go(d.x * _rope_v * 0.85, d.y * _rope_v * 0.25)
+			var hk: Sprite2D = r["hook"]   # the hook slides on down the cable to the drum and stays there
+			hk.create_tween().tween_property(hk, "position", (r["b"] as Vector2) + d * 160.0, 0.3)
+			return
+	elif move_state == "swing":
+		var L: float = SWING_BOTTOM - SWING_ANCHOR
+		var g := GRAVITY / L
+		_omega -= g * sin(_theta) * delta
+		_theta += _omega * delta
+		var th := _theta * _swing_dir
+		var grip: Vector2 = (r["a"] as Vector2) + Vector2(sin(th), cos(th)) * (L - 10.0)
+		player.rotation = -th
+		player.position = grip + Vector2(sin(th), cos(th)) * ROPE_REACH
+		_draw_swing(r, th, L - 10.0)
+		if absf(_omega) > 1.6 and absf(_theta) < 0.08:
+			sfx.play("whiz", -10.0, grip.x, 0.1)
+		var feet: Vector2 = player.position
+		var into_box := false
+		for b in boxes:
+			if b.grow(10.0).has_point(feet + Vector2(0.0, -30.0)):
+				into_box = true
+		if jump or (_theta >= SWING_LET_GO and _omega > 0.0) or into_box:   # flung off at the top of the swing
+			var v := Vector2(cos(th), -sin(th)) * _omega * L * _swing_dir
+			player.rotation = 0.0
+			player.position = grip + Vector2(0.0, ROPE_REACH)
+			_let_go(v.x, v.y)
+			_fling = 0.7
+			player.air = 1.0
+			return
+
+
 ## Steel turns a bullet: off a drum, a dumpster, a car, his shot glances away once, mirrored about the
 ## face it struck. Chapter II on, where there is steel enough on the docks to learn it.
 func _ricochet(i: int, pos: Vector2) -> bool:
 	if chapter < 2 or diff_step < 0:
 		return false
 	var info: Dictionary = box_info[i]
-	if info["wood"] or info["kind"] == "barrel":
+	if info["wood"] or info["kind"] in ["barrel", "stack"]:
 		return false
 	var r: Rect2 = boxes[i]
 	var v: Vector2 = fx.hit_vel
@@ -5596,7 +5939,7 @@ func _slow_time(real: float) -> void:
 		Engine.time_scale = 0.3 if _death_t < 1.3 else 1.0
 		hud.set_slow(slow_left, false)
 		return
-	var air_slow: bool = (move_state == "dive" or move_state == "flip") and not _slow_cancelled
+	var air_slow: bool = (move_state == "dive" or move_state == "flip" or move_state == "zip") and not _slow_cancelled
 	var want := (slow_on or air_slow or Input.is_physical_key_pressed(KEY_SHIFT)) and not over
 	var slowed := Engine.time_scale < 1.0
 	if want and (slow_left > 0.0 if slowed else slow_left > 0.2):   # an empty meter must refill a little first

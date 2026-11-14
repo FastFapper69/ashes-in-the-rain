@@ -10,6 +10,9 @@ const NAMES := ["shot_player", "shot_enemy", "shot_tommy", "shot_shotgun", "hit_
 const LOOPS := ["train_loop", "fire", "neon_hum", "lamp_hum", "steam", "city", "heartbeat", "siren", "crowd", "water", "rain_in",
 		"music_base", "music_lead", "music_tension", "music_fight"]
 const STEMS := ["music_base", "music_lead", "music_tension", "music_fight"]   # all four run in step; only their levels move
+## The jazz (Artlist: The Magnetic Buzz - Keep Your Head Down; Rotem Cinamon - Dusk). It takes the place of the
+## base and lead stems whenever nothing is fighting; a fight hands over to the drawn stems again.
+const MELODIES := {"jazz": "music_jazz", "dusk": "music_dusk"}
 const VOICES := 20
 const HEAR := 2600.0   # world pixels from the listener at which a sound has faded out
 
@@ -23,6 +26,8 @@ var _rain: AudioStreamPlayer
 var _muffle: AudioEffectLowPassFilter
 var _heart: AudioStreamPlayer
 var _music: Array[AudioStreamPlayer] = []
+var melody := "jazz"   # which jazz plays when calm: "jazz" in the streets, "dusk" on the title and in the story
+var _melody := {}       # name -> AudioStreamPlayer
 var music_want := [-80.0, -80.0, -80.0, -80.0]   # dB per stem (STEMS), set by main.gd and the cutscenes; eased to
 var rain_want := 1.0    # how hard it rains where we are: 0 none (the subway, the fire dream) .. 1.5 a storm
 var indoor := 0.0       # 1 = under a roof: the rain is heard through the walls, the city drops away
@@ -45,23 +50,15 @@ func _ready() -> void:
 	load("res://menu.gd").apply_settings()
 	for n in NAMES:
 		_streams[n] = load(DIR + n + ".wav")
-	for n in LOOPS:
-		var w: AudioStreamWAV = load(DIR + n + ".wav")
-		w.loop_mode = AudioStreamWAV.LOOP_FORWARD
-		w.loop_begin = 0
-		w.loop_end = int(w.get_length() * w.mix_rate)
-		_streams[n] = w
+	for n in LOOPS + ["rain_loop"] + MELODIES.values():
+		_streams[n] = _looped(n)
 	for i in VOICES:
 		var p := AudioStreamPlayer.new()
 		p.bus = "SFX"
 		add_child(p)
 		_pool.append(p)
-	var rain: AudioStreamWAV = load(DIR + "rain_loop.wav")
-	rain.loop_mode = AudioStreamWAV.LOOP_FORWARD
-	rain.loop_begin = 0
-	rain.loop_end = int(rain.get_length() * rain.mix_rate)
 	_rain = AudioStreamPlayer.new()
-	_rain.stream = rain
+	_rain.stream = _streams["rain_loop"]
 	_rain.volume_db = -80.0
 	_rain.bus = "SFX"
 	add_child(_rain)
@@ -86,6 +83,13 @@ func _ready() -> void:
 		add_child(mp)
 		mp.play()
 		_music.append(mp)
+	for k in MELODIES:
+		var jp := AudioStreamPlayer.new()
+		jp.stream = _streams[MELODIES[k]]
+		jp.volume_db = -80.0
+		jp.bus = "Music"
+		add_child(jp)
+		_melody[k] = jp
 	_heart = AudioStreamPlayer.new()   # slowed time: the heart, heard from inside
 	_heart.stream = _streams["heartbeat"]
 	_heart.volume_db = -60.0
@@ -94,6 +98,19 @@ func _ready() -> void:
 	_muffle = AudioEffectLowPassFilter.new()
 	_muffle.cutoff_hz = 20000.0
 	AudioServer.add_bus_effect(0, _muffle)
+
+
+## A sound that runs on and on: the long ones are Ogg (music, rain, the city), the short ones WAV.
+func _looped(n: String) -> AudioStream:
+	if ResourceLoader.exists(DIR + n + ".ogg"):
+		var o: AudioStreamOggVorbis = load(DIR + n + ".ogg")
+		o.loop = true
+		return o
+	var w: AudioStreamWAV = load(DIR + n + ".wav")
+	w.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	w.loop_begin = 0
+	w.loop_end = int(w.get_length() * w.mix_rate)
+	return w
 
 
 func _exit_tree() -> void:
@@ -131,8 +148,22 @@ func _process(delta: float) -> void:
 	elif slow <= 0.05 and _heart.playing:
 		_heart.stop()
 	_heart.volume_db = linear_to_db(maxf(0.001, slow)) - 4.0
+	var duck := 7.0 if voice_on() else 0.0   # under Frank's voice
+	# calm (no fight stem) with a lead wanted: the jazz plays instead of the base and lead stems
+	var calm: bool = music_want[3] <= -60.0 and music_want[1] > -60.0
+	for k in _melody:
+		var jp: AudioStreamPlayer = _melody[k]
+		var jw: float = (maxf(music_want[0], music_want[1]) + 1.0 - duck) if calm and k == melody else -80.0
+		if jw > -79.0 and not jp.playing:
+			jp.play()
+		elif jw > -79.0 and jp.stream_paused:
+			jp.stream_paused = false   # picks the tune up where the fight interrupted it
+		jp.volume_db = move_toward(jp.volume_db, jw, (10.0 if jw < jp.volume_db else 5.0) * _delta_real)
+		jp.pitch_scale = lerpf(1.0, 0.8, slow)
+		if jw <= -79.0 and jp.volume_db <= -79.0 and jp.playing and not jp.stream_paused:
+			jp.stream_paused = true
 	for i in STEMS.size():
-		var want: float = music_want[i]
+		var want: float = (-80.0 if calm and i < 2 else music_want[i]) - duck
 		var mp := _music[i]
 		mp.volume_db = move_toward(mp.volume_db, want, (8.0 if want < mp.volume_db else 4.0) * _delta_real)
 		mp.pitch_scale = lerpf(1.0, 0.8, slow)
@@ -163,6 +194,27 @@ func _process(delta: float) -> void:
 			else:
 				play("drip", -13.0, listener_x + randf_range(-900.0, 900.0), 0.25)
 				_ambient_t[n] = randf_range(1.5, 5.0)
+
+
+## Frank's voice for a line of narration (gen/voice_lines.py: voice/<md5 of the line, 10 chars>.mp3), if
+## it has been recorded. Returns how long it runs, or 0. The music ducks under him while he talks.
+var _voice: AudioStreamPlayer
+func voice(text: String) -> float:
+	var path := "res://voice/%s.mp3" % text.md5_text().substr(0, 10)
+	if not ResourceLoader.exists(path):
+		return 0.0
+	if _voice == null:
+		_voice = AudioStreamPlayer.new()
+		_voice.bus = "SFX"
+		add_child(_voice)
+	_voice.stream = load(path)
+	_voice.volume_db = 1.0
+	_voice.play()
+	return (_voice.stream as AudioStream).get_length()
+
+
+func voice_on() -> bool:
+	return _voice != null and _voice.playing
 
 
 ## The ambience under a story panel: these loops at these levels (dB), everything else faded out.

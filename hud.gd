@@ -146,6 +146,8 @@ var _boss_fill: ColorRect
 
 ## The detective's narration, in comic captions: cream boxes with black lettering at the top of the
 ## screen, one line after another, then gone.
+var voice := Callable()   # main.gd: sfx.voice, for the narration captions
+
 func caption(lines: Array) -> void:
 	# Up in the corner under his portrait, small: the narration sits beside the action, never on it.
 	# Each line its own inked caption box, sized to its words (the drawing is never stretched out of shape).
@@ -167,7 +169,14 @@ func caption(lines: Array) -> void:
 		var h: float = cap.size.y
 		y += h + 8.0
 		tw.tween_property(cap, "modulate:a", 1.0, 0.35)
-		tw.tween_interval(1.2 + text.length() * 0.028)
+		var said := String(lines[i])
+		var vo: float = 0.0
+		if voice.is_valid():   # Frank says it: the next line waits for him
+			var sfx = voice.get_object()
+			if sfx != null and sfx.has_method("voice") and ResourceLoader.exists("res://voice/%s.mp3" % said.md5_text().substr(0, 10)):
+				vo = (load("res://voice/%s.mp3" % said.md5_text().substr(0, 10)) as AudioStream).get_length()
+				tw.tween_callback(sfx.voice.bind(said))
+		tw.tween_interval(maxf(1.2 + text.length() * 0.028, vo + 0.4))
 	tw.tween_interval(1.2)
 	tw.tween_property(box, "modulate:a", 0.0, 0.6)
 	tw.tween_callback(box.queue_free)

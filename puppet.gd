@@ -90,6 +90,13 @@ var _phase := 0.0
 var _moving := 0.0   # 0 standing .. 1 running, eased so the pose blends instead of snapping
 var _aim := Vector2.RIGHT
 var hands_up := 0.0   # 0..1: a man giving up, gun dropped, both hands raised beside his hat
+# On a rope: 0..1 how much he hangs by his hands. hang_cycle: hand over hand on a climb (0..1, -1 = just
+# hanging); hang_one: one hand on a cable, the other keeps the gun up. hang_top: where his hands are,
+# local metres above his feet (negative y), so main.gd can hang him where the rope is.
+var hang := 0.0
+var hang_cycle := -1.0
+var hang_one := false
+var hang_top := -2.3
 var dead_far := 0.25   # where the far arm lies off the near one once he is down
 var disarmed := false  # his gun is on the pavement: it never comes back to his hand
 var _aim_angle := 0.0
@@ -417,6 +424,15 @@ func _pose() -> void:
 	# in a jump the knees come up; in a dive the legs trail straight; in a slide they lead
 	foot_a = foot_a.lerp(Vector2(0.16, -0.36), air).lerp(Vector2(0.07, 0.0), dive).lerp(Vector2(0.74 * slide_side, -0.03), slide)
 	foot_b = foot_b.lerp(Vector2(-0.14, -0.2), air).lerp(Vector2(-0.09, -0.05), dive).lerp(Vector2(0.3 * slide_side, 0.0), slide)
+	if hang > 0.0:   # hanging: the legs hang; climbing, the knees come up in turn to grip the rope
+		var fa_h := Vector2(0.07, -0.05)
+		var fb_h := Vector2(-0.05, -0.02)
+		if hang_cycle >= 0.0:
+			var c := 0.5 - 0.5 * cos(hang_cycle * TAU)
+			fa_h = Vector2(0.12, -0.06 - 0.34 * c)
+			fb_h = Vector2(0.02, -0.06 - 0.34 * (1.0 - c))
+		foot_a = foot_a.lerp(fa_h, hang)
+		foot_b = foot_b.lerp(fb_h, hang)
 	var drop := minf(0.62, crouch * 0.3 + slide * 0.5 + duck * 0.58 + _hit_dip * 0.16)   # how far the hips sink
 	var hip := Vector2(-0.1 * slide * slide_side, -(l1 + l2) * 0.985 - ankle + drop + lerpf(0.01, 0.04 + 0.035 * cos(th * 2.0), t))
 	var legs_lean := dive * 1.35 * dive_side + roll        # the legs follow a dive or a tumble
@@ -427,6 +443,7 @@ func _pose() -> void:
 		lean -= _flinch * (0.6 if _hit_part == "torso" else 0.35)   # and a bullet much more: rocked back
 		lean -= sin(_flinch * PI) * 0.12 * _hit_dip              # a leg hit folds him forward a moment
 		lean += clampf(_aim.angle(), -0.9, 0.6) * 0.08   # the body follows the gun up or down a little
+	lean = lerpf(lean, 0.0, hang)   # hanging straight down from the hands
 	var breath := sin(_clock * 1.7) * 0.006 * (1.0 - t) * (0.0 if _dead else 1.0)   # breathing, standing still
 	var neck := hip + Vector2(lerpf(0.03, 0.15, t), -float(_len["torso"]) - breath).rotated(lean)
 	# Joints that are drawn on the torso (armholes, the bottom of the collar, the belt) are given in
@@ -462,6 +479,11 @@ func _pose() -> void:
 		near_target = near_target.lerp(shoulder + Vector2(0.24, 0.24), rl)
 	if hands_up > 0.0 and not _dead:
 		near_target = near_target.lerp(shoulder + Vector2(0.16, -(ua + fa) * 0.82), hands_up)
+	var reach_up := (ua + fa) * 0.96
+	hang_top = shoulder.y - reach_up
+	var climb_c := 0.5 - 0.5 * cos(hang_cycle * TAU) if hang_cycle >= 0.0 else 0.0
+	if hang > 0.0 and not hang_one and not _dead:   # both fists on the rope, one above the other
+		near_target = near_target.lerp(Vector2(0.06, hang_top + 0.2 * climb_c), hang)
 	var kn := _ik(shoulder, near_target, ua, fa, 1.0)
 	var hand: Vector2 = kn[1]
 	var gun_scale: float = float(gd["len"]) / float((_gun.texture as Texture2D).get_width())   # metres per picture pixel
@@ -480,6 +502,9 @@ func _pose() -> void:
 		far_target = far_target.lerp(hand + Vector2(0.06, 0.03 + 0.03 * sin(reload * 40.0)), rl)
 	if hands_up > 0.0 and not _dead:
 		far_target = far_target.lerp(far_shoulder + Vector2(0.06, -(ua + fa) * 0.84), hands_up)
+	if hang > 0.0 and not _dead:
+		var low := 0.2 * (1.0 - climb_c) if hang_cycle >= 0.0 else (0.0 if hang_one else 0.13)
+		far_target = far_target.lerp(Vector2(0.06, hang_top + low), hang)
 	var k := _ik(far_shoulder, far_target, ua, fa, 1.0)
 	_place("uarm_b", "uarm", far_shoulder, k[0])
 	_place("farm_b", "farm", k[0], k[1])
@@ -513,6 +538,8 @@ func _pose() -> void:
 	var look := (lean - roll) * 0.5 + roll
 	if not _dead:
 		look += clampf(_aim.angle(), -0.9, 0.7) * 0.4 * (1.0 - hands_up) - recoil * 0.3 + hands_up * 0.12
+		if not hang_one:
+			look = lerpf(look, -0.35 if hang_cycle >= 0.0 else -0.1, hang)   # eyes on where the rope goes
 		if reload > 0.0:   # eyes on the gun in his hands
 			look = lerpf(look, 0.35, smoothstep(0.0, 0.14, reload) * (1.0 - smoothstep(0.86, 1.0, reload)))
 	_place("head", "head", head_base, head_base + Vector2(0.02, -0.3).rotated(look))
@@ -521,7 +548,7 @@ func _pose() -> void:
 	_place("farm_f", "farm", kn[0], kn[1])
 	_gun.position = hand * PPM
 	_gun.rotation = _aim.angle()
-	_gun.visible = not disarmed
+	_gun.visible = not disarmed and not (hang > 0.5 and not hang_one)   # both hands on the rope: the gun is in his coat
 	if disarmed:
 		_gun2.visible = false
 	if rl > 0.0:   # muzzle up; near the end a flick of the wrist snaps the cylinder home

@@ -124,9 +124,9 @@ const AUDIO := {
 		{"bed": {"crowd": -17.0}, "rain": 0.7, "in": true, "cues": [[1.0, "cup", -6.0], [7.5, "cup", -8.0]]},
 	],
 	"teague": [
-		{"bed": {"crowd": -11.0}, "rain": 0.0, "cues": [[0.35, "punch", -2.0], [0.85, "body_fall", -3.0], [1.1, "flutter", -6.0], [1.6, "wing", -8.0]]},
-		{"bed": {"crowd": -21.0}, "rain": 0.0, "music": [-12.0, -9.0, -80.0, -80.0]},
-		{"bed": {"crowd": -25.0}, "rain": 0.0, "cues": [[1.5, "page", -9.0]]},
+		{"bed": {"lamp_hum": -21.0}, "rain": 0.8, "in": true, "cues": [[0.3, "shot_player", -2.0], [0.8, "body_fall", -3.0], [1.9, "coo", -10.0], [2.6, "wing", -14.0]]},   # the empty club; his pigeons stir in their cage
+		{"bed": {"lamp_hum": -22.0}, "rain": 0.8, "in": true, "music": [-12.0, -9.0, -80.0, -80.0]},
+		{"bed": {"lamp_hum": -24.0}, "rain": 0.8, "in": true, "cues": [[1.5, "page", -9.0]]},
 		{"bed": {"lamp_hum": -22.0}, "rain": 0.5, "in": true, "cues": [[0.6, "page", -8.0]]},
 	],
 	"dream": [
@@ -175,6 +175,7 @@ var _boxes: Array = []
 var _typing: Label
 var _type_t := 0.0
 var _wait := 0.0     # seconds left to read the line, then the next one comes by itself
+var _voiced := 0.0   # how long Frank's recorded voice for this line runs
 var _pan_t := 0.0
 var _pan_len := 8.0
 var _font_type: Font
@@ -304,7 +305,7 @@ func _process(delta: float) -> void:
 		if fast:
 			_typing.visible_characters = _typing.text.length()
 		if _typing.visible_characters >= _typing.text.length():
-			_wait = 1.0 if fast else 1.8 + _typing.text.length() * 0.035
+			_wait = 1.0 if fast else maxf(1.8 + _typing.text.length() * 0.035, _voiced - _type_t + 0.6)
 	elif _wait > 0.0:
 		if fast and not _shot_taken and shot.is_valid() and _line == _panels[_i]["lines"].size() - 1 and _wait < 0.6:   # once the last box is in
 			_shot_taken = true
@@ -571,6 +572,7 @@ func _show_line() -> void:
 	_typing = l
 	_type_t = 0.0
 	_wait = 0.0
+	_voiced = audio.voice(text) if audio != null and not speech and not fast else 0.0
 
 
 ## Once the box knows how tall its wrapped text is: where it goes on the page.
@@ -601,6 +603,7 @@ func _panel_audio(p: Dictionary) -> void:
 		return
 	audio.bed(a.get("bed", {"lamp_hum": -24.0}))
 	audio.music_want = (a.get("music", TUNE) as Array).duplicate()
+	audio.melody = "dusk"
 	audio.rain_want = float(a.get("rain", p.get("rain", 0.0)))
 	audio.indoor = 1.0 if a.get("in", false) else 0.0
 	var me := _i

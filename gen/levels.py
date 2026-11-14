@@ -9,7 +9,8 @@ from PIL import Image, ImageDraw
 
 # kind: (width, height, wood?)  wood breaks under fire, the rest holds; barrel explodes
 BOX = {"crate": (250, 248, True), "drum": (160, 246, False), "crate_long": (330, 176, True), "dumpster": (300, 250, False),
-       "barrel": (120, 170, False), "machine": (260, 230, False), "bar": (420, 190, False)}
+       "barrel": (120, 170, False), "machine": (260, 230, False), "bar": (420, 190, False),
+       "stack": (330, 393, False)}   # a crate set on a long crate on the quay: too tall to jump, the rope goes over it
 # the drawn street segments (art/street) and their widths in the world (picture width x 1.9)
 SEGMENTS = {"alley": 3028, "bluenote": 3028, "warehouse": 3028, "laundry": 3028, "subway": 3108, "church": 3108, "market": 3038, "deadend": 3038,
             "pier17": 3034, "cranes": 3034, "shipping": 3034, "quay": 3034, "harbor": 3034,
@@ -58,6 +59,7 @@ class Chunk:
         self.street = []
         self.events = []
         self.iron = []
+        self.ropes = []
 
     def box(self, kind, x): self.boxes.append([kind, x]); return self
     def plat(self, x, y, w, style="catwalk"): self.plats.append([x, y, w, style]); return self
@@ -66,6 +68,10 @@ class Chunk:
     def lamp(self, x, y=-760.0): self.lamps.append([x, y]); return self
     def pick(self, kind, x, y=0.0): self.pickups.append([kind, x, y]); return self
     def hint(self, x, text): self.hints.append([x, text]); return self
+    # Ropes (main.gd _ropes): "climb" from a landing's rail at (x, y0) down to the street; "zip" a cable from the
+    # roof that passes over a landing at (x0, y0) and is made fast at the street at (x1, 0); "swing" a rope from a
+    # crane jib out of the picture, hanging at x.
+    def rope(self, kind, x0, y0=0.0, x1=0.0, y1=0.0): self.ropes.append([kind, x0, y0, x1, y1]); return self
     def event(self, *ev): self.events.append(list(ev)); return self
 
     def foe(self, x, y=0.0, kind="post", trig=None, frm=None, delay=0.0, run=False):
@@ -96,18 +102,24 @@ def chunk(name, hard):
         c = Chunk(1500).box("crate", 250)
         for i in range(n):
             c.runner(1000 + i * 260, 0, 2600 + i * 300, kind="shotgun" if i == 2 else "post")
-    elif name == "catwalk":
-        c = Chunk(1800).box("crate_long", 0).plat(400, F1, LAND_W[3]).foe(900, F1).foe(1500)
+    elif name == "catwalk":   # up the long crate onto the walkway, then down its cable into them
+        c = (Chunk(2900).box("crate_long", 0).plat(400, F1, LAND_W[3]).foe(900, F1).foe(1500)
+             .rope("zip", 400 + LAND_W[3] - 60, F1, 400 + LAND_W[3] + 1000, 0.0).box("drum", 400 + LAND_W[3] + 1200).foe(2300))
         if hard > 0.5: c.foe(1250, F1)
     elif name == "high_ground":
-        c = Chunk(2000).box("crate_long", 0).box("drum", 1450).plat(380, F1, LAND_W[3]).foe(800, F1).foe(1300, F1, kind="tommy" if hard > 0.6 else "post").foe(1780)
+        c = (Chunk(2200).box("crate_long", 0).box("drum", 1450).plat(380, F1, LAND_W[3]).foe(800, F1).foe(1300, F1, kind="tommy" if hard > 0.6 else "post").foe(1780)
+             .rope("climb", 380 + LAND_W[3] - 70, F1))
     elif name == "fire_escape":   # up the iron stairs two storeys, fighting on every landing, then a drop
         # a fire escape on a building: a flight up to the first landing, a second flight from its far end
         a = 650; b = a + LAND_W[2]
-        c = (Chunk(2900).ramp(a - STAIR_RUN, 0, a, F1).plat(a, F1, LAND_W[2], "escape")
+        top_end = b + STAIR_RUN + LAND_W[1]
+        c = (Chunk(4500).ramp(a - STAIR_RUN, 0, a, F1).plat(a, F1, LAND_W[2], "escape")
              .ramp(b, F1, b + STAIR_RUN, F2).plat(b + STAIR_RUN, F2, LAND_W[1], "escape")
              .foe(1300, F1).foe(1900, 0.0).foe(2400, F2, kind="tommy" if hard > 0.4 else "post").foe(2750, 0.0, kind="shotgun" if hard > 0.6 else "post")
-             .pick("flask", 2250, F2))
+             .foe(3400, 0.0).foe(3900, 0.0, kind="tommy" if hard > 0.5 else "post")
+             .pick("flask", 2250, F2)
+             .rope("climb", b + STAIR_RUN + 70, F2).rope("zip", top_end - 60, F2, top_end + 1500, 0.0).box("drum", top_end + 1750)
+             .hint(b + STAIR_RUN - 900, "JUMP AT A ROPE TO CLIMB IT").hint(top_end - 500, "RUN OFF THE END ONTO THE CABLE"))
     elif name == "laundry":   # an interior: machines for cover, steam, a shotgunner in the back
         c = (Chunk(2700).room(0, 2700, "laundry").box("machine", 500).box("machine", 1300).box("machine", 2050)
              .lamp(400).lamp(1250).lamp(2150).foe(1000).foe(1750, kind="shotgun").foe(2450).pick("flask", 1180))
@@ -139,6 +151,10 @@ def chunk(name, hard):
     elif name == "office":   # the harbor master's: filing cabinets and a counter for cover
         c = (Chunk(2400).room(0, 2400, "office").box("crate_long", 500).box("machine", 1500).lamp(600).lamp(1700)
              .foe(1150).foe(2000, kind="shotgun").foe(2300).pick("flask", 1000))
+    elif name == "crane_swing":   # a wall of cargo too tall to climb: a crane's rope hangs before it, and them behind it
+        c = (Chunk(2400).rope("swing", 380).box("stack", 900).box("crate", 1330)
+             .foe(1950).foe(2300, kind="shotgun" if hard > 0.5 else "post")
+             .hint(-100, "JUMP FOR THE CRANE ROPE"))
     # ---- underground --------------------------------------------------------------------------------
     elif name == "train_platform":   # along the tracks under the platform edge; a train roars by on the far rails
         c = (Chunk(2400).box("drum", 250).box("crate_long", 1100).foe(700).foe(1650, kind="shotgun" if hard > 0.5 else "post").foe(2250)
@@ -196,6 +212,7 @@ def _build(mp, nudge):
         for a, b, st in c.rooms: out.rooms.append([x + a, x + b, st])
         for lx, ly in c.lamps: out.lamps.append([x + lx, ly])
         for k, px, py in c.pickups: out.pickups.append([k, x + px, py])
+        for k, a, b, cc, d in c.ropes: out.ropes.append([k, x + a, b, x + cc if k == "zip" else cc, d])
         for hx, t in c.hints: out.hints.append([x + hx, t])
         for ev in c.events:
             ev = list(ev)
@@ -221,7 +238,10 @@ def _build(mp, nudge):
         if mp.get("boss_room"):   # the fight in a room of its own
             out.rooms.append([x - 200, x + 2700, mp["boss_room"]])
             out.lamps += [[x + 400, -760.0], [x + 1400, -760.0], [x + 2300, -760.0]]
-        out.boxes += [["crate", x + 300], ["crate_long" if mp.get("boss_room") else "dumpster", x + 1500]]
+        if mp.get("boss_room") == "club":   # Mickey's own club: the bar and the tables, the stage behind him
+            out.boxes += [["bar", x + 300], ["crate_long", x + 1500]]
+        else:
+            out.boxes += [["crate", x + 300], ["crate_long" if mp.get("boss_room") else "dumpster", x + 1500]]
         out.enemies += [{"x": x + 1050, "y": 0.0, "kind": "post", "trig": None, "from": None, "delay": 0.0, "run": False},
                         {"x": x + 2050, "y": 0.0, "kind": "boss", "trig": None, "from": None, "delay": 0.0, "run": False}]
         out.checks.append(x - 100)
@@ -231,11 +251,11 @@ def _build(mp, nudge):
         out.enemies += [{"x": x + 800, "y": 0.0, "kind": "post", "trig": None, "from": None, "delay": 0.0, "run": False},
                         {"x": x + 1100, "y": 0.0, "kind": "tommy", "trig": x - 200, "from": x + 2600, "delay": 0.0, "run": True}]
         out.end = x + 1600
-    if mp.get("diary"):   # a page of Eddie's notebook, left on top of a crate partway along: a climb off the road
+    if mp.get("diary"):   # a page of Eddie's notebook, nailed to the wall just before a crate partway along, at hand from the road
         cands = sorted([b for b in out.boxes if b[0] in ("crate", "crate_long", "dumpster", "machine", "drum") and 2500 < b[1] < out.end - 2500], key=lambda b: b[1])
         if cands:
             b = cands[min(len(cands) - 1, mp.get("page", len(cands) // 2))]
-            out.pickups.append(["page", b[1] + BOX[b[0]][0] / 2, -BOX[b[0]][1]])
+            out.pickups.append(["page", b[1] - 140.0, 0.0])
         else:   # nothing to climb: it lies where the fight is thickest, halfway along
             out.pickups.append(["page", out.end * 0.55, 0.0])
     out.checks = sorted(set(round(c) for c in out.checks if 800 < c < out.end - 500))
@@ -355,7 +375,7 @@ CAMPAIGN = [
   {"title": "PROLOGUE", "name": "EDDIE DOYLE", "ready": True, "hero": "eddie", "ambient": [0.2, 0.21, 0.27], "rain": 1.2, "maps": [PROLOGUE]},
   {"title": "CHAPTER I", "name": "RAIN ON HELL'S KITCHEN", "ready": True, "hero": "frank", "ambient": [0.2, 0.21, 0.27], "rain": 1.0, "maps": [
     {"name": "THE ALLEY", "seed": 101, "feature": "alley", "start": 0.0, "end": 0.35,
-     "fixed": ["crate_cover", "drum_duo", "dumpster_alley", "breather", "barrel_trap", "crate_cover", "pistols_cache", "ambush_behind", "gauntlet"],
+     "fixed": ["crate_cover", "drum_duo", "dumpster_alley", "fire_escape", "barrel_trap", "crate_cover", "pistols_cache", "ambush_behind", "gauntlet"],
      "intro": ["The shooters hadn't gone far. Rain doesn't wash a trail away that fast.", "Neither does whiskey. I'd tried."],
      "diary": "Nov 3. Rosie showed me Tommy's photo again. Eleven men burned in '39 and the papers called it bad wiring. Bad wiring doesn't lock doors from the outside.",
      "outro": ["The shooters ran east. So did I."]},
@@ -374,36 +394,36 @@ CAMPAIGN = [
      "intro": ["Iron stairs, wet as a liar's palm."],
      "diary": "Dec 9. Found the patrolman who signed the report. I wish I hadn't. I need to hear it from him before I take it upstairs.",
      "outro": ["Below me the neon said JAZZ.", "Mickey Teague owned the Blue Note. Somebody else owned Mickey."]},
-    {"name": "THE BLUE NOTE", "seed": 105, "feature": "bluenote", "start": 0.6, "end": 0.85, "boss": "teague",
-     "fixed": ["crate_cover", "barrel_trap", "club", "breather", "warehouse_arena", "rush"],
+    {"name": "THE BLUE NOTE", "seed": 105, "feature": "bluenote", "start": 0.6, "end": 0.85, "boss": "teague", "boss_room": "club",
+     "fixed": ["crate_cover", "fire_escape", "breather", "warehouse_arena", "rush"],
      "intro": ["Mickey 'Canvas' Teague. Forty fights, and he lost every one he was paid to lose.", "Tonight nobody was paying."],
      "diary": "Dec 17. Meeting a guy from the Blue Note tonight. Says he'll sell me the name of who paid. If I'm wrong about this, I'll buy Frank a drink and tell him everything.",
-     "outro": ["Mickey went down on cue, like always. He asked me to feed his birds. Then: ask your boss.", "Eddie's girl came down off the stage with his notebook. I didn't open it. Not then."]},
+     "outro": ["Mickey went down on cue, like always. He asked me to feed his birds. Then: ask your boss.", "Eddie's girl came down off the stage with his diary. I didn't open it. Not then."]},
   ]},
   {"title": "CHAPTER II", "name": "THE DOCKS", "ready": True, "hero": "frank", "ambient": [0.16, 0.18, 0.25], "rain": 1.5, "maps": [
     {"name": "PIER 17", "seed": 201, "feature": "pier17", "pool": DOCKS_POOL, "start": 0.45, "end": 0.7, "ash": 1.0, "embers": 0.6,
-     "fixed": ["dock_crates", "crate_cover", "car_ambush", "breather", "barrel_trap", "searchlight_yard", "pistols_cache", "gauntlet"],
+     "fixed": ["dock_crates", "crane_swing", "car_ambush", "breather", "barrel_trap", "searchlight_yard", "pistols_cache", "gauntlet"],
      "events": [["burn", "shipping"]],
      "intro": ["Pier 17. Eight years cold, and it still smelled of smoke.", "Somebody had lit a fresh fire to keep it company."],
      "diary": "Nov 24. Went down to Pier 17 at night. You can still see where the doors were chained. Nobody chains a door to keep a fire in by accident.",
      "outro": ["Vail Shipping burned like a confession nobody would ever read.", "Kessler's men fell back to the cranes."]},
     {"name": "THE CRANES", "seed": 202, "feature": "cranes", "pool": DOCKS_POOL, "start": 0.5, "end": 0.75, "ash": 0.8, "embers": 0.3,
-     "fixed": ["crate_cover", "searchlight_yard", "high_ground", "blackout", "dock_crates", "rush", "catwalk", "drum_duo"],
+     "fixed": ["crate_cover", "searchlight_yard", "high_ground", "crane_swing", "dock_crates", "rush", "catwalk", "drum_duo"],
      "intro": ["The cranes stood over the yard with their heads bowed, like men at a wake."],
      "diary": "Nov 29. A crane man named Sully told me Kessler had the keys that night. Sully drinks. Sully also cried when he said it.",
      "outro": ["A dock rat with a broken arm told me the rest for a dollar.", "The Santa Lucia. Kessler kept his ledgers aboard."]},
     {"name": "SANTA LUCIA", "seed": 203, "feature": "quay", "pool": DOCKS_POOL, "start": 0.55, "end": 0.8, "ash": 0.7, "embers": 0.2,
-     "fixed": ["dock_crates", "car_ambush", "catwalk", "hold", "breather", "blackout", "gauntlet"],
+     "fixed": ["dock_crates", "crane_swing", "catwalk", "hold", "breather", "blackout", "gauntlet"],
      "intro": ["The Santa Lucia. Registered in Panama, owned in Manhattan, prayed for on Sundays."],
      "diary": "Dec 2. The Santa Lucia sails under the Saint's flag. Its manifest for August '39 lists eleven crates of 'machine parts'. Eleven.",
      "outro": ["The ledger had a page torn out. The stub said August 1939."]},
     {"name": "CARGO HOLD", "seed": 204, "feature": "shipping", "pool": DOCKS_POOL, "start": 0.6, "end": 0.85, "ash": 0.8, "embers": 0.3,
-     "fixed": ["hold", "rush", "dock_crates", "hold", "warehouse_arena", "searchlight_yard"],
+     "fixed": ["hold", "crane_swing", "dock_crates", "hold", "warehouse_arena", "searchlight_yard"],
      "intro": ["Down in the hold the rain sounded like applause for somebody else."],
      "diary": "Dec 5. Frank asked me why I keep at this. I said a reporter's job is to write down what everybody already knows. He didn't laugh.",
      "outro": ["Kessler ran for the harbor office. Men like him always run toward their paperwork."]},
-    {"name": "HARBOR MASTER", "seed": 205, "feature": "harbor", "pool": DOCKS_POOL, "start": 0.65, "end": 0.9, "boss": "kessler", "ash": 1.0, "embers": 0.5,
-     "fixed": ["dock_crates", "car_ambush", "office", "breather", "searchlight_yard", "rush"],
+    {"name": "HARBOR MASTER", "seed": 205, "feature": "harbor", "pool": DOCKS_POOL, "start": 0.65, "end": 0.9, "boss": "kessler", "boss_room": "office", "ash": 1.0, "embers": 0.5,
+     "fixed": ["dock_crates", "crane_swing", "breather", "searchlight_yard", "rush"],
      "intro": ["Bruno Kessler. Dock master since '38. He hadn't closed a door in eight years."],
      "diary": "Dec 12. If anything happens to me, the report is in the harbor office, second drawer. Frank, if you're reading this, then you already know that I know.",
      "outro": ["Kessler gave me a key on a chain. It had been warm against his chest for eight years.", "In the second drawer, the report. At the bottom, a name I knew better than my own."]},
@@ -420,7 +440,7 @@ CAMPAIGN = [
      "diary": "Dec 14. Found a fireman's helmet in a pawnshop on Ninth. Engine 54. Same company as Frank's old man. The pawnbroker said a cop sold it. Years ago.",
      "outro": ["Briggs was counting his shells out loud somewhere behind me. A man who counts like that has never missed."]},
     {"name": "TRAIN YARD", "seed": 303, "feature": "yard", "pool": ["yard"], "cops": True, "rain": 1.6, "start": 0.55, "end": 0.8, "ash": 0.4,
-     "fixed": ["drum_duo", "car_ambush", "searchlight_yard", "breather", "crate_cover", "blackout", "gauntlet"],
+     "fixed": ["drum_duo", "car_ambush", "searchlight_yard", "crane_swing", "crate_cover", "blackout", "gauntlet"],
      "intro": ["The yard was the only way out that didn't have a badge standing in it."],
      "diary": "Dec 15. 1931. A tenement on West 47th burned with nine families inside. Engine 54 got there first. One fireman went in for the kids and didn't come out. Patrick Malone.",
      "outro": ["The last train out of the yard was an empty one. I've never been so glad of an empty thing."]},
@@ -473,6 +493,7 @@ def gd(campaign):
             pk = ", ".join(f'["{p[0]}", {f(p[1])}, {f(p[2])}]' for p in m.pickups)
             hn = ", ".join(f'[{f(h[0])}, {q(h[1])}]' for h in m.hints)
             ck = ", ".join(f(c) for c in m.checks)
+            ro = ", ".join(f'["{r[0]}", {f(r[1])}, {f(r[2])}, {f(r[3])}, {f(r[4])}]' for r in m.ropes)
             st = ", ".join(f'["{g[0]}", {f(g[1])}]' for g in m.street)
             out.append("\t\t{" + f'"name": {q(lv["name"])}, "end": {f(m.end)}, "boss": {q(lv.get("boss", ""))}, "stand": {f(m.stand if m.stand else -1)},')
             out.append("\t\t\t\"intro\": [" + ", ".join(q(t) for t in lv["intro"]) + "], \"outro\": [" + ", ".join(q(t) for t in lv["outro"]) + "],")
@@ -487,6 +508,7 @@ def gd(campaign):
             out.append(f'\t\t\t"boxes": [{bx}],')
             out.append(f'\t\t\t"floors": [{fl}],')
             out.append(f'\t\t\t"ramps": [{rp}],')
+            out.append(f'\t\t\t"ropes": [{ro}],')
             out.append(f'\t\t\t"rooms": [{rm}],')
             out.append(f'\t\t\t"lamps": [{lp}],')
             out.append(f'\t\t\t"pickups": [{pk}],')
@@ -498,6 +520,8 @@ def gd(campaign):
     return "\n".join(out) + "\n"
 
 
+SEEN = set()   # a rope hint is shown once in the whole story, on the first map that has that rope
+
 if __name__ == "__main__":
     campaign = []
     n = 0
@@ -508,7 +532,8 @@ if __name__ == "__main__":
             if "seed" not in mp:   # written up, not yet built: a name in the case file
                 maps.append({"name": mp["name"]}); continue
             m = build(mp)
-            m.hints = [[h[0], h[1]] for h in mp.get("hints", [])] + m.hints
+            m.hints = [[h[0], h[1]] for h in mp.get("hints", [])] + [h for h in m.hints if h[1] not in SEEN]
+            SEEN.update(h[1] for h in m.hints)
             errs = check(m)
             bad = bad or bool(errs)
             print(f'{ch["title"]:12} {mp["name"]:15} {int(m.end):6} px  {len(m.enemies):3} enemies  {len(m.checks)} checkpoints  ' + ("ERRORS: " + "; ".join(errs) if errs else "ok"))
