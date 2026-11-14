@@ -94,6 +94,10 @@ var level: Dictionary
 var level_end := 0.0
 var cam_start := 0.0
 var catwalks: Array[Rect2] = []   # floors above the street: catwalks, fire-escape landings, landings indoors
+var catwalk_solid: Array[bool] = []   # a roof: no dropping through it to the street six storeys down
+var _box_sets := {}   # with rooftops: the crates of the street and those of the roof, swapped in as he climbs
+var _box_up := false
+var roof := {}   # the map's rooftops, when it climbs to them: x0, x1, y (walked line), goal, pics, checks
 var ramps: Array = []          # flights of stairs: [x0, y0, x1, y1]
 var rooms: Array = []          # interiors: [x0, x1, style]
 var box_info: Array = []       # one per box, same order: {kind, sprite, hp, wood}
@@ -115,6 +119,7 @@ var _stand_t := 0.0
 var _stand_spawn := 0.0
 var _shake := 0.0
 static var checkpoint := -1.0   # where a death sends him back to on this map; -1 = the start
+static var checkpoint_y := 0.0   # and how high: up on the roof he comes back on the roof
 # the guns: seconds between shots, rounds when picked up, pellets per shot, spread (radians), how long a
 # bullet flies, the kick of the arm, the sound
 const WEAPONS := {
@@ -410,6 +415,7 @@ func _ready() -> void:
 	rooms = level["rooms"]
 	if _auto_arg() != "":
 		checkpoint = -1.0
+		checkpoint_y = 0.0
 	ambient = ch["ambient"]
 	atmo = AtmosphereScript.new()
 	add_child(atmo)
@@ -417,6 +423,8 @@ func _ready() -> void:
 	sfx.process_mode = Node.PROCESS_MODE_ALWAYS   # before the street: its signs, lamps and steam put their sounds in it
 	add_child(sfx)
 	_build_street()
+	roof = level.get("roof", {})
+	_build_roofs()
 	_build_light()
 
 	_build_level()
@@ -429,7 +437,7 @@ func _ready() -> void:
 	if ch["hero"] == "eddie" and not in_menu:   # the title always shows Frank: it is his story. Stand-in until Eddie has his own drawings: a paler, younger coat
 		player.modulate = Color(0.9, 0.95, 1.1)
 	if checkpoint > 0.0 and not in_menu:
-		player.position = Vector2(checkpoint, _floor_at(checkpoint, -2000.0))
+		player.position = Vector2(checkpoint, _floor_at(checkpoint, checkpoint_y - 10.0 if checkpoint_y < 0.0 else -2000.0))
 		cam_start = player.position.x
 	sets = SetpiecesScript.new()
 	add_child(sets)
@@ -450,12 +458,15 @@ func _ready() -> void:
 	fore.z_index = 10
 	add_child(fore)
 	_scatter_fore()
-	for k in range(-2, 0 if level.get("under", false) else int(level_end / 4200.0) + 3):   # telephone wires sagging across the top of the frame, nearest of all
+	# telephone wires sagging across the top of the frame, nearest of all: only in the streets of
+	# Hell's Kitchen (the docks and the subway have no poles to hang them from); every span meets the
+	# next at the same height, only the sag differs
+	for k in range(-2, int(level_end / 4200.0) + 3 if chapter <= 1 else -2):
 		var wire := Line2D.new()
 		var pts := PackedVector2Array()
 		for j in range(17):
 			var u := float(j) / 16.0
-			pts.append(Vector2(k * 4200.0 + u * 4200.0, -980.0 + sin(u * PI) * 160.0 + (k % 2) * 40.0))
+			pts.append(Vector2(k * 4200.0 + u * 4200.0, -980.0 + sin(u * PI) * (160.0 + absf(k % 2) * 50.0)))
 		wire.points = pts
 		wire.width = 7.0
 		wire.default_color = Color(0.02, 0.02, 0.025)
@@ -505,6 +516,7 @@ func _ready() -> void:
 		menu.play = _start_map
 		menu.restart = func() -> void:   # a new start: the title over the prologue's street
 			checkpoint = -1.0
+			checkpoint_y = 0.0
 			in_menu = true
 			chapter = 0
 			map = 0
@@ -711,7 +723,7 @@ func _build_street() -> void:
 const SEGMENT_LAMPS := {"alley": [0.08, 0.62, 0.92], "bluenote": [0.12, 0.3, 0.9], "warehouse": [0.15, 0.42, 0.82], "laundry": [0.1, 0.3, 0.72],
 	"subway": [0.1, 0.38, 0.72], "church": [0.08, 0.9], "market": [0.1, 0.45, 0.86], "deadend": [0.22, 0.86],
 	"pier17": [0.12, 0.38, 0.8], "cranes": [0.7, 0.9], "shipping": [0.12, 0.42, 0.7], "quay": [0.74, 0.86], "harbor": [0.3, 0.56],
-	"platform": [0.3, 0.62, 0.86], "tunnel": [0.22, 0.5, 0.76], "yard": [0.1, 0.62]}
+	"platform": [0.3, 0.62, 0.86], "tunnel": [0.22, 0.5, 0.76], "yard": [0.1, 0.62], "station14": [0.24, 0.5, 0.74]}
 # the signs that light up on each drawing: top-left of the glow picture (pixels of the drawing),
 # colour, and how it burns: steady, buzz (now and then a stutter) or dying (out as often as on)
 const SEGMENT_NEONS := {
@@ -761,13 +773,13 @@ var _deep_rects: Array[Rect2] = []
 var _stain_hosts: Array = []   # [x0, x1, node]: the masks blood on each drawing is clipped to   # the same in world space, for the blood
 const SEGMENT_TRIM := {"alley": 134.0, "bluenote": 134.0, "warehouse": 133.0, "laundry": 133.0, "subway": 53.0, "church": 58.0, "market": 58.0, "deadend": 58.0,
 		"pier17": 132.0, "cranes": 132.0, "shipping": 132.0, "quay": 132.0, "harbor": 132.0,
-		"platform": 132.0, "tunnel": 132.0, "yard": 132.0}
+		"platform": 132.0, "tunnel": 132.0, "yard": 132.0, "station14": 132.0}
 # evens out how light each drawing came out, so neighbours do not jump in brightness
 const SEGMENT_GAIN := {"alley": 0.92, "bluenote": 0.98, "warehouse": 0.9, "laundry": 1.02, "subway": 1.07, "church": 1.0, "market": 1.05, "deadend": 1.1,
 		"pier17": 0.86, "cranes": 0.91, "shipping": 0.96, "quay": 0.91, "harbor": 0.86,
-		"platform": 0.95, "tunnel": 1.12, "yard": 0.85}
+		"platform": 0.95, "tunnel": 1.12, "yard": 0.85, "station14": 0.9}
 # A drawing whose doors and bins came out too big for a man is shown smaller (gen/levels.py SEG_SIZE).
-const SEGMENT_SIZE := {"deadend": 0.8}
+const SEGMENT_SIZE := {"deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675}
 var _sign_scale := WALL_SCALE
 const ROOM_BASE := 0.95     # an interior's painting under the night grade, before its lamps' pools
 const SEGMENT_MOON := 1.6   # how much brighter than the bare night the drawn streets are kept
@@ -810,7 +822,7 @@ func _build_segments() -> void:
 		w.modulate = Color.WHITE * SEGMENT_MOON * float(SEGMENT_GAIN.get(seg_name, 1.0))   # a moonlit wash, so the drawing reads between the lamps
 		add_child(w)
 		for r in SEGMENT_DEEP.get(seg_name, []):
-			_add_deep(diffuse, w, r as Rect2, trim)
+			_add_deep(diffuse, w, r as Rect2, trim, seg_name)
 		var glow := Sprite2D.new()   # its lit windows and signs, pushed through the night at full strength
 		glow.texture = load("res://art/street/" + seg_name + "_lit.png")
 		glow.centered = false
@@ -898,44 +910,75 @@ func _build_segments() -> void:
 			add_child(pier)
 
 
-func _add_deep(tex: Texture2D, facade: Sprite2D, r: Rect2, trim: float) -> void:
+## Where an alley's side walls end and its far end begins, as shares of the deep view's width:
+## [left wall's inner edge, right wall's inner edge]; 0 or 1 where that side has no wall.
+const DEEP_SPLIT := {"alley": [0.3, 0.74], "warehouse": [0.16, 1.0], "laundry": [0.42, 1.0], "subway": [0.32, 1.0],
+	"market": [0.14, 1.0]}
+const DEEP_SLIDE := 0.12   # how far the far end slides per pixel the camera stands off the alley's mouth
+const DEEP_LIFT := 0.02     # and how much it rises and falls with the camera
+
+func _add_deep(tex: Texture2D, facade: Sprite2D, r: Rect2, trim: float, seg_name := "") -> void:
 	var size := Vector2(tex.get_size())
 	var px := Rect2(r.position * size, r.size * size)
-	# The view used to be warped against the wall for depth, but a warp bends every straight line in
-	# it (bridge towers, lamp posts). The drawing now stays as drawn; only the blood still keeps off it.
-	_deep_rects.append(Rect2(facade.position + (px.position - Vector2(trim, 0.0)) * facade.scale, px.size * facade.scale))
-	if true:
-		return
-	var d := Sprite2D.new()
-	d.texture = tex
-	d.centered = false
-	d.region_enabled = true
-	d.region_rect = px
-	d.scale = facade.scale
-	d.position = facade.position + (px.position - Vector2(trim, 0.0)) * facade.scale
-	d.modulate = facade.modulate
-	d.z_index = facade.z_index
-	var sh := Shader.new()
-	sh.code = DEEP_SHADER
-	var m := ShaderMaterial.new()
-	m.shader = sh
-	m.set_shader_parameter("box", Vector4(r.position.x, r.position.y, r.size.x, r.size.y))
-	m.set_shader_parameter("shift", Vector2.ZERO)
-	d.material = m
-	add_child(d)
-	var world := Rect2(d.position, px.size * facade.scale)
-	deeps.append({"sprite": d, "mat": m, "center": world.get_center(), "box": r})
+	var world := Rect2(facade.position + (px.position - Vector2(trim, 0.0)) * facade.scale, px.size * facade.scale)
 	_deep_rects.append(world)
+	# An alley in depth (2026-11-14): its far end slides against the wall as the camera passes and its
+	# side walls stretch and lean to follow, the way they would. Each piece is moved as one flat plane
+	# (an even stretch, a shear), so a straight line in it stays straight: no warp bends a lamp post.
+	if not DEEP_SPLIT.has(seg_name):
+		return
+	var cut: Array = DEEP_SPLIT[seg_name]
+	var xs := [0.0, float(cut[0]), float(cut[1]), 1.0]
+	var pieces: Array = []
+	for k in 3:
+		if float(xs[k + 1]) - float(xs[k]) < 0.01:
+			continue
+		var poly := Polygon2D.new()
+		poly.texture = tex
+		var u0: float = px.position.x + px.size.x * float(xs[k])
+		var u1: float = px.position.x + px.size.x * float(xs[k + 1])
+		poly.uv = PackedVector2Array([Vector2(u0, px.position.y), Vector2(u1, px.position.y), Vector2(u1, px.end.y), Vector2(u0, px.end.y)])
+		poly.modulate = facade.modulate
+		poly.material = facade.material
+		poly.z_index = facade.z_index
+		add_child(poly)
+		pieces.append({"poly": poly, "a": k, "b": k + 1})
+	deeps.append({"pieces": pieces, "world": world, "xs": xs, "center": world.get_center()})
+	_tick_one_deep(deeps[deeps.size() - 1], Vector2.ZERO)
 
 
 ## Slide the far end of every deep view against its wall, by where the camera is.
 func _tick_deep() -> void:
+	var half := 2000.0
 	for dp in deeps:
-		var r: Rect2 = dp["box"]
-		var off: Vector2 = cam.position - Vector2(dp["center"].x, dp["center"].y + 300.0)
-		var sx := clampf(off.x * 0.00005, -0.1, 0.1) * r.size.x / 0.15   # the far end moves at about a quarter of the wall's speed
-		var sy := clampf(off.y * 0.00004, -0.05, 0.05) * r.size.y
-		(dp["mat"] as ShaderMaterial).set_shader_parameter("shift", Vector2(sx * 0.15, sy))
+		var c: Vector2 = dp["center"]
+		if absf(cam.position.x - c.x) > half * 1.6:
+			continue
+		_tick_one_deep(dp, cam.position - Vector2(c.x, c.y + 300.0))
+
+
+func _tick_one_deep(dp: Dictionary, off: Vector2) -> void:
+	var w: Rect2 = dp["world"]
+	var xs: Array = dp["xs"]
+	# the inner edges (where a wall meets the far end) move; the mouth of the alley stays put
+	var room := w.size.x
+	for k in [1, 2]:
+		if float(xs[k]) > 0.0 and float(xs[k]) < 1.0:   # a wall on that side: it can give up to 70% of its width
+			var wall: float = (float(xs[k]) if k == 1 else 1.0 - float(xs[k])) * w.size.x
+			room = minf(room, wall * 0.7)
+	var s := clampf(off.x * DEEP_SLIDE, -room, room)
+	var v := clampf(off.y * DEEP_LIFT, -14.0, 14.0)
+	var edge := func(k: int) -> Array:   # x of that boundary, and how far it rises
+		var x: float = w.position.x + w.size.x * float(xs[k])
+		var moves: bool = k > 0 and k < 3 and float(xs[k]) > 0.0 and float(xs[k]) < 1.0
+		if k > 0 and k < 3 and not moves and (float(xs[1]) > 0.0 or float(xs[2]) < 1.0):
+			moves = false
+		return [x + (s if moves else 0.0), v if moves else 0.0]
+	for pc in dp["pieces"]:
+		var a: Array = edge.call(int(pc["a"]))
+		var b: Array = edge.call(int(pc["b"]))
+		(pc["poly"] as Polygon2D).polygon = PackedVector2Array([Vector2(a[0], w.position.y + a[1]), Vector2(b[0], w.position.y + b[1]),
+				Vector2(b[0], w.end.y + b[1]), Vector2(a[0], w.end.y + a[1])])
 
 
 ## The drawing under a point, whose solid parts a stain there is clipped to (null: none).
@@ -1810,11 +1853,15 @@ func _process(delta: float) -> void:
 		hud.pause_tapped = false
 		_pause()
 	hud.pause_tapped = false
+	_swap_boxes()
 	_enemies(delta)
 	_pickups()
 	_map_events(delta)
 	sets.tick(delta)
-	if not cleared and not over and player.position.x > level_end and _all_down():
+	if not cleared and not over and roof.is_empty() and player.position.x > level_end and _all_down():
+		_map_cleared()
+	elif not cleared and not over and not roof.is_empty() and player.position.x < float(roof["goal"]) \
+			and player.position.y < float(roof["y"]) + 60.0 and _roof_clear():
 		_map_cleared()
 	_slow_time(real)
 	atmo.blow_ash(_time)
@@ -1851,8 +1898,8 @@ func _process(delta: float) -> void:
 	var want_zoom := ROOM_ZOOM if _room != "" else ZOOM
 	cam.zoom = Vector2.ONE * lerpf(cam.zoom.x, want_zoom, 1.0 - exp(-3.0 * real))
 	var near := ZOOM / cam.zoom.x   # the pavement stays four fifths down the screen at any zoom
-	fore.modulate.a = move_toward(fore.modulate.a, 0.0 if _room != "" else 1.0, real * 3.0)   # no street furniture indoors
-	var want_y := CAM_Y * near + clampf(player.position.y * 0.45, -330.0, 0.0) + clampf(aim_n.y, -0.6, 0.6) * 90.0 * near
+	fore.modulate.a = move_toward(fore.modulate.a, 0.0 if _room != "" or player.position.y < -900.0 else 1.0, real * 3.0)   # no street furniture indoors, nor up on the scaffold
+	var want_y := CAM_Y * near + _cam_rise(player.position.y) + clampf(aim_n.y, -0.6, 0.6) * 90.0 * near
 	cam.position = Vector2(lerpf(cam.position.x, player.position.x + _lead, 1.0 - exp(-5.5 * real)),
 			lerpf(cam.position.y, want_y, 1.0 - exp(-3.0 * real)))
 	if _auto == "tops" and not boxes.is_empty():   # the test frames each crate close up
@@ -1901,17 +1948,25 @@ func _auto_step(delta: float) -> void:
 		if _bot_fight > 8.0:   # a man dug in behind cover: walk up on him, as a player would
 			fight = absf(near.position.x - player.position.x) < 420.0
 		hud.move = 0.0 if fight else 1.0
+		var lad = _bot_ladder()
+		if lad != null and (not fight or player.position.y < -10.0 and absf(near.position.y - player.position.y) > 60.0):
+			var lx: float = (lad["a"] as Vector2).x
+			hud.move = 0.0 if absf(lx - player.position.x) < 30.0 else signf(lx - player.position.x)
+			if absf(lx - player.position.x) < 50.0 and move_state == "ground":
+				hud.jump_tapped = true
+		elif not roof.is_empty() and player.position.y < float(roof["y"]) + 60.0 and not fight and move_state == "ground":
+			hud.move = -1.0   # along the roof the other way
 		if _bot_back > 0.0:   # missed the crane rope: back off and take a run at it again
 			_bot_back -= delta
 			hud.move = -1.0
 		if near != null and absf(near.position.x - player.position.x) < 1900.0:
 			hud.fire_tapped = true
-		if hud.move > 0.0 and move_state == "ground":
+		if hud.move != 0.0 and move_state == "ground":
 			for r in _ropes:   # a crane rope before a wall of cargo: jump for it
 				if r["kind"] == "swing" and player.position.x > (r["a"] as Vector2).x - 110.0 and player.position.x < (r["a"] as Vector2).x - 40.0:
 					hud.jump_tapped = true
 					print("BOT swing at ", int(player.position.x))
-			_bot_stuck = _bot_stuck + delta if player.position.x - _bot_x < 1.0 else 0.0
+			_bot_stuck = _bot_stuck + delta if (player.position.x - _bot_x) * signf(hud.move) < 1.0 else 0.0
 			if _bot_stuck > 1.5:
 				for r in _ropes:
 					var rx: float = (r["a"] as Vector2).x
@@ -1938,11 +1993,18 @@ func _auto_step(delta: float) -> void:
 		if DisplayServer.get_name() != "headless":   # with a screen: a few pictures of the chapter in play, then stop
 			var film := OS.get_cmdline_user_args().has("--film")   # a strip of frames, every 0.15 s from 6 s
 			if film:
-				var k := int((_at - 6.0) / 0.15)
+				var f0 := 6.0   # --film-at=T: the strip from T seconds, a frame every --film-step (0.15 s)
+				var fs := 0.15
+				for arg in OS.get_cmdline_user_args():
+					if arg.begins_with("--film-at="):
+						f0 = float(arg.trim_prefix("--film-at="))
+					if arg.begins_with("--film-step="):
+						fs = float(arg.trim_prefix("--film-step="))
+				var k := int((_at - f0) / fs)
 				if k >= 0 and k < 24 and _auto_done & (1 << k) == 0:
 					_auto_done |= 1 << k
 					_shot("film_%02d" % k)
-				if _at > 9.8:
+				if _at > f0 + fs * 24.0 + 0.2:
 					get_tree().quit()
 			else:
 				for i in 4:
@@ -2440,8 +2502,10 @@ func _auto_step(delta: float) -> void:
 		hp = max_hp
 		if _auto_done & (1 << (k + 16)) == 0:
 			_auto_done |= 1 << (k + 16)
-			player.position = Vector2(float(xs[k]), _floor_at(float(xs[k]), -2000.0))
-			cam.position.x = player.position.x + _lead
+			var at: PackedStringArray = xs[k].split("@")   # x@y: standing on whatever floor is under that height
+			var feet := float(at[1]) if at.size() > 1 else -2000.0
+			player.position = Vector2(float(at[0]), _floor_at(float(at[0]), feet))
+			cam.position = Vector2(player.position.x + _lead, CAM_Y + _cam_rise(player.position.y))
 		if OS.get_cmdline_user_args().has("--high"):   # the camera as high as a jump off a stack takes it
 			cam.position.y = CAM_Y - 330.0
 		if fmod(_at, 2.6) > 2.3 and _auto_done & (1 << k) == 0:
@@ -2820,6 +2884,8 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			move_state = "ground"
 	_block(before_x)
 	player.position.x = clampf(player.position.x, -1500.0, level_end + 500.0)
+	if not roof.is_empty() and player.position.y < float(roof["y"]) + 40.0:   # the firewalls at both ends of the roofs
+		player.position.x = clampf(player.position.x, float(roof["x0"]) + 70.0, float(roof["x1"]) - 70.0)
 	if move_state != "ground":
 		player.duck = move_toward(player.duck, 0.0, delta * 9.0)
 	player.ground = _floor_at(player.position.x, player.position.y - DIVE_LAND * player.dive) - player.position.y
@@ -2839,12 +2905,13 @@ func _floor_at(x: float, feet: float) -> float:
 		if x > b.position.x - 20.0 and x < b.end.x + 20.0 and feet <= b.position.y + 14.0 and b.position.y < best:
 			best = b.position.y
 			_last_kind = "box"
-	for c in catwalks:
+	for ci in catwalks.size():
+		var c: Rect2 = catwalks[ci]
 		if x > c.position.x and x < c.end.x and feet <= c.position.y + 14.0 and c.position.y < best:
 			if _drop_t > 0.0 and c.position.y <= _drop_y + 10.0:
 				continue
 			best = c.position.y
-			_last_kind = "floor"
+			_last_kind = "roof" if catwalk_solid[ci] else "floor"
 	for r in ramps:
 		var a: float = minf(r[0], r[2])
 		var b2: float = maxf(r[0], r[2])
@@ -3697,6 +3764,7 @@ func _player_down() -> void:
 				chapter += 1
 				map = 0
 				checkpoint = -1.0
+				checkpoint_y = 0.0
 				_travel(true)))
 		return
 	get_tree().create_timer(1.1, true, false, true).timeout.connect(hud.banner.bind("LIGHTS OUT"))
@@ -3757,6 +3825,7 @@ func _map_cleared() -> void:
 			chapter = next_c
 			map = next_m
 			checkpoint = -1.0
+			checkpoint_y = 0.0
 			in_menu = to_menu
 			_travel(not to_menu)
 		if cut != "":   # the story takes over for a page or two, then the next map
@@ -3796,6 +3865,7 @@ func _start_map(c: int, m: int) -> void:
 	chapter = c
 	map = m
 	checkpoint = -1.0
+	checkpoint_y = 0.0
 	in_menu = false
 	_travel(true)
 
@@ -3817,9 +3887,15 @@ func _map_events(delta: float) -> void:
 		pass
 		if atmo.splashes:
 			atmo.splashes.visible = room == ""
+	if not roof.is_empty() and player.position.y < float(roof["y"]) + 60.0 and not over:
+		for cx in roof["checks"]:   # along the roof he goes the other way: these are passed going left
+			if player.position.x < float(cx) and (checkpoint_y >= 0.0 or float(cx) < checkpoint):
+				checkpoint = float(cx)
+				checkpoint_y = float(roof["y"])
+				hud.toast("CHECKPOINT")
 	var cps: Array = level["checkpoints"]
-	while _check_i < cps.size() and player.position.x > float(cps[_check_i]):
-		if float(cps[_check_i]) > checkpoint and not over:
+	while _check_i < cps.size() and player.position.x > float(cps[_check_i]) and checkpoint_y >= 0.0:
+		if float(cps[_check_i]) > checkpoint and not over and checkpoint_y >= 0.0:
 			checkpoint = float(cps[_check_i])
 			hud.toast("CHECKPOINT")
 		_check_i += 1
@@ -4086,7 +4162,7 @@ func _build_level() -> void:
 		var bh := float(spec[3])
 		var place := _place_at(float(spec[1]) + bw * 0.5)
 		var choices: Array = (PROP_SETS.get(place, {}) as Dictionary).get(kind, [])
-		var local := kind != "barrel" and not choices.is_empty()
+		var local: bool = kind != "barrel" and not choices.is_empty() and (spec.size() <= 4 or float(spec[4]) == 0.0)   # up on the roof: tar drums and builders' crates
 		if local:   # the same spot always gets the same thing
 			art = String(choices[absi(int(float(spec[1]) / 37.0)) % choices.size()])
 		var tex: Texture2D = load("res://art/props/" + art + ".png")
@@ -4095,6 +4171,7 @@ func _build_level() -> void:
 		s.centered = false
 		var inset: float = TOP_INSET.get(art, 0.05)
 		var cx := float(spec[1]) + bw * 0.5
+		var base := float(spec[4]) if spec.size() > 4 else 0.0   # up on the roof, or on the street
 		var sx: float
 		var sy: float
 		if local:   # its own proportions at its real size
@@ -4108,15 +4185,15 @@ func _build_level() -> void:
 		var w := tex.get_width() * sx
 		var top := tex.get_height() * sy * (1.0 - inset)
 		s.scale = Vector2(sx, sy)
-		s.position = Vector2(cx - w * 0.5, -top - tex.get_height() * sy * inset + 3.0)
+		s.position = Vector2(cx - w * 0.5, base - top - tex.get_height() * sy * inset + 3.0)
 		s.z_index = -2
 		if BOX_ART.has(kind) and not local:
 			s.modulate = BOX_ART[kind][1]
 		elif local:
 			s.modulate = Color(0.84, 0.82, 0.79)   # the new drawings came out paler than the old crates: match them
 		add_child(s)
-		_ground_shadow(cx, w)
-		boxes.append(Rect2(cx - w * 0.5, -top, w, top))
+		_ground_shadow(cx, w, base)
+		boxes.append(Rect2(cx - w * 0.5, base - top, w, top))
 		if _auto != "":   # the audit: everything in its place and the right size beside a man
 			var why := ""
 			if art in INDOOR_ONLY and not place.begins_with("room:"):
@@ -4133,8 +4210,14 @@ func _build_level() -> void:
 	for c in level["floors"]:
 		var r := Rect2(float(c[0]), float(c[1]), float(c[2]), 0.0)
 		catwalks.append(r)
+		catwalk_solid.append(String(c[3]) == "roof")
 		if String(c[3]) == "floor":
 			_slab(r)
+			continue
+		if String(c[3]) == "roof":   # the roof drawing is the floor (see _build_roofs)
+			continue
+		if String(c[3]) == "scaffold":
+			_scaffold(r)
 			continue
 		# Ironwork baked at the game's scale (gen/iron.py): a landing bolted to the wall, or on the
 		# docks a walkway on its own legs. Deck and railing in front of the man on it; brackets behind.
@@ -4175,7 +4258,10 @@ func _build_level() -> void:
 	for spec in _cast(level["enemies"]):
 		var goal := Vector2(float(spec["x"]), float(spec["y"]))
 		var runner: bool = spec["run"]
-		if checkpoint > 0.0 and goal.x < checkpoint + 300.0 and (not runner or float(spec["trig"]) < checkpoint):
+		if checkpoint_y < 0.0 and checkpoint > 0.0:   # back on the roof: all below him, and those he passed up here, are done with
+			if goal.y > checkpoint_y + 100.0 or (goal.x > checkpoint - 300.0 and not runner):
+				continue
+		elif checkpoint > 0.0 and goal.x < checkpoint + 300.0 and (not runner or float(spec["trig"]) < checkpoint):
 			continue   # dealt with before the checkpoint
 		var e := _add_enemy(Vector2(float(spec["from"]), goal.y) if runner else goal, String(spec["kind"]), "wait" if runner else "post", goal.x)
 		e["trig"] = float(spec["trig"])
@@ -4183,6 +4269,33 @@ func _build_level() -> void:
 		if e["boss"]:
 			boss = e
 	_place_loads()
+	if not roof.is_empty():   # what is on the roof only matters up there, and the street only down here
+		var lo: Array[Rect2] = []
+		var hi: Array[Rect2] = []
+		var lo_i: Array = []
+		var hi_i: Array = []
+		for i in boxes.size():
+			if boxes[i].end.y < float(roof["y"]) + 50.0:
+				hi.append(boxes[i])
+				hi_i.append(box_info[i])
+			else:
+				lo.append(boxes[i])
+				lo_i.append(box_info[i])
+		_box_sets = {"lo": [lo, lo_i], "hi": [hi, hi_i]}
+		boxes = lo
+		box_info = lo_i
+		_box_up = false
+
+
+func _swap_boxes() -> void:
+	if _box_sets.is_empty():
+		return
+	var up: bool = player.position.y < float(roof["y"]) + 250.0
+	if up != _box_up:
+		_box_up = up
+		var set_: Array = _box_sets["hi" if up else "lo"]
+		boxes = set_[0]
+		box_info = set_[1]
 
 
 ## The difficulty curve. The prologue is Eddie at his best: the player sees what a man who has done
@@ -4519,6 +4632,11 @@ func _shield_stops(e: Dictionary, part: String) -> bool:
 ## An interior: its drawn back wall in front of the street (the middle of the drawing, where the
 ## depth is), black above its ceiling, and a doorway at each end.
 func _build_room(x0: float, x1: float, style: String) -> void:
+	var sky_top := -4200.0   # the dark over a room reaches up out of the picture; under the roofs only to their cornice
+	if not roof.is_empty():
+		var pics: Array = roof["pics"]
+		if x1 > float(pics[0][1]) and x0 < float(pics[pics.size() - 1][1]) + 3200.0:
+			sky_top = float(roof["y"]) + 200.0
 	var tex: Texture2D = load("res://art/rooms/" + style + ".png")
 	var wall := Sprite2D.new()
 	wall.texture = tex
@@ -4540,7 +4658,7 @@ func _build_room(x0: float, x1: float, style: String) -> void:
 	wall.modulate = Color.WHITE * ROOM_BASE
 	add_child(wall)
 	var roof := Polygon2D.new()   # everything above the ceiling is solid black
-	roof.polygon = PackedVector2Array([Vector2(x0, -4200), Vector2(x1, -4200), Vector2(x1, top + 2.0), Vector2(x0, top + 2.0)])
+	roof.polygon = PackedVector2Array([Vector2(x0, sky_top), Vector2(x1, sky_top), Vector2(x1, top + 2.0), Vector2(x0, top + 2.0)])
 	roof.color = Color(0.0, 0.0, 0.0)
 	roof.z_index = 9
 	add_child(roof)
@@ -4568,12 +4686,12 @@ func _build_room(x0: float, x1: float, style: String) -> void:
 		add_child(dark)
 		var out_x: float = x + side * 460.0   # outside, the street sinks into the building's shadow: no hard edge
 		var shade := Polygon2D.new()
-		shade.polygon = PackedVector2Array([Vector2(x, -4200), Vector2(out_x, -4200), Vector2(out_x, 40.0), Vector2(x, 40.0)])
+		shade.polygon = PackedVector2Array([Vector2(x, sky_top), Vector2(out_x, sky_top), Vector2(out_x, 40.0), Vector2(x, 40.0)])
 		shade.vertex_colors = PackedColorArray([Color(0, 0, 0, 1), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 1)])
 		shade.z_index = -4
 		add_child(shade)
 		var wall_side := Polygon2D.new()   # the outside wall of the building, cut away above the door
-		wall_side.polygon = PackedVector2Array([Vector2(-60, -560), Vector2(60, -560), Vector2(60, -3200), Vector2(-60, -3200)])
+		wall_side.polygon = PackedVector2Array([Vector2(-60, -560), Vector2(60, -560), Vector2(60, maxf(-3200.0, sky_top)), Vector2(-60, maxf(-3200.0, sky_top))])
 		wall_side.color = Color(0.0, 0.0, 0.0)
 		wall_side.position = Vector2(x, 0.0)
 		wall_side.z_index = 9
@@ -4671,6 +4789,70 @@ func _pendant(at: Vector2) -> void:
 
 
 ## A landing indoors.
+## The rooftops a map climbs to (gen/levels.py roofs): drawn at half the street's scale, the walked line
+## of the drawing on roof y, the firewall at the right edge of each left off where the next joins on.
+## Their cornice covers the tops of the facades below, and nothing of them shows from the street.
+const ROOF_SCALE := 0.95
+const ROOF_LINE := 0.828   # the top of the coping in the drawing, as a share of its height
+const ROOF_STUB := 190.0   # the firewall at a drawing's right edge, in its pixels
+func _build_roofs() -> void:
+	if roof.is_empty():
+		return
+	var pics: Array = roof["pics"]
+	for i in pics.size():
+		var tex: Texture2D = load("res://art/street/" + String(pics[i][0]) + ".png")
+		var sp := Sprite2D.new()
+		sp.texture = tex
+		sp.centered = false
+		sp.region_enabled = true
+		var keep := tex.get_width() - (ROOF_STUB if i < pics.size() - 1 else 0.0)
+		sp.region_rect = Rect2(0.0, 0.0, keep, tex.get_height())
+		sp.scale = Vector2.ONE * ROOF_SCALE
+		sp.position = Vector2(float(pics[i][1]), float(roof["y"]) - tex.get_height() * ROOF_SCALE * ROOF_LINE)
+		sp.z_index = -8   # over the facades' own glow (a lit sign at the top of a wall would shine through)
+		sp.material = atmo.blur_material(1.4)
+		sp.modulate = Color.WHITE * SEGMENT_MOON * 0.95
+		add_child(sp)
+
+
+## A floor of scaffolding: bays of tubes and planks (art/props/scaffold.png, the deck walked on 735 px
+## down the picture), each one storey tall, standing on the deck or the street below.
+const SCAF_DECK := 735.0
+const SCAF_STEP := 769.0
+func _scaffold(r: Rect2) -> void:
+	var tex: Texture2D = load("res://art/props/scaffold.png")
+	var below := minf(-r.position.y, 520.0)
+	var k := below / (tex.get_height() - SCAF_DECK)
+	var n := maxi(1, roundi(r.size.x / SCAF_STEP))
+	var w := tex.get_width() * k
+	for i in n:
+		var sp := Sprite2D.new()
+		sp.texture = tex
+		sp.centered = false
+		sp.scale = Vector2.ONE * k
+		sp.position = Vector2(r.position.x + r.size.x * (i + 0.5) / n - w * 0.5, r.position.y - SCAF_DECK * k)
+		sp.z_index = -3
+		sp.modulate = Color(0.84, 0.82, 0.79)
+		add_child(sp)
+
+
+## How far the camera rises with him: a little on a landing, and all the way with him up the scaffold,
+## so on the roof the roof sits where the pavement does.
+func _cam_rise(y: float) -> float:
+	var low := clampf(y * 0.45, -330.0, 0.0)
+	if roof.is_empty() or y > -600.0:
+		return low
+	return lerpf(low, y, smoothstep(-600.0, -1500.0, y))
+
+
+## Everyone up on the roof is down (the street below is left behind him).
+func _roof_clear() -> bool:
+	for e in enemies:
+		if e["alive"] and (e["node"].position.y < float(roof["y"]) + 100.0 or e["state"] == "wait"):
+			return false
+	return true
+
+
 func _slab(r: Rect2) -> void:
 	var beam := Polygon2D.new()
 	beam.polygon = PackedVector2Array([r.position + Vector2(0, -6), r.position + Vector2(r.size.x, -6), r.position + Vector2(r.size.x, 34), r.position + Vector2(0, 34)])
@@ -4982,9 +5164,24 @@ func _nearest_enemy(side := 0.0):
 		var dx: float = e["node"].position.x - player.position.x
 		if absf(dx) > SIGHT or (side != 0.0 and signf(dx) != side):
 			continue
+		if absf(e["node"].position.y - player.position.y) > 1300.0:   # storeys below him on the street, out of the picture
+			continue
 		if best == null or absf(dx) < absf(best.position.x - player.position.x):
 			best = e["node"]
 	return best
+
+
+## The bot's way up the scaffold: the ladder that stands on the floor he is on (on the street, only
+## once he has come to it).
+func _bot_ladder():
+	if roof.is_empty() or player.position.y < float(roof["y"]) + 60.0:
+		return null
+	for r in _ropes:
+		if r["kind"] != "ladder" or absf(player.position.y - float(r["bottom"])) > 40.0:
+			continue
+		if player.position.y < -10.0 or player.position.x > (r["a"] as Vector2).x - 500.0:
+			return r
+	return null
 
 
 ## True when the detective is crouched with cover between him and a mobster on side `side` (+1 = right).
@@ -4992,6 +5189,8 @@ func _player_covered(side: float) -> bool:
 	if player.duck < 0.6 or move_state != "ground":
 		return false
 	for bx in boxes:
+		if absf(bx.end.y - player.position.y) > 60.0:   # a crate up on the roof is no cover in the street
+			continue
 		var near_edge: float = bx.position.x if side > 0.0 else bx.end.x
 		var gap: float = (near_edge - player.position.x) * side
 		if gap > -10.0 and gap < 260.0 and bx.size.y > 200.0:
@@ -5140,9 +5339,12 @@ func _enemies(delta: float) -> void:
 			m.set_state(signf(player.position.x - m.position.x) * -0.0, player.position - m.position, delta)
 			continue
 		if e["state"] == "wait":   # a runner holds back, out of sight, until the detective passes his mark
-			if player.position.x > float(e["trig"]):
+			var passed: bool = player.position.x > float(e["trig"])
+			if not roof.is_empty() and m.position.y < float(roof["y"]) + 60.0:   # up on the roof he is coming the other way
+				passed = player.position.x < float(e["trig"]) and player.position.y < float(roof["y"]) + 60.0
+			if passed:
 				e["delay"] = float(e["delay"]) - delta
-			if player.position.x > float(e["trig"]) and float(e["delay"]) <= 0.0:
+			if passed and float(e["delay"]) <= 0.0:
 				e["state"] = "run"
 				e["seen"] = true
 				m.visible = true
@@ -5562,6 +5764,9 @@ func _tick_aim_line() -> void:
 
 ## ---- Ropes: up a fire escape hand over hand, down a cable from the roof with the gun out, across
 ## the quay on a crane's rope. Grabbed by jumping (or running off a landing) with his hands on it.
+const LADDER_W := 125.0       # rail to rail
+const LADDER_PROUD := 230.0   # how far it stands up past the deck it leans on
+const LADDER_HANDS := 200.0   # his hands at the top, before he steps off onto the deck
 const ROPE_REACH := 392.0       # feet to fists, arms straight up (the puppet's hang_top: 1.95 m)
 const SWING_ANCHOR := -1460.0   # the crane's jib, above the top of the picture
 const SWING_BOTTOM := -650.0   # the rope's end: within reach of a jump
@@ -5598,7 +5803,30 @@ func _rope_line(tex_tint: Color, width: float) -> Line2D:
 func _add_rope(ro: Array) -> void:
 	var kind := String(ro[0])
 	var r := {"kind": kind}
-	if kind == "climb":   # knotted to the landing's rail, the end coiled on the stones
+	if kind == "ladder":   # a builder's ladder from one deck (or the street) up to the next, standing proud of it
+		var x := float(ro[1])
+		var top := float(ro[2])
+		var bottom := float(ro[4])
+		r["a"] = Vector2(x, top - LADDER_HANDS)
+		r["b"] = Vector2(x, bottom - 10.0)
+		r["top"] = top
+		r["bottom"] = bottom
+		var tex: Texture2D = load("res://art/props/ladder.png")
+		var k := LADDER_W / tex.get_width()
+		var sp := Sprite2D.new()
+		sp.texture = tex
+		sp.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+		sp.centered = false
+		sp.region_enabled = true
+		var h := bottom - top + LADDER_PROUD
+		sp.region_rect = Rect2(0.0, 0.0, tex.get_width(), h / k)
+		sp.scale = Vector2.ONE * k
+		sp.position = Vector2(x - LADDER_W * 0.5, top - LADDER_PROUD)
+		sp.z_index = -1
+		sp.modulate = Color(0.84, 0.82, 0.79)
+		add_child(sp)
+		r["line"] = sp
+	elif kind == "climb":   # knotted to the landing's rail, the end coiled on the stones
 		var x := float(ro[1])
 		r["a"] = Vector2(x, float(ro[2]) - 92.0)
 		r["b"] = Vector2(x, -10.0)
@@ -5685,9 +5913,11 @@ func _grab_rope() -> void:
 			continue
 		if r["kind"] == "climb" and fall < -200.0 and near.y > -200.0:
 			continue
+		if r["kind"] == "ladder" and fall < -200.0 and near.y > float(r["bottom"]) - 200.0:
+			continue
 		_rope = r
 		_hand = near
-		move_state = String(r["kind"])
+		move_state = "climb" if r["kind"] == "ladder" else String(r["kind"])
 		player.hang = 1.0
 		player.air = 0.0
 		player.dive = 0.0
@@ -5736,12 +5966,12 @@ func _on_rope(dir: float, jump: bool, down: bool, delta: float) -> void:
 		if jump:   # lets go
 			_let_go(signf(player.scale.x) * 160.0, 0.0)
 			return
-		var v := 700.0 if down else -330.0   # up hand over hand; the stick down slides him down
+		var v := (700.0 if down else -330.0) if r["kind"] == "climb" else (-420.0 if not down else 520.0)   # up hand over hand; the stick down slides him down
 		_hand.y = clampf(_hand.y + v * delta, (r["a"] as Vector2).y, (r["b"] as Vector2).y)
 		_climbed += absf(v * delta)
 		player.hang_cycle = fmod(_climbed / 260.0, 1.0) if not down else -1.0
 		player.position = Vector2((r["a"] as Vector2).x - 12.0 * signf(player.scale.x), _hand.y + ROPE_REACH)
-		if not down and fmod(_climbed, 130.0) < 330.0 * delta:
+		if not down and fmod(_climbed, 130.0) < absf(v) * delta:
 			sfx.play("step1", -14.0, INF, 0.2)
 		if _mantle_t >= 0.0:   # hands on the rail: he hauls himself up and over it onto the landing
 			_mantle_t += delta
@@ -5767,10 +5997,13 @@ func _on_rope(dir: float, jump: bool, down: bool, delta: float) -> void:
 				if absf(c.position.y - top) < 2.0 and player.position.x > c.position.x - 160.0 and player.position.x < c.end.x + 160.0:
 					var into := 1.0 if absf(player.position.x - c.position.x) < absf(player.position.x - c.end.x) else -1.0
 					_mantle_to = Vector2((c.position.x + 90.0) if into > 0.0 else (c.end.x - 90.0), top)
+					if r["kind"] == "ladder":   # off the ladder onto the deck beside it, the way he faces
+						var side := signf(player.scale.x)
+						_mantle_to = Vector2(clampf((r["a"] as Vector2).x + side * 110.0, c.position.x + 90.0, c.end.x - 90.0), top)
 			sfx.play("hit_cover", -14.0, INF, 0.1)   # his hand on the iron
 			return
-		if down and player.position.y >= -2.0:
-			player.position.y = 0.0
+		if down and player.position.y >= float(r.get("bottom", 0.0)) - 2.0:
+			player.position.y = float(r.get("bottom", 0.0))
 			_let_go(0.0, 0.0)
 			move_state = "ground"
 			return

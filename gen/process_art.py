@@ -19,6 +19,10 @@ STREET = {
     'quay': ('45.png', 134, False), 'harbor': ('46.png', 134, False),
     # chapter III, underground: the subway, its tunnels, and the train yard up in the rain
     'platform': ('66.png', 134, False), 'tunnel': ('67.png', 134, False), 'yard': ('68.png', 134, False),
+    # the modular kits (2026-11-14): flat side-on, both edges the same joint, nothing runs into the depth over the floor
+    'station14': ('103.png', 134, False),
+    # chapter I, under the rooftops: the facade fills the picture to a straight cornice along its top edge
+    'tenrow_a': ('111.png', 125, False), 'tenrow_b': ('112.png', 125, False),
 }
 # measured on the whole picture, before the right frame comes off: scaled to the trimmed one below
 FULL = 3168.0
