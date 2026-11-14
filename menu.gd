@@ -130,7 +130,7 @@ static func stars(chapter: int, map: int) -> int:
 
 
 ## The player's settings: music and sound volume 0..10, screen shake and aim assist on or off.
-const SETTING_DEFAULTS := {"music": 7, "sound": 8, "shake": true, "assist": true}
+const SETTING_DEFAULTS := {"music": 7, "sound": 8, "shake": true, "assist": true, "difficulty": 1}
 
 static func setting(key: String):
 	var cfg := _save()

@@ -80,7 +80,8 @@ const BOSS_NAMES := {"teague": "MICKEY 'CANVAS' TEAGUE", "kessler": "BRUNO KESSL
 const BOSS_FACES := {"teague": "boxer", "kessler": "cap", "briggs": "briggs"}
 # chapter III: Frank's own department hunting him. Police heads (art/police/heads), and the dark blue of the uniform.
 const COP_HEADS := {"patrol": 131.5, "rain": 143.5, "sergeant": 126.5, "briggs": 123.5}
-const COP_FACES := {"post": ["patrol", "rain", "sergeant"], "tommy": ["sergeant", "patrol"], "shotgun": ["rain", "patrol"], "boss": ["briggs"]}
+const COP_FACES := {"post": ["patrol", "rain", "sergeant"], "tommy": ["sergeant", "patrol"], "shotgun": ["rain", "patrol"], "boss": ["briggs"],
+		"shield": ["rain", "patrol"], "sniper": ["sergeant"]}
 const COP_TINT := Color(0.74, 0.8, 1.0)
 const ChoiceScript = preload("res://choice.gd")
 # which chapter and map are being played, and whether the case file (menu) is open; static, so they
@@ -121,6 +122,7 @@ const WEAPONS := {
 	"pistols": {"mag": 14, "reload": 0.95, "cool": 0.11, "ammo": 42, "pellets": 1, "spread": 0.025, "life": 1.4, "kick": 0.12, "sound": "shot_enemy", "name": "TWO PISTOLS"},
 	"tommy": {"mag": 30, "reload": 1.2, "cool": 0.085, "ammo": 60, "pellets": 1, "spread": 0.05, "life": 1.4, "kick": 0.08, "sound": "shot_tommy", "name": "TOMMY GUN"},
 	"shotgun": {"mag": 5, "reload": 1.1, "cool": 0.7, "ammo": 10, "pellets": 6, "spread": 0.15, "life": 0.3, "kick": 0.35, "sound": "shot_shotgun", "name": "SHOTGUN"},
+	"rifle": {"mag": 5, "reload": 1.6, "cool": 1.0, "ammo": 0, "pellets": 1, "spread": 0.0, "life": 1.8, "kick": 0.4, "sound": "shot_shotgun", "name": "RIFLE"},   # the marksman's: never Frank's
 }
 const WOOD := ["crate", "crate_long", "kegs", "barrel", "milk_crates", "fruit_cart", "bench", "cable_spool", "linen_table", "desk", "court_bench", "newsstand", "paper_bundles"]
 # How far down each drawing its top surface is, the line a man stands on: the drawings are seen a
@@ -178,7 +180,7 @@ const IRON_FOOT := Vector2(49.5, 550.8)   # the lowest tread in the flight drawi
 const INDOOR_ONLY := ["washer", "wash_tub", "linen_table", "desk", "filing", "safe", "court_bench"]
 const OUTDOOR_ONLY := ["mailbox", "fruit_cart", "dumpster", "hydrant", "bench"]
 const BOX_ART := {"barrel": ["drum", Color(0.72, 0.3, 0.25)], "machine": ["dumpster", Color(0.7, 0.72, 0.78)], "bar": ["crate_long", Color(0.45, 0.32, 0.26)]}
-const ENEMY_MAG := {"post": 6, "tommy": 3, "shotgun": 4, "boss": 5}   # shots (a tommy gunner's: bursts) before a reload
+const ENEMY_MAG := {"post": 6, "tommy": 3, "shotgun": 4, "boss": 5, "sniper": 5, "shield": 6, "dynamite": 99, "hook": 99}   # shots (a tommy gunner's: bursts) before a reload
 const ENEMY_TINT := {"post": Color(1, 1, 1), "tommy": Color(0.82, 0.86, 1.0), "shotgun": Color(1.0, 0.9, 0.78), "boss": Color(1, 1, 1)}
 var ambient := AMBIENT
 const SIGHT := 2100.0   # a mobster starts shooting once the detective is this close
@@ -324,6 +326,7 @@ const TEST_SHOTS := [[1.2, "cover_duck"], [1.68, "cover_pop"], [3.9, "stain"], [
 var _tt_done := 0
 var _duck_was := false        # the crouch key was down last frame: a fresh press while running slides
 var _pop := 0.0               # seconds the detective stays risen out of his crouch to shoot
+var _test_aim := Vector2.INF   # the ricochet test aims here
 var _aim_point := Vector2.INF   # where the detective aims, in the world, this frame
 var _fire_buf := 0.0          # a tap that came while the gun was still cycling: fired as soon as it is ready
 var _death_t := -1.0          # real seconds since the detective went down
@@ -1725,6 +1728,8 @@ func _process(delta: float) -> void:
 		var target = _nearest_enemy()
 		if target != null:
 			aim = target.position + SHOULDER + Vector2(0.0, DUCK_DROP * target.duck) - chest
+	if _auto == "ricochet" and _test_aim != Vector2.INF:
+		aim = _test_aim - chest
 	_aim_point = chest + aim
 	dir = _move(dir, aim, delta)
 	if not over:
@@ -1801,6 +1806,7 @@ func _process(delta: float) -> void:
 	_tick_neons(delta)
 	_tick_birds(delta)
 	_tick_hat_rain()
+	_tick_aim_line()
 	_tick_deep()
 	moonlight.energy = lerpf(0.35, 0.62, clampf(-player.position.y / 650.0, 0.0, 1.0))
 	_tick_sky(delta)
@@ -2248,6 +2254,107 @@ func _auto_step(delta: float) -> void:
 			print("GIVE spared ", stats["spared"], " all down ", _all_down())
 			get_tree().quit()
 		return
+	elif _auto.begins_with("men:"):   # --test=men:hook / dynamite / sniper / shield / load: one of the chapter's men at work
+		var what := _auto.trim_prefix("men:")
+		if _auto_done & 1 == 0:
+			_auto_done |= 1
+			for e in enemies:
+				e["alive"] = false
+				e["node"].visible = false
+			var x0 := 4200.0
+			while _has_cover(Vector2(x0, 0.0)) or _room_at(x0) != "" or _has_cover(Vector2(x0 + 900.0, 0.0)):
+				x0 += 300.0
+			player.position = Vector2(x0, 0.0)
+			if what == "load":
+				var e2 := _add_enemy(Vector2(x0 + 800.0, 0.0), "post", "post", x0 + 800.0)
+				e2["seen"] = true
+				e2["cool"] = 99.0
+				_place_loads()
+			else:
+				var e := _add_enemy(Vector2(x0 + (500.0 if what == "hook" else 900.0), 0.0), what, "post", x0 + 900.0)
+				e["seen"] = true
+				e["cool"] = 0.4
+				if what == "shield":
+					e["cool"] = 99.0
+		_grace = 0.0
+		hp = max_hp
+		cam.position.x = player.position.x + 420.0
+		if what == "load" and _at > 1.5 and _auto_done & 2 == 0:
+			_auto_done |= 2
+			for ld in _loads:
+				_load_hit(Vector2(float(ld["x"]), float(ld["top"]) - 300.0))
+		var times := [0.6, 1.0, 1.35, 1.7, 2.2, 3.0]
+		for i in times.size():
+			var bit := 1 << (2 + i)
+			if _at > times[i] and _auto_done & bit == 0:
+				_auto_done |= bit
+				_shot("men_%s_%d" % [what, i])
+		if _at > 3.2:
+			print("MEN ", what, " hp ", hp, "/", max_hp, " sticks ", _sticks.size(), " loads ", _loads.size(), " boxes ", boxes.size())
+			get_tree().quit()
+		return
+	elif _auto == "ricochet":   # aim at the nearest steel box in slowed time: the line, then the shot off it
+		hp = max_hp
+		_grace = 99.0
+		if _auto_done & 1 == 0:
+			_auto_done |= 1
+			var best := -1
+			for i in boxes.size():
+				if not box_info[i]["wood"] and box_info[i]["kind"] != "barrel" and boxes[i].position.x > 2600.0 and (best < 0 or boxes[i].position.x < boxes[best].position.x):
+					best = i
+			_kick_target = best
+			player.position = Vector2(boxes[best].position.x - 520.0, 0.0)
+			for e in enemies:
+				e["alive"] = false
+				e["node"].visible = false
+			slow_on = true
+		var bx: Rect2 = boxes[int(_kick_target)]
+		slow_on = true
+		slow_left = 1.0
+		_test_aim = Vector2(bx.position.x + 4.0, bx.position.y + 30.0)
+		cam.position.x = player.position.x + 420.0
+		if _at > 1.4 and _auto_done & 2 == 0:
+			_auto_done |= 2
+			_shot("ricochet_line")
+			_fire(player, true)
+		if _at > 1.75 and _auto_done & 4 == 0:
+			_auto_done |= 4
+			_shot("ricochet_shot")
+		if _at > 2.0:
+			print("RICOCHET box ", box_info[int(_kick_target)]["kind"], " ", boxes[int(_kick_target)], " player ", player.position, " line ", _aim_line.visible if _aim_line else false, " pts ", _aim_line.points.size() if _aim_line else 0, " ts ", Engine.time_scale, " diff ", diff_step, " ch ", chapter, " over ", over, " rel ", reloading)
+			get_tree().quit()
+		return
+	elif _auto == "kick":   # a dive into the nearest mobster: the kick, him on his back, what he does next
+		hp = max_hp
+		_grace = 99.0
+		var first = null
+		for e in enemies:
+			if e["alive"] and (first == null or e["node"].position.x < first["node"].position.x) and e["node"].position.y == 0.0 and e["state"] == "post":
+				first = e
+		if _auto_done & 1 == 0:
+			_auto_done |= 1
+			player.position = Vector2(first["node"].position.x - 520.0, 0.0)
+			for e in enemies:
+				if e != first:
+					e["alive"] = false
+					e["node"].visible = false
+			first["seen"] = true
+			first["cool"] = 99.0
+			_kick_target = first
+		cam.position.x = player.position.x + 350.0
+		if _at > 1.0 and _auto_done & 2 == 0:
+			_auto_done |= 2
+			_start_dive(1.0, 1.0, DIVE_SPEED.y, true)
+		var times := [1.18, 1.5, 2.4, 3.9, 5.6]
+		for i in times.size():
+			var bit := 1 << (2 + i)
+			if _at > times[i] and _auto_done & bit == 0:
+				_auto_done |= bit
+				print("KICK t ", times[i], " state ", _kick_target["state"], " x ", int(_kick_target["node"].position.x), " slide ", snappedf(_kick_target["node"].slide, 0.01))
+				_shot("kick_%d" % i)
+		if _at > 5.9:
+			get_tree().quit()
+		return
 	elif _auto.begins_with("look:"):   # --test=look:x1,x2,...: stand at each x for a moment, take a picture
 		var xs := _auto.trim_prefix("look:").split(",")
 		var k := int(_at / 2.6)
@@ -2532,6 +2639,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			steps.restart()
 			sfx.play("land", -4.0)
 	elif move_state == "dive":
+		_kick_check()
 		fall += _dive_g() * delta
 		player.position.y += fall * delta
 		player.position.x += glide * delta
@@ -2752,6 +2860,7 @@ func _dive_g() -> float:
 func _start_dive(way: float, facing: float, up: float, from_run: bool) -> void:
 	sfx.play("dive", -2.0)
 	move_state = "dive"
+	_kicked_this_dive = false
 	glide = DIVE_SPEED.x * way
 	fall = up
 	_vaulted = false
@@ -2997,6 +3106,17 @@ func _enemy_fire(e: Dictionary) -> void:
 		"shotgun":
 			_fire(m, false, "shotgun")
 			e["cool"] = randf_range(1.5, 2.0)
+		"sniper":   # he does not fire yet: he sights in, and the line shows where
+			e["aim_t"] = 1.25
+			e["cool"] = 99.0
+			sfx.play("hammer", -6.0, m.position.x, 0.05)
+			return
+		"dynamite":
+			if absf(player.position.x - m.position.x) < 320.0 or absf(player.position.x - m.position.x) > 1400.0:
+				e["cool"] = 0.6   # too close to throw, or too far: he waits
+				return
+			_throw_stick(m)
+			e["cool"] = randf_range(2.6, 3.4)
 		_:
 			_fire(m, false)
 			e["cool"] = randf_range(1.4, 2.3)
@@ -3056,6 +3176,8 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 			# nobody; beside it, its steel stops what comes from the other side
 			if box_info[i]["kind"] == "car" and player.position.x > boxes[i].position.x - 60.0 and player.position.x < boxes[i].end.x + 60.0:
 				continue
+			if from_player and _ricochet(i, pos):
+				return true
 			if from_player and box_info[i]["wood"] and _knack("lead", 2):   # through the planks and on
 				if randf() < 0.2:
 					fx.spark(pos)
@@ -3064,6 +3186,13 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 			return true
 	if from_player and sets.bullet(pos):
 		return true
+	if from_player:
+		for k in _sticks.size():   # a stick of dynamite, hit: it goes up right there
+			if ((_sticks[k]["node"] as Sprite2D).position - pos).length() < 50.0:
+				_stick_goes(k)
+				return true
+		if _load_hit(pos):
+			return true
 	if from_player:
 		for i in lamps.size():
 			if lamp_info[i]["on"] and not lamp_info[i].get("fixed", false) and pos.distance_to(lamps[i] + Vector2(0.0, float(lamp_info[i].get("glass", -8.0)))) < float(lamp_info[i].get("r", 38.0)):
@@ -3080,6 +3209,8 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 				sfx.play("hit_cover", -2.0, pos.x, 0.12)
 				_word(["zing"], pos + Vector2(0.0, -90.0), 0.16)
 				return true
+			if e["state"] == "down":   # a man on his back takes one bullet
+				e["hp"] = 1
 			if e["state"] == "give" and float(e["give_t"]) >= 0.0:   # an execution: quick to pay, slow to forget
 				fx.blood(pos, fx.hit_vel, true)
 				e["node"].add_wound(pos, part)
@@ -3164,6 +3295,69 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 			slow_on = true
 			hud.toast("LAST CHANCE")
 	return true
+
+
+## The kick: a dive into a man knocks him flat on his back. On the pavement he cannot shoot and one
+## bullet finishes him; left alone he either gets up again or, shaken, gives up where he lies.
+## Frank's move (not the prologue's, not a boss, not a shield).
+func _kick_check() -> void:
+	if diff_step < 0 or _kicked_this_dive:
+		return
+	for e in enemies:
+		if not e["alive"] or e["boss"] or e.has("shield") or not (String(e["state"]) in ["post", "run", "move", "hop"]):
+			continue
+		var m = e["node"]
+		var dx: float = m.position.x - player.position.x
+		if absf(dx) > 120.0 or signf(dx) != signf(glide) or absf(m.position.y - player.position.y) > 260.0:
+			continue
+		_kicked_this_dive = true
+		e["state"] = "down"
+		e["down_t"] = 0.0
+		e["seen"] = true
+		m.duck = 0.0
+		m.slide_side = 1.0   # (his own forward: he faces Frank) on his back, boots towards the man who kicked him
+		e["push"] = signf(dx) * 700.0   # he skids back along the wet stones
+		glide *= 0.12   # the kick takes the speed out of the dive: Frank drops in front of him
+		sfx.play("punch", 0.0, m.position.x, 0.08)
+		_word(["wham", "pow"], m.position + Vector2(0.0, -300.0), 0.3)
+		_shake = maxf(_shake, 0.22)
+		stats["kicks"] = int(stats.get("kicks", 0)) + 1
+		return
+
+
+const KNOCK_ROLL := 0.5
+func _knocked(e: Dictionary, delta: float) -> void:
+	var m = e["node"]
+	e["down_t"] = float(e["down_t"]) + delta
+	var t: float = e["down_t"]
+	m.slide = move_toward(m.slide, 1.0 if t < 2.3 else 0.0, delta * (6.0 if t < 2.3 else 2.5))
+	m.roll = -KNOCK_ROLL * m.slide   # flat on his back, not sitting
+	var push: float = e.get("push", 0.0)
+	if push != 0.0:
+		var step := push * delta
+		var blocked := false
+		for bx in boxes:
+			if bx.grow(30.0).has_point(Vector2(m.position.x + step * 4.0, -60.0)):
+				blocked = true
+		if not blocked:
+			m.position.x += step
+		e["push"] = move_toward(push, 0.0, 1100.0 * delta)
+	m.set_state(0.0, Vector2(signf(player.position.x - m.position.x), 0.4), delta)
+	if t > 2.3 and not e.has("decided"):   # he has had time to think about it
+		e["decided"] = true
+		var gives: float = 0.45 + (0.25 if _knack("mercy", 0) else 0.0) + (0.2 if e.get("shaken", false) else 0.0)
+		if randf() < gives:
+			m.slide = 0.0
+			m.roll = 0.0
+			_give_up(e)
+			return
+	if t > 2.8:
+		m.slide = 0.0
+		m.roll = 0.0
+		e.erase("decided")
+		e["state"] = "post"
+		e["cover"] = _has_cover(m.position)
+		e["cool"] = randf_range(0.8, 1.3)
 
 
 ## A mobster goes down: counted for the score, his gun left on the pavement.
@@ -3275,7 +3469,6 @@ func _break_box(i: int) -> void:
 
 ## A barrel goes up: everyone close is thrown down, crates near it burst, other barrels follow it.
 func _explode(at: Vector2, i: int) -> void:
-	_scare_birds(at, 2600.0)
 	if i >= boxes.size() or boxes[i].get_center() != at:
 		i = -1
 		for k in boxes.size():
@@ -3286,6 +3479,13 @@ func _explode(at: Vector2, i: int) -> void:
 	box_info[i]["sprite"].queue_free()
 	boxes.remove_at(i)
 	box_info.remove_at(i)
+	_blast(at, 380.0, 330.0, 2)
+
+
+## A blast at `at`: men within `reach` go down, Frank within `hurt_reach` takes `hits`, crates near it
+## break, barrels near it follow, lamps near it go out.
+func _blast(at: Vector2, reach: float, hurt_reach: float, hits: int) -> void:
+	_scare_birds(at, 2600.0)
 	sfx.play("explosion", 2.0, at.x, 0.0)
 	_shake = 0.5
 	fx.word("res://art/fx/word_krakoom.png", at + Vector2(0.0, -260.0), 0.5)
@@ -3307,7 +3507,7 @@ func _explode(at: Vector2, i: int) -> void:
 	for k in 8:
 		fx.spark(at + Vector2(randf_range(-160.0, 160.0), randf_range(-200.0, 40.0)))
 	for e in enemies:
-		if e["alive"] and e["state"] != "wait" and e["node"].position.distance_to(at + Vector2(0.0, 60.0)) < 380.0:
+		if e["alive"] and e["state"] != "wait" and e["node"].position.distance_to(at + Vector2(0.0, 60.0)) < reach:
 			if e["boss"]:
 				e["hp"] -= 4
 				hud.boss_bar(BOSS_NAMES.get(String(level["boss"]), "BOSS"), float(e["hp"]) / BOSS_HP)
@@ -3315,8 +3515,8 @@ func _explode(at: Vector2, i: int) -> void:
 					continue
 				hud.boss_bar("", -1.0)
 			_kill(e, false, true, "blast")
-	if not over and player.position.distance_to(at + Vector2(0.0, 60.0)) < 330.0 and _auto == "":
-		hp -= 2
+	if not over and player.position.distance_to(at + Vector2(0.0, 60.0)) < hurt_reach and _auto == "":
+		hp -= hits
 		stats["hits"] += 1
 		hud.set_health(float(hp) / max_hp)
 		if hp <= 0:
@@ -3878,6 +4078,7 @@ func _build_level() -> void:
 		e["delay"] = float(spec["delay"])
 		if e["boss"]:
 			boss = e
+	_place_loads()
 
 
 ## The difficulty curve. The prologue is Eddie at his best: the player sees what a man who has done
@@ -3897,9 +4098,18 @@ const CURVE := [
 	[10, {"density": 11.0, "mob_hp": 3, "aim": 0.92, "pause": 0.92, "shooters": 3, "heavy": 0.2}],
 	[15, {"density": 13.5, "mob_hp": 4, "aim": 0.85, "pause": 0.85, "shooters": 3, "heavy": 0.3}],
 ]
+# The three settings on top of the curve: hits Frank can take, how many men, how well they aim, how
+# long they wait between shots, how many may fire at once.
+const DIFFICULTY := [
+	{"hp": 1, "density": 0.8, "aim": 1.25, "pause": 1.2, "shooters": 0},
+	{"hp": 0, "density": 1.0, "aim": 1.0, "pause": 1.0, "shooters": 0},
+	{"hp": -1, "density": 1.15, "aim": 0.85, "pause": 0.85, "shooters": 1},
+]
 const EDDIE := {"hp": PLAYER_HP, "drain": 0.28, "refill": 0.14, "density": -1.0, "mob_hp": MOBSTER_HP, "aim": 1.0, "pause": 1.0, "shooters": 2, "heavy": 0.0}
 var diff: Dictionary = EDDIE
 var _last_chance_used := false
+var _kicked_this_dive := false
+var _kick_target = null   # the kick test's man
 var _last_round_t := 0.0   # the LAST ROUND instinct: seconds the last bullet still kills whatever it hits
 var diff_step := -1   # -1 in the prologue
 
@@ -3924,8 +4134,14 @@ func _set_difficulty(hero: String) -> void:
 		diff = EDDIE.duplicate()
 	else:
 		diff = _curve_at(step)
+		var lvl := int(MenuScript.setting("difficulty"))   # 0 easy, 1 normal, 2 hard (settings)
+		var k: Dictionary = DIFFICULTY[clampi(lvl, 0, 2)]
+		diff["density"] = float(diff["density"]) * float(k["density"])
+		diff["aim"] = float(diff["aim"]) * float(k["aim"])
+		diff["pause"] = float(diff["pause"]) * float(k["pause"])
+		diff["shooters"] = clampi(int(diff["shooters"]) + int(k["shooters"]), 1, 3)
 		var r := Instincts.rank()
-		diff["hp"] = r[0]
+		diff["hp"] = maxi(2, int(r[0]) + int(k["hp"]))
 		diff["drain"] = float(r[1]) * (0.8 if _knack("time", 0) else 1.0)
 		diff["refill"] = r[2]
 	max_hp = int(diff["hp"])
@@ -4000,7 +4216,49 @@ func _cast(specs: Array) -> Array:
 					g["kind"] = ["tommy", "shotgun"][heavy_pick % 2]
 					heavy_pick += 1
 			out.append(g)
-	return out
+	return _chapter_men(out)
+
+
+## Each chapter brings its own men (GDD 8). The docks: longshoremen with cargo hooks who come running,
+## a man lobbing dynamite from a height, a marksman with a scoped rifle. Underground: police with steel
+## shields and a flashlight that finds Frank in the dark, and a police marksman. Only plain gunmen are
+## swapped, spread evenly; the counts grow a little through the chapter.
+const CHAPTER_MEN := {
+	2: [["hook", 0.16, "any"], ["dynamite", 0.1, "high"], ["sniper", 0.07, "far"]],
+	3: [["shield", 0.16, "ground"], ["sniper", 0.07, "far"]],
+}
+
+func _chapter_men(cast: Array) -> Array:
+	var plan: Array = CHAPTER_MEN.get(chapter, [])
+	if plan.is_empty() or diff_step < 0:
+		return cast
+	var acc := {}
+	var made := {}
+	for p in plan:
+		acc[p[0]] = 0.5
+		made[p[0]] = 0
+	var grow := 1.0 + map * 0.12
+	for spec in cast:
+		if String(spec["kind"]) != "post":
+			continue
+		var high: bool = float(spec["y"]) < -1.0
+		var runner: bool = spec["run"]
+		for p in plan:
+			var kind: String = p[0]
+			var where: String = p[2]
+			if where == "ground" and (high or runner):
+				continue
+			if where == "high" and not high and runner:
+				continue
+			if where == "far" and runner:
+				continue
+			acc[kind] = float(acc[kind]) + float(p[1]) * grow * (2.0 if where == "high" and high else 1.0)
+			if float(acc[kind]) >= 1.0 and float(spec["x"]) > 3200.0:
+				acc[kind] = float(acc[kind]) - 1.0
+				spec["kind"] = kind
+				made[kind] = int(made[kind]) + 1
+				break
+	return cast
 
 
 func _print_curve() -> void:
@@ -4059,7 +4317,8 @@ func _partner_spot(specs: Array, i: int) -> float:
 ## Faces for the mobsters: the drawing and where its neck is (x in its pixels). Each kind has its
 ## own few, and the boss is always Teague, the old boxer.
 const MOB_HEADS := {"fedora": 193.5, "homburg": 171.0, "cap": 136.0, "boxer": 144.0}
-const MOB_FACES := {"post": ["", "fedora", "cap", "homburg"], "tommy": ["fedora", "homburg"], "shotgun": ["cap", ""], "boss": ["boxer"]}
+const MOB_FACES := {"post": ["", "fedora", "cap", "homburg"], "tommy": ["fedora", "homburg"], "shotgun": ["cap", ""], "boss": ["boxer"],
+		"hook": ["cap", ""], "dynamite": ["cap"], "sniper": ["fedora", "homburg"]}
 
 func _mob_cfg(kind: String) -> Dictionary:
 	var c: Dictionary = MOBSTER.duplicate(true)
@@ -4089,16 +4348,16 @@ func _add_enemy(at: Vector2, kind: String, state: String, goal_x: float) -> Dict
 	if kind == "boss":
 		m.size = 1.15
 	var briggs: bool = kind == "boss" and String(level.get("boss", "")) == "briggs"
-	m.set_weapon("shotgun" if briggs else {"tommy": "tommy", "shotgun": "shotgun", "boss": "pistols"}.get(kind, "pistol"))
-	if briggs:
-		_add_shield(m)
+	m.set_weapon("shotgun" if briggs else {"tommy": "tommy", "shotgun": "shotgun", "boss": "pistols", "sniper": "rifle", "hook": "hook", "dynamite": "dynamite"}.get(kind, "pistol"))
+	if briggs or kind == "shield":
+		_add_shield(m, kind == "shield")
 	m.set_state(0.0, Vector2(-1.0, 0.0), 0.0)
 	m.visible = state != "wait"
 	var e := {"node": m, "type": kind, "hp": BOSS_HP if kind == "boss" else mob_hp, "cool": randf_range(0.8, 1.6), "aim_off": 0.0,
 			"alive": true, "seen": state == "run", "cover": false if state != "post" else _has_cover(at), "up": false, "shot": false,
 			"timer": randf_range(0.5, 1.5), "state": state, "goal": goal_x, "trig": -1.0, "delay": 0.0, "boss": kind == "boss", "calls": 0,
-			"id": enemies.size(), "role": {"tommy": "suppress", "shotgun": "rush", "boss": "boss"}.get(kind, "post"), "notice": -1.0}
-	if briggs:   # a steel shield on his arm, turned toward wherever the detective was a moment ago
+			"id": enemies.size(), "role": {"tommy": "suppress", "shotgun": "rush", "boss": "boss", "hook": "rush"}.get(kind, "post"), "notice": -1.0}
+	if briggs or kind == "shield":   # a steel shield on his arm, turned toward wherever the detective was a moment ago
 		e["shield"] = -1.0
 		e["shells"] = 5
 		e["reload_t"] = 0.0
@@ -4106,33 +4365,43 @@ func _add_enemy(at: Vector2, kind: String, state: String, goal_x: float) -> Dict
 	return e
 
 
-## Briggs's shield: a riveted steel plate with a slit to look through, carried on the front arm.
-func _add_shield(m) -> void:
-	var plate := Polygon2D.new()
-	plate.polygon = PackedVector2Array([Vector2(0, -150), Vector2(150, -165), Vector2(150, 165), Vector2(0, 150)])
-	plate.color = Color(0.13, 0.14, 0.16)
-	var slit := Polygon2D.new()
-	slit.polygon = PackedVector2Array([Vector2(40, -95), Vector2(120, -101), Vector2(120, -86), Vector2(40, -80)])
-	slit.color = Color(0.02, 0.02, 0.02)
-	plate.add_child(slit)
-	var rim := Line2D.new()
-	rim.points = PackedVector2Array([Vector2(0, -150), Vector2(150, -165), Vector2(150, 165), Vector2(0, 150), Vector2(0, -150)])
-	rim.width = 10.0
-	rim.default_color = Color(0.32, 0.33, 0.36)
-	plate.add_child(rim)
-	for k in 6:   # rivets down both edges
-		var r := Polygon2D.new()
-		var c := Vector2(14.0 if k < 3 else 136.0, -110.0 + (k % 3) * 110.0)
-		var pts := PackedVector2Array()
-		for a in 8:
-			pts.append(c + Vector2.from_angle(a * TAU / 8.0) * 7.0)
-		r.polygon = pts
-		r.color = Color(0.45, 0.46, 0.5)
-		plate.add_child(r)
-	plate.scale = Vector2(0.62, 0.62)   # chest to knee, an arm's width
-	plate.position = Vector2(48.0, -200.0)
+## A riveted steel shield with a slit to look through, carried on the front arm (the drawing from
+## art_src/99). A police shield carries a flashlight clipped beside the slit: it finds Frank in the dark.
+func _add_shield(m, lamp := false) -> void:
+	var plate := Sprite2D.new()
+	plate.texture = load("res://art/guns/riot_shield.png")
+	plate.scale = Vector2.ONE * (230.0 / plate.texture.get_height())   # chest to knee
+	plate.position = Vector2(96.0, -200.0)
 	plate.name = "Shield"
+	plate.modulate = Color(0.42, 0.43, 0.46)   # dull steel in the dark, not a sheet of paper
 	m.add_child(plate)
+	if lamp:
+		var torch := Sprite2D.new()
+		torch.texture = load("res://art/guns/flashlight.png")
+		torch.scale = Vector2.ONE * (72.0 / torch.texture.get_width())
+		torch.position = Vector2(132.0, -322.0)   # clipped on the top edge of the shield
+		torch.modulate = Color(0.5, 0.5, 0.52)
+		torch.name = "Torch"
+		m.add_child(torch)
+		var beam := PointLight2D.new()   # the beam from the lens, along the way he faces
+		beam.texture = load("res://art/light_cone_soft.png")
+		beam.rotation = -PI * 0.5
+		beam.position = Vector2(168.0, -322.0)
+		beam.offset = Vector2(0.0, beam.texture.get_height() * 0.5)   # the cone's tip at the lens
+		beam.texture_scale = 2.2
+		beam.energy = 1.4
+		beam.color = Color(1.0, 0.92, 0.75)
+		beam.height = 140.0
+		beam.range_item_cull_mask = MASK_LIT
+		beam.name = "Beam"
+		var lens := Sprite2D.new()   # the lens itself, lit
+		lens.texture = _soft_glow()
+		lens.scale = Vector2.ONE * 0.12
+		lens.position = Vector2(168.0, -322.0)
+		lens.material = _unshaded()
+		lens.modulate = _undo_night(1.0) * Color(1.0, 0.92, 0.75)
+		m.add_child(lens)
+		m.add_child(beam)
 
 
 ## Briggs's shield is between his chest and anything fired from the side it faces; not his head, and
@@ -4747,6 +5016,8 @@ func _go_close(o: Dictionary) -> void:
 ## Nobody fires at a detective crouched behind cover: they wait for him to show himself.
 func _enemies(delta: float) -> void:
 	_ai_t += delta
+	_tick_sticks(delta)
+	_tick_loads(delta)
 	var crouched: bool = _player_covered(1.0) or _player_covered(-1.0)
 	_cover_t = _cover_t + delta if crouched else 0.0
 	if not crouched:
@@ -4757,6 +5028,9 @@ func _enemies(delta: float) -> void:
 		var m = e["node"]
 		if e["state"] == "give":
 			_giving_up(e, delta)
+			continue
+		if e["state"] == "down":
+			_knocked(e, delta)
 			continue
 		if e["state"] == "hop":
 			m.set_state(signf(player.position.x - m.position.x) * -0.0, player.position - m.position, delta)
@@ -4790,7 +5064,7 @@ func _enemies(delta: float) -> void:
 		var to_player: Vector2 = (player.position + Vector2(0.0, SHOULDER.y + DUCK_DROP * player.duck)) - (m.position + Vector2(0.0, SHOULDER.y + DUCK_DROP * m.duck))
 		# Seeing him: in the dark only from closer; a moment of "?" before the "!" so the detective
 		# always gets a beat to act first. A boss knows he is coming.
-		var sight: float = SIGHT * (0.6 if _in_dark(player.position.x) and not sets.lit(player.position + Vector2(0.0, -150.0)) else 1.0)
+		var sight: float = SIGHT * (0.6 if _in_dark(player.position.x) and not sets.lit(player.position + Vector2(0.0, -150.0)) and e["type"] != "shield" else 1.0)
 		if absf(to_player.x) < sight and not e["seen"]:
 			if e["boss"]:
 				hud.boss_bar(BOSS_NAMES.get(String(level["boss"]), "BOSS"), 1.0)
@@ -4810,6 +5084,12 @@ func _enemies(delta: float) -> void:
 			continue
 		_squad(e, m, to_player, delta)
 		if e["state"] == "move":   # on his way somewhere: he does not stop to shoot
+			continue
+		if e["type"] == "hook":   # no gun: he comes for Frank with the hook
+			_hook_man(e, m, to_player, delta)
+			continue
+		if e.has("aim_t"):   # the marksman, sighted in: the line holds on Frank, then the shot
+			_sniper_aim(e, m, to_player, delta)
 			continue
 		var hiding: bool = e["cover"] and side > 0.0   # his cover only works while the detective is on its far side
 		var want_duck: float = 0.0
@@ -4886,6 +5166,324 @@ func _enemies(delta: float) -> void:
 				_enemy_fire(e)
 		m.duck = move_toward(m.duck, want_duck, delta * 7.0)
 		m.set_state(walk, to_player + Vector2(0.0, e["aim_off"]), delta)
+
+
+## The marksman: a thin line from his scope onto Frank while he sights in, then one shot that does
+## not miss a man who stands still. Duck behind cover, dive, or shoot him first.
+func _sniper_aim(e: Dictionary, m, to_player: Vector2, delta: float) -> void:
+	e["aim_t"] = float(e["aim_t"]) - delta
+	var line: Line2D = e.get("line")
+	if line == null or not is_instance_valid(line):
+		line = Line2D.new()
+		line.width = 3.0
+		line.default_color = Color(0.85, 0.12, 0.08, 0.0)
+		line.z_index = 6
+		line.material = _unshaded()
+		add_child(line)
+		e["line"] = line
+	var from: Vector2 = m.muzzle()
+	var to: Vector2 = player.position + Vector2(0.0, SHOULDER.y + DUCK_DROP * player.duck)
+	line.points = PackedVector2Array([from, to])
+	line.default_color.a = clampf(1.25 - float(e["aim_t"]), 0.0, 0.85) * (0.6 + 0.4 * sin(_time * 30.0))
+	m.set_state(0.0, to_player, delta)
+	var lost: bool = over or cleared or not _on_screen(m.position) or (_player_covered(signf(m.position.x - player.position.x)) and player.duck > 0.6)
+	if lost or float(e["aim_t"]) <= 0.0:
+		line.queue_free()
+		e.erase("line")
+		e.erase("aim_t")
+		e["cool"] = randf_range(2.4, 3.2)
+		if not lost:
+			e["aim_off"] = randf_range(-20.0, 20.0)
+			_fire(m, false, "rifle")
+			_shots_at[int(e["id"])] = _ai_t
+
+
+var _unshaded_mat: CanvasItemMaterial
+func _unshaded() -> CanvasItemMaterial:
+	if _unshaded_mat == null:
+		_unshaded_mat = CanvasItemMaterial.new()
+		_unshaded_mat.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+	return _unshaded_mat
+
+
+## The longshoreman with a cargo hook: no gun, so he comes running, over crates if he must, and swings
+## when he is close. A beat of warning ("!" and the arm up) before each swing. A kick puts him down.
+func _hook_man(e: Dictionary, m, to_player: Vector2, delta: float) -> void:
+	var walk := 0.0
+	var dx: float = to_player.x
+	var same_floor: bool = absf(m.position.y - player.position.y) < 90.0
+	e["cool"] = float(e["cool"]) - delta
+	if over or cleared or _grace > 0.0:
+		m.set_state(0.0, to_player, delta)
+		return
+	if e.has("swing_t"):
+		e["swing_t"] = float(e["swing_t"]) - delta
+		m.recoil = 0.9   # the hook raised
+		if float(e["swing_t"]) <= 0.0:
+			e.erase("swing_t")
+			m.recoil = -0.6   # and down
+			sfx.play("whiz", -4.0, m.position.x, 0.1)
+			if absf(dx) < 190.0 and same_floor and move_state != "dive":
+				fx.hit_vel = Vector2(-signf(m.position.x - player.position.x), 0.0) * 900.0
+				_bullet_hit(player.position + Vector2(0.0, SHOULDER.y + 40.0), false)
+			e["cool"] = 1.2
+	elif absf(dx) > 150.0 or not same_floor:
+		walk = signf(dx)
+		var step: float = walk * 360.0 * delta
+		var blocked := -1
+		for k in boxes.size():
+			if boxes[k].grow(25.0).has_point(Vector2(m.position.x + step * 8.0, m.position.y - 60.0)):
+				blocked = k
+		if blocked >= 0 and same_floor:   # over the crate, the way the flankers go
+			var bx: Rect2 = boxes[blocked]
+			var far: float = (bx.end.x + 90.0) if walk > 0.0 else (bx.position.x - 90.0)
+			if absf(player.position.x - far) > 140.0:
+				_hop(e, m, bx, far)
+				return
+			walk = 0.0
+		elif blocked < 0:
+			m.position.x += step
+	elif float(e["cool"]) <= 0.0 and _slot_free(e):
+		e["swing_t"] = 0.38
+		_mark(m, "!")
+		_shots_at[int(e["id"])] = _ai_t
+	m.set_state(walk, to_player, delta)
+
+
+## Dynamite: a lit stick lobbed to land at Frank's feet. It burns down and goes up where it lies;
+## a bullet sets it off at once, in the air or on the ground, wherever it is.
+var _sticks: Array = []
+
+func _throw_stick(m) -> void:
+	var from: Vector2 = m.muzzle()
+	var target := Vector2(player.position.x + randf_range(-70.0, 70.0), player.position.y)
+	var t := clampf(absf(target.x - from.x) / 900.0, 0.7, 1.3)
+	var g := 2600.0
+	var v := Vector2((target.x - from.x) / t, (target.y - from.y - 0.5 * g * t * t) / t)
+	var st := Sprite2D.new()
+	st.texture = load("res://art/guns/dynamite.png")
+	st.scale = Vector2.ONE * (90.0 / st.texture.get_width())
+	st.position = from
+	st.z_index = 4
+	add_child(st)
+	_sticks.append({"node": st, "vel": v, "fuse": 1.6, "down": false, "spark": 0.0})
+	sfx.play("match", -6.0, m.position.x, 0.1)
+	m.recoil = 0.8
+
+
+func _tick_sticks(delta: float) -> void:
+	for k in range(_sticks.size() - 1, -1, -1):
+		var st: Dictionary = _sticks[k]
+		var n: Sprite2D = st["node"]
+		st["fuse"] = float(st["fuse"]) - delta
+		st["spark"] = float(st["spark"]) - delta
+		if float(st["spark"]) <= 0.0:
+			st["spark"] = 0.08
+			fx.spark(n.position + Vector2(40.0, -12.0).rotated(n.rotation) * n.scale.x * 2.2)
+		if not st["down"]:
+			st["vel"] = (st["vel"] as Vector2) + Vector2(0.0, 2600.0) * delta
+			n.position += (st["vel"] as Vector2) * delta
+			n.rotation += 9.0 * delta * signf((st["vel"] as Vector2).x)
+			var floor_y := _floor_at(n.position.x, n.position.y - 40.0)
+			if n.position.y >= floor_y - 8.0 and (st["vel"] as Vector2).y > 0.0:
+				n.position.y = floor_y - 8.0
+				n.rotation = 0.0
+				st["down"] = true
+				sfx.play("clink", -8.0, n.position.x, 0.2)
+		if float(st["fuse"]) <= 0.0:
+			_stick_goes(k)
+
+
+func _stick_goes(k: int) -> void:
+	var st: Dictionary = _sticks[k]
+	var at: Vector2 = (st["node"] as Sprite2D).position
+	(st["node"] as Sprite2D).queue_free()
+	_sticks.remove_at(k)
+	_blast(at + Vector2(0.0, -40.0), 300.0, 270.0, 1)
+
+
+## A crate hanging from a crane over the docks, on a rope that goes up out of the picture. Shoot the
+## rope and it comes down on whoever stands under it; then it is a crate on the ground like any other.
+var _loads: Array = []
+
+func _place_loads() -> void:
+	if chapter != 2 or diff_step < 0 or in_menu:
+		return
+	var last := -99999.0
+	var n := 0
+	for e in enemies:
+		var m = e["node"]
+		if e["state"] != "post" or e["boss"] or m.position.y != 0.0 or m.position.x < 2600.0 or m.position.x - last < 1600.0:
+			continue
+		if _room_at(m.position.x) != "" or _has_cover(m.position) or n >= 3:
+			continue
+		var x: float = m.position.x
+		var clear := true
+		for bx in boxes:
+			if absf(bx.get_center().x - x) < 260.0:
+				clear = false
+		if not clear:
+			continue
+		last = x
+		n += 1
+		var crate := Sprite2D.new()
+		crate.texture = load("res://art/props/crate.png")
+		var w := 230.0
+		crate.scale = Vector2.ONE * (w / crate.texture.get_width())
+		var h: float = crate.texture.get_height() * crate.scale.y
+		crate.position = Vector2(x, -640.0 - h * 0.5)
+		crate.modulate = Color(0.84, 0.82, 0.79)
+		crate.z_index = -1
+		add_child(crate)
+		var rope := Line2D.new()   # hemp: the yarn drawing turned brown-grey
+		rope.texture = load("res://art/props/rope.png")
+		rope.texture_mode = Line2D.LINE_TEXTURE_TILE
+		rope.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+		rope.width = 11.0
+		rope.default_color = _undo_night(0.5)
+		rope.z_index = -1
+		var top := -640.0 - h
+		rope.points = PackedVector2Array([Vector2(x, top - 1600.0), Vector2(x, top - 70.0), Vector2(x - w * 0.42, top + 6.0)])
+		var rope2 := rope.duplicate() as Line2D
+		rope2.points = PackedVector2Array([Vector2(x, top - 70.0), Vector2(x + w * 0.42, top + 6.0)])
+		add_child(rope)
+		add_child(rope2)
+		_loads.append({"crate": crate, "ropes": [rope, rope2], "x": x, "top": top, "h": h, "w": w, "fall": -1.0})
+
+
+## True if the bullet cut a rope.
+func _load_hit(pos: Vector2) -> bool:
+	for ld in _loads:
+		if float(ld["fall"]) >= 0.0:
+			continue
+		if absf(pos.x - float(ld["x"])) < 14.0 and pos.y < float(ld["top"]) - 60.0 and pos.y > float(ld["top"]) - 1600.0:
+			ld["fall"] = 0.0
+			fx.spark(pos)
+			sfx.play("wood_hit", -2.0, pos.x, 0.1)
+			_word(["crack"], pos + Vector2(0.0, -60.0), 0.18)
+			for r in ld["ropes"]:
+				(r as Line2D).queue_free()
+			return true
+	return false
+
+
+func _tick_loads(delta: float) -> void:
+	for k in range(_loads.size() - 1, -1, -1):
+		var ld: Dictionary = _loads[k]
+		if float(ld["fall"]) < 0.0:
+			continue
+		ld["fall"] = float(ld["fall"]) + 3200.0 * delta
+		var c: Sprite2D = ld["crate"]
+		c.position.y += float(ld["fall"]) * delta
+		var bottom: float = c.position.y + float(ld["h"]) * 0.5
+		if bottom >= 0.0:   # down: whoever is under it does not get up
+			c.position.y = -float(ld["h"]) * 0.5
+			var x: float = ld["x"]
+			var half: float = float(ld["w"]) * 0.5
+			for e in enemies:
+				if e["alive"] and e["state"] != "wait" and absf(e["node"].position.x - x) < half + 60.0 and e["node"].position.y > -100.0:
+					_kill(e, false, true, "blast")
+			sfx.play("wood_break", 2.0, x, 0.05)
+			sfx.play("body_fall", 0.0, x, 0.05)
+			_shake = maxf(_shake, 0.35)
+			_word(["crash"], Vector2(x, -330.0), 0.34)
+			if absf(player.position.x - x) < half + 50.0 and player.position.y > -120.0:
+				c.queue_free()   # on Frank: it bursts apart on him instead of burying him
+				fx.hit_vel = Vector2(0.0, 800.0)
+				_bullet_hit(player.position + Vector2(0.0, SHOULDER.y), false)
+			else:
+				c.z_index = -2
+				_ground_shadow(x, float(ld["w"]))
+				boxes.append(Rect2(x - half, -float(ld["h"]), float(ld["w"]), float(ld["h"])))
+				box_info.append({"kind": "crate", "sprite": c, "hp": 7, "wood": true})
+			_loads.remove_at(k)
+
+
+## In slowed time, from chapter II: a dashed line from his gun shows where the shot would glance off
+## steel and go on. Only when there is a glance in it; plain shots need no line.
+var _aim_line: Line2D
+
+func _tick_aim_line() -> void:
+	if _aim_line == null:
+		_aim_line = Line2D.new()
+		var img := Image.create_empty(32, 4, false, Image.FORMAT_RGBA8)
+		for x in 32:
+			for y in 4:
+				img.set_pixel(x, y, Color(1, 1, 1, 1.0 if x < 18 else 0.0))
+		_aim_line.texture = ImageTexture.create_from_image(img)
+		_aim_line.texture_mode = Line2D.LINE_TEXTURE_TILE
+		_aim_line.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+		_aim_line.width = 5.0
+		_aim_line.default_color = Color(0.95, 0.35, 0.25, 0.9) * Color(_undo_night(1.0), 1.0)
+		_aim_line.material = _unshaded()
+		_aim_line.z_index = 7
+		add_child(_aim_line)
+	_aim_line.visible = false
+	if chapter < 2 or diff_step < 0 or over or Engine.time_scale >= 1.0 or reloading > 0.0:
+		return
+	var from: Vector2 = player.muzzle()
+	var d: Vector2 = player.aim_dir().normalized()
+	if _aim_point != Vector2.INF and _aim_point.distance_to(from) > 120.0:
+		d = (_aim_point - from).normalized()
+	var pts := PackedVector2Array([from])
+	var p := from
+	var bounced := false
+	var ended := false
+	for k in 130:
+		p += d * 20.0
+		var hit := -1
+		for i in boxes.size():
+			if boxes[i].has_point(p):
+				hit = i
+				break
+		if hit < 0:
+			continue
+		var info: Dictionary = box_info[hit]
+		if bounced or info["wood"] or info["kind"] == "barrel":
+			pts.append(p)
+			ended = true
+			break
+		var n := _face_normal(boxes[hit], p, d)
+		d = d - 2.0 * d.dot(n) * n
+		pts.append(p)
+		p += n * 16.0
+		bounced = true
+	if not bounced:
+		return
+	if not ended:
+		pts.append(p)
+	_aim_line.points = pts
+	_aim_line.visible = true
+
+
+## Steel turns a bullet: off a drum, a dumpster, a car, his shot glances away once, mirrored about the
+## face it struck. Chapter II on, where there is steel enough on the docks to learn it.
+func _ricochet(i: int, pos: Vector2) -> bool:
+	if chapter < 2 or diff_step < 0:
+		return false
+	var info: Dictionary = box_info[i]
+	if info["wood"] or info["kind"] == "barrel":
+		return false
+	var r: Rect2 = boxes[i]
+	var v: Vector2 = fx.hit_vel
+	var n := _face_normal(r, pos, v)
+	var out := v - 2.0 * v.dot(n) * n
+	fx.spark(pos)
+	sfx.play("whiz", -3.0, pos.x, 0.15)
+	_word(["zing"], pos + Vector2(0.0, -70.0), 0.15)
+	fx.shoot(pos + n * 16.0, out, true, 0.8)
+	return true
+
+
+## Which face of a box a bullet going `v` came through at `pos`: the nearest edge it was heading into.
+func _face_normal(r: Rect2, pos: Vector2, v: Vector2) -> Vector2:
+	var d_left := absf(pos.x - r.position.x) if v.x > 0.0 else INF
+	var d_right := absf(r.end.x - pos.x) if v.x < 0.0 else INF
+	var d_top := absf(pos.y - r.position.y) if v.y > 0.0 else INF
+	var best := minf(d_left, minf(d_right, d_top))
+	if best == d_top:
+		return Vector2.UP
+	return Vector2.LEFT if best == d_left else Vector2.RIGHT
 
 
 ## A man who has given up: the gun goes down, the hands come up, he says it, then he backs off out

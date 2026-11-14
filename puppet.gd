@@ -27,6 +27,9 @@ const GUNS := {
 	"pistol": {"tex": "res://art/guns/pistol.png", "len": 0.33, "grip": Vector2(0.21, 0.55), "muzzle": Vector2(1.0, 0.13)},
 	"tommy": {"tex": "res://art/guns/tommy.png", "len": 0.92, "grip": Vector2(0.42, 0.6), "muzzle": Vector2(1.0, 0.16), "fore": Vector2(0.76, 0.58), "stock": true},
 	"shotgun": {"tex": "res://art/guns/shotgun.png", "len": 1.0, "grip": Vector2(0.31, 0.42), "muzzle": Vector2(1.0, 0.07), "fore": Vector2(0.68, 0.3), "stock": true},
+	"rifle": {"tex": "res://art/guns/rifle.png", "len": 1.15, "grip": Vector2(0.27, 0.6), "muzzle": Vector2(1.0, 0.33), "fore": Vector2(0.6, 0.5), "stock": true},
+	"hook": {"tex": "res://art/guns/hook.png", "len": 0.34, "grip": Vector2(0.08, 0.45), "muzzle": Vector2(0.92, 0.85)},
+	"dynamite": {"tex": "res://art/guns/dynamite.png", "len": 0.22, "grip": Vector2(0.35, 0.5), "muzzle": Vector2(1.0, 0.2)},
 }
 var weapon := ""
 var _legs := {}            # "f"/"b" -> the bending leg mesh

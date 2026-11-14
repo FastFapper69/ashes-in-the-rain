@@ -30,7 +30,7 @@ func _ready() -> void:
 	dim.color = Color(0, 0, 0, 0.75)
 	dim.size = view
 	add_child(dim)
-	var size := Vector2(minf(720.0, view.x - 96.0), 560.0 if erase.is_valid() else 480.0)
+	var size := Vector2(minf(720.0, view.x - 96.0), minf(view.y - 40.0, 640.0 if erase.is_valid() else 560.0))
 	_card = Paper.sheet("panel", size)   # an inked comic panel of old paper
 	_card.position = (view - size) * 0.5
 	_card.rotation = deg_to_rad(-0.5)
@@ -46,7 +46,7 @@ func _ready() -> void:
 	# four rows evenly between the title and the back button, each centred on its line
 	var top := inner.position.y + 18.0 + 56.0 + 14.0
 	var bottom := inner.end.y - 20.0 - 56.0 - 14.0
-	var rows := [["MUSIC", "music", true], ["SOUND", "sound", true], ["SCREEN SHAKE", "shake", false], ["AIM ASSIST", "assist", false]]
+	var rows := [["MUSIC", "music", true], ["SOUND", "sound", true], ["DIFFICULTY", "difficulty", false], ["SCREEN SHAKE", "shake", false], ["AIM ASSIST", "assist", false]]
 	var n := rows.size() + (1 if erase.is_valid() else 0)
 	var step := (bottom - top) / float(n)
 	for i in rows.size():
@@ -69,7 +69,7 @@ func _row(mid_y: float, left: float, right: float, text: String, key: String, vo
 	l.size = Vector2(300.0, 40.0)
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_card.add_child(l)
-	if volume:   # [-] 7 [+]
+	if volume and key != "difficulty":   # [-] 7 [+]
 		var bw := 58.0   # the badge carries its own printed sign
 		var plus: Control = Paper.button("plus", Vector2(bw, bw), _step.bind(key, 1), sound)
 		plus.position = Vector2(right - bw, mid_y - bw * 0.5)
@@ -85,7 +85,8 @@ func _row(mid_y: float, left: float, right: float, text: String, key: String, vo
 		_rows[key] = v
 	else:   # a strip of tape that says what it is now
 		var t: Control = Paper.button("tape", Vector2(184.0, 52.0), func() -> void:
-			MenuScript.set_setting(key, not bool(MenuScript.setting(key)))
+			var v = MenuScript.setting(key)
+			MenuScript.set_setting(key, (int(v) + 1) % 3 if v is int else not bool(v))
 			_show(), sound)
 		t.position = Vector2(right - 184.0, mid_y - 26.0)
 		_card.add_child(t)
@@ -131,7 +132,10 @@ func _show() -> void:
 	for key in _rows:
 		var n = _rows[key]
 		var v = MenuScript.setting(key)
-		if v is bool:
+		if key == "difficulty":   # it takes hold from the next map on
+			n.text = ["EASY", "NORMAL", "HARD"][clampi(int(v), 0, 2)]
+			n.add_theme_color_override("font_color", CRIMSON if int(v) == 2 else INK)
+		elif v is bool:
 			n.text = "ON" if v else "OFF"
 			n.add_theme_color_override("font_color", INK if v else CRIMSON)
 		else:   # a row of ten marks, the set ones inked
