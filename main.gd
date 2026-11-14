@@ -3156,9 +3156,23 @@ func _aim_spread() -> float:
 func _base_spread() -> float:
 	if sets.lit(player.position + Vector2(0.0, -150.0)):
 		return 0.55   # in the searchlight they cannot miss
+	if _in_beam(player.position):
+		return 1.0    # a police flashlight on him: the dark no longer hides him
 	if sets.in_smoke(player.position):
 		return 2.6   # nobody can see through it
 	return 2.1 if _in_dark(player.position.x) else 1.0
+
+
+## Frank caught in the beam of a shield cop's flashlight: in front of him, near enough, same floor.
+func _in_beam(at: Vector2) -> bool:
+	for e in enemies:
+		if not e["alive"] or e["type"] != "shield" or e["state"] in ["wait", "give", "down"]:
+			continue
+		var m = e["node"]
+		var dx: float = at.x - m.position.x
+		if signf(dx) == signf(m.scale.x) and absf(dx) < 950.0 and absf(at.y - m.position.y) < 200.0:
+			return true
+	return false
 
 
 func _in_dark(x: float) -> bool:
@@ -5064,7 +5078,7 @@ func _enemies(delta: float) -> void:
 		var to_player: Vector2 = (player.position + Vector2(0.0, SHOULDER.y + DUCK_DROP * player.duck)) - (m.position + Vector2(0.0, SHOULDER.y + DUCK_DROP * m.duck))
 		# Seeing him: in the dark only from closer; a moment of "?" before the "!" so the detective
 		# always gets a beat to act first. A boss knows he is coming.
-		var sight: float = SIGHT * (0.6 if _in_dark(player.position.x) and not sets.lit(player.position + Vector2(0.0, -150.0)) and e["type"] != "shield" else 1.0)
+		var sight: float = SIGHT * (0.6 if _in_dark(player.position.x) and not sets.lit(player.position + Vector2(0.0, -150.0)) and not _in_beam(player.position) else 1.0)
 		if absf(to_player.x) < sight and not e["seen"]:
 			if e["boss"]:
 				hud.boss_bar(BOSS_NAMES.get(String(level["boss"]), "BOSS"), 1.0)

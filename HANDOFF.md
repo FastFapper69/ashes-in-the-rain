@@ -4,7 +4,7 @@ Read this first when picking the project up in a new chat. Reply to the user in 
 
 ## Where things live
 - GitHub: `FastFapper69/ink-and-lead` – `main` = sources, `gh-pages` = web build (https://fastfapper69.github.io/ink-and-lead/). The user plays on an iPhone 17.
-- PC project folder: `C:\Users\super\Documents\MobileGames\Ink and Lead` (Gemini images in `art_src`, numbered; last used **98**, next is **99**).
+- PC project folder: `C:\Users\super\Documents\MobileGames\Ink and Lead` (Gemini images in `art_src`, numbered; last used **99**, next is **100**).
 - Docs (claude.ai): GDD `aac76a8f-a825-409f-a7d5-7834fe45049d` (tab Úkoly = task list by blocks 1–7), story doc `c223d676-08b8-42df-ae12-8f2cdf9b9dc3`, Gemini briefs `855fd524-d34d-495e-a18c-22e6eefa5dee`.
 - UI rules: `.claude/skills/ui-papir/SKILL.md` (paper.gd kit, mandatory `UI BAD` audit at 1280 and 1560 wide).
 
@@ -41,12 +41,15 @@ Read this first when picking the project up in a new chat. Reply to the user in 
 - Skill tree (instincts.gd, menu `_instincts`, `--test=instincts --leads=N --pin=lead0,...`, `--instincts=all` in play): leads = Frank's stars + testimonies; leads earned set Frank's rank (3/4/5 hits at 0/10/24 leads); 12 of 15 cards work in play.
 - Sound: per-panel cutscene audio (cutscene.gd AUDIO: beds, music, rain, timed cues), 4 music stems in step (base, lead, tension, fight) driven by _tick_music, rain only where it rains (sfx.rain_want / indoor), new sounds from gen/sfx_story.py; `--log-sound` prints every sound.
 - Technical cleanup: dead code and ~30 unused pictures removed, generator inputs moved to art/_src, the save file cached in memory (menu.gd _save/_store), pck 97 -> 90 MB.
+- Title sheet: INSTINCTS line (with "N NEW"); settings on the title has PROGRESS / ERASE ALL (two taps; settings kept) and DIFFICULTY (easy/normal/hard on top of the curve, main.gd DIFFICULTY).
+- Chapter mechanics: dive kick (Frank only: man knocked flat, one bullet finishes him, else he gets up or gives up), ch II hook men / dynamite throwers / marksmen with a red sight line, crane loads over the docks (shoot the rope), ricochet off steel with a dashed line in slowed time; ch III shield police with a flashlight that finds Frank in the dark, police marksmen. New art: art_src/99 (rifle, hook, dynamite, riot shield, flashlight) in art/guns. Tests: `--test=men:hook|dynamite|sniper|shield|load`, `--test=kick`, `--test=ricochet`.
+- Pasted bills in the streets reprinted with real 1947 notices (gen/fix_posters.py, originals in art/_src/street); the Palace marquee and one-sheets fixed.
+- Character hatching: a softening pass was tried and looked smudged (worse, more AI-like); left as drawn.
 
 ## Next
-- Block 1: pasted posters in street paintings; lighter hatching on character parts.
 - Skill tree cards still to build when chapter IV exists: DEAD EYE, SHOOT THEM DOWN, ALLY (they open in chapter IV).
 - Block 5 left: real recordings instead of synthesis (gunshots, impacts, steps), AI voice for Frank (ElevenLabs Starter, ~6k chars of narration), mix to -16 LUFS.
 - pck is ~90 MB of GitHub's 100 MB: new heavy assets need something removed or compressed first.
-- Block 6: chapter mechanics; block 7: content (chapter IV, menus II/III, train yard).
+- Block 6 left: room breaching and lightning (chapter IV). Block 7: content (chapter IV, menus II/III, train yard).
 - Endings (Snow / Ash) wait for chapter IV.
 - Not yet heard back: FPS on the iPhone in interiors after the lighting fix.
