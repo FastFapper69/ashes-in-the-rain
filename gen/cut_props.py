@@ -4,7 +4,7 @@ import sys, numpy as np
 from PIL import Image, ImageFilter
 
 # Gemini sometimes leaves a smear touching a prop: the part of the cut to keep (x0, y0, x1, y1, 0..1)
-KEEP = {"cable_spool": (0.2, 0.0, 1.0, 1.0)}
+KEEP = {}
 
 
 def cut(sheet, names, out_dir):

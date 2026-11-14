@@ -79,7 +79,7 @@ var lamp_info: Array = []      # one per lamp, same order as lamps: {nodes, ligh
 var pickups: Array = []        # {kind, node}
 var weapon := "revolver"
 var ammo := 0
-var stats := {"kills": 0, "heads": 0, "slow": 0, "hits": 0, "time": 0.0}
+var stats := {"kills": 0, "heads": 0, "slow": 0, "hits": 0, "time": 0.0, "executed": 0, "spared": 0}
 var _last_kind := "ground"     # what _floor_at last stood him on: ground, box or floor
 var _drop_t := 0.0             # seconds he falls through the landing he stood on (stick pulled down)
 var _drop_y := 0.0
@@ -103,11 +103,12 @@ const WEAPONS := {
 const WOOD := ["crate", "crate_long", "kegs", "barrel", "milk_crates", "fruit_cart", "bench", "cable_spool", "linen_table", "desk", "court_bench", "newsstand", "paper_bundles"]
 # How far down each drawing its top surface is, the line a man stands on: the drawings are seen a
 # little from above, so the top of the picture is the far edge of the lid, not where feet go. The
-# side-view redraws (art_src/94: drum, crates, washer, cart, can, sacks, barrel) have flat tops.
-const TOP_INSET := {"crate": 0.01, "crate_long": 0.07, "drum": 0.01, "dumpster": 0.06, "washer": 0.01, "laundry_cart": 0.12,
+# side-view redraws (art_src/94 and 95: everything a man can stand on but the bench, the linen table,
+# the wash tub, the newsstand and the fruit cart) have flat tops.
+const TOP_INSET := {"crate": 0.01, "crate_long": 0.07, "drum": 0.01, "dumpster": 0.04, "washer": 0.01, "laundry_cart": 0.12,
 	"trash_can": 0.08, "sacks": 0.06, "barrel": 0.01,
-	"linen_table": 0.3, "wash_tub": 0.2, "bench": 0.02, "newsstand": 0.05, "paper_bundles": 0.06, "cable_spool": 0.03, "fruit_cart": 0.03,
-	"kegs": 0.05, "milk_crates": 0.17, "mailbox": 0.05, "desk": 0.25, "filing": 0.03, "safe": 0.05, "court_bench": 0.02}
+	"linen_table": 0.3, "wash_tub": 0.2, "bench": 0.02, "newsstand": 0.05, "paper_bundles": 0.03, "cable_spool": 0.0, "fruit_cart": 0.03,
+	"kegs": 0.0, "milk_crates": 0.17, "mailbox": 0.02, "desk": 0.03, "filing": 0.01, "safe": 0.01, "court_bench": 0.02}
 ## The lamps painted into each interior, as fractions of its drawing, and their colour. A room's
 ## light comes from these and only these: a soft glow on the bulb and a round, soft pool of light
 ## round it (never a hard-edged cone), on the drawing and on everyone in it.
@@ -435,7 +436,8 @@ func _ready() -> void:
 		atmo.rain_far.emitting = false
 		atmo.rain_near.emitting = false
 	atmo.add_post(self)
-	atmo.add_ash(cam, MenuScript.ash_level() if in_menu else float(level.get("ash", 0.3)), float(level.get("embers", 0.0)))
+	# the ash thickens with what Frank has done: men shot with their hands up stay in the air
+	atmo.add_ash(cam, MenuScript.ash_level() if in_menu else minf(1.2, float(level.get("ash", 0.3)) + MenuScript.guilt() * 0.06), float(level.get("embers", 0.0)))
 	steps = atmo.add_steps(player, _undo_night(0.6))
 	if rain > 0.0:
 		_hat_rain = atmo.add_hat_rain(self, _undo_night(0.7))
@@ -2026,6 +2028,33 @@ func _auto_step(delta: float) -> void:
 			_auto_done |= 1 << (k + 32)
 			print("tops ", idx, " ", box_info[idx]["kind"], " ", b, " feet ", player.position)
 			_shot("tops_%02d" % k)
+	elif _auto == "give":   # the nearest mobster gives up: pictures as he raises his hands and as he backs off
+		hp = PLAYER_HP
+		_grace = 99.0
+		if _auto_done & 1 == 0:
+			_auto_done |= 1
+			var first = null
+			for e in enemies:
+				if e["state"] == "post" and e["node"].position.y == 0.0 and (first == null or e["node"].position.x < first["node"].position.x):
+					first = e
+			player.position = Vector2(first["node"].position.x - 700.0, 0.0)
+			for e in enemies:
+				if e != first:
+					e["alive"] = false
+					e["node"].visible = false
+			first["seen"] = true
+			first["hp"] = 1
+			_give_up(first, 0.3)
+		cam.position.x = player.position.x + 350.0
+		for t in [1.2, 2.2, 3.4, 4.6]:
+			var bit := 1 << (1 + [1.2, 2.2, 3.4, 4.6].find(t))
+			if _at > t and _auto_done & bit == 0:
+				_auto_done |= bit
+				_shot("give_%d" % [1.2, 2.2, 3.4, 4.6].find(t))
+		if _at > 5.5:
+			print("GIVE spared ", stats["spared"], " all down ", _all_down())
+			get_tree().quit()
+		return
 	elif _auto.begins_with("look:"):   # --test=look:x1,x2,...: stand at each x for a moment, take a picture
 		var xs := _auto.trim_prefix("look:").split(",")
 		var k := int(_at / 2.6)
@@ -2827,6 +2856,24 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 				sfx.play("hit_cover", -2.0, pos.x, 0.12)
 				_word(["zing"], pos + Vector2(0.0, -90.0), 0.16)
 				return true
+			if e["state"] == "give" and float(e["give_t"]) >= 0.0:   # an execution: quick to pay, slow to forget
+				fx.blood(pos, fx.hit_vel, true)
+				e["node"].add_wound(pos, part)
+				stats["executed"] += 1
+				slow_left = 1.0
+				if weapon != "revolver":
+					ammo = int(WEAPONS[weapon]["ammo"])
+					_show_ammo()
+				sfx.play("hit_flesh", 0.0, pos.x)
+				e["hp"] = 0
+				_kill(e, part == "head", true, part)
+				return true
+			if part.begins_with("farm") and slow_on and not e["boss"] and chapter > 0 and e["state"] != "give":
+				fx.spark(pos)   # the gun is shot out of his hand: he has nothing left to fight with
+				sfx.play("hit_cover", -2.0, pos.x, 0.12)
+				_word(["zing"], pos + Vector2(0.0, -90.0), 0.16)
+				_give_up(e)
+				return true
 			fx.blood(pos, fx.hit_vel, part == "head" or e["hp"] <= 1)
 			e["node"].add_wound(pos, part)
 			var hm = e["node"]
@@ -2909,6 +2956,42 @@ func _kill(e: Dictionary, head: bool, quiet := false, part := "") -> void:
 		_add_pickup(String(e["type"]), m.position)
 	elif randf() < 0.12:
 		_add_pickup("flask", m.position)
+	_morale(m.position, head or slow_on)
+
+
+## The last man of a group, seeing the others go down, may give up instead of dying for it. A
+## wounded man always does; a fresh one sometimes, more often when it went fast and ugly.
+const GROUP := 1700.0
+func _morale(at: Vector2, ugly: bool) -> void:
+	if _stand or chapter == 0 or over:
+		return
+	for e2 in enemies:
+		if not e2["alive"] or e2["boss"] or e2["state"] in ["wait", "give", "run"] or not e2["seen"]:
+			continue
+		var p2: Vector2 = e2["node"].position
+		if absf(p2.x - at.x) > GROUP:
+			continue
+		var others := 0
+		for e3 in enemies:
+			if e3 != e2 and e3["alive"] and e3["state"] != "give" and absf(e3["node"].position.x - p2.x) < GROUP:
+				others += 1
+		if others > 0:
+			continue
+		var chance := 1.0 if int(e2["hp"]) < MOBSTER_HP else (0.65 if ugly else 0.4)
+		if randf() < chance:
+			_give_up(e2, 0.55)
+
+
+## He drops the gun and puts his hands up. Shot like that, he is an execution; left alone, he backs
+## off and is gone, and what he saw is Frank's to use later.
+func _give_up(e: Dictionary, delay := 0.0) -> void:
+	if e["state"] == "give":
+		return
+	e["state"] = "give"
+	e["give_t"] = -delay
+	e["said"] = false
+	var m = e["node"]
+	m.reload = 0.0
 
 
 ## A bullet into a box: wood splinters and finally gives way, metal sparks, a barrel explodes.
@@ -3102,6 +3185,8 @@ func _auto_arg() -> String:
 func _map_cleared() -> void:
 	cleared = true
 	MenuScript.mark_done(chapter, map)
+	if _auto == "":
+		MenuScript.set_conduct(chapter, map, int(stats["executed"]), int(stats["spared"]))
 	var cut: String = CUTS.get("%d:%d" % [chapter, map], "")
 	if cut == "" or _auto != "":
 		hud.caption(level["outro"])
@@ -3978,7 +4063,7 @@ func _man_under(screen: Vector2) -> bool:
 func _nearest_enemy(side := 0.0):
 	var best = null
 	for e in enemies:
-		if not e["alive"] or e["state"] == "wait" or not e["node"].visible:
+		if not e["alive"] or e["state"] in ["wait", "give"] or not e["node"].visible:
 			continue
 		var dx: float = e["node"].position.x - player.position.x
 		if absf(dx) > SIGHT or (side != 0.0 and signf(dx) != side):
@@ -4008,6 +4093,9 @@ func _enemies(delta: float) -> void:
 		if not e["alive"]:
 			continue
 		var m = e["node"]
+		if e["state"] == "give":
+			_giving_up(e, delta)
+			continue
 		if e["state"] == "wait":   # a runner holds back, out of sight, until the detective passes his mark
 			if player.position.x > float(e["trig"]):
 				e["delay"] = float(e["delay"]) - delta
@@ -4115,6 +4203,60 @@ func _enemies(delta: float) -> void:
 				_enemy_fire(e)
 		m.duck = move_toward(m.duck, want_duck, delta * 7.0)
 		m.set_state(walk, to_player + Vector2(0.0, e["aim_off"]), delta)
+
+
+## A man who has given up: the gun goes down, the hands come up, he says it, then he backs off out
+## of the fight and is gone. He never fires again and never comes back for the detective's back.
+func _giving_up(e: Dictionary, delta: float) -> void:
+	var m = e["node"]
+	e["give_t"] = float(e["give_t"]) + delta
+	var t: float = e["give_t"]
+	var side: float = signf(m.position.x - player.position.x)
+	var to_player: Vector2 = player.position - m.position + Vector2(0.0, SHOULDER.y)
+	var walk := 0.0
+	m.duck = move_toward(m.duck, 0.0, delta * 5.0)
+	if t >= 0.0:
+		if not m.disarmed:
+			m.disarmed = true
+			_drop_gun(m)
+		m.hands_up = move_toward(m.hands_up, 1.0, delta * 4.0)
+		if not e["said"] and t > 0.25:
+			e["said"] = true
+			_say(m, ["DON'T SHOOT!", "I'M DONE!", "OKAY, OKAY!"].pick_random())
+	if t > 1.7 and m.position.y == 0.0:   # backs away, eyes on the gun
+		walk = side
+		var step: float = side * 190.0 * delta
+		var blocked := false
+		for bx in boxes:
+			if bx.grow(20.0).has_point(Vector2(m.position.x + step * 6.0, -60.0)):
+				blocked = true
+		if not blocked:
+			m.position.x += step
+		else:
+			walk = 0.0
+	if t > 3.6:
+		m.modulate.a = move_toward(m.modulate.a, 0.0, delta * 1.4)
+		if m.modulate.a <= 0.0:
+			e["alive"] = false
+			e["spared"] = true
+			m.visible = false
+			stats["spared"] += 1
+			return
+	m.set_state(walk, to_player.normalized() * 100.0, delta)
+
+
+func _drop_gun(m) -> void:
+	var g := Sprite2D.new()   # his own gun, the same drawing he held, flat on the wet pavement
+	g.texture = m._gun.texture
+	g.offset = m._gun.offset
+	g.scale = m._gun.scale * absf(m.scale.y)
+	g.flip_h = player.position.x < m.position.x
+	g.position = m.position + Vector2(signf(player.position.x - m.position.x) * 50.0, -10.0)
+	g.rotation = randf_range(-0.12, 0.12)
+	g.modulate = _undo_night(0.6)   # lit like the figures are, so it reads on the dark pavement
+	g.z_index = 0
+	add_child(g)
+	sfx.play("hit_cover", -10.0, m.position.x, 0.2)
 
 
 ## A kill lands: time all but stops for a moment (`secs` real seconds at `scale`).

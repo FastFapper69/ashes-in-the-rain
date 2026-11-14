@@ -83,6 +83,8 @@ var _collars: Array[Sprite2D] = []
 var _phase := 0.0
 var _moving := 0.0   # 0 standing .. 1 running, eased so the pose blends instead of snapping
 var _aim := Vector2.RIGHT
+var hands_up := 0.0   # 0..1: a man giving up, gun dropped, both hands raised beside his hat
+var disarmed := false  # his gun is on the pavement: it never comes back to his hand
 var _aim_angle := 0.0
 var _vel := Vector2.ZERO          # how fast the figure is really moving, for the coat
 var _last := Vector2.ZERO
@@ -448,6 +450,8 @@ func _pose() -> void:
 	if reload > 0.0 and not _dead:
 		rl = smoothstep(0.0, 0.14, reload) * (1.0 - smoothstep(0.86, 1.0, reload))
 		near_target = near_target.lerp(shoulder + Vector2(0.24, 0.24), rl)
+	if hands_up > 0.0 and not _dead:
+		near_target = near_target.lerp(shoulder + Vector2(0.16, -(ua + fa) * 0.82), hands_up)
 	var kn := _ik(shoulder, near_target, ua, fa, 1.0)
 	var hand: Vector2 = kn[1]
 	var gun_scale: float = float(gd["len"]) / float((_gun.texture as Texture2D).get_width())   # metres per picture pixel
@@ -464,6 +468,8 @@ func _pose() -> void:
 		far_target = far_shoulder + Vector2.from_angle(_aim.angle() + 0.25) * (ua + fa) * 0.96
 	if rl > 0.0:   # the other hand works the gun
 		far_target = far_target.lerp(hand + Vector2(0.06, 0.03 + 0.03 * sin(reload * 40.0)), rl)
+	if hands_up > 0.0 and not _dead:
+		far_target = far_target.lerp(far_shoulder + Vector2(0.06, -(ua + fa) * 0.84), hands_up)
 	var k := _ik(far_shoulder, far_target, ua, fa, 1.0)
 	_place("uarm_b", "uarm", far_shoulder, k[0])
 	_place("farm_b", "farm", k[0], k[1])
@@ -496,7 +502,7 @@ func _pose() -> void:
 	# the head tips less than the body, and turns a little after the aim: he looks where he shoots
 	var look := (lean - roll) * 0.5 + roll
 	if not _dead:
-		look += clampf(_aim.angle(), -0.9, 0.7) * 0.4 - recoil * 0.3
+		look += clampf(_aim.angle(), -0.9, 0.7) * 0.4 * (1.0 - hands_up) - recoil * 0.3 + hands_up * 0.12
 		if reload > 0.0:   # eyes on the gun in his hands
 			look = lerpf(look, 0.35, smoothstep(0.0, 0.14, reload) * (1.0 - smoothstep(0.86, 1.0, reload)))
 	_place("head", "head", head_base, head_base + Vector2(0.02, -0.3).rotated(look))
@@ -505,6 +511,9 @@ func _pose() -> void:
 	_place("farm_f", "farm", kn[0], kn[1])
 	_gun.position = hand * PPM
 	_gun.rotation = _aim.angle()
+	_gun.visible = not disarmed
+	if disarmed:
+		_gun2.visible = false
 	if rl > 0.0:   # muzzle up; near the end a flick of the wrist snaps the cylinder home
 		var flick := sin(clampf((reload - 0.78) / 0.1, 0.0, 1.0) * PI) * 0.5
 		_gun.rotation = lerp_angle(_aim.angle(), -1.25 + flick, rl)

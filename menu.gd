@@ -209,7 +209,37 @@ static func ash_level() -> float:
 	var p := progress()
 	if p[0] < 0:
 		return 0.0
-	return clampf(0.25 + p[0] * 0.18 + p[1] * 0.03, 0.25, 1.0)
+	return clampf(0.25 + p[0] * 0.18 + p[1] * 0.03 + guilt() * 0.04, 0.25, 1.0)
+
+
+## Frank's conduct on a map, kept from the last time he closed it: men shot while giving up, and men
+## let go. Never shown as a number: the city shows it (ash in the air, greyer rain, harder lines).
+static func set_conduct(chapter: int, map: int, executed: int, spared: int) -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE)
+	var key := "%d-%d" % [chapter, map]
+	cfg.set_value("executed", key, executed)
+	cfg.set_value("spared", key, spared)
+	cfg.save(SAVE)
+
+
+static func _sum(section: String) -> int:
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE)
+	var n := 0
+	if cfg.has_section(section):
+		for k in cfg.get_section_keys(section):
+			n += int(cfg.get_value(section, k, 0))
+	return n
+
+
+## The ash: every man shot with his hands up weighs on Frank; every man let go takes a little off.
+static func guilt() -> int:
+	return maxi(0, _sum("executed") * 2 - _sum("spared"))
+
+
+static func spared_total() -> int:
+	return _sum("spared")
 
 
 func _ready() -> void:
