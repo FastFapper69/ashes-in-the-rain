@@ -467,8 +467,8 @@ func _paper(kind: String, at: Vector2, size: Vector2, tilt: float, on_press: Cal
 	return b
 
 
-## The title: the logo, and under it the papers pinned to the wall: today's clipping (the one thing to
-## do), the case folder and the settings tag. A place and time caption sits down on the street.
+## The title: the logo, and under it one police report with everything to do typed on it: the case in
+## hand and the one main action, then the case file and the settings. A place and time caption sits down on the street.
 func _title() -> void:
 	_on_case_file = false
 	var view := _new_page()
@@ -495,48 +495,50 @@ func _title() -> void:
 	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT
 	var aspect := float(logo.texture.get_width()) / logo.texture.get_height()
-	var lh := 250.0
+	var lh := 214.0
 	logo.size = Vector2(lh * aspect, lh)
-	logo.position = Vector2(M, 36.0)
+	logo.position = Vector2(M, 30.0)
 	logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	logo.modulate.a = 0.0
 	_page.add_child(logo)
 	logo.create_tween().tween_property(logo, "modulate:a", 1.0, 1.6).set_delay(1.2)
 
+	# Everything to do is typed on one police report, clipped together: the case in hand, then the
+	# one main action in big letters, then the case file and the settings. One paper, one hand.
 	var ph := phase()
 	var p := progress()
-	var y := 36.0 + lh + GAP
-	var papers: Array = []
-	if p[0] >= 0 and Levels.CAMPAIGN[p[0]]["ready"]:   # the one main action: the biggest paper
+	var y := 30.0 + lh + GAP
+	var rh := view.y - M - y
+	var report: Control = Paper.sheet("report", Vector2(rh * 789.0 / 1129.0, rh))
+	report.position = Vector2(M, y)
+	report.rotation = deg_to_rad(TILT[0])
+	_page.add_child(report)
+	var papers: Array = [report]
+	# the parts of the sheet (fractions of its text area), measured on the drawing: above the header
+	# rule, clear of the clip; the big line under it; two lines either side of the fold
+	const HEAD := Rect2(0, 0.036, 0.74, 0.093)
+	const MAIN := Rect2(0, 0.178, 1, 0.184)
+	const LINE_1 := Rect2(0, 0.405, 1, 0.115)
+	const LINE_2 := Rect2(0, 0.565, 1, 0.115)
+	if p[0] >= 0 and Levels.CAMPAIGN[p[0]]["ready"]:   # the one main action: the biggest line
 		var ch: Dictionary = Levels.CAMPAIGN[p[0]]
 		var what := "BEGIN" if p[0] == 0 and p[1] == 0 else "CONTINUE"
-		var clip := _paper("clip", Vector2(M, y), Vector2(312.0, 172.0), TILT[0], func() -> void: play.call(p[0], p[1]))
-		Paper.write(clip, String(ch["maps"][p[1]]["name"]), _font_type, 18, Color(INK, 0.85), HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0, 1, 0.31), 8.0)
-		Paper.write(clip, what, _font_head, 56, INK, HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0.35, 1, 0.65), 10.0)
-		papers.append(clip)
-		y += 172.0 + GAP
-	elif p[0] >= 0:   # caught up with the story: the clipping says what comes next, and is not a button
+		Paper.write(report, String(ch["maps"][p[1]]["name"]), _font_type, 17, Color(INK, 0.85), HORIZONTAL_ALIGNMENT_LEFT, HEAD, 6.0)
+		var go := Paper.write(report, what, _font_head, 50, INK, HORIZONTAL_ALIGNMENT_LEFT, MAIN, 8.0)
+		Paper.line_button(report, go, MAIN, func() -> void: play.call(p[0], p[1]), sound)
+	elif p[0] >= 0:   # caught up with the story: the sheet says what comes next, and is not a button
 		var ch: Dictionary = Levels.CAMPAIGN[p[0]]
-		var clip := Paper.sheet("clip", Vector2(312.0, 172.0))
-		clip.position = Vector2(M, y)
-		clip.rotation = deg_to_rad(TILT[0])
-		_page.add_child(clip)
-		Paper.write(clip, String(ch["title"]), _font_type, 18, Color(INK, 0.85), HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0, 1, 0.31), 8.0)
-		var tbc := Paper.write(clip, "TO BE\nCONTINUED", _font_head, 30, INK, HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0.35, 1, 0.65), 10.0)
-		tbc.add_theme_constant_override("line_spacing", -8)
-		papers.append(clip)
-		y += 172.0 + GAP
-	var folder := _paper("folder", Vector2(M, y), Vector2(124.0, 160.0), TILT[1], _case_file)
-	var cf := Paper.write(folder, "CASE\nFILE", _font_head, 26, CRIMSON)
-	cf.add_theme_constant_override("line_spacing", -10)
-	var tag := _paper("tag", Vector2(M + 124.0 + GAP * 1.5, y + 160.0 * 0.5 - 46.0), Vector2(220.0, 92.0), TILT[2], func() -> void:
+		Paper.write(report, String(ch["title"]), _font_type, 17, Color(INK, 0.85), HORIZONTAL_ALIGNMENT_LEFT, HEAD, 6.0)
+		Paper.write(report, "TO BE CONTINUED", _font_head, 28, INK, HORIZONTAL_ALIGNMENT_LEFT, MAIN, 8.0)
+	var cf := Paper.write(report, "CASE FILE", _font_head, 30, CRIMSON, HORIZONTAL_ALIGNMENT_LEFT, LINE_1, 8.0)
+	Paper.line_button(report, cf, LINE_1, _case_file, sound)
+	var st_l := Paper.write(report, "SETTINGS", _font_head, 30, INK, HORIZONTAL_ALIGNMENT_LEFT, LINE_2, 8.0)
+	Paper.line_button(report, st_l, LINE_2, func() -> void:
 		var st = load("res://settings.gd").new()
 		st.sound = sound
 		_page.visible = false
 		st.done = func() -> void: _page.visible = true
-		add_child(st))
-	Paper.write(tag, "SETTINGS", _font_head, 22, INK)
-	papers += [folder, tag]
+		add_child(st), sound)
 	for k in papers.size():   # they come out of the dark one after another
 		var n: Control = papers[k]
 		n.modulate.a = 0.0

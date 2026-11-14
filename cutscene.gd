@@ -176,18 +176,13 @@ func _ready() -> void:
 	_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_flash)
-	var skip := Button.new()
-	skip.text = "SKIP  ▸▸"
-	skip.flat = true
-	skip.focus_mode = Control.FOCUS_NONE
-	skip.add_theme_font_override("font", _font_head)
-	skip.add_theme_font_size_override("font_size", 26)
-	skip.add_theme_color_override("font_color", Color(PAPER, 0.75))
-	skip.add_theme_color_override("font_hover_color", PAPER)
-	skip.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	skip.position = Vector2(-170.0, 18.0)
-	skip.size = Vector2(150.0, 54.0)
-	skip.pressed.connect(_finish)
+	var Paper = load("res://paper.gd")   # SKIP is a strip of tape like every other button in the game
+	var skip: Control = Paper.button("tape", Vector2(150.0, 52.0), _finish, func(_n: String) -> void: pass)
+	Paper.write(skip, "SKIP", _font_head, 22, Paper.INK)
+	skip.modulate.a = 0.85
+	skip.position = Vector2(get_viewport().get_visible_rect().size.x - 150.0 - 40.0, 22.0)
+	skip.rotation = deg_to_rad(1.0)
+	skip.name = "Skip"
 	add_child(skip)
 	_black = ColorRect.new()
 	_black.color = Color.BLACK
@@ -197,6 +192,8 @@ func _ready() -> void:
 	for k in 170:
 		_drops.append(Vector3(randf(), randf(), randf_range(0.35, 1.0)))
 	get_viewport().size_changed.connect(_place_pic)
+	get_viewport().size_changed.connect(func() -> void:
+		skip.position.x = get_viewport().get_visible_rect().size.x - 150.0 - 40.0)
 	_next_panel()
 
 

@@ -299,7 +299,47 @@ var _queued_shot := false     # fire as soon as he has risen far enough to clear
 var _shots_done := 0
 
 
+## One sheet of paper over everything on the screen, menus and HUD included: fine fibres and grain
+## multiplied in, so the street, the buttons and the cards all look printed on the same newsprint.
+const PRINT_SHADER := """
+shader_type canvas_item;
+render_mode blend_mul, unshaded;
+uniform float grain = 0.07;
+float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+float noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
+}
+void fragment() {
+	vec2 p = FRAGCOORD.xy;
+	float speck = hash(floor(p * 0.5) + floor(TIME * 8.0) * 13.0);   // fine grain, alive like film
+	float fibre = noise(vec2(p.x * 0.02, p.y * 0.35));                 // long paper fibres
+	float blot = noise(p * 0.004);                                     // uneven ink take-up
+	float v = 1.0 - grain * (speck * 0.6 + fibre * 0.5 + blot * 0.5);
+	COLOR = vec4(vec3(v) * vec3(1.0, 0.99, 0.965), 1.0);
+}
+"""
+
+
+func _add_print_sheet() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 100
+	var r := ColorRect.new()
+	r.set_anchors_preset(Control.PRESET_FULL_RECT)
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sh := Shader.new()
+	sh.code = PRINT_SHADER
+	var m := ShaderMaterial.new()
+	m.shader = sh
+	r.material = m
+	layer.add_child(r)
+	add_child(layer)
+
+
 func _ready() -> void:
+	_add_print_sheet()
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--chapter="):
 			chapter = int(arg.trim_prefix("--chapter="))
@@ -1152,6 +1192,20 @@ func _tick_hat_rain() -> void:
 
 
 ## A round glow that fades out smoothly to nothing at its edge (light_blob.png ends in a hard rim).
+## A soft ink pool on the pavement under something standing on it, a little wider than its foot:
+## without it a crate or a drum looks pasted onto the street instead of resting on it.
+var _shadow_tex: Texture2D
+func _ground_shadow(cx: float, w: float, y := 0.0) -> void:
+	if _shadow_tex == null:
+		_shadow_tex = load("res://art/fx_pool.png")   # a soft round pool of ink (generated pictures drew nothing here)
+	var sh := Sprite2D.new()
+	sh.texture = _shadow_tex
+	sh.scale = Vector2(w * 1.18 / 128.0, 40.0 / 128.0)
+	sh.position = Vector2(cx, y - 4.0)
+	sh.z_index = -3
+	add_child(sh)
+
+
 func _soft_glow() -> GradientTexture2D:
 	var g := Gradient.new()
 	g.offsets = PackedFloat32Array([0.0, 0.1, 0.2, 0.35, 0.5, 0.7, 1.0])
@@ -1331,10 +1385,11 @@ func _build_light() -> void:
 	_env = env
 
 
-## A hard cone of light straight down from a lamp.
+## A lamp's light: a soft pool spreading down from the bulb whose half-lit rim breaks into diagonal
+## hatching, the way an inker draws light falling off; never a solid cone pasted over the bricks.
 func _lamp_light(at: Vector2) -> PointLight2D:
 	var p := PointLight2D.new()
-	p.texture = load("res://art/light_cone.png")
+	p.texture = load("res://art/light_pool.png")
 	p.texture_scale = 1.35
 	p.position = at + Vector2(0.0, 256.0 * 1.35)
 	p.color = LAMP_COLOR
@@ -3331,6 +3386,7 @@ func _build_level() -> void:
 		elif local:
 			s.modulate = Color(0.84, 0.82, 0.79)   # the new drawings came out paler than the old crates: match them
 		add_child(s)
+		_ground_shadow(cx, w)
 		boxes.append(Rect2(cx - w * 0.5, -top, w, top))
 		if _auto != "":   # the audit: everything in its place and the right size beside a man
 			var why := ""

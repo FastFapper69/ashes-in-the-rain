@@ -20,7 +20,7 @@ var aim_left := 0.0         # seconds the aim stays where the finger last was
 var _aim_finger := -1
 var reload_tapped := false  # the rounds under the health bar were tapped
 var pause_tapped := false
-var _pause: Node2D
+var _pause: Sprite2D
 var target_at := Callable()   # func(screen: Vector2) -> bool: is there a mobster under this point (main.gd)
 var touch_seen := false    # true once a finger has touched the screen: then the mouse is ignored
 
@@ -53,8 +53,8 @@ func _ready() -> void:
 		cut.width = 10.0
 		cut.default_color = Color(0.03, 0.03, 0.04)
 		_bar.add_child(cut)
-	_ring = _add("res://art/ui/stick_ring.png", 0.62)
-	_ring.modulate.a = 0.8
+	_ring = _add("res://art/ui/stick_base.png", 0.8)   # the stick's base: an empty printed badge, its middle see-through
+	_ring.modulate.a = 0.75
 	_knob = _add("res://art/ui/stick_knob.png", 0.62)
 	_knob.modulate.a = 0.9
 	_slow = _add("res://art/ui/stopwatch.png", 0.215)
@@ -69,15 +69,10 @@ func _ready() -> void:
 	gun.position = Vector2(0.0, 6.0)
 	_fire.add_child(gun)
 	_fire.visible = false   # a touch on the street aims and fires; the button is no longer needed
-	_dash = _add("res://art/ui/icon_dash.png", 0.5)
-	_jump = _add("res://art/ui/icon_jump.png", 0.5)
-	_pause = Node2D.new()   # top right: two ink bars on a dark disc
-	_pause.draw.connect(func() -> void:
-		_pause.draw_circle(Vector2.ZERO, 34.0, Color(0.04, 0.04, 0.05, 0.75))
-		_pause.draw_arc(Vector2.ZERO, 34.0, 0.0, TAU, 32, Color(0.93, 0.89, 0.8, 0.8), 3.0)
-		for x in [-8.0, 8.0]:
-			_pause.draw_rect(Rect2(x - 4.0, -13.0, 8.0, 26.0), Color(0.93, 0.89, 0.8)))
-	add_child(_pause)
+	# the buttons are printed badges of the same family as the stopwatch: ink disc, cream ring
+	_dash = _add("res://art/ui/badge_dive.png", 0.37)
+	_jump = _add("res://art/ui/badge_jump.png", 0.37)
+	_pause = _add("res://art/ui/badge_pause.png", 0.27)
 	set_health(1.0)
 	get_viewport().size_changed.connect(_layout)
 	_layout()

@@ -35,8 +35,9 @@ void fragment() {
 	float t = clamp((l - black_point) / (white_point - black_point), 0.0, 1.0);
 	t = pow(mix(t, t * t * (3.0 - 2.0 * t), 0.5), 0.85);   // firm blacks, open grey mid-tones
 	vec3 mono = mix(ink, paper, t);
-	vec3 amber = mix(vec3(l), c, 0.4) * vec3(1.12, 0.92, 0.66);
-	vec3 col = mix(mono, amber, warm * 0.75);
+	// amber belongs to the light sources: painted orange washes fade toward the newsprint grey
+	vec3 amber = mix(vec3(l), c, 0.3) * vec3(1.1, 0.93, 0.7);
+	vec3 col = mix(mono, amber, warm * 0.55);
 	col = mix(col, c * vec3(1.05, 0.85, 0.85), red);
 	// halftone dots in the mid-tones only, like cheap newsprint; deep shadows stay solid ink
 	vec2 p = FRAGCOORD.xy / dot_size;

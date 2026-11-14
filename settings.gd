@@ -66,18 +66,16 @@ func _row(mid_y: float, left: float, right: float, text: String, key: String, vo
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_card.add_child(l)
 	if volume:   # [-] 7 [+]
-		var bw := 60.0
-		var plus: Control = Paper.button("tape", Vector2(bw, bw), _step.bind(key, 1), sound)
+		var bw := 58.0   # the badge carries its own printed sign
+		var plus: Control = Paper.button("plus", Vector2(bw, bw), _step.bind(key, 1), sound)
 		plus.position = Vector2(right - bw, mid_y - bw * 0.5)
-		Paper.write(plus, "+", _head, 34, INK, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0, 1, 1), 0.0)
 		var v := _label("", _head, 34, INK)
 		v.position = Vector2(right - bw - 72.0, mid_y - 24.0)
 		v.size = Vector2(72.0, 48.0)
 		v.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		v.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		var minus: Control = Paper.button("tape", Vector2(bw, bw), _step.bind(key, -1), sound)
+		var minus: Control = Paper.button("minus", Vector2(bw, bw), _step.bind(key, -1), sound)
 		minus.position = Vector2(right - bw * 2.0 - 72.0, mid_y - bw * 0.5)
-		Paper.write(minus, "\u2212", _head, 34, INK, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0, 1, 1), 0.0)
 		for n in [minus, v, plus]:
 			_card.add_child(n)
 		_rows[key] = v

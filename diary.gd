@@ -77,20 +77,22 @@ func _ready() -> void:
 	tw.tween_interval(0.35)
 	tw.tween_property(hand, "modulate:a", 1.0, 0.9)
 	tw.parallel().tween_property(ghost, "modulate:a", 1.0, 0.9)
-	var stains := ["res://art/fx/stain_smear1.png", "res://art/fx/stain_spray1.png", "res://art/fx/stain_spray2.png", "res://art/fx/stain_drip1.png"]
+	# blood in ink wash, stippled and dry-brushed (gen/cut_card.py): soaked into the paper, never a flat blob
+	var stains := ["res://art/fx/blood/blood_0.png", "res://art/fx/blood/blood_1.png", "res://art/fx/blood/blood_3.png", "res://art/fx/blood/blood_5.png", "res://art/fx/blood/blood_4.png"]
 	for k in rng.randi_range(2, 3):
 		var st := TextureRect.new()
 		st.texture = load(stains[rng.randi() % stains.size()])
 		st.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		st.stretch_mode = TextureRect.STRETCH_SCALE
-		var sz := h * rng.randf_range(0.3, 0.55)
-		st.size = Vector2(sz, sz)
+		var sz := h * rng.randf_range(0.28, 0.48)
+		var ts: Vector2 = st.texture.get_size()
+		st.size = Vector2(sz, sz * ts.y / ts.x) if ts.x > ts.y else Vector2(sz * ts.x / ts.y, sz)
 		st.pivot_offset = st.size * 0.5
 		# mostly at the edges and corners, where a bloody hand held it; one may run over the words
 		var corner := Vector2(rng.randf_range(-0.12, 0.25) if rng.randf() < 0.5 else rng.randf_range(0.6, 0.95), rng.randf_range(0.45, 0.95))
 		st.position = corner * _page.size - st.size * 0.5
 		st.rotation = rng.randf_range(-PI, PI)
-		st.modulate = Color(0.42, 0.06, 0.05, rng.randf_range(0.55, 0.8))   # dried blood, soaked into the paper
+		st.modulate = Color(0.85, 0.8, 0.8, rng.randf_range(0.7, 0.9))   # dried a little darker, soaked into the paper
 		st.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		pic.add_child(st)
 	var crease := ColorRect.new()   # folded once to fit a coat pocket
@@ -99,14 +101,14 @@ func _ready() -> void:
 	crease.position = Vector2(w * rng.randf_range(0.46, 0.54), 0.0)
 	crease.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	pic.add_child(crease)
-	# The clean copy: down the right of the screen over a fall of shadow, typed like a case report.
+	# The clean copy: typed out on an index card pinned beside the page, the way a detective files it.
 	var side_x := view.x * 0.6
-	var fade := TextureRect.new()
+	var fade := TextureRect.new()   # a fall of shadow behind the card, so the street stays back
 	var gt := GradientTexture2D.new()
 	var gr := Gradient.new()
 	gr.set_color(0, Color(0, 0, 0, 0.0))
-	gr.add_point(0.35, Color(0, 0, 0, 0.75))
-	gr.set_color(gr.get_point_count() - 1, Color(0, 0, 0, 0.92))
+	gr.add_point(0.35, Color(0, 0, 0, 0.6))
+	gr.set_color(gr.get_point_count() - 1, Color(0, 0, 0, 0.8))
 	gt.gradient = gr
 	gt.fill_from = Vector2(0, 0)
 	gt.fill_to = Vector2(1, 0)
@@ -117,40 +119,91 @@ func _ready() -> void:
 	fade.size = Vector2(view.x - side_x + view.x * 0.12, view.y)
 	fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(fade)
-	# One column to the right of the page, laid out as a group and centred on the screen's height:
-	# the header, the typed copy, and under it the one way to put the page away.
 	var Paper = load("res://paper.gd")
-	var col_x := side_x + 24.0
-	var col_w := view.x - col_x - 48.0
 	var type: Font = load("res://fonts/SpecialElite.ttf")
+	var card_tex: Texture2D = load("res://art/ui/card/index_card.png")
+	var cw := clampf(view.x - side_x - 40.0, 420.0, 600.0)
+	var chh := cw * card_tex.get_height() / card_tex.get_width()
+	var card := Control.new()
+	card.size = Vector2(cw, chh)
+	card.pivot_offset = card.size * 0.5
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var csh := TextureRect.new()
+	csh.texture = card_tex
+	csh.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	csh.stretch_mode = TextureRect.STRETCH_SCALE
+	csh.size = card.size
+	csh.position = Vector2(6.0, 9.0)
+	csh.modulate = Color(0, 0, 0, 0.5)
+	csh.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(csh)
+	var cpic := TextureRect.new()
+	cpic.texture = card_tex
+	cpic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	cpic.stretch_mode = TextureRect.STRETCH_SCALE
+	cpic.size = card.size
+	cpic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(cpic)
+	add_child(card)
+	# the card's printing, measured on the drawing (px of 1496 x 1096, at x = 80): the red rule at
+	# 298, then a ruled line every 57 from 355 to about 1010; the lines climb 1.68 degrees to the right, so the
+	# typing is turned with them. The pin's point stands in the header band between x 680 and 820.
+	var k := cw / 1496.0
+	var tilt := deg_to_rad(-1.68)
+	var ink := Color(0.1, 0.09, 0.09)
+	var red := Color(0.55, 0.09, 0.07)
+	var hfs := 20
+	while hfs > 12 and type.get_string_size("EDDIE DOYLE'S NOTEBOOK", HORIZONTAL_ALIGNMENT_LEFT, -1, hfs).x > 580.0 * k:
+		hfs -= 1
 	var title := Label.new()
-	title.text = "EDDIE DOYLE'S NOTEBOOK\nPAGE %d OF %d" % [found, total]
-	title.add_theme_font_override("font", head)
-	title.add_theme_font_size_override("font_size", 22)
-	title.add_theme_color_override("font_color", Color(0.85, 0.22, 0.18))
-	title.size = Vector2(col_w, 60.0)
-	add_child(title)
+	title.text = "EDDIE DOYLE'S NOTEBOOK"
+	var page_no := Label.new()
+	page_no.text = "PAGE %d OF %d" % [found, total]
+	for l in [title, page_no]:
+		l.add_theme_font_override("font", type)
+		l.add_theme_font_size_override("font_size", hfs)
+		l.add_theme_color_override("font_color", red)
+		l.position = Vector2(80.0 * k, 298.0 * k - type.get_ascent(hfs) - 22.0 * k)
+		l.size = Vector2(1150.0 * k, type.get_height(hfs))   # clear of the dog-eared, hatched corner
+		l.rotation = tilt
+		l.set_meta("inside", true)
+		card.add_child(l)
+	page_no.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	# the copy on every other ruled line; a long page gets a smaller type until it fits the card
+	var text_w := 1300.0 * k
+	var lines_room := 6
+	var tfs := 24
+	while tfs > 15:
+		var lines := int(round(type.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, text_w, tfs).y / type.get_height(tfs)))
+		if lines <= lines_room:
+			break
+		tfs -= 1
+	var step := 114.0 * k
 	var copy := Label.new()
 	copy.text = text
 	copy.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	copy.add_theme_font_override("font", type)
-	copy.add_theme_font_size_override("font_size", 24)
-	copy.add_theme_color_override("font_color", PAPER)
-	copy.add_theme_constant_override("line_spacing", 6)
-	var ch: float = type.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, col_w, 24).y + 6.0 * 6.0
-	copy.size = Vector2(col_w, ch)
-	add_child(copy)
+	copy.add_theme_font_size_override("font_size", tfs)
+	copy.add_theme_color_override("font_color", ink)
+	copy.add_theme_constant_override("line_spacing", int(round(step - type.get_height(tfs))))
+	# each baseline a hair above its ruled line, like typewriter ink
+	copy.position = Vector2(80.0 * k, 412.0 * k - type.get_ascent(tfs) - 3.0)   # from the second ruled line: clear of the red rule
+	copy.size = Vector2(text_w, 6.0 * step)
+	copy.rotation = tilt
+	copy.set_meta("inside", true)
+	card.add_child(copy)
 	# Only this puts it away: a stray tap meant for a mobster must not throw the page away.
 	_button = Paper.button("tape", Vector2(240.0, 60.0), close, func(_n: String) -> void: pass)
 	Paper.write(_button, "PUT IT AWAY", head, 24, Paper.INK)
 	add_child(_button)
-	var total_h := 86.0 + ch + 30.0 + 60.0
+	var total_h := chh + 26.0 + 60.0
 	var y := (view.y - total_h) * 0.5
-	title.position = Vector2(col_x, y)
-	copy.position = Vector2(col_x, y + 86.0)
-	_button.position = Vector2(col_x - 6.0, y + 86.0 + ch + 30.0)
+	card.position = Vector2(view.x - 40.0 - cw, y)
+	card.rotation = deg_to_rad(0.6)
+	_button.position = Vector2(card.position.x + cw * 0.5 - 120.0, y + chh + 26.0)
 	_button.rotation = deg_to_rad(-1.2)
-	for n in [fade, title, copy]:
+	var copy_parts := [fade, card]
+	for n in copy_parts:
 		n.modulate.a = 0.0
 		create_tween().tween_property(n, "modulate:a", 1.0, 0.5).set_delay(0.25)
 	_button.modulate.a = 0.0

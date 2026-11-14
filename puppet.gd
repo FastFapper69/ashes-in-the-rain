@@ -69,7 +69,9 @@ void fragment() {
 		c.rgb /= c.a;
 	}
 	vec3 col = mix(line, c.rgb * boost, c.a);
-	COLOR = vec4(col, max(c.a, m * 0.5) * fade);   // a thin ink line that closes the silhouette, not a sticker edge
+	// a firm ink contour round the whole silhouette, like the inked outline of a comic figure: it
+	// has to survive being a few centimetres tall on a phone
+	COLOR = vec4(col, max(c.a, m * 0.92) * fade);
 }
 """
 
@@ -119,6 +121,7 @@ func _ready() -> void:
 	var mat := ShaderMaterial.new()
 	mat.shader = sh
 	mat.set_shader_parameter("line", Vector3(0.03, 0.03, 0.035))
+	mat.set_shader_parameter("width", 2.2)
 	mat.set_shader_parameter("boost", Vector3(body_boost.r, body_boost.g, body_boost.b))
 	_body.material = mat
 	add_child(_body)
@@ -324,9 +327,20 @@ func set_shadow(dx: float, skew_amount: float, alpha: float) -> void:
 func _draw() -> void:
 	# contact shadow: the figure stands on the pavement instead of floating over it
 	var high := clampf(ground / 300.0, 0.0, 1.0)   # the higher he is, the smaller and fainter it gets
-	draw_set_transform(Vector2(0.0, ground - 4.0), 0.0, Vector2(1.0 + dive * 0.8, 0.16))
-	draw_circle(Vector2.ZERO, 0.34 * PPM * (1.0 - high * 0.4), Color(0.0, 0.0, 0.0, 0.55 * (1.0 - high * 0.5)))
+	var r := 0.46 * PPM * (1.0 - high * 0.4)
+	var k := 1.0 - high * 0.6
+	draw_set_transform(Vector2(0.0, ground - 3.0), 0.0, Vector2(1.0 + dive * 0.8, 0.15))
+	draw_texture_rect(pool_texture(), Rect2(-r, -r, r * 2.0, r * 2.0), false, Color(1, 1, 1, k))   # soft pool
+	draw_circle(Vector2.ZERO, r * 0.42, Color(0.0, 0.0, 0.0, 0.5 * k))   # dark core right under the feet
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+static var _pool: Texture2D
+## A soft round pool of ink, dark in the middle and gone at the rim.
+static func pool_texture() -> Texture2D:
+	if _pool == null:
+		_pool = load("res://art/fx_pool.png")
+	return _pool
 
 
 ## dir: -1..1 along the ground (how fast the legs run). aim: vector from the shoulder to the target,

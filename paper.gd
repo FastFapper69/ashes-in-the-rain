@@ -24,6 +24,9 @@ const KINDS := {
 	"tag": {"src": "tag", "fixed": true, "inner": [50, 56, 360, 56]},   # the body, clear of the eyelet
 	"folder": {"src": "folder_full", "fixed": true, "inner": [80, 400, 90, 100]},   # the cover under its label
 	"clip": {"src": "clip", "fixed": true, "inner": [40, 26, 40, 28]},
+	"report": {"src": "report", "fixed": true, "inner": [50, 30, 50, 60]},   # one police report sheet, its paperclip top right
+	"minus": {"src": "badge_minus", "fixed": true, "inner": [60, 60, 60, 60]},   # printed badges, the HUD's family
+	"plus": {"src": "badge_plus", "fixed": true, "inner": [60, 60, 60, 60]},
 }
 # "scale": the same stroke and halftone on every box of the kind (bake px per source px);
 # "fit": "h" scaled to the box's height, then made longer or shorter in the middle;
@@ -123,8 +126,19 @@ static func _fit(img: Image, target: int, a: int, b: int, horizontal: bool) -> I
 
 
 ## A piece of paper on the screen: the drawing at this size, with its shadow. meta "inner" = text area.
+static var _turns := {}
+## No two neighbouring pieces of paper may be the same print: each new sheet of a kind is the drawing
+## turned over another way (left-right, upside down, both) and a shade older or newer.
+const FLIPS := {"panel": true, "tape": true, "strip": true}
+const AGE := [Color(1.0, 1.0, 1.0), Color(0.96, 0.94, 0.9), Color(0.99, 0.98, 0.95), Color(0.93, 0.92, 0.9)]
+
+
 static func sheet(kind: String, size: Vector2, shadow := true) -> Control:
 	var d := make(kind, size)
+	var v: int = _turns.get(kind, 0)
+	_turns[kind] = v + 1
+	var fh := FLIPS.has(kind) and v % 2 == 1
+	var fv := FLIPS.has(kind) and (v / 2) % 2 == 1 and kind != "panel"   # a card keeps its heavy foot at the bottom
 	var box := Control.new()   # the box itself: the drawing sits in it
 	box.size = size
 	box.pivot_offset = size * 0.5
@@ -139,6 +153,8 @@ static func sheet(kind: String, size: Vector2, shadow := true) -> Control:
 		sh.position = d["off"] + Vector2(5.0, 7.0)
 		sh.size = d["size"]
 		sh.modulate = Color(0, 0, 0, 0.5)
+		sh.flip_h = fh
+		sh.flip_v = fv
 		sh.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		sh.name = "Shadow"
 		box.add_child(sh)
@@ -148,6 +164,9 @@ static func sheet(kind: String, size: Vector2, shadow := true) -> Control:
 	r.stretch_mode = TextureRect.STRETCH_SCALE
 	r.position = d["off"]
 	r.size = d["size"]
+	r.flip_h = fh
+	r.flip_v = fv
+	r.self_modulate = AGE[(v * 3 + 1) % AGE.size()]
 	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	r.name = "Drawing"
 	box.add_child(r)
@@ -179,6 +198,32 @@ static func button(kind: String, size: Vector2, on_press: Callable, sound := Cal
 			sound.call("page")
 		on_press.call())
 	return box
+
+
+## One typed line of a sheet as a button (several on one sheet, like entries on a report): an
+## invisible hit area over that share of the text area; pressed, the line's ink darkens and sinks.
+static func line_button(box: Control, label: Label, part: Rect2, on_press: Callable, sound := Callable()) -> Control:
+	var inner: Rect2 = box.get_meta("inner")
+	var b := TextureButton.new()
+	b.position = inner.position + inner.size * part.position
+	b.size = inner.size * part.size
+	b.focus_mode = Control.FOCUS_NONE
+	b.name = "Line"
+	box.add_child(b)
+	box.set_meta("button", true)
+	var rest := label.position
+	var col: Color = label.get_theme_color("font_color")
+	b.button_down.connect(func() -> void:
+		label.position = rest + Vector2(1.0, 2.0)
+		label.add_theme_color_override("font_color", col.darkened(0.45)))
+	b.button_up.connect(func() -> void:
+		label.position = rest
+		label.add_theme_color_override("font_color", col))
+	b.pressed.connect(func() -> void:
+		if sound.is_valid():
+			sound.call("page")
+		on_press.call())
+	return b
 
 
 ## Text on a piece of paper, inside its inner line with about a letter's width of air, aligned as asked.
