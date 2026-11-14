@@ -7,3 +7,6 @@ _shots/
 art_src/
 Claude outputs/
 *.tmp
+
+# Python bytecode from the gen/ scripts
+__pycache__/

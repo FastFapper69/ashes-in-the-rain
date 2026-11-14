@@ -5,7 +5,6 @@ extends Node2D
 ## The map lists them (level["events"]); main.gd ticks them and asks them about bullets and light.
 
 const CAR_W := 1000.0
-const CAR_COVER_H := 190.0
 # where the windows burn on a drawing that is set on fire: fractions of the (trimmed) picture
 const FIRES := {"shipping": [Vector2(0.06, 0.1), Vector2(0.17, 0.1), Vector2(0.37, 0.1), Vector2(0.06, 0.24), Vector2(0.17, 0.24),
 		Vector2(0.37, 0.24), Vector2(0.43, 0.24), Vector2(0.06, 0.46), Vector2(0.43, 0.46), Vector2(0.1, 0.62), Vector2(0.3, 0.62)],

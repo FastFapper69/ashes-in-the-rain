@@ -257,7 +257,6 @@ var atmo
 var steps: CPUParticles2D
 var fx
 var sfx
-var _step_t := 0.0   # game seconds to the next footstep sound
 var _slowed_was := false
 var _ghost_t := 0.0   # game seconds to the next afterimage
 var hud
@@ -4557,13 +4556,6 @@ func _has_cover(at: Vector2) -> bool:
 	for bx in boxes:
 		var gap: float = at.x - bx.end.x
 		if gap > 30.0 and gap < 300.0 and bx.size.y > 200.0 and absf(bx.end.y - at.y) < 1.0:
-			return true
-	return false
-
-
-func _on_catwalk(x: float) -> bool:
-	for c in catwalks:
-		if x > c.position.x and x < c.end.x:
 			return true
 	return false
 

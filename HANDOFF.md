@@ -11,7 +11,7 @@ Read this first when picking the project up in a new chat. Reply to the user in 
 ## Rebuild from scratch in a new container
 1. `git clone` the repo (main), download Godot 4.7.2 stable linux + export templates.
 2. `godot --headless --import`
-3. Web export: `godot --headless --export-release Web build/index.html` (pck must stay < 100 MB, now ~94 MB; `export_presets.cfg` exclude_filter keeps unused art out).
+3. Web export (art/_src holds generator inputs and art kept for later; it is not exported): `godot --headless --export-release Web build/index.html` (pck must stay < 100 MB, now ~94 MB; `export_presets.cfg` exclude_filter keeps unused art out).
 4. Deploy: commit sources to `main`; copy `build/index.{pck,html,js,wasm}` into a `gh-pages` worktree, commit, push, check `git rev-parse HEAD == origin/gh-pages`.
 5. Commit trailer:
    `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` and the current `Claude-Session:` link.
@@ -40,12 +40,13 @@ Read this first when picking the project up in a new chat. Reply to the user in 
 - Difficulty curve (main.gd CURVE, `--test=curve`, `--step=N`): prologue Eddie at full strength; Frank weak and mob grows map by map (density per 10k px, toughness, aim, pace, shooters, heavy guns).
 - Skill tree (instincts.gd, menu `_instincts`, `--test=instincts --leads=N --pin=lead0,...`, `--instincts=all` in play): leads = Frank's stars + testimonies; leads earned set Frank's rank (3/4/5 hits at 0/10/24 leads); 12 of 15 cards work in play.
 - Sound: per-panel cutscene audio (cutscene.gd AUDIO: beds, music, rain, timed cues), 4 music stems in step (base, lead, tension, fight) driven by _tick_music, rain only where it rains (sfx.rain_want / indoor), new sounds from gen/sfx_story.py; `--log-sound` prints every sound.
+- Technical cleanup: dead code and ~30 unused pictures removed, generator inputs moved to art/_src, the save file cached in memory (menu.gd _save/_store), pck 97 -> 90 MB.
 
 ## Next
 - Block 1: pasted posters in street paintings; lighter hatching on character parts.
 - Skill tree cards still to build when chapter IV exists: DEAD EYE, SHOOT THEM DOWN, ALLY (they open in chapter IV).
 - Block 5 left: real recordings instead of synthesis (gunshots, impacts, steps), AI voice for Frank (ElevenLabs Starter, ~6k chars of narration), mix to -16 LUFS.
-- pck is ~97 MB of GitHub's 100 MB: new heavy assets need something removed or compressed first.
+- pck is ~90 MB of GitHub's 100 MB: new heavy assets need something removed or compressed first.
 - Block 6: chapter mechanics; block 7: content (chapter IV, menus II/III, train yard).
 - Endings (Snow / Ash) wait for chapter IV.
 - Not yet heard back: FPS on the iPhone in interiors after the lighting fix.

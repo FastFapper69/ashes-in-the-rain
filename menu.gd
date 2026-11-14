@@ -13,6 +13,21 @@ const CRIMSON := Color(0.6, 0.1, 0.07)
 const AMBER := Color(0.95, 0.66, 0.13)
 const SAVE := "user://progress2.cfg"   # progress2: the maps were rebuilt longer, old progress no longer applies
 
+## The save file, read once and kept in memory: the case file and the skill tree ask it hundreds of
+## questions a screen. Every change is written straight back.
+static var _cfg: ConfigFile = null
+
+static func _save() -> ConfigFile:
+	if _cfg == null:
+		_cfg = ConfigFile.new()
+		_cfg.load(SAVE)
+	return _cfg
+
+
+static func _store() -> void:
+	if _cfg != null:
+		_cfg.save(SAVE)
+
 # What Frank says on the title, and the stamp under it, for the point the player has reached:
 # [chapter, map] of the next map to play. A later entry wins once it is reached.
 const PHASES := [
@@ -82,29 +97,25 @@ static func is_done(chapter: int, map: int) -> bool:
 		for c in chapter:
 			k += (Levels.CAMPAIGN[c]["maps"] as Array).size()
 		return k + map < tp
-	var cfg := ConfigFile.new()
-	cfg.load(SAVE)
+	var cfg := _save()
 	return bool(cfg.get_value("done", "%d-%d" % [chapter, map], false))
 
 
 static func mark_done(chapter: int, map: int) -> void:
-	var cfg := ConfigFile.new()
-	cfg.load(SAVE)
+	var cfg := _save()
 	cfg.set_value("done", "%d-%d" % [chapter, map], true)
-	cfg.save(SAVE)
+	_store()
 
 
 static func mark_stars(chapter: int, map: int, stars: int) -> void:
-	var cfg := ConfigFile.new()
-	cfg.load(SAVE)
+	var cfg := _save()
 	var key := "%d-%d" % [chapter, map]
 	cfg.set_value("stars", key, maxi(stars, int(cfg.get_value("stars", key, 0))))
-	cfg.save(SAVE)
+	_store()
 
 
 static func stars(chapter: int, map: int) -> int:
-	var cfg := ConfigFile.new()
-	cfg.load(SAVE)
+	var cfg := _save()
 	return int(cfg.get_value("stars", "%d-%d" % [chapter, map], 0))
 
 
@@ -112,16 +123,14 @@ static func stars(chapter: int, map: int) -> int:
 const SETTING_DEFAULTS := {"music": 7, "sound": 8, "shake": true, "assist": true}
 
 static func setting(key: String):
-	var cfg := ConfigFile.new()
-	cfg.load(SAVE)
+	var cfg := _save()
 	return cfg.get_value("settings", key, SETTING_DEFAULTS[key])
 
 
 static func set_setting(key: String, value) -> void:
-	var cfg := ConfigFile.new()
-	cfg.load(SAVE)
+	var cfg := _save()
 	cfg.set_value("settings", key, value)
-	cfg.save(SAVE)
+	_store()
 	apply_settings()
 
 
@@ -137,28 +146,24 @@ static func apply_settings() -> void:
 
 ## What the detective chose when it was his to choose (Briggs: "spared" or "killed").
 static func set_story(key: String, value: String) -> void:
-	var cfg := ConfigFile.new()
-	cfg.load(SAVE)
+	var cfg := _save()
 	cfg.set_value("story", key, value)
-	cfg.save(SAVE)
+	_store()
 
 
 static func story(key: String) -> String:
-	var cfg := ConfigFile.new()
-	cfg.load(SAVE)
+	var cfg := _save()
 	return String(cfg.get_value("story", key, ""))
 
 
 static func mark_page(chapter: int, map: int) -> void:
-	var cfg := ConfigFile.new()
-	cfg.load(SAVE)
+	var cfg := _save()
 	cfg.set_value("pages", "%d-%d" % [chapter, map], true)
-	cfg.save(SAVE)
+	_store()
 
 
 static func has_page(chapter: int, map: int) -> bool:
-	var cfg := ConfigFile.new()
-	cfg.load(SAVE)
+	var cfg := _save()
 	return bool(cfg.get_value("pages", "%d-%d" % [chapter, map], false))
 
 
@@ -216,17 +221,15 @@ static func ash_level() -> float:
 ## Frank's conduct on a map, kept from the last time he closed it: men shot while giving up, and men
 ## let go. Never shown as a number: the city shows it (ash in the air, greyer rain, harder lines).
 static func set_conduct(chapter: int, map: int, executed: int, spared: int) -> void:
-	var cfg := ConfigFile.new()
-	cfg.load(SAVE)
+	var cfg := _save()
 	var key := "%d-%d" % [chapter, map]
 	cfg.set_value("executed", key, executed)
 	cfg.set_value("spared", key, spared)
-	cfg.save(SAVE)
+	_store()
 
 
 static func _sum(section: String) -> int:
-	var cfg := ConfigFile.new()
-	cfg.load(SAVE)
+	var cfg := _save()
 	var n := 0
 	if cfg.has_section(section):
 		for k in cfg.get_section_keys(section):
@@ -487,16 +490,6 @@ func _label(text: String, font: Font, font_size: int, color: Color, outline := 0
 		l.add_theme_constant_override("outline_size", outline)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return l
-
-
-func _box(bg: Color, border: Color, width: int) -> StyleBoxFlat:
-	var s := StyleBoxFlat.new()
-	s.bg_color = bg
-	s.border_color = border
-	s.set_border_width_all(width)
-	s.shadow_color = Color(0.0, 0.0, 0.0, 0.55)
-	s.shadow_offset = Vector2(6.0, 6.0)
-	return s
 
 
 func _new_page() -> Vector2:

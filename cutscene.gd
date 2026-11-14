@@ -5,7 +5,6 @@ extends CanvasLayer
 
 const PAPER := Color(0.93, 0.89, 0.8)
 const INK := Color(0.05, 0.05, 0.06)
-const SPEECH := Color(0.98, 0.97, 0.94)
 const TYPE_STEP := 0.032   # seconds per letter
 
 ## Every cutscene: a list of panels. A panel: its picture (art/cut/<img>.jpg); where the camera starts

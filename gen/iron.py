@@ -9,7 +9,7 @@ from PIL import Image
 P = 'art/props/'
 K = 0.9                      # a railing comes to a man's waist
 DECK, SPLIT = 215, 262       # source rows: where feet stand on the grating; under the deck's front beam
-L = Image.open(P + 'iron_landing.png').convert('RGBA')
+L = Image.open('art/_src/iron_landing.png').convert('RGBA')
 LEFT, MID0, MID1, RIGHT = 244, 244, 467, 578
 def scaled(im): return im.resize((round(im.width * K), round(im.height * K)), Image.LANCZOS)
 lands = []
@@ -25,7 +25,7 @@ for n in range(4):
 print('deck row', DECK * K, 'split row', round(SPLIT * K))
 # the walkway on legs: the longest deck, the gantry's legs under each end
 RISE = 370
-G = Image.open(P + 'iron_gantry.png').convert('RGBA')
+G = Image.open('art/_src/iron_gantry.png').convert('RGBA')
 legs = G.crop((0, 330, G.width, G.height))
 deck = lands[3].crop((0, 0, lands[3].width, round(SPLIT * K)))
 leg_h = RISE - (round(SPLIT * K) - round(DECK * K))
@@ -36,7 +36,7 @@ walk.alpha_composite(legs, (30, deck.height)); walk.alpha_composite(legs, (deck.
 walk.alpha_composite(deck, (0, 0))
 walk.save(P + 'iron_walk.png'); print('walk', walk.size)
 # the flight: from the lowest tread up one storey along the tread line
-S = Image.open(P + 'iron_stairs.png').convert('RGBA')
+S = Image.open('art/_src/iron_stairs.png').convert('RGBA')
 X0, Y0, X1, Y1 = 55.0, 930.0, 520.0, 270.0
 rise = RISE / K; run = rise * (X1 - X0) / (Y0 - Y1)
 xt, yt = X0 + run, Y0 - rise
