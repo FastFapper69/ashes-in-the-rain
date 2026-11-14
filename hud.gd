@@ -19,6 +19,7 @@ var aim_held := false       # an aiming finger is on the screen
 var aim_left := 0.0         # seconds the aim stays where the finger last was
 var _aim_finger := -1
 var reload_tapped := false  # the rounds under the health bar were tapped
+var target_at := Callable()   # func(screen: Vector2) -> bool: is there a mobster under this point (main.gd)
 var touch_seen := false    # true once a finger has touched the screen: then the mouse is ignored
 
 var _portrait: Sprite2D
@@ -405,15 +406,23 @@ func _input(event: InputEvent) -> void:
 		touch_seen = true
 		var t := event as InputEventScreenTouch
 		if t.pressed:
-			if Rect2(AMMO_AT - Vector2(20.0, 20.0), Vector2(320.0, 80.0)).has_point(t.position):
+			# a finger on a mobster shoots him, even where it also touches a button: the man wins
+			var on_man: bool = target_at.is_valid() and target_at.call(t.position)
+			if on_man and _aim_finger == -1 and not _in_stick_zone(t.position):
+				_aim_finger = t.index
+				aim_at = t.position
+				aim_held = true
+				aim_left = 0.7
+				fire_tapped = true
+			elif Rect2(AMMO_AT - Vector2(20.0, 20.0), Vector2(320.0, 80.0)).has_point(t.position):
 				reload_tapped = true
 			elif _fire.visible and t.position.distance_to(_fire.position) < 80.0:
 				fire_tapped = true
-			elif t.position.distance_to(_slow.position) < 80.0:
+			elif t.position.distance_to(_slow.position) < 66.0:   # only the drawn button, no margin round it
 				slow_tapped = true
-			elif t.position.distance_to(_jump.position) < 60.0:
+			elif t.position.distance_to(_jump.position) < 50.0:
 				jump_tapped = true
-			elif t.position.distance_to(_dash.position) < 60.0:
+			elif t.position.distance_to(_dash.position) < 50.0:
 				dive_tapped = true
 			elif _in_stick_zone(t.position) and _stick_finger == -1:
 				_stick_finger = t.index

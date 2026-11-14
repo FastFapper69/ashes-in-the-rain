@@ -342,6 +342,7 @@ func _ready() -> void:
 	fx.stain_host = _stain_host
 	hud = HudScript.new()
 	add_child(hud)
+	hud.target_at = _man_under
 	if in_menu:
 		hud.visible = false
 		var menu = MenuScript.new()
@@ -3442,6 +3443,19 @@ func _all_down() -> bool:
 
 
 ## The closest mobster still standing and near enough to matter, or null.
+## Is a mobster's body under this point of the screen (with a finger's width to spare)?
+func _man_under(screen: Vector2) -> bool:
+	var w: Vector2 = get_viewport().get_canvas_transform().affine_inverse() * screen
+	for e in enemies:
+		if not e["alive"] or e["state"] == "wait" or not e["node"].visible:
+			continue
+		var m = e["node"]
+		var top: float = m.position.y - 400.0 * m.size + DUCK_DROP * m.duck
+		if absf(w.x - m.position.x) < 80.0 and w.y > top and w.y < m.position.y + 30.0:
+			return true
+	return false
+
+
 ## The nearest mobster on screen and in sight; on one side only (+1 / -1) or either (0).
 func _nearest_enemy(side := 0.0):
 	var best = null
