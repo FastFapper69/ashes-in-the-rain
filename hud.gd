@@ -34,6 +34,7 @@ var _slow: Sprite2D
 var _meter: Line2D
 var _jump: Sprite2D
 var _dash: Sprite2D
+var _cuts: Array = []
 var _stick_finger := -1
 var _stick_at := Vector2.ZERO
 
@@ -46,13 +47,7 @@ func _ready() -> void:
 	_fill = Polygon2D.new()
 	_fill.color = CRIMSON
 	_bar.add_child(_fill)
-	for i in range(1, SEGMENTS):   # ink strokes that cut the bar into segments
-		var cut := Line2D.new()
-		var u := float(i) / SEGMENTS
-		cut.points = PackedVector2Array([BAR_INNER[0].lerp(BAR_INNER[1], u), BAR_INNER[3].lerp(BAR_INNER[2], u)])
-		cut.width = 10.0
-		cut.default_color = Color(0.03, 0.03, 0.04)
-		_bar.add_child(cut)
+	set_segments(SEGMENTS)
 	_ring = _add("res://art/ui/stick_base.png", 0.8)   # the stick's base: an empty printed badge, its middle see-through
 	_ring.modulate.a = 0.75
 	_knob = _add("res://art/ui/stick_knob.png", 0.62)
@@ -421,6 +416,21 @@ func rating(stars: int, lines: Array) -> void:
 
 
 ## fraction: 0 = dead, 1 = unhurt.
+## One segment per hit the hero can take: Eddie five, Frank three at first.
+func set_segments(n: int) -> void:
+	for c in _cuts:
+		c.queue_free()
+	_cuts.clear()
+	for i in range(1, n):   # ink strokes that cut the bar into segments
+		var cut := Line2D.new()
+		var u := float(i) / n
+		cut.points = PackedVector2Array([BAR_INNER[0].lerp(BAR_INNER[1], u), BAR_INNER[3].lerp(BAR_INNER[2], u)])
+		cut.width = 10.0
+		cut.default_color = Color(0.03, 0.03, 0.04)
+		_bar.add_child(cut)
+		_cuts.append(cut)
+
+
 func set_health(fraction: float) -> void:
 	var f := clampf(fraction, 0.0, 1.0)
 	if f > 0.41:   # patched up: the red rim goes

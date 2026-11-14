@@ -259,6 +259,8 @@ var _step_t := 0.0   # game seconds to the next footstep sound
 var _slowed_was := false
 var _ghost_t := 0.0   # game seconds to the next afterimage
 var hud
+var max_hp := PLAYER_HP       # Eddie's, or Frank's for this point of the story (see _set_difficulty)
+var mob_hp := MOBSTER_HP       # body hits a mobster takes; a head shot always kills
 var hp := PLAYER_HP
 var fire_cool := 0.0
 var _last_hit := Vector2.ZERO   # where the last bullet struck a crate: it bursts outward from there
@@ -389,9 +391,16 @@ func _ready() -> void:
 			while chapter > 0 and not Levels.CAMPAIGN[chapter]["ready"]:
 				chapter -= 1
 			map = Levels.CAMPAIGN[chapter]["maps"].size() - 1
+	if "--test=curve" in OS.get_cmdline_user_args():   # prints the difficulty curve over the whole story
+		_print_curve()
+		set_process(false)
+		set_physics_process(false)
+		get_tree().quit()
+		return
 	var ch: Dictionary = Levels.CAMPAIGN[chapter]
 	level = ch["maps"][map]
 	level_end = level["end"]
+	_set_difficulty(String(ch["hero"]))
 	rooms = level["rooms"]
 	if _auto_arg() != "":
 		checkpoint = -1.0
@@ -479,6 +488,7 @@ func _ready() -> void:
 	fx.stain_host = _stain_host
 	hud = HudScript.new()
 	add_child(hud)
+	hud.set_segments(max_hp)
 	hud.target_at = _man_under
 	_shake_on = bool(MenuScript.setting("shake"))
 	_assist = bool(MenuScript.setting("assist"))
@@ -1485,7 +1495,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		player.position = Vector2(1350.0, 0.0)
 		cam.position.x = player.position.x + _lead
 	if event is InputEventKey and event.pressed and event.physical_keycode == KEY_F9:
-		hp = PLAYER_HP
+		hp = max_hp
 		hud.set_health(1.0)
 		_dt = 0.0   # run the demo of every move and save pictures of it into _shots/
 		_demo_step = 0
@@ -1945,7 +1955,7 @@ func _auto_step(delta: float) -> void:
 			player.position.x = boxes[bi].position.x - 900.0
 			cam.position.x = player.position.x + _lead
 		hud.move = 1.0 if _at < 2.2 else 0.0
-		hp = PLAYER_HP
+		hp = max_hp
 		shots = [[0.9, "vault_1"], [1.0, "vault_2"], [1.1, "vault_3"], [1.2, "vault_4"], [1.3, "vault_5"], [1.4, "vault_6"], [1.5, "vault_7"], [1.6, "vault_8"]]
 	elif _auto == "bullets":   # a close look at shots in flight, at speed and in slowed time
 		if _auto_done & 1 == 0:
@@ -1996,7 +2006,7 @@ func _auto_step(delta: float) -> void:
 		cam.zoom = Vector2.ONE * 1.0
 		cam.rotation = 0.0
 		cam.position = m.position + Vector2(0.0, -320.0)
-		hp = PLAYER_HP
+		hp = max_hp
 		if _at > 0.5 and _auto_done & 2 == 0:
 			_auto_done |= 2
 			var tb: Array = m._bones["torso"]
@@ -2023,7 +2033,7 @@ func _auto_step(delta: float) -> void:
 			_auto_done |= 1
 			player.position.x = c["sprite"].position.x - 900.0
 			cam.position.x = player.position.x + _lead
-		hp = PLAYER_HP
+		hp = max_hp
 		if _at > 1.0 and _auto_done & 2 == 0:
 			_auto_done |= 2
 			sets.bullet((c["chains"] as Rect2).get_center())
@@ -2043,7 +2053,7 @@ func _auto_step(delta: float) -> void:
 		if idx >= boxes.size() or idx >= 14:
 			get_tree().quit()
 			return
-		hp = PLAYER_HP
+		hp = max_hp
 		for e in enemies:
 			e["node"].visible = false
 			e["alive"] = false
@@ -2061,7 +2071,7 @@ func _auto_step(delta: float) -> void:
 			_shot("tops_%02d" % k)
 	elif _auto.begins_with("bulbs:"):   # --test=bulbs:x: stand in a room, picture, shoot out its bulbs, picture
 		var x := float(_auto.trim_prefix("bulbs:"))
-		hp = PLAYER_HP
+		hp = max_hp
 		_grace = 99.0
 		if _auto_done & 1 == 0:
 			_auto_done |= 1
@@ -2086,7 +2096,7 @@ func _auto_step(delta: float) -> void:
 	elif _auto.begins_with("fall:"):   # --test=fall:x[,player]: everyone near x dies, one of each fall, pictures
 		var parts := _auto.trim_prefix("fall:").split(",")
 		var x := float(parts[0])
-		hp = PLAYER_HP
+		hp = max_hp
 		_grace = 99.0
 		cam.position.x = x
 		if _auto_done & 1 == 0:
@@ -2132,7 +2142,7 @@ func _auto_step(delta: float) -> void:
 		player.position.x = b.position.x - 70.0
 		player.duck = 1.0
 		_demo_duck = true
-		hp = PLAYER_HP
+		hp = max_hp
 		cam.position.x = player.position.x + 500.0
 		for i in 6:
 			if _at > 2.0 + i * 2.2 and _auto_done & (2 << i) == 0:
@@ -2147,7 +2157,7 @@ func _auto_step(delta: float) -> void:
 			get_tree().quit()
 		return
 	elif _auto == "give":   # the nearest mobster gives up: pictures as he raises his hands and as he backs off
-		hp = PLAYER_HP
+		hp = max_hp
 		_grace = 99.0
 		if _auto_done & 1 == 0:
 			_auto_done |= 1
@@ -2180,7 +2190,7 @@ func _auto_step(delta: float) -> void:
 		if k >= xs.size():
 			get_tree().quit()
 			return
-		hp = PLAYER_HP
+		hp = max_hp
 		if _auto_done & (1 << (k + 16)) == 0:
 			_auto_done |= 1 << (k + 16)
 			player.position = Vector2(float(xs[k]), _floor_at(float(xs[k]), -2000.0))
@@ -2920,7 +2930,7 @@ func _enemy_fire(e: Dictionary) -> void:
 			_fire(m, false)
 			e["cool"] = randf_range(1.4, 2.3)
 	_shots_at[int(e["id"])] = _ai_t
-	e["cool"] = float(e["cool"]) * _ease_off() * (1.35 if e.get("shaken", false) else 1.0)
+	e["cool"] = float(e["cool"]) * _ease_off() * float(diff["pause"]) * (1.35 if e.get("shaken", false) else 1.0)
 	# They run dry too: a click, a few seconds fumbling with rounds, a chance to rush them.
 	e["mag"] = int(e.get("mag", ENEMY_MAG.get(String(e["type"]), 6))) - 1
 	if e["mag"] <= 0 and not _stand:
@@ -2949,7 +2959,7 @@ func _ease_off() -> float:
 func _aim_spread() -> float:
 	if _stand:
 		return 0.5
-	return _base_spread() * _ease_off()
+	return _base_spread() * _ease_off() * float(diff["aim"])
 
 
 func _base_spread() -> float:
@@ -3036,7 +3046,7 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 						_briggs_down(e)
 						return true
 			else:
-				e["hp"] -= MOBSTER_HP if part == "head" else 1   # a head shot always kills
+				e["hp"] -= mob_hp if part == "head" else 1   # a head shot always kills
 				if e["hp"] > 0:   # still up: knocked back a step, off his aim for a moment
 					var m2 = e["node"]
 					var back: float = signf(m2.position.x - player.position.x) * (70.0 if part == "torso" else 40.0)
@@ -3067,10 +3077,10 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 	player.add_wound(pos, "")   # he flinches
 	sfx.play("hit_flesh", 2.0)
 	_shake = maxf(_shake, 0.18)
-	hud.hurt(float(hp - 1) / PLAYER_HP)
+	hud.hurt(float(hp - 1) / max_hp)
 	if (_dt < 0.0 or _dt > 7.4) and _tt < 0.0 and (_auto == "" or _auto == "stand"):   # nobody gets hurt during the demo or the tests
 		hp -= 1
-		hud.set_health(float(hp) / PLAYER_HP)
+		hud.set_health(float(hp) / max_hp)
 		if hp <= 0:
 			_player_down()
 	return true
@@ -3125,7 +3135,7 @@ func _morale(at: Vector2, ugly: bool) -> void:
 				others += 1
 		if others > 0:
 			continue
-		var chance := 1.0 if int(e2["hp"]) < MOBSTER_HP else (0.65 if ugly else 0.4) + (0.25 if e2.get("shaken", false) else 0.0)
+		var chance := 1.0 if int(e2["hp"]) < mob_hp else (0.65 if ugly else 0.4) + (0.25 if e2.get("shaken", false) else 0.0)
 		if randf() < chance:
 			_give_up(e2, 0.55)
 
@@ -3228,7 +3238,7 @@ func _explode(at: Vector2, i: int) -> void:
 	if not over and player.position.distance_to(at + Vector2(0.0, 60.0)) < 330.0 and _auto == "":
 		hp -= 2
 		stats["hits"] += 1
-		hud.set_health(float(hp) / PLAYER_HP)
+		hud.set_health(float(hp) / max_hp)
 		if hp <= 0:
 			_player_down()
 	for k in range(boxes.size() - 1, -1, -1):
@@ -3776,7 +3786,7 @@ func _build_level() -> void:
 		return
 	for pk in level["pickups"]:
 		_add_pickup(String(pk[0]), Vector2(float(pk[1]), float(pk[2])))
-	for spec in level["enemies"]:
+	for spec in _cast(level["enemies"]):
 		var goal := Vector2(float(spec["x"]), float(spec["y"]))
 		var runner: bool = spec["run"]
 		if checkpoint > 0.0 and goal.x < checkpoint + 300.0 and (not runner or float(spec["trig"]) < checkpoint):
@@ -3786,6 +3796,174 @@ func _build_level() -> void:
 		e["delay"] = float(spec["delay"])
 		if e["boss"]:
 			boss = e
+
+
+## The difficulty curve. The prologue is Eddie at his best: the player sees what a man who has done
+## this for twenty years can do. Then Eddie dies and the story passes to Frank, who has not held a gun
+## in anger for eight years: fewer hits to put him down, a shorter slowed time that comes back slower.
+## His first streets are thin and forgiving, and every map after asks a little more: more of the mob,
+## harder men, tighter aim, shorter pauses, more of them firing at once. Frank grows into it as he goes
+## (for now by chapter; the skill tree will take that over).
+## Rows: step (Frank's maps counted from chapter I map 1) -> mobsters per 10,000 px of street,
+## body hits per mobster, aim spread, pause between shots, men firing at once, share of plain gunmen
+## swapped for a Tommy gun or a shotgun.
+const CURVE := [
+	[0, {"density": 4.7, "mob_hp": 2, "aim": 1.45, "pause": 1.35, "shooters": 1, "heavy": 0.0}],
+	[2, {"density": 6.0, "mob_hp": 2, "aim": 1.3, "pause": 1.2, "shooters": 2, "heavy": 0.0}],
+	[4, {"density": 7.2, "mob_hp": 3, "aim": 1.15, "pause": 1.1, "shooters": 2, "heavy": 0.0}],
+	[7, {"density": 9.0, "mob_hp": 3, "aim": 1.0, "pause": 1.0, "shooters": 2, "heavy": 0.1}],
+	[10, {"density": 11.0, "mob_hp": 3, "aim": 0.92, "pause": 0.92, "shooters": 3, "heavy": 0.2}],
+	[15, {"density": 13.5, "mob_hp": 4, "aim": 0.85, "pause": 0.85, "shooters": 3, "heavy": 0.3}],
+]
+# Frank by chapter until the skill tree: hits he can take, how fast slowed time drains and refills.
+const FRANK := {1: {"hp": 3, "drain": 0.4, "refill": 0.1}, 2: {"hp": 4, "drain": 0.34, "refill": 0.12}, 3: {"hp": 5, "drain": 0.3, "refill": 0.13}, 4: {"hp": 5, "drain": 0.28, "refill": 0.14}}
+const EDDIE := {"hp": PLAYER_HP, "drain": 0.28, "refill": 0.14, "density": -1.0, "mob_hp": MOBSTER_HP, "aim": 1.0, "pause": 1.0, "shooters": 2, "heavy": 0.0}
+var diff: Dictionary = EDDIE
+var diff_step := -1   # -1 in the prologue
+
+
+func _set_difficulty(hero: String) -> void:
+	var step := -1
+	if hero != "eddie":
+		step = 0
+		for c in range(1, chapter):
+			step += (Levels.CAMPAIGN[c]["maps"] as Array).size()
+		step += map
+	for arg in OS.get_cmdline_user_args():   # --step=N tries any point of the curve
+		if arg.begins_with("--step="):
+			step = int(arg.trim_prefix("--step="))
+	diff_step = step
+	if step < 0:
+		diff = EDDIE.duplicate()
+	else:
+		diff = _curve_at(step)
+		diff.merge(FRANK.get(clampi(chapter, 1, 4), FRANK[1]))
+	max_hp = int(diff["hp"])
+	mob_hp = int(diff["mob_hp"])
+	hp = max_hp
+
+
+## The curve between its rows: the counts step, the rest slides.
+static func _curve_at(step: int) -> Dictionary:
+	var lo: Array = CURVE[0]
+	var hi: Array = CURVE[CURVE.size() - 1]
+	for i in CURVE.size():
+		if int(CURVE[i][0]) <= step:
+			lo = CURVE[i]
+			hi = CURVE[mini(i + 1, CURVE.size() - 1)]
+	var a: Dictionary = lo[1]
+	var b: Dictionary = hi[1]
+	var t := 0.0 if hi == lo else clampf(float(step - int(lo[0])) / float(int(hi[0]) - int(lo[0])), 0.0, 1.0)
+	return {"density": lerpf(a["density"], b["density"], t), "mob_hp": int(a["mob_hp"]), "aim": lerpf(a["aim"], b["aim"], t),
+		"pause": lerpf(a["pause"], b["pause"], t), "shooters": int(a["shooters"]), "heavy": lerpf(a["heavy"], b["heavy"], t)}
+
+
+## The map's mob as this point of the story has it: as many men as the curve's density asks for on a
+## street this long. Early on some plain gunmen stay home (spread evenly along the street, never a boss,
+## never the last man of an ambush); later a gunman standing in the open gets a partner a few steps
+## behind him, where nothing stands, and some carry heavier guns. The prologue keeps its mob as drawn.
+## Always the same for the same map, so a checkpoint finds the street as it was.
+func _cast(specs: Array) -> Array:
+	if float(diff["density"]) < 0.0:
+		return specs
+	var posts := 0
+	for spec in specs:
+		posts += 1 if String(spec["kind"]) == "post" else 0
+	var want := roundi(float(level["end"]) / 10000.0 * float(diff["density"]))
+	var want_posts := maxi(want - (specs.size() - posts), ceili(posts * 0.4))
+	var keep := minf(1.0, float(want_posts) / maxf(1.0, float(posts)))
+	var partners: Array = []   # indices of the men who get one
+	if want_posts > posts:
+		var open: Array = []
+		for i in specs.size():
+			if _partner_spot(specs, i) != INF:
+				open.append(i)
+		var extra := mini(want_posts - posts, open.size())
+		var acc := 0.5
+		for i in open:
+			acc += float(extra) / float(maxi(1, open.size()))
+			if acc >= 1.0:
+				acc -= 1.0
+				partners.append(i)
+	var out: Array = []
+	var keep_acc := 0.5
+	var heavy_acc := 0.0
+	var heavy_pick := 0
+	for i in specs.size():
+		var spec: Dictionary = (specs[i] as Dictionary).duplicate()
+		if String(spec["kind"]) == "post":
+			keep_acc += keep
+			var last_of_group: bool = bool(spec["run"]) and (i + 1 >= specs.size() or not bool(specs[i + 1]["run"]) or float(specs[i + 1]["trig"]) != float(spec["trig"]))
+			if keep_acc < 1.0 and not last_of_group:
+				continue
+			keep_acc = maxf(0.0, keep_acc - 1.0)
+		var group := [spec]
+		if i in partners:
+			var mate := spec.duplicate()
+			mate["x"] = _partner_spot(specs, i)
+			group.append(mate)
+		for g in group:
+			if String(g["kind"]) == "post":
+				heavy_acc += float(diff["heavy"])
+				if heavy_acc >= 1.0:
+					heavy_acc -= 1.0
+					g["kind"] = ["tommy", "shotgun"][heavy_pick % 2]
+					heavy_pick += 1
+			out.append(g)
+	return out
+
+
+func _print_curve() -> void:
+	for c in Levels.CAMPAIGN.size():
+		var ch: Dictionary = Levels.CAMPAIGN[c]
+		if not ch["ready"]:
+			continue
+		for m in (ch["maps"] as Array).size():
+			chapter = c
+			map = m
+			level = ch["maps"][m]
+			rooms = level["rooms"]
+			_set_difficulty(String(ch["hero"]))
+			var cast := _cast(level["enemies"])
+			var kinds := {}
+			for e in cast:
+				kinds[e["kind"]] = int(kinds.get(e["kind"], 0)) + 1
+			var drawn_x := []
+			for e in level["enemies"]:
+				drawn_x.append(float(e["x"]))
+			var added := []
+			for e in cast:
+				if not float(e["x"]) in drawn_x:
+					added.append(int(e["x"]))
+			if not added.is_empty():
+				print("CURVE   partners at ", added)
+			print("CURVE step %2d %-15s drawn %2d -> %2d %s  hero hp %d  mob hits %d  aim x%.2f  pause x%.2f  firing %d" % [diff_step, level["name"], (level["enemies"] as Array).size(), cast.size(), str(kinds), max_hp, mob_hp, diff["aim"], diff["pause"], diff["shooters"]])
+
+
+## Where a second man can stand beside gunman i: on the pavement a few steps further up the street,
+## in the same room or out of doors as he is, clear of crates, stairs and every other man. INF = nowhere.
+func _partner_spot(specs: Array, i: int) -> float:
+	var spec: Dictionary = specs[i]
+	if String(spec["kind"]) != "post" or bool(spec["run"]) or absf(float(spec["y"])) > 1.0:
+		return INF
+	var x0 := float(spec["x"])
+	for dx in [260.0, -260.0, 420.0]:
+		var x: float = x0 + dx
+		if x < 2600.0 or x > float(level["end"]) - 900.0 or _room_at(x) != _room_at(x0):
+			continue
+		var clear := true
+		for b in level["boxes"]:
+			if x > float(b[1]) - 140.0 and x < float(b[1]) + float(b[2]) + 140.0:
+				clear = false
+		for r in level["ramps"]:
+			if x > minf(float(r[0]), float(r[2])) - 160.0 and x < maxf(float(r[0]), float(r[2])) + 160.0:
+				clear = false
+		for other in specs:
+			if absf(float(other["x"]) - x) < 180.0 and absf(float(other["y"])) < 1.0:
+				clear = false
+		if clear:
+			return x
+	return INF
 
 
 ## Faces for the mobsters: the drawing and where its neck is (x in its pixels). Each kind has its
@@ -3826,7 +4004,7 @@ func _add_enemy(at: Vector2, kind: String, state: String, goal_x: float) -> Dict
 		_add_shield(m)
 	m.set_state(0.0, Vector2(-1.0, 0.0), 0.0)
 	m.visible = state != "wait"
-	var e := {"node": m, "type": kind, "hp": BOSS_HP if kind == "boss" else MOBSTER_HP, "cool": randf_range(0.8, 1.6), "aim_off": 0.0,
+	var e := {"node": m, "type": kind, "hp": BOSS_HP if kind == "boss" else mob_hp, "cool": randf_range(0.8, 1.6), "aim_off": 0.0,
 			"alive": true, "seen": state == "run", "cover": false if state != "post" else _has_cover(at), "up": false, "shot": false,
 			"timer": randf_range(0.5, 1.5), "state": state, "goal": goal_x, "trig": -1.0, "delay": 0.0, "boss": kind == "boss", "calls": 0,
 			"id": enemies.size(), "role": {"tommy": "suppress", "shotgun": "rush", "boss": "boss"}.get(kind, "post"), "notice": -1.0}
@@ -4168,10 +4346,10 @@ func _pickups() -> void:
 		if kind == "page":
 			_read_page()
 		elif kind == "flask":
-			if hp >= PLAYER_HP:
+			if hp >= max_hp:
 				continue
-			hp = mini(PLAYER_HP, hp + 2)
-			hud.set_health(float(hp) / PLAYER_HP)
+			hp = mini(max_hp, hp + 2)
+			hud.set_health(float(hp) / max_hp)
 			sfx.play("drink", 0.0)
 			hud.toast("A PULL FROM THE FLASK")
 		else:
@@ -4386,7 +4564,7 @@ func _slot_free(e: Dictionary) -> bool:
 	for k in _shots_at:
 		if int(k) != int(e["id"]) and _ai_t - float(_shots_at[k]) < 1.1:
 			busy += 1
-	return busy < 2
+	return busy < int(diff["shooters"])
 
 
 ## A "?" or "!" over a mobster's hat: he has noticed something, or he has seen the detective.
@@ -4716,12 +4894,12 @@ func _slow_time(real: float) -> void:
 	var want := (slow_on or air_slow or Input.is_physical_key_pressed(KEY_SHIFT)) and not over
 	var slowed := Engine.time_scale < 1.0
 	if want and (slow_left > 0.0 if slowed else slow_left > 0.2):   # an empty meter must refill a little first
-		slow_left = maxf(0.0, slow_left - real * 0.28)
+		slow_left = maxf(0.0, slow_left - real * diff["drain"])
 		Engine.time_scale = SLOW_SCALE
 	else:
 		if slow_left == 0.0 or not want:
 			slow_on = false
-		slow_left = minf(1.0, slow_left + real * 0.14)
+		slow_left = minf(1.0, slow_left + real * diff["refill"])
 		Engine.time_scale = 1.0
 	hud.set_slow(slow_left, Engine.time_scale < 1.0)
 	var now_slow := Engine.time_scale < 1.0
