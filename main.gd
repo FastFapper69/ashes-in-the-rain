@@ -288,6 +288,11 @@ var _step_half := 0
 var _w_was := false
 var _spawn_x := INF
 var _spawn_wait := 0.0
+var _ai_t := 0.0             # game time for the enemy AI (slows with slowed time)
+var _shots_at := {}          # enemy id -> when he last fired: at most two of them shoot at once
+var _hits_at: Array = []     # when the detective was hit lately: the encounter eases off if it is going badly
+var _cover_t := 0.0          # how long the detective has sat behind cover
+var _flank_called := false
 var _grace := 3.0             # seconds after a start or a checkpoint before anybody may fire
 var _vault := {}              # the speed vault in progress: from, to, top, t
 var glide := 0.0               # horizontal speed of a dive
@@ -1488,7 +1493,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		cam.position.x = player.position.x + _lead
 		_shots_done = 0
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		if not hud.touch_seen:   # on a phone a tap also arrives as a click; the buttons handle those
+		# On a phone a tap also arrives as a click, and the first one can come before the touch itself
+		# (a thumb on the stick fired a shot at the stick). A touch screen never shoots by "click".
+		if not hud.touch_seen and not DisplayServer.is_touchscreen_available():
 			hud.fire_tapped = true
 
 
@@ -1585,9 +1592,10 @@ func _process(delta: float) -> void:
 	dir = clampf(dir + hud.move, -1.0, 1.0)
 	var chest: Vector2 = player.position + SHOULDER + Vector2(0.0, DUCK_DROP * player.duck)
 	var aim: Vector2 = get_global_mouse_position() - chest
-	if hud.touch_seen and hud.aim_left > 0.0:   # on a phone: a finger on the screen is where he shoots
+	var touch: bool = hud.touch_seen or DisplayServer.is_touchscreen_available()   # a phone, from the first frame
+	if touch and hud.aim_left > 0.0:   # on a phone: a finger on the screen is where he shoots
 		aim = get_viewport().get_canvas_transform().affine_inverse() * hud.aim_at - chest
-	elif hud.touch_seen:   # no finger: he keeps his gun on a mobster he can see, the way he is going
+	elif touch:   # no finger: he keeps his gun on a mobster he can see, the way he is going
 		if dir != 0.0:
 			_face = signf(dir)
 		var near = _nearest_enemy(_face if dir != 0.0 else 0.0) if _assist else null
@@ -1674,7 +1682,7 @@ func _process(delta: float) -> void:
 			_queued_shot = true
 			_pop = 0.25
 		else:
-			if hud.touch_seen and hud.aim_left > 0.0:
+			if touch and hud.aim_left > 0.0:
 				player.snap_aim(aim)
 			_fire(player, true)
 			_pop = 0.15
@@ -1686,7 +1694,7 @@ func _process(delta: float) -> void:
 		_queued_shot = false
 	if _queued_shot and player.duck < 0.12:
 		_queued_shot = false
-		if hud.touch_seen and hud.aim_left > 0.0:
+		if touch and hud.aim_left > 0.0:
 			player.snap_aim(aim)
 		_fire(player, true)
 		_pop = 0.15
@@ -1740,7 +1748,7 @@ func _process(delta: float) -> void:
 	# bob with jumps.
 	var aim_n := aim.normalized() if aim.length() > 1.0 else Vector2(signf(_lead), 0.0)
 	if not over:   # the camera looks where he faces: where he aims, or where he runs when nothing's aimed at
-		if hud.touch_seen and hud.aim_left <= 0.0 and dir != 0.0 and _nearest_enemy(signf(dir)) == null:
+		if touch and hud.aim_left <= 0.0 and dir != 0.0 and _nearest_enemy(signf(dir)) == null:
 			_look = signf(dir)
 		elif absf(aim.x) > 20.0:
 			_look = signf(aim.x)
@@ -2112,6 +2120,30 @@ func _auto_step(delta: float) -> void:
 			cam.zoom = Vector2.ONE * 0.62
 			cam.position = Vector2(x, -300.0)
 			_shot("fall_end")
+			get_tree().quit()
+		return
+	elif _auto.begins_with("pin:"):   # --test=pin:i: crouch behind cover box i and stay there; log what the squad does
+		var b: Rect2 = boxes[int(_auto.trim_prefix("pin:"))]
+		_grace = 0.0
+		if _auto_done & 1 == 0:
+			_auto_done |= 1
+			player.position = Vector2(b.position.x - 70.0, 0.0)
+			move_state = "ground"
+		player.position.x = b.position.x - 70.0
+		player.duck = 1.0
+		_demo_duck = true
+		hp = PLAYER_HP
+		cam.position.x = player.position.x + 500.0
+		for i in 6:
+			if _at > 2.0 + i * 2.2 and _auto_done & (2 << i) == 0:
+				_auto_done |= 2 << i
+				var st := []
+				for e in enemies:
+					if e["alive"] and absf(e["node"].position.x - player.position.x) < 2200.0:
+						st.append("%s/%s@%d" % [e["role"], e["state"], int(e["node"].position.x)])
+				print("PIN t=", snappedf(_at, 0.1), " hits ", stats["hits"], " cover ", snappedf(_cover_t, 0.1), " ", st)
+				_shot("pin_%d" % i)
+		if _at > 15.0:
 			get_tree().quit()
 		return
 	elif _auto == "give":   # the nearest mobster gives up: pictures as he raises his hands and as he backs off
@@ -2816,6 +2848,8 @@ func _fire(shooter, from_player: bool, kind := "") -> void:
 	fx.muzzle(at, d, gun)
 	_scare_birds(at, 1300.0)
 	var point_blank := false
+	if from_player:
+		_alarm(at, 1600.0)
 	if from_player:   # a man right on top of him, between his chest and the muzzle: hit at point blank
 		var chest: Vector2 = player.position + SHOULDER + Vector2(0.0, DUCK_DROP * player.duck)
 		for e in enemies:
@@ -2885,6 +2919,8 @@ func _enemy_fire(e: Dictionary) -> void:
 		_:
 			_fire(m, false)
 			e["cool"] = randf_range(1.4, 2.3)
+	_shots_at[int(e["id"])] = _ai_t
+	e["cool"] = float(e["cool"]) * _ease_off() * (1.35 if e.get("shaken", false) else 1.0)
 	# They run dry too: a click, a few seconds fumbling with rounds, a chance to rush them.
 	e["mag"] = int(e.get("mag", ENEMY_MAG.get(String(e["type"]), 6))) - 1
 	if e["mag"] <= 0 and not _stand:
@@ -2895,14 +2931,28 @@ func _enemy_fire(e: Dictionary) -> void:
 				return
 			sfx.play("dry_fire", -4.0, m.position.x)
 			_word(["click"], m.position + Vector2(0.0, -560.0), 0.14)
+			if randf() < 0.5 and not e["boss"]:
+				_say(m, "RELOADING!")
 			sfx.play("reload_mag" if String(e["type"]) != "post" else "reload_revolver", -6.0, m.position.x))
 		e["cool"] = t + randf_range(2.2, 2.8)
 
 
 ## How far off the mobsters aim: wide when the detective stands in the dark, tight in the last stand.
+## The encounter director: two or more hits on the detective in the last half minute and the
+## mobsters aim a little worse and fire a little slower. Never shown, never below a fair fight.
+func _ease_off() -> float:
+	while not _hits_at.is_empty() and _ai_t - float(_hits_at[0]) > 30.0:
+		_hits_at.pop_front()
+	return 1.0 + clampf((_hits_at.size() - 1) * 0.15, 0.0, 0.6)
+
+
 func _aim_spread() -> float:
 	if _stand:
 		return 0.5
+	return _base_spread() * _ease_off()
+
+
+func _base_spread() -> float:
 	if sets.lit(player.position + Vector2(0.0, -150.0)):
 		return 0.55   # in the searchlight they cannot miss
 	if sets.in_smoke(player.position):
@@ -3012,6 +3062,7 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 		return true
 	_hurt_t = 0.3
 	stats["hits"] += 1
+	_hits_at.append(_ai_t)
 	fx.blood(pos, fx.hit_vel)
 	player.add_wound(pos, "")   # he flinches
 	sfx.play("hit_flesh", 2.0)
@@ -3045,6 +3096,14 @@ func _kill(e: Dictionary, head: bool, quiet := false, part := "") -> void:
 		_add_pickup(String(e["type"]), m.position)
 	elif randf() < 0.12:
 		_add_pickup("flask", m.position)
+	if e.get("role", "") == "lead":   # the man who gave the orders is down: the rest falter
+		var said := false
+		for o in enemies:
+			if o["alive"] and o != e and absf(o["node"].position.x - m.position.x) < GROUP:
+				o["shaken"] = true
+				if not said and o["state"] != "give":
+					said = true
+					_say(o["node"], ["THEY GOT SAL!", "VINNIE'S DOWN!", "WHO'S CALLING IT NOW?"].pick_random())
 	_morale(m.position, head or slow_on)
 
 
@@ -3066,7 +3125,7 @@ func _morale(at: Vector2, ugly: bool) -> void:
 				others += 1
 		if others > 0:
 			continue
-		var chance := 1.0 if int(e2["hp"]) < MOBSTER_HP else (0.65 if ugly else 0.4)
+		var chance := 1.0 if int(e2["hp"]) < MOBSTER_HP else (0.65 if ugly else 0.4) + (0.25 if e2.get("shaken", false) else 0.0)
 		if randf() < chance:
 			_give_up(e2, 0.55)
 
@@ -3769,7 +3828,8 @@ func _add_enemy(at: Vector2, kind: String, state: String, goal_x: float) -> Dict
 	m.visible = state != "wait"
 	var e := {"node": m, "type": kind, "hp": BOSS_HP if kind == "boss" else MOBSTER_HP, "cool": randf_range(0.8, 1.6), "aim_off": 0.0,
 			"alive": true, "seen": state == "run", "cover": false if state != "post" else _has_cover(at), "up": false, "shot": false,
-			"timer": randf_range(0.5, 1.5), "state": state, "goal": goal_x, "trig": -1.0, "delay": 0.0, "boss": kind == "boss", "calls": 0}
+			"timer": randf_range(0.5, 1.5), "state": state, "goal": goal_x, "trig": -1.0, "delay": 0.0, "boss": kind == "boss", "calls": 0,
+			"id": enemies.size(), "role": {"tommy": "suppress", "shotgun": "rush", "boss": "boss"}.get(kind, "post"), "notice": -1.0}
 	if briggs:   # a steel shield on his arm, turned toward wherever the detective was a moment ago
 		e["shield"] = -1.0
 		e["shells"] = 5
@@ -4182,10 +4242,12 @@ func _glint(m) -> void:
 func _say(m, text: String) -> void:
 	if text == "":
 		return
+	if _auto != "":
+		print("SAY ", text, " at ", int(m.position.x))
 	var l := Label.new()
 	l.text = text
-	l.add_theme_font_override("font", load("res://fonts/SpecialElite.ttf"))
-	l.add_theme_font_size_override("font_size", 88)
+	l.add_theme_font_override("font", load("res://fonts/ComicNeue-BoldItalic.woff"))   # speech is lettered like the comic
+	l.add_theme_font_size_override("font_size", 72)
 	l.add_theme_color_override("font_color", Color(0.95, 0.92, 0.85) * Color(_undo_night(0.5), 1.0))
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	l.add_theme_constant_override("outline_size", 12)
@@ -4303,16 +4365,140 @@ func _player_covered(side: float) -> bool:
 	return false
 
 
+## A shot rings out: everyone within earshot knows where the detective is.
+func _alarm(at: Vector2, radius: float) -> void:
+	for e in enemies:
+		if e["alive"] and not e["seen"] and e["state"] == "post" and absf(e["node"].position.x - at.x) < radius:
+			e["seen"] = true
+			e["cool"] = maxf(float(e["cool"]), 0.7)
+			_mark(e["node"], "!")
+
+
+## Fair play: nobody fires from beyond the edge of the screen.
+func _on_screen(p: Vector2) -> bool:
+	var half: float = get_viewport().get_visible_rect().size.x * 0.5 / cam.zoom.x
+	return absf(p.x - cam.position.x) < half - 30.0
+
+
+## At most two of them shooting at once: a third waits for one of them to stop.
+func _slot_free(e: Dictionary) -> bool:
+	var busy := 0
+	for k in _shots_at:
+		if int(k) != int(e["id"]) and _ai_t - float(_shots_at[k]) < 1.1:
+			busy += 1
+	return busy < 2
+
+
+## A "?" or "!" over a mobster's hat: he has noticed something, or he has seen the detective.
+func _mark(m, text: String) -> void:
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_override("font", load("res://fonts/ComicNeue-BoldItalic.woff"))
+	l.add_theme_font_size_override("font_size", 110)
+	l.add_theme_color_override("font_color", Color(0.95, 0.92, 0.85) * Color(_undo_night(0.5), 1.0) if text == "?" else Color(0.75, 0.12, 0.08) * Color(_undo_night(0.55), 1.0))
+	l.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+	l.add_theme_constant_override("outline_size", 14)
+	l.position = m.position + Vector2(-26.0, -640.0)
+	l.z_index = 20
+	add_child(l)
+	var tw := l.create_tween()
+	tw.tween_property(l, "position:y", l.position.y - 40.0, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(0.5)
+	tw.tween_property(l, "modulate:a", 0.0, 0.3)
+	tw.tween_callback(l.queue_free)
+
+
+## The oddíl: one man leads and calls it, a tommy gunner keeps the detective's head down, the
+## others go round, a shotgunner comes straight in. Roles are taken as the fight finds them.
+func _squad(e: Dictionary, m, to_player: Vector2, delta: float) -> void:
+	if e["boss"] or _stand or chapter == 0:
+		return
+	if e["role"] == "post":   # the first pistol of a group to see him leads it; the rest go round
+		var lead := false
+		for o in enemies:
+			if o != e and o["alive"] and o.get("role", "") == "lead" and absf(o["node"].position.x - m.position.x) < GROUP:
+				lead = true
+		e["role"] = "flank" if lead else "lead"
+	if e["role"] == "lead" and _cover_t > 1.8 and not _flank_called:
+		_flank_called = true
+		_say(m, ["FLANK HIM!", "GO AROUND!", "HE'S PINNED, MOVE!"].pick_random())
+		for o in enemies:
+			if o["alive"] and o.get("role", "") == "flank" and o["state"] == "post" and o["node"].position.y == 0.0 \
+					and absf(o["node"].position.x - m.position.x) < GROUP and signf(o["node"].position.x - player.position.x) == signf(m.position.x - player.position.x):
+				_go_close(o)
+				break
+	if e["state"] == "move":
+		var goal: float = e["goal"]
+		var way: float = signf(goal - m.position.x)
+		var step: float = way * 260.0 * delta
+		var blocked := false
+		for bx in boxes:
+			if bx.grow(40.0).has_point(Vector2(m.position.x + step * 4.0, -60.0)) and m.position.y == 0.0:
+				var far: float = bx.end.x + 70.0 if way > 0.0 else bx.position.x - 70.0
+				if bx.size.y <= 270.0 and absf(far - player.position.x) > 260.0 and (goal - far) * way >= 0.0:
+					_hop(e, m, bx, far)   # over the crate in his way, hands on the lid
+					return
+				blocked = true
+		if blocked or absf(goal - m.position.x) < 12.0 or _cover_t <= 0.0:
+			e["state"] = "post"
+			e["cover"] = _has_cover(m.position)
+			e["home"] = m.position.x
+			e["wander"] = m.position.x
+			e["cool"] = maxf(float(e["cool"]), 0.5)
+			return
+		m.position.x += step
+		m.duck = move_toward(m.duck, 0.0, delta * 7.0)
+		m.set_state(way, to_player, delta)
+
+
+func _hop(e: Dictionary, m, bx: Rect2, far: float) -> void:
+	e["state"] = "hop"
+	var x0: float = m.position.x
+	var top: float = bx.position.y - 30.0
+	var tw: Tween = m.create_tween()
+	tw.tween_method(func(k: float) -> void:
+		if not e["alive"]:
+			return
+		m.position.x = lerpf(x0, far, k)
+		m.position.y = minf(0.0, lerpf(0.0, top, sin(k * PI) * 1.15))
+		m.duck = sin(k * PI) * 0.6, 0.0, 1.0, 0.6)
+	tw.tween_callback(func() -> void:
+		if e["alive"] and e["state"] == "hop":
+			m.position.y = 0.0
+			e["state"] = "move")
+
+
+## A flanker goes in close, to just beyond the detective's crate, where he can fire down over it.
+func _go_close(o: Dictionary) -> void:
+	if o["node"].position.y != 0.0:
+		return
+	var side: float = signf(o["node"].position.x - player.position.x)
+	var goal: float = player.position.x + side * 420.0
+	for bx in boxes:   # stop on his own side of anything in the way
+		if (bx.get_center().x - goal) * side < 0.0 and (bx.get_center().x - o["node"].position.x) * side < 0.0 and (bx.get_center().x - player.position.x) * side > 0.0:
+			goal = (bx.end.x + 70.0) if side > 0.0 else (bx.position.x - 70.0)
+	o["goal"] = goal
+	o["state"] = "move"
+
+
 ## Each mobster keeps his gun on the detective once he has seen him. One with cover in front of him
 ## stays down behind it and pops up every couple of seconds to shoot; one without just shoots.
 ## Nobody fires at a detective crouched behind cover: they wait for him to show himself.
 func _enemies(delta: float) -> void:
+	_ai_t += delta
+	var crouched: bool = _player_covered(1.0) or _player_covered(-1.0)
+	_cover_t = _cover_t + delta if crouched else 0.0
+	if not crouched:
+		_flank_called = false
 	for e in enemies:
 		if not e["alive"]:
 			continue
 		var m = e["node"]
 		if e["state"] == "give":
 			_giving_up(e, delta)
+			continue
+		if e["state"] == "hop":
+			m.set_state(signf(player.position.x - m.position.x) * -0.0, player.position - m.position, delta)
 			continue
 		if e["state"] == "wait":   # a runner holds back, out of sight, until the detective passes his mark
 			if player.position.x > float(e["trig"]):
@@ -4341,18 +4527,36 @@ func _enemies(delta: float) -> void:
 			continue
 		var side: float = signf(m.position.x - player.position.x)
 		var to_player: Vector2 = (player.position + Vector2(0.0, SHOULDER.y + DUCK_DROP * player.duck)) - (m.position + Vector2(0.0, SHOULDER.y + DUCK_DROP * m.duck))
-		if absf(to_player.x) < SIGHT:
-			if e["boss"] and not e["seen"]:
+		# Seeing him: in the dark only from closer; a moment of "?" before the "!" so the detective
+		# always gets a beat to act first. A boss knows he is coming.
+		var sight: float = SIGHT * (0.6 if _in_dark(player.position.x) and not sets.lit(player.position + Vector2(0.0, -150.0)) else 1.0)
+		if absf(to_player.x) < sight and not e["seen"]:
+			if e["boss"]:
 				hud.boss_bar(BOSS_NAMES.get(String(level["boss"]), "BOSS"), 1.0)
 				if String(level["boss"]) == "kessler":
 					sets.smoke(m.position + Vector2(-500.0, 0.0))
-			e["seen"] = true
+				e["seen"] = true
+			elif float(e["notice"]) < 0.0:
+				e["notice"] = 0.0
+				_mark(m, "?")
+		if float(e["notice"]) >= 0.0 and not e["seen"]:
+			e["notice"] = float(e["notice"]) + delta
+			if float(e["notice"]) > 0.5:
+				e["seen"] = true
+				e["cool"] = maxf(float(e["cool"]), 0.6)
+				_mark(m, "!")
 		if not e["seen"]:
+			continue
+		_squad(e, m, to_player, delta)
+		if e["state"] == "move":   # on his way somewhere: he does not stop to shoot
 			continue
 		var hiding: bool = e["cover"] and side > 0.0   # his cover only works while the detective is on its far side
 		var want_duck: float = 0.0
 		var walk := 0.0
-		var may_fire: bool = not over and not cleared and _grace <= 0.0 and absf(to_player.x) < SIGHT * 1.3 and not _player_covered(side)
+		var over_cover: bool = e["role"] == "flank" and absf(to_player.x) < 480.0   # close up he shoots down over the crate
+		var at_cover: bool = e["role"] == "suppress" and _cover_t > 1.2       # the tommy gun chews the cover itself
+		var may_fire: bool = not over and not cleared and _grace <= 0.0 and absf(to_player.x) < SIGHT * 1.3 \
+				and (not _player_covered(side) or over_cover or at_cover) and _on_screen(m.position) and _slot_free(e)
 		e["timer"] -= delta
 		if hiding:
 			if e["up"]:
