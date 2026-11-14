@@ -98,6 +98,7 @@ var lamp_info: Array = []      # one per lamp, same order as lamps: {nodes, ligh
 var pickups: Array = []        # {kind, node}
 var weapon := "revolver"
 var ammo := 0
+
 var stats := {"kills": 0, "heads": 0, "slow": 0, "hits": 0, "time": 0.0, "executed": 0, "spared": 0}
 var _last_kind := "ground"     # what _floor_at last stood him on: ground, box or floor
 var _drop_t := 0.0             # seconds he falls through the landing he stood on (stick pulled down)
@@ -131,15 +132,16 @@ const TOP_INSET := {"crate": 0.01, "crate_long": 0.07, "drum": 0.01, "dumpster":
 ## The lamps painted into each interior, as fractions of its drawing, and their colour. A room's
 ## light comes from these and only these: a soft glow on the bulb and a round, soft pool of light
 ## round it (never a hard-edged cone), on the drawing and on everyone in it.
-const ROOM_BULBS := {
-	"tenement": [[0.498, 0.29, "warm"]],
-	"laundry": [[0.265, 0.27, "warm"], [0.493, 0.27, "warm"], [0.79, 0.28, "warm"]],
-	"warehouse": [[0.655, 0.47, "warm"], [0.38, 0.24, "sky"], [0.6, 0.24, "sky"], [0.87, 0.24, "sky"]],
-	"club": [[0.535, 0.185, "spot"], [0.48, 0.6, "warm"], [0.56, 0.6, "warm"], [0.62, 0.6, "warm"]],
-	"hold": [[0.505, 0.33, "warm"]],
-	"office": [[0.54, 0.53, "green"]],
-	"cityhall": [[0.8, 0.31, "warm"], [0.5, 0.12, "sky"]],
-	"catacombs": [[0.39, 0.37, "warm"], [0.6, 0.36, "warm"], [0.07, 0.53, "candle"], [0.25, 0.53, "candle"]],
+const ROOM_BULBS := {   # [x, y, colour, size]: measured on each painting at the glass itself
+	"tenement": [[0.499, 0.266, "warm", "big"]],
+	"laundry": [[0.263, 0.303, "warm", "big"], [0.492, 0.303, "warm", "big"], [0.791, 0.308, "warm", "big"]],
+	"warehouse": [[0.652, 0.471, "warm", "small"], [0.432, 0.25, "sky", "big"], [0.651, 0.25, "sky", "big"], [0.888, 0.25, "sky", "big"]],
+	"club": [[0.536, 0.173, "spot", "big"], [0.461, 0.66, "warm", "small"], [0.528, 0.589, "warm", "small"], [0.591, 0.614, "warm", "small"], [0.609, 0.662, "warm", "small"]],
+	"hold": [[0.511, 0.325, "warm", "big"]],
+	"office": [[0.541, 0.54, "green", "small"]],
+	"cityhall": [[0.801, 0.308, "warm", "big"], [0.5, 0.12, "sky", "big"]],
+	"catacombs": [[0.392, 0.325, "warm", "small"], [0.412, 0.379, "warm", "small"], [0.587, 0.382, "warm", "small"], [0.604, 0.337, "warm", "small"],
+			[0.07, 0.53, "candle", "small"], [0.25, 0.53, "candle", "small"]],
 }
 const BULB_COLORS := {"warm": Color(1.0, 0.72, 0.4), "sky": Color(0.75, 0.82, 0.95), "spot": Color(1.0, 0.92, 0.75),
 	"green": Color(0.75, 0.95, 0.6), "candle": Color(1.0, 0.6, 0.3)}
@@ -455,6 +457,7 @@ func _ready() -> void:
 		atmo.rain_far.emitting = false
 		atmo.rain_near.emitting = false
 	atmo.add_post(self)
+	atmo.set_ash(MenuScript.guilt() / 10.0)
 	# the ash thickens with what Frank has done: men shot with their hands up stay in the air
 	atmo.add_ash(cam, MenuScript.ash_level() if in_menu else minf(1.2, float(level.get("ash", 0.3)) + MenuScript.guilt() * 0.06), float(level.get("embers", 0.0)))
 	steps = atmo.add_steps(player, _undo_night(0.6))
@@ -2072,6 +2075,45 @@ func _auto_step(delta: float) -> void:
 			_shot("bulbs_1")
 			get_tree().quit()
 		return
+	elif _auto.begins_with("fall:"):   # --test=fall:x[,player]: everyone near x dies, one of each fall, pictures
+		var parts := _auto.trim_prefix("fall:").split(",")
+		var x := float(parts[0])
+		hp = PLAYER_HP
+		_grace = 99.0
+		cam.position.x = x
+		if _auto_done & 1 == 0:
+			_auto_done |= 1
+			player.position = Vector2(x - 900.0, 0.0)
+		if _at > 1.0 and _auto_done & 2 == 0:
+			_auto_done |= 2
+			var hows := ["head", "blast", "leg", "", "head", ""]
+			var k := 0
+			for e in enemies:
+				if e["alive"] and e["state"] != "wait" and absf(e["node"].position.x - x) < 1300.0:
+					e["node"].visible = true
+					print("FALL ", hows[k % hows.size()], " from ", e["node"].position)
+					_kill(e, hows[k % hows.size()] == "head", true, "thigh_f" if hows[k % hows.size()] == "leg" else ("blast" if hows[k % hows.size()] == "blast" else "torso"))
+					k += 1
+			if parts.size() > 1:
+				player.position = Vector2(x, _floor_at(x, -2000.0))
+				hp = 1
+				_player_down()
+		for i in 3:
+			if _at > 1.15 + i * 0.25 and _auto_done & (4 << i) == 0:
+				_auto_done |= 4 << i
+				_shot("fall_%d" % i)
+		if _at > 2.9:
+			for bi in boxes.size():
+				if absf(boxes[bi].get_center().x - x) < 1600.0:
+					print("BOX ", box_info[bi]["kind"], " ", boxes[bi])
+			for e in enemies:
+				if not e["alive"] and absf(e["node"].position.x - x) < 1600.0:
+					print("LIES at ", e["node"].position, " rot ", snappedf(e["node"].rotation, 0.01), " floor ", _floor_at(e["node"].position.x, e["node"].position.y + 40.0))
+			cam.zoom = Vector2.ONE * 0.62
+			cam.position = Vector2(x, -300.0)
+			_shot("fall_end")
+			get_tree().quit()
+		return
 	elif _auto == "give":   # the nearest mobster gives up: pictures as he raises his hands and as he backs off
 		hp = PLAYER_HP
 		_grace = 99.0
@@ -2289,6 +2331,8 @@ func _touch(at: Vector2, down: bool) -> void:
 
 ## Running, jumping, diving, sliding and rolling. Returns how fast the legs should run, -1..1.
 func _move(dir: float, aim: Vector2, delta: float) -> float:
+	if over:   # he is down: the fall (_drop) alone moves him now, nothing else pulls at the body
+		return 0.0
 	if absf(dir) > 0.85 and signf(dir) == _sprint_side:
 		_sprint += delta
 	else:
@@ -2887,7 +2931,7 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 		return true
 	if from_player:
 		for i in lamps.size():
-			if lamp_info[i]["on"] and not lamp_info[i].get("fixed", false) and pos.distance_to(lamps[i] + Vector2(0.0, -8.0)) < float(lamp_info[i].get("r", 38.0)):
+			if lamp_info[i]["on"] and not lamp_info[i].get("fixed", false) and pos.distance_to(lamps[i] + Vector2(0.0, float(lamp_info[i].get("glass", -8.0)))) < float(lamp_info[i].get("r", 38.0)):
 				_lamp_out(i)
 				return true
 		for e in enemies:
@@ -3146,7 +3190,14 @@ func _lamp_out(i: int) -> void:
 		rec["hum"]["on"] = false
 	rec["broken"] = true
 	rec["on"] = false   # dark for the aim at once; to the eye it dies over a few stuttering flickers
-	fx.shatter(lamps[i] + Vector2(0.0, -8.0))
+	fx.shatter(lamps[i] + Vector2(0.0, float(rec.get("glass", -8.0))))
+	var hole := Sprite2D.new()   # the glass is gone: a jagged black hole and cracks where the bulb was
+	hole.texture = load("res://art/fx/bulb_broken.png")
+	hole.position = lamps[i] + Vector2(0.0, float(rec.get("glass", -6.0)))
+	hole.scale = Vector2.ONE * (float(rec.get("hole", 0.26)) if rec.has("off") else 0.17)
+	hole.rotation = randf_range(-0.6, 0.6)
+	hole.z_index = -3
+	add_child(hole)
 	sfx.play("zap", -6.0, lamps[i].x, 0.1)
 	_word(["smash"], lamps[i] + Vector2(0.0, -120.0), 0.2)
 	sfx.play("glass", -2.0, lamps[i].x, 0.1)
@@ -3405,60 +3456,151 @@ func _travel(card: bool) -> void:
 ## anything else: a stagger and a fall, or a crumple where he stands.
 func _drop(figure, push: float, fade: bool, how := "") -> void:
 	figure.set_shadow(0.0, 0.0, 0.0)
+	# whatever he was doing ends here: no dive, slide, tumble, reload or raised hands left in the body,
+	# or the fall would bend limbs the wrong way
+	for k in ["air", "dive", "crouch", "slide", "roll", "reload", "recoil", "hands_up", "_flinch", "_hit_dip"]:
+		figure.set(k, 0.0)
 	var facing: float = figure.scale.x
 	var crumple: bool = how == "leg" or (how == "" and (figure.duck > 0.5 or randf() < 0.34))
 	var at: Vector2 = figure.position
-	var arm0: float = figure._aim.angle()
+	var arm0: float = clampf(figure._aim.angle(), -1.4, 1.4)
 	var knees0: float = figure.duck
 	var side: float = facing if crumple else push   # which way the head goes down
 	if how == "leg":
 		side = -push   # forward, towards the one who shot him
 	var lie := PI * 0.5 * side
+	# where he ends up: thrown that far along whatever he stands on, never through a crate or wall,
+	# and lying on the surface that is really under him there (off a crate's edge he falls to the street)
+	var throw: float = {"blast": 210.0, "head": 200.0, "leg": -60.0}.get(how, 30.0 if crumple else 170.0) * push
+	var land := _land_point(at, throw)
+	for bi in boxes.size():   # his head must not end up inside a crate either: he lies short of it
+		var b: Rect2 = boxes[bi]
+		if box_info[bi]["kind"] != "car" and b.position.y < land.y - 30.0:
+			var head_x: float = land.x + side * 440.0
+			if (b.position.x - land.x) * side > 0.0 and minf(b.position.x, b.end.x) < maxf(land.x, head_x) and maxf(b.position.x, b.end.x) > minf(land.x, head_x):
+				var edge: float = b.position.x if side > 0.0 else b.end.x
+				land.x = edge - side * 455.0
+				land.y = _floor_at(land.x, land.y + 4.0)
+	var curl := false
+	# the whole body has to lie on something: feet, hips and head on the same surface, not hanging
+	# off the end of a landing in the air. Shift back onto it, turn the other way, or go over the edge.
+	if not _body_fits(land, side):
+		var found := false
+		for k in range(1, 30):
+			for sgn in [-1.0, 1.0]:
+				var x2: float = land.x + sgn * side * k * 20.0
+				if not found and _body_fits(Vector2(x2, land.y), side):
+					land.x = x2
+					found = true
+		if not found and _body_fits(land, -side):
+			side = -side
+			lie = -lie
+			found = true
+		if not found:   # too narrow to lie on: over an edge to what is below, or slumped against what stopped him
+			var over_x: float = land.x + side * 220.0
+			var below: float = _floor_at(over_x, land.y + 4.0)
+			if below > land.y + 40.0 and _body_fits(Vector2(over_x, below), side):
+				land = Vector2(over_x, below)
+			else:   # curled up short, knees drawn in, in the gap that there is
+				curl = true
+				var best_x: float = land.x
+				var done := false
+				for k in range(0, 30):
+					for sgn in [-1.0, 1.0]:
+						for sd in [side, -side]:
+							var x3: float = land.x + sgn * k * 20.0
+							if not done and _body_fits(Vector2(x3, land.y), sd, 300.0):
+								best_x = x3
+								side = sd
+								done = true
+				land.x = best_x
+				lie = PI * 0.5 * side
+	var rest := Vector2(land.x, land.y - 26.0)
+	# how the dead arms lie: along the body, over the head or down by the side, and tipped to the open
+	# side, never down through the pavement. Face down when he falls the way he faces.
+	var face_down: bool = facing * side > 0.0
+	var over_head: float = -PI * 0.5 + (-0.12 if face_down else 0.12)
+	var by_side: float = PI * 0.5 + (0.12 if face_down else -0.12)
+	figure.dead_far = -0.25 if face_down else 0.25
+	var mid := Vector2(lerpf(at.x, land.x, 0.45), minf(at.y, land.y))
 	var tw := create_tween()
+	# the arms only ever swing the short way round, through open air in front of him or over his head
 	if how == "blast":
-		var spin := lie + TAU * side
-		tw.tween_method(func(k: float) -> void: figure.die_pose(lerp_angle(arm0, -2.4, k), 0.6 * k), 0.0, 1.0, 0.2)
-		tw.parallel().tween_property(figure, "rotation", spin, 0.75).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-		tw.parallel().tween_property(figure, "position:x", at.x + push * 460.0, 0.75).set_ease(Tween.EASE_OUT)
-		tw.parallel().tween_method(func(k: float) -> void: figure.position.y = at.y - 26.0 - sin(k * PI) * 320.0 * (1.0 - k * 0.15), 0.0, 1.0, 0.75)
-		tw.tween_callback(func() -> void: figure.rotation = lie)
+		tw.tween_method(func(k: float) -> void: figure.die_pose(lerpf(arm0, -2.2, k), 0.5 * k), 0.0, 1.0, 0.2)
+		tw.parallel().tween_property(figure, "rotation", lie, 0.55).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tw.parallel().tween_property(figure, "position:x", rest.x, 0.55).set_ease(Tween.EASE_OUT)
+		tw.parallel().tween_method(func(k: float) -> void: figure.position.y = lerpf(at.y, rest.y, k) - sin(k * PI) * 150.0, 0.0, 1.0, 0.55)
+		tw.parallel().tween_method(func(k: float) -> void: figure.die_pose(lerpf(-2.2, over_head, k), lerpf(0.5, 0.0, k)), 0.0, 1.0, 0.55).set_delay(0.2)
 	elif how == "head":
-		tw.tween_method(func(k: float) -> void: figure.die_pose(lerp_angle(arm0, -2.3, k), 0.0), 0.0, 1.0, 0.09).set_ease(Tween.EASE_OUT)
+		tw.tween_method(func(k: float) -> void: figure.die_pose(lerpf(arm0, -2.2, k), 0.0), 0.0, 1.0, 0.09).set_ease(Tween.EASE_OUT)
 		tw.parallel().tween_property(figure, "rotation", 0.35 * side, 0.09).set_ease(Tween.EASE_OUT)
-		tw.parallel().tween_property(figure, "position:x", at.x + push * 110.0, 0.09).set_ease(Tween.EASE_OUT)
-		tw.tween_property(figure, "rotation", lie, 0.26).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-		tw.parallel().tween_property(figure, "position", Vector2(at.x + push * 230.0, at.y - 26.0), 0.26).set_ease(Tween.EASE_OUT)
-		tw.parallel().tween_method(func(k: float) -> void: figure.die_pose(lerp_angle(-2.3, -2.6, k), 0.0), 0.0, 1.0, 0.26)
+		tw.parallel().tween_property(figure, "position", mid, 0.09).set_ease(Tween.EASE_OUT)
+		tw.tween_property(figure, "rotation", lie, 0.28).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tw.parallel().tween_property(figure, "position", rest, 0.28).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tw.parallel().tween_method(func(k: float) -> void: figure.die_pose(lerpf(-2.2, over_head, k), 0.0), 0.0, 1.0, 0.28)
 	elif how == "leg":
-		tw.tween_method(func(k: float) -> void: figure.die_pose(lerp_angle(arm0, 0.9, k), lerpf(knees0, 1.0, k)), 0.0, 1.0, 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-		tw.parallel().tween_property(figure, "position:y", at.y + 40.0, 0.18)
+		tw.tween_method(func(k: float) -> void: figure.die_pose(lerpf(arm0, 0.9, k), lerpf(knees0, 1.0, k)), 0.0, 1.0, 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		tw.parallel().tween_property(figure, "rotation", 0.15 * side, 0.18)
 		tw.tween_interval(0.28)   # down on one knee, a beat
 		tw.tween_property(figure, "rotation", lie, 0.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-		tw.parallel().tween_property(figure, "position", Vector2(at.x - push * 60.0, at.y - 26.0), 0.4)
-		tw.parallel().tween_method(func(k: float) -> void: figure.die_pose(lerp_angle(0.9, 1.5, k), lerpf(1.0, 0.2, k)), 0.0, 1.0, 0.4)
+		tw.parallel().tween_property(figure, "position", rest, 0.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tw.parallel().tween_method(func(k: float) -> void: figure.die_pose(lerpf(0.9, by_side, k), lerpf(1.0, 0.0 if face_down else 0.2, k)), 0.0, 1.0, 0.4)
 	elif crumple:
-		tw.tween_property(figure, "position:x", at.x + push * 30.0, 0.1).set_ease(Tween.EASE_OUT)
-		tw.parallel().tween_property(figure, "rotation", -0.1 * side, 0.1)
-		tw.parallel().tween_method(func(k: float) -> void: figure.die_pose(lerp_angle(arm0, 1.2, k), lerpf(knees0, 1.0, k)), 0.0, 1.0, 0.32).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tw.tween_property(figure, "rotation", -0.1 * side, 0.1)
+		tw.parallel().tween_method(func(k: float) -> void: figure.die_pose(lerpf(arm0, 1.2, k), lerpf(knees0, 1.0, k)), 0.0, 1.0, 0.32).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		tw.tween_property(figure, "rotation", lie, 0.34).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-		tw.parallel().tween_property(figure, "position:y", at.y - 26.0, 0.34)
-		tw.parallel().tween_method(func(k: float) -> void: figure.die_pose(lerp_angle(1.2, 1.45, k), lerpf(1.0, 0.15, k)), 0.0, 1.0, 0.34)   # the legs go out straight as he lands
+		tw.parallel().tween_property(figure, "position", rest, 0.34).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tw.parallel().tween_method(func(k: float) -> void: figure.die_pose(lerpf(1.2, by_side, k), lerpf(1.0, 0.0 if face_down else 0.15, k)), 0.0, 1.0, 0.34)   # the legs go out straight as he lands
 	else:
-		tw.tween_method(func(k: float) -> void: figure.die_pose(lerp_angle(arm0, -1.75, k), lerpf(knees0, 0.25, k)), 0.0, 1.0, 0.14).set_ease(Tween.EASE_OUT)
+		tw.tween_method(func(k: float) -> void: figure.die_pose(lerpf(arm0, -1.75, k), lerpf(knees0, 0.25, k)), 0.0, 1.0, 0.14).set_ease(Tween.EASE_OUT)
 		tw.parallel().tween_property(figure, "rotation", 0.18 * side, 0.14).set_ease(Tween.EASE_OUT)
-		tw.parallel().tween_property(figure, "position:x", at.x + push * 70.0, 0.14).set_ease(Tween.EASE_OUT)
+		tw.parallel().tween_property(figure, "position", mid, 0.14).set_ease(Tween.EASE_OUT)
 		tw.tween_property(figure, "rotation", lie, 0.36).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-		tw.parallel().tween_property(figure, "position", Vector2(at.x + push * 190.0, at.y - 26.0), 0.36).set_ease(Tween.EASE_OUT)
-		tw.parallel().tween_method(func(k: float) -> void: figure.die_pose(lerp_angle(-1.75, -2.05, k), lerpf(0.25, 0.0, k)), 0.0, 1.0, 0.36)
+		tw.parallel().tween_property(figure, "position", rest, 0.36).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tw.parallel().tween_method(func(k: float) -> void: figure.die_pose(lerpf(-1.75, over_head, k), lerpf(0.25, 0.0, k)), 0.0, 1.0, 0.36)
+	if curl:   # in a tight spot he ends curled on his side, knees drawn up, inside the gap
+		tw.tween_method(func(k: float) -> void: figure.die_pose(figure._aim.angle(), 0.75 * k), 0.0, 1.0, 0.18)
 	# the bounce off the pavement
 	tw.tween_property(figure, "rotation", lie - 0.13 * side, 0.08).set_ease(Tween.EASE_OUT)
 	tw.tween_property(figure, "rotation", lie, 0.1).set_ease(Tween.EASE_IN)
-	tw.tween_callback(func() -> void: _pool(figure.position + Vector2(side * 230.0, 0.0), side))
+	tw.tween_callback(func() -> void: _pool(Vector2(figure.position.x + side * 230.0, land.y), side))
 	tw.parallel().tween_callback(func() -> void: sfx.play("body_fall", 0.0 if figure == player else -3.0, figure.position.x))
 	if fade:
 		tw.tween_interval(3.0)
 		tw.tween_property(figure, "modulate:a", 0.0, 0.9)
+
+
+## Where a body thrown `dist` along from `at` comes to rest: it slides along the surface under it,
+## stops against anything that stands up in the way, drops off an edge onto what is below.
+func _land_point(at: Vector2, dist: float) -> Vector2:
+	var surf := _floor_at(at.x, at.y + 4.0)
+	var x := at.x
+	var step := signf(dist) * 15.0
+	for i in int(absf(dist) / 15.0):
+		var nx := x + step
+		var wall := false
+		for bi in boxes.size():
+			if box_info[bi]["kind"] == "car":
+				continue
+			var b: Rect2 = boxes[bi]
+			if nx > b.position.x - 40.0 and nx < b.end.x + 40.0 and b.position.y < surf - 30.0:
+				wall = true   # a crate taller than where he lies: he stops against it
+		if wall or (_room_at(nx) != _room_at(at.x)):
+			break
+		x = nx
+		surf = _floor_at(x, surf + 4.0)
+	return Vector2(x, surf)
+
+
+func _body_fits(at: Vector2, side: float, length := 440.0) -> bool:
+	for t in [0.0, 0.3, 0.6, 0.95]:
+		if absf(_floor_at(at.x + side * length * t, at.y + 4.0) - at.y) > 6.0:
+			return false
+	for bi in boxes.size():
+		var b: Rect2 = boxes[bi]
+		if box_info[bi]["kind"] != "car" and b.position.y < at.y - 30.0 and minf(at.x, at.x + side * length) < b.end.x + 10.0 and maxf(at.x, at.x + side * length) > b.position.x - 10.0:
+			return false
+	return true
 
 
 ## Blood spreading on the pavement under a body: dark, flat, slow.
@@ -3750,7 +3892,7 @@ func _build_room(x0: float, x1: float, style: String) -> void:
 		var pool := Sprite2D.new()   # the pool of light on the painted room round the lamp
 		pool.texture = _soft_glow()
 		pool.position = at + Vector2(0.0, 110.0)   # spreading from the bulb itself, falling off down the wall
-		var low: bool = float(b[1]) > 0.45   # a table or wall lamp lights its corner, a ceiling lamp the room
+		var low: bool = String(b[3]) == "small"   # a table lamp or a lantern lights its corner, a ceiling lamp the room
 		pool.scale = (Vector2(2.4, 2.0) if low else Vector2(4.2, 3.6)) if not sky else Vector2(6.0, 5.0)
 		pool.material = add
 		pool.light_mask = 0
@@ -3778,18 +3920,17 @@ func _build_room(x0: float, x1: float, style: String) -> void:
 		p.height = 140.0
 		p.range_item_cull_mask = MASK_LIT
 		add_child(p)
-		if not sky:   # a bulb can be shot out like any street lamp: the room round it goes dark
+		if not sky and not String(b[2]) in ["candle", "spot"]:   # (the stage spot keeps its painted beam: not shootable) a bulb can be shot out like any street lamp: the room round it goes dark
 			var off := Sprite2D.new()   # the painted bulb itself, dead: an ink shadow over its glow
 			off.texture = load("res://art/fx_pool.png")
-			off.position = at + Vector2(0.0, 6.0)
-			off.scale = Vector2.ONE * (0.32 if low else 0.5)
-			off.modulate = Color(1, 1, 1, 0.6)
-			off.light_mask = 0
+			off.position = at
+			off.scale = Vector2.ONE * (0.4 if low else 0.6)
+			off.modulate = Color(1, 1, 1, 0.45)
 			off.z_index = -4
 			off.visible = false
 			add_child(off)
 			lamps.append(at)
-			lamp_info.append({"nodes": nodes, "light": p, "on": true, "off": off, "r": 52.0})
+			lamp_info.append({"nodes": nodes, "light": p, "on": true, "off": off, "r": 30.0 if low else 46.0, "glass": 0.0, "hole": 0.16 if low else 0.26})
 
 
 ## A lamp hanging from an interior's ceiling: cord, enamel shade, the bulb glowing under it.

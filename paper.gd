@@ -127,6 +127,7 @@ static func _fit(img: Image, target: int, a: int, b: int, horizontal: bool) -> I
 
 ## A piece of paper on the screen: the drawing at this size, with its shadow. meta "inner" = text area.
 static var _turns := {}
+static var wear := 0.0   # 0..1: the case file browns and greys as Frank's guilt grows (menu sets it)
 ## No two neighbouring pieces of paper may be the same print: each new sheet of a kind is the drawing
 ## turned over another way (left-right, upside down, both) and a shade older or newer.
 const FLIPS := {"panel": true, "tape": true, "strip": true}
@@ -166,7 +167,7 @@ static func sheet(kind: String, size: Vector2, shadow := true) -> Control:
 	r.size = d["size"]
 	r.flip_h = fh
 	r.flip_v = fv
-	r.self_modulate = AGE[(v * 3 + 1) % AGE.size()]
+	r.self_modulate = AGE[(v * 3 + 1) % AGE.size()] * Color.WHITE.lerp(Color(0.84, 0.82, 0.79), wear)
 	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	r.name = "Drawing"
 	box.add_child(r)

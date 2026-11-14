@@ -235,6 +235,9 @@ static func _sum(section: String) -> int:
 
 ## The ash: every man shot with his hands up weighs on Frank; every man let go takes a little off.
 static func guilt() -> int:
+	for a in OS.get_cmdline_user_args():   # tests: --guilt=N
+		if a.begins_with("--guilt="):
+			return int(a.trim_prefix("--guilt="))
 	return maxi(0, _sum("executed") * 2 - _sum("spared"))
 
 
@@ -265,6 +268,7 @@ static func ending() -> String:
 
 func _ready() -> void:
 	layer = 20
+	Paper.wear = clampf(guilt() / 10.0, 0.0, 1.0)
 	_font_type = load("res://fonts/SpecialElite.ttf")
 	_font_head = FontVariation.new()
 	_font_head.base_font = load("res://fonts/Oswald.ttf")

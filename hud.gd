@@ -121,17 +121,26 @@ func _layout() -> void:
 
 ## Big words across the middle of the screen.
 func banner(text: String) -> void:
-	var l := Label.new()
-	l.text = text
-	l.add_theme_font_size_override("font_size", 84)
-	l.add_theme_color_override("font_color", Color(0.93, 0.9, 0.86))
-	l.add_theme_color_override("font_outline_color", Color(0.03, 0.03, 0.04))
-	l.add_theme_constant_override("outline_size", 18)
-	l.set_anchors_preset(Control.PRESET_FULL_RECT)
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(l)
+	# a big strip of paper slapped across the middle, the words in the game's headline type
+	var Paper = load("res://paper.gd")
+	var head := FontVariation.new()
+	head.base_font = load("res://fonts/Oswald.ttf")
+	head.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): 600}
+	var view := get_viewport().get_visible_rect().size
+	var fs := 64
+	var w := clampf(head.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + 200.0, 420.0, view.x - 96.0)
+	var b: Control = Paper.sheet("tape", Vector2(w, 120.0))
+	Paper.write(b, text, head, fs, Paper.INK)
+	b.position = (view - b.size) * 0.5 + Vector2(0.0, -30.0)
+	b.pivot_offset = b.size * 0.5
+	b.rotation = deg_to_rad(-1.5)
+	b.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.scale = Vector2.ONE * 1.25
+	b.modulate.a = 0.0
+	add_child(b)
+	var tw := b.create_tween()
+	tw.tween_property(b, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(b, "modulate:a", 1.0, 0.12)
 
 
 const PAPER := Color(0.93, 0.89, 0.8)

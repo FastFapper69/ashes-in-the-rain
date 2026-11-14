@@ -3,6 +3,9 @@ extends Node2D
 # feet, hips and hands are, solves the knees and elbows, and lays each drawn part between its two joints.
 
 const PPM := 200.0   # world pixels per metre
+## The figure's drawings carry mipmaps (their .import): read them, so fine hatching shrinks to a clean
+## grey on a phone instead of shimmering. Only on those drawings: a texture without mipmaps vanishes under it.
+const MIPS := CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 const MASK_FIGURE := 1 | 4   # lit by the street lights (1) and by the figure's own back light (4)
 
 # Back to front. The far arm and leg reuse the near ones' drawings, darkened.
@@ -84,6 +87,7 @@ var _phase := 0.0
 var _moving := 0.0   # 0 standing .. 1 running, eased so the pose blends instead of snapping
 var _aim := Vector2.RIGHT
 var hands_up := 0.0   # 0..1: a man giving up, gun dropped, both hands raised beside his hat
+var dead_far := 0.25   # where the far arm lies off the near one once he is down
 var disarmed := false  # his gun is on the pavement: it never comes back to his hand
 var _aim_angle := 0.0
 var _vel := Vector2.ZERO          # how fast the figure is really moving, for the coat
@@ -142,6 +146,7 @@ func _ready() -> void:
 			g.centered = false
 			g.light_mask = 1   # no normal map: the figure's own rim light would wash the steel out
 			g.modulate = Color(0.78, 0.78, 0.8)
+			g.texture_filter = MIPS
 			_body.add_child(g)
 			if row[0] == "gun":
 				_gun = g
@@ -158,6 +163,7 @@ func _ready() -> void:
 				c.offset = (parts[row[0]] as Rect2).position - parts["torso"]["a"]
 				c.scale = Vector2.ONE * (PPM / float(parts["torso"]["ppm"]))
 				c.light_mask = MASK_FIGURE
+				c.texture_filter = MIPS
 				_body.add_child(c)
 				_collars.append(c)
 			continue
@@ -175,6 +181,7 @@ func _ready() -> void:
 		if row[2]:
 			s.modulate = Color(0.55, 0.55, 0.55)
 		s.light_mask = MASK_FIGURE
+		s.texture_filter = MIPS
 		_body.add_child(s)
 		_spr[row[0]] = s
 	set_weapon(String(cfg.get("weapon", "revolver")))
@@ -465,7 +472,7 @@ func _pose() -> void:
 	elif weapon == "pistols" and not _dead:
 		far_target = far_shoulder + _aim * reach + Vector2(0.0, 0.07)
 	if _dead:   # dead weight: the arm lies almost straight along the thrown direction
-		far_target = far_shoulder + Vector2.from_angle(_aim.angle() + 0.25) * (ua + fa) * 0.96
+		far_target = far_shoulder + Vector2.from_angle(_aim.angle() + dead_far) * (ua + fa) * 0.96
 	if rl > 0.0:   # the other hand works the gun
 		far_target = far_target.lerp(hand + Vector2(0.06, 0.03 + 0.03 * sin(reload * 40.0)), rl)
 	if hands_up > 0.0 and not _dead:
@@ -565,6 +572,7 @@ func hit_part(world: Vector2) -> String:
 ## The coat skirt as a grid laid over its drawing, rows down from the belt to the hem.
 func _make_skirt_mesh() -> Polygon2D:
 	var m := Polygon2D.new()
+	m.texture_filter = MIPS
 	var tex := _tex(String(cfg["dir"]) + "skirt")
 	m.texture = tex
 	var size := Vector2((tex as Texture2D).get_size())
@@ -638,6 +646,7 @@ func _along_leg(leg: Array, v: float) -> Vector2:
 ## A whole straight leg drawing as a strip of rows, bent along hip, knee and ankle each frame.
 func _make_leg_mesh() -> Polygon2D:
 	var m := Polygon2D.new()
+	m.texture_filter = MIPS
 	var tex: Texture2D = _tex(String(cfg["leg_tex"]).trim_suffix(".png"))
 	m.texture = tex
 	var size := Vector2(tex.get_size())

@@ -16,7 +16,8 @@ uniform float grain = 0.035;
 uniform float dot_size = 4.0;
 uniform float halftone = 0.16;
 uniform float slow = 0.0;
-uniform vec2 registration = vec2(1.6, 1.0);   // screen pixels between the ink and the colour plates
+uniform vec2 registration = vec2(1.6, 1.0);
+uniform float ash = 0.0;   // 0..1, Frank's guilt: the paper greys, the amber dies, the rain goes to soot   // screen pixels between the ink and the colour plates
 
 float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
@@ -43,6 +44,10 @@ void fragment() {
 	vec3 amber = mix(vec3(lc), cc, 0.3) * vec3(1.1, 0.93, 0.7);
 	vec3 col = mix(mono, amber, warm * 0.55);
 	col = mix(col, cc * vec3(1.05, 0.85, 0.85), red);
+	// the heavier the ash, the more the page looks burnt: warmth drains to soot grey, whites dull
+	float g = dot(col, vec3(0.299, 0.587, 0.114));
+	col = mix(col, vec3(g) * vec3(0.96, 0.95, 0.94), ash * 0.6 * (1.0 - red));
+	col *= 1.0 - ash * 0.1;
 	// halftone dots in the mid-tones only, like cheap newsprint; deep shadows stay solid ink
 	vec2 p = FRAGCOORD.xy / dot_size;
 	vec2 rp = vec2(p.x + p.y, p.y - p.x) * 0.7071;
@@ -107,6 +112,13 @@ func add_post(parent: Node) -> void:
 	_post = mat
 	layer.add_child(rect)
 	post_layer = layer
+
+
+func set_ash(amount: float) -> void:
+	_post.set_shader_parameter("ash", clampf(amount, 0.0, 1.0))
+	for r in [rain_far, rain_near]:   # rain falls grey with soot, not silver
+		if r:
+			r.color = r.color.lerp(Color(0.62, 0.6, 0.58, r.color.a), clampf(amount, 0.0, 1.0) * 0.8)
 
 
 ## 0 = normal, 1 = slowed time: a black panel border closes in, heavier dots and darker edges.
