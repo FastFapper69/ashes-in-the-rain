@@ -57,7 +57,7 @@ Read this first when picking the project up in a new chat. Reply to the user in 
 ## Next
 - Skill tree cards still to build when chapter IV exists: DEAD EYE, SHOOT THEM DOWN, ALLY (they open in chapter IV).
 - Ideas from the player: melee with a pipe when passing a man (cooldown, a good animation); inner-voice barks when nearly dead (Sin City style: 'get up, old man'); new backdrops so streets repeat less, and subway backdrops that make sense (tracks on the walls, scale).
-- pck is ~97 MB of GitHub's 100 MB: optimise next (street normal maps ~3.3 MB each are the biggest).
+- pck ~54 MB: textures import as lossy WebP (0.85, diary pages and cards 0.8); normal maps (_n) stay lossless. New art: keep compress/mode=1.
 - Block 6 left: room breaching and lightning (chapter IV). Block 7: content (chapter IV, menus II/III, train yard).
 - Endings (Snow / Ash) wait for chapter IV.
 - Not yet heard back: FPS on the iPhone in interiors after the lighting fix.
