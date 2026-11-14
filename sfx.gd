@@ -6,8 +6,10 @@ const DIR := "res://sfx/"
 const NAMES := ["shot_player", "shot_enemy", "shot_tommy", "shot_shotgun", "hit_flesh", "hit_cover", "clink", "casing",
 		"slow_in", "slow_out", "dive", "land", "body_fall", "step1", "step2", "whiz", "death_sting", "explosion", "glass",
 		"pickup", "drink", "flutter", "dry_fire", "reload_revolver", "reload_mag", "reload_shells", "reload_done",
-		"thunder", "coo", "wing", "drip", "wood_break", "wood_hit", "zap", "type", "page", "skid", "phone_ring", "match", "sting", "car_arrive", "door", "power_down", "chain", "train_pass", "cyl_open", "shell_in", "cyl_spin"]
-const LOOPS := ["train_loop", "fire", "neon_hum", "lamp_hum", "steam", "city", "heartbeat", "music_base", "music_lead"]
+		"thunder", "coo", "wing", "knock", "foghorn", "cuffs", "drawer", "punch", "cup", "hammer", "toast", "creak", "resolve", "drip", "wood_break", "wood_hit", "zap", "type", "page", "skid", "phone_ring", "match", "sting", "car_arrive", "door", "power_down", "chain", "train_pass", "cyl_open", "shell_in", "cyl_spin"]
+const LOOPS := ["train_loop", "fire", "neon_hum", "lamp_hum", "steam", "city", "heartbeat", "siren", "crowd", "water", "rain_in",
+		"music_base", "music_lead", "music_tension", "music_fight"]
+const STEMS := ["music_base", "music_lead", "music_tension", "music_fight"]   # all four run in step; only their levels move
 const VOICES := 20
 const HEAR := 2600.0   # world pixels from the listener at which a sound has faded out
 
@@ -21,7 +23,14 @@ var _rain: AudioStreamPlayer
 var _muffle: AudioEffectLowPassFilter
 var _heart: AudioStreamPlayer
 var _music: Array[AudioStreamPlayer] = []
-var music_want := Vector2(-80.0, -80.0)   # dB for the base and the lead, set by main.gd; eased to
+var music_want := [-80.0, -80.0, -80.0, -80.0]   # dB per stem (STEMS), set by main.gd and the cutscenes; eased to
+var rain_want := 1.0    # how hard it rains where we are: 0 none (the subway, the fire dream) .. 1.5 a storm
+var indoor := 0.0       # 1 = under a roof: the rain is heard through the walls, the city drops away
+var _rain_in: AudioStreamPlayer
+var _city: AudioStreamPlayer
+var _beds := {}         # cutscene ambience: sound name -> {player, db}
+var _story := false
+var _city_bed := -80.0
 var _loops: Array = []   # {player, x, db, on}: hums and hisses fixed in the street, heard as you pass
 var _ambient_t := {"drip": 2.0}   # thunder comes from main.gd, after its lightning
 
@@ -53,17 +62,23 @@ func _ready() -> void:
 	rain.loop_end = int(rain.get_length() * rain.mix_rate)
 	_rain = AudioStreamPlayer.new()
 	_rain.stream = rain
-	_rain.volume_db = -17.0
+	_rain.volume_db = -80.0
 	_rain.bus = "SFX"
 	add_child(_rain)
 	_rain.play()
-	var city := AudioStreamPlayer.new()   # the city behind it all, always there under the rain
-	city.stream = _streams["city"]
-	city.volume_db = -19.0
-	city.bus = "SFX"
-	add_child(city)
-	city.play()
-	for n in ["music_base", "music_lead"]:   # the two stems run in step, always; only their levels move
+	_rain_in = AudioStreamPlayer.new()   # the same rain heard from inside, through glass and brick
+	_rain_in.stream = _streams["rain_in"]
+	_rain_in.volume_db = -80.0
+	_rain_in.bus = "SFX"
+	add_child(_rain_in)
+	_rain_in.play()
+	_city = AudioStreamPlayer.new()   # the city behind it all, there wherever there is a street
+	_city.stream = _streams["city"]
+	_city.volume_db = -19.0
+	_city.bus = "SFX"
+	add_child(_city)
+	_city.play()
+	for n in STEMS:
 		var mp := AudioStreamPlayer.new()
 		mp.stream = _streams[n]
 		mp.volume_db = -80.0
@@ -93,12 +108,30 @@ func _process(delta: float) -> void:
 	_delta_real = delta / maxf(Engine.time_scale, 0.05)
 	_muffle.cutoff_hz = lerpf(20000.0, 1300.0, slow)
 	_rain.pitch_scale = lerpf(1.0, 0.7, slow)
+	_rain_in.pitch_scale = _rain.pitch_scale
+	# rain only where it rains: outside full, inside through the walls, nothing in the dry
+	var r := clampf(rain_want, 0.0, 1.5)
+	var out_db := -80.0 if r < 0.02 else -17.0 + linear_to_db(r) + linear_to_db(maxf(0.001, 1.0 - indoor))
+	var in_db := -80.0 if r < 0.02 else -15.0 + linear_to_db(r) + linear_to_db(maxf(0.001, indoor))
+	_rain.volume_db = move_toward(_rain.volume_db, out_db, 30.0 * _delta_real)
+	_rain_in.volume_db = move_toward(_rain_in.volume_db, in_db, 30.0 * _delta_real)
+	var city_db := -19.0 - 14.0 * indoor
+	if _story:   # a story panel brings its own sounds, the city among them or not
+		city_db = _city_bed
+	_city.volume_db = move_toward(_city.volume_db, city_db, 30.0 * _delta_real)
+	for n in _beds.keys():
+		var b: Dictionary = _beds[n]
+		var bp: AudioStreamPlayer = b["player"]
+		bp.volume_db = move_toward(bp.volume_db, float(b["db"]), 24.0 * _delta_real)
+		if float(b["db"]) <= -79.0 and bp.volume_db <= -79.0:
+			bp.queue_free()
+			_beds.erase(n)
 	if slow > 0.05 and not _heart.playing:
 		_heart.play()
 	elif slow <= 0.05 and _heart.playing:
 		_heart.stop()
 	_heart.volume_db = linear_to_db(maxf(0.001, slow)) - 4.0
-	for i in 2:
+	for i in STEMS.size():
 		var want: float = music_want[i]
 		var mp := _music[i]
 		mp.volume_db = move_toward(mp.volume_db, want, (8.0 if want < mp.volume_db else 4.0) * _delta_real)
@@ -110,7 +143,7 @@ func _process(delta: float) -> void:
 			var d := at.distance_to(Vector2(clampf(at.x, view.position.x, view.end.x), clampf(at.y, view.position.y, view.end.y)))
 			k = d / float(l["reach"])
 		var p: AudioStreamPlayer = l["player"]
-		if k >= 1.0 or not l["on"]:
+		if k >= 1.0 or not l["on"] or _story:   # under a story panel the street falls silent
 			if p.playing:
 				p.stop()
 			continue
@@ -120,6 +153,8 @@ func _process(delta: float) -> void:
 		p.pitch_scale = lerpf(1.0, 0.75, slow)
 	# now and then: thunder far off, water dripping somewhere near
 	for n in _ambient_t:
+		if _story:
+			continue
 		_ambient_t[n] -= delta
 		if _ambient_t[n] <= 0.0:
 			if n == "thunder":
@@ -128,6 +163,32 @@ func _process(delta: float) -> void:
 			else:
 				play("drip", -13.0, listener_x + randf_range(-900.0, 900.0), 0.25)
 				_ambient_t[n] = randf_range(1.5, 5.0)
+
+
+## The ambience under a story panel: these loops at these levels (dB), everything else faded out.
+## {} lets the street come back.
+func bed(want: Dictionary) -> void:
+	if _log:
+		print("BED ", want, " rain ", rain_want)
+	_story = not want.is_empty()
+	_city_bed = float(want.get("city", -80.0))
+	for n in _beds:
+		_beds[n]["db"] = -80.0
+	for n in want:
+		if n == "city":
+			continue
+		if not _streams.has(n):
+			continue
+		if not _beds.has(n) or not is_instance_valid(_beds[n]["player"]):
+			var p := AudioStreamPlayer.new()
+			p.stream = _streams[n]
+			p.bus = "SFX"
+			p.volume_db = -60.0
+			add_child(p)
+			p.play(randf() * p.stream.get_length())
+			_beds[n] = {"player": p, "db": float(want[n])}
+		else:
+			_beds[n]["db"] = float(want[n])
 
 
 ## A sound that hums or hisses on its own at one place in the street (a neon sign, a lamp,
@@ -147,9 +208,15 @@ func add_loop(sound: String, at_x: float, volume_db: float, reach := 1400.0, at_
 
 ## Play one sound. `at_x` (world x) makes it quieter the further it is from the camera; INF = right here.
 ## `vary` spreads the pitch a little so repeats do not sound mechanical.
+static var _log := "--log-sound" in OS.get_cmdline_user_args()   # tests: print every sound played
+
 func play(sound: String, volume_db := 0.0, at_x := INF, vary := 0.06) -> void:
-	if not _streams.has(sound):
+	if not _streams.has(sound) or (_story and at_x != INF):   # under a story panel the street is not heard
+		if _log and not _streams.has(sound):
+			print("SOUND MISSING ", sound)
 		return
+	if _log:
+		print("SOUND ", sound, " ", volume_db)
 	var vol := volume_db
 	if at_x != INF:
 		var k := clampf(absf(at_x - listener_x) / HEAR, 0.0, 1.0)

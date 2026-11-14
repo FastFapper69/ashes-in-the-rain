@@ -39,11 +39,13 @@ Read this first when picking the project up in a new chat. Reply to the user in 
 
 - Difficulty curve (main.gd CURVE, `--test=curve`, `--step=N`): prologue Eddie at full strength; Frank weak and mob grows map by map (density per 10k px, toughness, aim, pace, shooters, heavy guns).
 - Skill tree (instincts.gd, menu `_instincts`, `--test=instincts --leads=N --pin=lead0,...`, `--instincts=all` in play): leads = Frank's stars + testimonies; leads earned set Frank's rank (3/4/5 hits at 0/10/24 leads); 12 of 15 cards work in play.
+- Sound: per-panel cutscene audio (cutscene.gd AUDIO: beds, music, rain, timed cues), 4 music stems in step (base, lead, tension, fight) driven by _tick_music, rain only where it rains (sfx.rain_want / indoor), new sounds from gen/sfx_story.py; `--log-sound` prints every sound.
 
 ## Next
 - Block 1: pasted posters in street paintings; lighter hatching on character parts.
 - Skill tree cards still to build when chapter IV exists: DEAD EYE, SHOOT THEM DOWN, ALLY (they open in chapter IV).
-- Block 5: sound – cutscene SFX per panel, music that follows the action, rain only where it rains (not in the fire dream, muffled indoors), try an AI voice for Frank's narration (English, one voice, check licence).
+- Block 5 left: real recordings instead of synthesis (gunshots, impacts, steps), AI voice for Frank (ElevenLabs Starter, ~6k chars of narration), mix to -16 LUFS.
+- pck is ~97 MB of GitHub's 100 MB: new heavy assets need something removed or compressed first.
 - Block 6: chapter mechanics; block 7: content (chapter IV, menus II/III, train yard).
 - Endings (Snow / Ash) wait for chapter IV.
 - Not yet heard back: FPS on the iPhone in interiors after the lighting fix.

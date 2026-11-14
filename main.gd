@@ -53,6 +53,7 @@ static var _card_up := false   # a title card is covering the screen across the 
 var sets   # setpieces.gd: cars, blackouts, searchlights, fires, the crane's crate
 var _in_cut := false
 var _fight_t := 0.0   # seconds the fight music holds on after the last enemy in reach
+var _was_fight := false
 ## What a man let go says on his way out: one statement a map, the other half of Eddie's notebook.
 ## Frank only gets it by letting someone live (menu.gd: testimony, counted as evidence for the end).
 const TESTIMONY := {
@@ -1180,25 +1181,50 @@ func _tick_birds(delta: float) -> void:
 			i -= 1
 
 
-## Music: the full tune while the street is quiet, only the bass and brushes, low, once a fight
-## is on, nothing but the heartbeat when he is down.
+## Music that follows the fight, four stems in step (sfx.STEMS: base, lead, tension, fight):
+## a quiet street gets the tune; men somewhere ahead who have not seen him yet, the low drone;
+## a fight, the drums and brass, harder the more guns are in it; on his last hit the tune drops out
+## and the drone comes back under the drums; a boss gets everything; the end of a fight lands on a
+## soft chord. Rain is heard only where it falls, and through the walls indoors.
 func _tick_music() -> void:
-	if _in_cut:   # the tune, soft, under the story
-		sfx.music_want = Vector2(-13.0, -12.0)
+	if _in_cut:   # the cutscene sets its own music and sound
 		return
-	# the tune swells when a fight starts and settles only a while after the last shot: no flipping
-	# back and forth every time somebody steps in or out of range
+	sfx.rain_want = 0.0 if level.get("under", false) else _rain()
+	sfx.indoor = move_toward(sfx.indoor, 1.0 if _room_at(player.position.x) != "" else 0.0, get_process_delta_time() * 2.0)
+	var near := 0
+	var lurking := false
+	var boss_on := false
 	for e in enemies:
-		if e["alive"] and e["seen"] and e["state"] != "wait" and absf(e["node"].position.x - player.position.x) < 2300.0:
-			_fight_t = 5.0
-			break
+		if not e["alive"] or e["state"] in ["wait", "give"]:
+			continue
+		var dx: float = absf(e["node"].position.x - player.position.x)
+		if e["seen"] and dx < 2300.0:
+			near += 1
+			boss_on = boss_on or e["boss"]
+		elif dx < 3400.0:
+			lurking = true
+	if near > 0:
+		_fight_t = 5.0
+	elif _fight_t > 1.2:   # the last one down: the fight lets go quickly
+		_fight_t = 1.2
 	_fight_t = maxf(0.0, _fight_t - get_process_delta_time())
+	if _fight_t > 0.0:
+		_was_fight = true
+	elif _was_fight:
+		_was_fight = false
+		if not over:
+			sfx.play("resolve", -9.0, INF, 0.0)
+	var last := hp <= 1 and diff_step >= 0
 	if over:
-		sfx.music_want = Vector2(-80.0, -80.0)
+		sfx.music_want = [-80.0, -80.0, -80.0, -80.0]
+	elif boss_on:
+		sfx.music_want = [-13.0, -16.0, -20.0, -8.0]
 	elif _fight_t > 0.0:
-		sfx.music_want = Vector2(-14.0, -15.0)
+		sfx.music_want = [-14.0, -80.0 if last else -18.0, -15.0 if last else -26.0, -12.0 if near < 3 else -9.0]
+	elif lurking:
+		sfx.music_want = [-17.0, -80.0, -17.0, -80.0]
 	else:
-		sfx.music_want = Vector2(-18.0, -80.0)
+		sfx.music_want = [-18.0, -20.0, -80.0, -80.0]
 
 
 ## The sky: clouds drifting, and now and then lightning far off, the thunder a moment later.
@@ -1514,7 +1540,8 @@ func _process(delta: float) -> void:
 	_time += delta
 	if in_menu:   # the title over the street: the rain, the signs, the birds, a slow drift of the camera
 		sfx.listener_x = cam.position.x
-		sfx.music_want = Vector2(-9.0, -7.0)
+		sfx.music_want = [-9.0, -7.0, -80.0, -80.0]
+		sfx.rain_want = _rain()
 		cam.position.x = _menu_x + sin(_time * 0.09) * 160.0
 		cam.position.y = CAM_Y + sin(_time * 0.13) * 20.0
 		fore.position.x = -cam.position.x * 0.35
@@ -3430,6 +3457,7 @@ func _play_cut(id: String, then: Callable, test := false) -> void:
 	c.done = then
 	c.fast = test
 	c.sound = func(n: String, db: float) -> void: sfx.play(n, db, INF, 0.0)
+	c.audio = sfx
 	if test:
 		c.shot = _shot
 	add_child(c)

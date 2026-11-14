@@ -107,6 +107,55 @@ const LIVE := {
 	77: [[0.11, 0.72, 0.12, "fire"], [0.62, 0.3, 0.2, "storm"]],
 }
 
+## What each panel sounds like, by scene and panel (its place in SCENES): the loops under it (dB),
+## the music stems (base, lead, tension, fight), rain and whether we hear it from inside, and cues:
+## [seconds after the panel opens, sound, dB]. A cue only plays while its panel is still up.
+const TUNE := [-13.0, -12.0, -80.0, -80.0]
+const DREAD := [-24.0, -80.0, -12.0, -80.0]
+const AUDIO := {
+	"eddie": [
+		{"bed": {"city": -14.0, "neon_hum": -20.0}, "rain": 1.0, "cues": [[1.4, "thunder", -7.0]]},
+		{"bed": {"lamp_hum": -22.0}, "rain": 0.9, "in": true},
+		{"bed": {"city": -17.0, "siren": -24.0}, "rain": 1.0, "cues": [[1.8, "step1", -10.0], [2.35, "step2", -10.0], [2.9, "step1", -11.0]]},
+		{"bed": {"city": -19.0}, "rain": 0.6, "cues": [[0.8, "drip", -8.0], [2.4, "drip", -10.0], [4.1, "drip", -9.0]]},
+		{"bed": {"city": -20.0}, "rain": 0.7, "cues": [[1.2, "page", -9.0]]},
+	],
+	"interlude": [
+		{"bed": {"steam": -17.0, "lamp_hum": -22.0}, "rain": 0.5, "in": true, "cues": [[1.0, "page", -9.0]]},
+		{"bed": {"crowd": -17.0}, "rain": 0.7, "in": true, "cues": [[1.0, "cup", -6.0], [7.5, "cup", -8.0]]},
+	],
+	"teague": [
+		{"bed": {"crowd": -11.0}, "rain": 0.0, "cues": [[0.35, "punch", -2.0], [0.85, "body_fall", -3.0], [1.1, "flutter", -6.0], [1.6, "wing", -8.0]]},
+		{"bed": {"crowd": -21.0}, "rain": 0.0, "music": [-12.0, -9.0, -80.0, -80.0]},
+		{"bed": {"crowd": -25.0}, "rain": 0.0, "cues": [[1.5, "page", -9.0]]},
+		{"bed": {"lamp_hum": -22.0}, "rain": 0.5, "in": true, "cues": [[0.6, "page", -8.0]]},
+	],
+	"dream": [
+		{"bed": {"fire": -5.0}, "rain": 0.0, "music": DREAD, "cues": [[0.7, "chain", -5.0], [9.0, "creak", -7.0], [17.0, "creak", -8.0], [21.0, "wood_break", -9.0]]
+			+ [[2.4, "knock", -3.0], [4.2, "knock", -4.0], [5.6, "knock", -3.0], [7.6, "knock", -5.0], [9.6, "knock", -3.0], [11.3, "knock", -4.0],
+			[13.4, "knock", -6.0], [15.2, "knock", -4.0], [17.6, "knock", -7.0], [20.0, "knock", -8.0], [23.5, "knock", -10.0]]},
+	],
+	"kessler": [
+		{"bed": {"lamp_hum": -22.0}, "rain": 0.5, "in": true, "cues": [[0.3, "drawer", -4.0], [1.7, "page", -8.0]]},
+		{"bed": {"siren": -14.0, "city": -18.0}, "rain": 0.8, "music": DREAD, "cues": [[4.5, "cuffs", -3.0]]},
+	],
+	"underground": [
+		{"bed": {"siren": -11.0, "city": -16.0}, "rain": 1.2, "cues": [[1.6, "cuffs", -5.0], [9.0, "door", -6.0], [9.8, "step1", -8.0], [10.2, "step2", -8.0], [10.6, "step1", -8.0]]},
+		{"bed": {"train_loop": -17.0}, "rain": 0.0, "music": DREAD, "cues": [[1.0, "drip", -10.0], [3.0, "shell_in", -4.0], [3.9, "shell_in", -4.0], [4.8, "shell_in", -4.0], [6.3, "cyl_spin", -5.0]]},
+	],
+	"briggs": [
+		{"bed": {"fire": -18.0, "train_loop": -24.0}, "rain": 0.0, "music": DREAD, "cues": [[0.8, "hammer", -3.0], [5.0, "drip", -11.0]]},
+		{"bed": {"fire": -20.0}, "rain": 0.0, "music": [-16.0, -14.0, -80.0, -80.0], "cues": [[0.9, "clink", -5.0]]},
+		{"bed": {"fire": -20.0}, "rain": 0.0, "music": [-80.0, -80.0, -16.0, -80.0], "cues": [[0.5, "shot_player", -1.0], [1.3, "body_fall", -3.0]]},
+		{"bed": {"fire": -15.0}, "rain": 1.4, "in": true, "music": DREAD, "cues": [[1.0, "thunder", -4.0], [3.2, "toast", -4.0]]},
+	],
+	"docks": [
+		{"bed": {"water": -9.0, "city": -24.0}, "rain": 1.2, "cues": [[2.0, "foghorn", -8.0], [13.0, "foghorn", -11.0]]},
+		{"bed": {"water": -19.0, "neon_hum": -21.0}, "rain": 0.4, "in": true},
+	],
+}
+var audio = null   # sfx.gd: main.gd hands it over
+
 var scene_id := ""
 var done := Callable()    # called once the last panel has gone dark (or SKIP)
 var sound := Callable()   # func(name: String, db: float)
@@ -144,7 +193,9 @@ func _ready() -> void:
 	layer = 30
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_panels = []
-	for p in SCENES.get(scene_id, []):   # a panel that belongs to one of the player's choices only
+	var all: Array = SCENES.get(scene_id, [])
+	for k in all.size():   # a panel that belongs to one of the player's choices only
+		var p: Dictionary = all[k]
 		if p.has("when") and load("res://menu.gd").story(String(p["when"][0])) != String(p["when"][1]):
 			continue
 		if p.has("hard") and load("res://menu.gd").guilt() >= HARD_AT:   # the ash shows in how he tells it
@@ -153,6 +204,8 @@ func _ready() -> void:
 			for pair in p["hard"]:
 				lines[int(pair[0])] = pair[1]
 			p["lines"] = lines
+		p = p.duplicate()
+		p["_k"] = k
 		_panels.append(p)
 	_font_type = load("res://fonts/SpecialElite.ttf")
 	_font_head = FontVariation.new()
@@ -459,6 +512,7 @@ func _next_panel() -> void:
 	elif sound.is_valid():
 		sound.call("page", -6.0)
 	_rain_want = float(p.get("rain", 0.0))
+	_panel_audio(p)
 	if p.has("sound") and sound.is_valid():
 		get_tree().create_timer(0.5, true, false, true).timeout.connect(func() -> void:
 			if is_inside_tree():
@@ -540,10 +594,29 @@ func _cap_font() -> Font:
 	return _cap_f
 
 
+## The panel's sound: its loops, its music, its rain (or none), and its cues on their clock.
+func _panel_audio(p: Dictionary) -> void:
+	var list: Array = AUDIO.get(scene_id, [])
+	var a: Dictionary = list[int(p["_k"])] if int(p["_k"]) < list.size() else {}
+	if audio == null:
+		return
+	audio.bed(a.get("bed", {"lamp_hum": -24.0}))
+	audio.music_want = (a.get("music", TUNE) as Array).duplicate()
+	audio.rain_want = float(a.get("rain", p.get("rain", 0.0)))
+	audio.indoor = 1.0 if a.get("in", false) else 0.0
+	var me := _i
+	for c in a.get("cues", []):
+		get_tree().create_timer(float(c[0]) * (0.25 if fast else 1.0), true, false, true).timeout.connect(func() -> void:
+			if is_inside_tree() and _i == me and not _ending:
+				audio.play(String(c[1]), float(c[2]), INF, 0.04))
+
+
 func _finish() -> void:
 	if _ending:
 		return
 	_ending = true
+	if audio != null:   # the street comes back as the page goes dark
+		audio.bed({})
 	var tw := create_tween()
 	tw.tween_property(_black, "color:a", 1.0, 0.8)
 	tw.tween_callback(func() -> void:
