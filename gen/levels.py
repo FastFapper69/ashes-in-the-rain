@@ -12,9 +12,11 @@ BOX = {"crate": (250, 248, True), "drum": (160, 246, False), "crate_long": (330,
        "barrel": (120, 170, False), "machine": (260, 230, False), "bar": (420, 190, False)}
 # the drawn street segments (art/street) and their widths in the world (picture width x 1.9)
 SEGMENTS = {"alley": 3028, "bluenote": 3028, "warehouse": 3028, "laundry": 3028, "subway": 3108, "church": 3108, "market": 3038, "deadend": 3038,
-            "pier17": 3034, "cranes": 3034, "shipping": 3034, "quay": 3034, "harbor": 3034}
+            "pier17": 3034, "cranes": 3034, "shipping": 3034, "quay": 3034, "harbor": 3034,
+            "platform": 3034, "tunnel": 3034, "yard": 3034}
 STREET_POOL = ["alley", "warehouse", "laundry", "subway", "church", "market"]
 DOCKS_POOL = ["pier17", "cranes", "shipping", "quay", "harbor"]
+UNDER_POOL = ["platform", "tunnel"]
 CRANE_CRATE = (0.3863 + 0.0783 / 2)   # where the crate hangs in the crane yard drawing (see main.gd CRANE_CUT)
 F1, F2 = -370.0, -740.0   # floor heights: first and second storey
 JUMP_REACH = 282.0
@@ -379,6 +381,10 @@ def gd(campaign):
             out.append("\t\t{" + f'"name": {q(lv["name"])}, "end": {f(m.end)}, "boss": {q(lv.get("boss", ""))}, "stand": {f(m.stand if m.stand else -1)},')
             out.append("\t\t\t\"intro\": [" + ", ".join(q(t) for t in lv["intro"]) + "], \"outro\": [" + ", ".join(q(t) for t in lv["outro"]) + "],")
             out.append(f'\t\t\t"diary": {q(lv.get("diary", ""))}, "ash": {lv.get("ash", 0.3)}, "embers": {lv.get("embers", 0.0)},')
+            if "rain" in lv: out.append(f'\t\t\t"rain": {lv["rain"]},')
+            if lv.get("under"): out.append('\t\t\t"under": true,')
+            if lv.get("moving"): out.append(f'\t\t\t"moving": {lv["moving"]},')
+            if lv.get("cops"): out.append('\t\t\t"cops": true,')
             evs = ", ".join("[" + ", ".join(q(v) if isinstance(v, str) else f(v) for v in ev) + "]" for ev in m.events)
             out.append(f'\t\t\t"events": [{evs}],')
             out.append(f'\t\t\t"hints": [{hn}],')

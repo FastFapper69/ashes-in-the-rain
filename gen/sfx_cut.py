@@ -78,3 +78,25 @@ for k in range(5):   # links rattling as it lets go
     at = int(SR * (0.01 + k * 0.035)); tt = t(0.08)
     x[at:at + len(tt)] += np.sin(2 * np.pi * (2600 + 400 * k) * tt) * np.exp(-tt / 0.012) * 0.5
 save('chain.wav', reverb(x, 0.6, 0.2), 0.6)
+
+# a subway train: the clack of wheels over rail joints, four to a car, under a steel rumble (loops)
+tt = t(4.0)
+x = lp(noise(4.0), 160) * 1.6 + 0.4 * np.sin(2 * np.pi * 47 * tt) * (1 + 0.2 * np.sin(2 * np.pi * 3 * tt))
+for k in range(16):
+    for d in (0.0, 0.11):
+        at = int(SR * (k * 0.25 + d)); n = int(SR * 0.05)
+        x[at:at + n] += bp(noise(n / SR), 300, 2500)[:n] * np.exp(-np.arange(n) / 260) * 1.4
+x = x / np.max(np.abs(x)) * 0.6
+_w.write(OUT + 'train_loop.wav', SR, (x * 32767).astype(np.int16)); print('train_loop.wav')
+
+# a train going by: the roar swelling and falling away, a long squeal of a wheel, and its horn
+tt = t(4.5)
+env = np.exp(-((tt - 1.8) / 0.9) ** 2)
+x = (lp(noise(4.5), 400) * 1.5 + bp(noise(4.5), 600, 3000) * 0.5) * env
+for k in range(28):
+    at = int(SR * (0.8 + k * 0.075)); n = int(SR * 0.04)
+    if at + n < len(x):
+        x[at:at + n] += bp(noise(n / SR), 300, 3000)[:n] * np.exp(-np.arange(n) / 200) * env[at] * 1.5
+h = sum(np.sin(2 * np.pi * f * tt) for f in (311, 370, 466)) * ((tt > 0.2) & (tt < 1.4)) * np.minimum(1, (tt - 0.2) / 0.05)
+x += lp(np.sign(h) * 0.25 + h * 0.1, 3000) * 0.5
+save('train_pass.wav', reverb(x, 1.0, 0.3), 0.85)

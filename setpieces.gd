@@ -16,6 +16,14 @@ var _events: Array = []   # {kind, trig, done, ...}
 var _beams: Array = []    # {sprite, light, pivot, base, swing, speed, phase, len, half}
 var _crates: Array = []   # {sprite, rect (chains), state, vel}
 var _smokes: Array = []   # [center, until]
+var _band: Node2D          # the tunnel rushing past a moving train (chapter III, the last train)
+var _band_w := 0.0
+var _band_top := 0.0
+var _speed := 0.0
+var _beam_t := 6.0
+var _beams_live: Array = []   # [node, x of last frame]
+var _signal: Node2D
+var _cars: Node2D
 var _blackout_t := 0.0
 var _blacked: Array = []  # lamps the blackout put out, to come back
 var _fire_tex: Texture2D
@@ -36,6 +44,12 @@ func setup(main) -> void:
 				_add_beam(Vector2(float(ev[1]), float(ev[2])), float(ev[3]))
 			"burn":
 				_burn(String(ev[1]))
+			"train_pass":
+				_events.append({"kind": kind, "trig": float(ev[1]), "done": false})
+	_speed = float(game.level.get("moving", 0.0))
+	if _speed > 0.0:
+		_make_band()
+		_make_train()
 	# every crane yard keeps its crate hanging over the street
 	for seg in game.level.get("street", []):
 		if String(seg[0]) == "cranes":
@@ -54,6 +68,10 @@ func tick(delta: float) -> void:
 				_car(ev)
 			"blackout":
 				_blackout(ev)
+			"train_pass":
+				_train_pass()
+	if _speed > 0.0:
+		_tick_moving(delta)
 	if _blackout_t > 0.0:
 		_blackout_t -= delta
 		if _blackout_t <= 0.0:
@@ -477,3 +495,181 @@ func _crate_lands(c: Dictionary) -> void:
 	s.position.x -= c["w"] * 0.5
 	game.fx.break_apart(s, s.position + Vector2(c["w"] * 0.5, c["h"] * 0.7), 0.0)
 	s.queue_free()
+
+
+# ---- the subway ------------------------------------------------------------------------------
+
+## A train going by on the far track: three lit cars at full speed, the roar, the ground shaking.
+func _train_pass() -> void:
+	var tex: Texture2D = load("res://art/props/subway_car.png")
+	var lit: Texture2D = load("res://art/props/subway_car_lit.png")
+	var sc := 0.92
+	var w: float = tex.get_width() * sc
+	var root := Node2D.new()
+	root.z_index = -6
+	root.position = Vector2(game.cam.position.x + 3200.0, -tex.get_height() * sc + 10.0)
+	add_child(root)
+	var add := CanvasItemMaterial.new()
+	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	add.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+	for k in 3:
+		var car := Sprite2D.new()
+		car.texture = tex
+		car.centered = false
+		car.scale = Vector2.ONE * sc
+		car.position = Vector2(k * (w + 30.0), 0.0)
+		car.modulate = Color(0.7, 0.7, 0.75)
+		root.add_child(car)
+		var glow := Sprite2D.new()
+		glow.texture = lit
+		glow.centered = false
+		glow.scale = car.scale
+		glow.position = car.position
+		glow.material = add
+		glow.modulate = game._undo_night(0.45)
+		root.add_child(glow)
+	game.sfx.play("train_pass", 4.0, INF, 0.0)
+	game._shake = 0.5
+	var tw := root.create_tween()
+	tw.tween_property(root, "position:x", root.position.x - 3.0 * w - 7000.0, 2.6)
+	tw.tween_callback(root.queue_free)
+
+
+## The last train: the tunnel wall pours past behind the cars, which carry the fight on their roofs.
+func _make_band() -> void:
+	var tex: Texture2D = load("res://art/street/tunnel.png")
+	var lit: Texture2D = load("res://art/street/tunnel_lit.png")
+	var trim: float = game.SEGMENT_TRIM.get("tunnel", 0.0)
+	var sx: float = tex.get_width() / (tex.get_width() - trim)
+	_band_w = tex.get_width() * game.WALL_SCALE
+	_band_top = -tex.get_height() * game.WALL_SCALE * game.SEGMENT_BASE - game.WALL_LIFT - 520.0   # the roofs are higher than the rails
+	_band = Node2D.new()
+	_band.z_index = -10
+	game.cam.add_child(_band)
+	var add := CanvasItemMaterial.new()
+	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	add.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+	for i in 5:
+		var w := Sprite2D.new()
+		w.texture = tex
+		w.centered = false
+		w.region_enabled = true
+		w.region_rect = Rect2(trim, 0.0, tex.get_width() - trim, tex.get_height())
+		w.scale = Vector2(game.WALL_SCALE * sx, game.WALL_SCALE)
+		w.position = Vector2((i - 2) * _band_w, 0.0)
+		w.material = game.atmo.blur_material(2.6)   # going by too fast to be sharp
+		w.modulate = Color.WHITE * game.SEGMENT_MOON * float(game.SEGMENT_GAIN.get("tunnel", 1.0)) * 0.8
+		_band.add_child(w)
+		var g := Sprite2D.new()
+		g.texture = lit
+		g.centered = false
+		g.region_enabled = true
+		g.region_rect = Rect2(trim * 0.5, 0.0, lit.get_width() - trim * 0.5, lit.get_height())
+		g.scale = Vector2(game.WALL_SCALE * 2.0 * sx, game.WALL_SCALE * 2.0)
+		g.position = w.position
+		g.material = add
+		g.modulate = game._undo_night(0.5)
+		_band.add_child(g)
+	_signal = Node2D.new()   # the red lamp of a signal ahead: it means a girder is coming, get down
+	var lamp := Sprite2D.new()
+	lamp.texture = load("res://art/light_blob.png")
+	lamp.material = add
+	lamp.modulate = Color(1.0, 0.15, 0.1, 0.0)
+	lamp.scale = Vector2.ONE * 0.9
+	lamp.name = "Lamp"
+	_signal.add_child(lamp)
+	_signal.z_index = 5
+	game.cam.add_child(_signal)
+	game.sfx.add_loop("train_loop", 0.0, -2.0, 1.0e9)
+
+
+## The cars under his feet, one after another the length of the map, their roofs the floor.
+func _make_train() -> void:
+	var tex: Texture2D = load("res://art/props/subway_car.png")
+	var lit: Texture2D = load("res://art/props/subway_car_lit.png")
+	var sc := 1.05
+	var w: float = tex.get_width() * sc
+	_cars = Node2D.new()
+	_cars.z_index = -2
+	add_child(_cars)
+	var add := CanvasItemMaterial.new()
+	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	add.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+	var x := -3000.0
+	while x < float(game.level_end) + 4000.0:
+		var car := Sprite2D.new()
+		car.texture = tex
+		car.centered = false
+		car.scale = Vector2.ONE * sc
+		car.position = Vector2(x, -14.0 * sc)   # its roof is the pavement line
+		car.modulate = Color(0.62, 0.62, 0.68)
+		_cars.add_child(car)
+		var glow := Sprite2D.new()
+		glow.texture = lit
+		glow.centered = false
+		glow.scale = car.scale
+		glow.position = car.position
+		glow.material = add
+		glow.modulate = game._undo_night(0.4)
+		_cars.add_child(glow)
+		x += w + 26.0
+
+
+func _tick_moving(delta: float) -> void:
+	var cam_x: float = game.cam.position.x
+	_band.position = Vector2(-fposmod(cam_x + _t * _speed, _band_w), _band_top - game.cam.position.y)
+	_cars.position.y = sin(_t * 9.0) * 3.0 + sin(_t * 2.3) * 2.0   # it rocks along the rails
+	game._shake = maxf(game._shake, 0.04)
+	var lamp: Sprite2D = _signal.get_node("Lamp")
+	var view: Vector2 = get_viewport().get_visible_rect().size / game.cam.zoom
+	_signal.position = Vector2(view.x * 0.5 - 140.0, -view.y * 0.5 + 260.0)
+	if game.over or game.cleared:
+		lamp.modulate.a = 0.0
+		return
+	_beam_t -= delta
+	if _beam_t < 1.3 and _beam_t > 0.0:   # the warning: the red lamp blinking
+		lamp.modulate.a = 0.95 if fmod(_beam_t, 0.3) < 0.15 else 0.15
+	else:
+		lamp.modulate.a = 0.0
+	if _beam_t <= 0.0:
+		_beam_t = randf_range(6.0, 9.5)
+		var b := _girder()
+		b.position = Vector2(cam_x + view.x * 0.75, 0.0)
+		add_child(b)
+		_beams_live.append([b, b.position.x])
+	var px: float = game.player.position.x
+	for bl in _beams_live.duplicate():
+		var b: Node2D = bl[0]
+		var was: float = bl[1]
+		b.position.x -= _speed * delta
+		if was >= px and b.position.x < px:   # it reaches him: down flat or under it, or it takes him off his feet
+			for y in range(-470, -320, 25):
+				if game.player.hit_part(Vector2(px, y)) != "":
+					game._bullet_hit(Vector2(px, y), false)
+					game._shake = 0.5
+					game.sfx.play("body_fall", 0.0, px, 0.05)
+					break
+		bl[1] = b.position.x
+		if b.position.x < cam_x - view.x:
+			b.queue_free()
+			_beams_live.erase(bl)
+
+
+## A steel girder hanging low across the tunnel, its riveted face and the strut up to the roof.
+func _girder() -> Node2D:
+	var n := Node2D.new()
+	n.z_index = 6
+	var strut := Polygon2D.new()
+	strut.polygon = PackedVector2Array([Vector2(-30, -2400), Vector2(30, -2400), Vector2(30, -470), Vector2(-30, -470)])
+	strut.color = Color(0.05, 0.05, 0.06)
+	n.add_child(strut)
+	var beam := Polygon2D.new()
+	beam.polygon = PackedVector2Array([Vector2(-70, -480), Vector2(70, -480), Vector2(70, -330), Vector2(-70, -330)])
+	beam.color = Color(0.09, 0.09, 0.1)
+	n.add_child(beam)
+	var lip := Line2D.new()
+	lip.points = PackedVector2Array([Vector2(-70, -470), Vector2(70, -470)])
+	lip.width = 8.0
+	lip.default_color = Color(0.22, 0.22, 0.25)
+	n.add_child(lip)
+	return n

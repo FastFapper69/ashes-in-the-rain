@@ -48,8 +48,13 @@ var _in_cut := false
 const CUTS := {"0:0": "eddie", "1:2": "interlude", "1:4": "teague", "2:2": "dream", "2:4": "kessler"}   # the cutscene after a map ("chapter:map")
 const CUTS_BEFORE := {"2:0": "docks"}   # and before one, the first time it is played
 const BOSS_HP := 16
-const BOSS_NAMES := {"teague": "MICKEY 'CANVAS' TEAGUE", "kessler": "BRUNO KESSLER"}
-const BOSS_FACES := {"teague": "boxer", "kessler": "cap"}
+const BOSS_NAMES := {"teague": "MICKEY 'CANVAS' TEAGUE", "kessler": "BRUNO KESSLER", "briggs": "LT. HARLAN BRIGGS"}
+const BOSS_FACES := {"teague": "boxer", "kessler": "cap", "briggs": "briggs"}
+# chapter III: Frank's own department hunting him. Police heads (art/police/heads), and the dark blue of the uniform.
+const COP_HEADS := {"patrol": 131.5, "rain": 143.5, "sergeant": 126.5, "briggs": 123.5}
+const COP_FACES := {"post": ["patrol", "rain", "sergeant"], "tommy": ["sergeant", "patrol"], "shotgun": ["rain", "patrol"], "boss": ["briggs"]}
+const COP_TINT := Color(0.74, 0.8, 1.0)
+const ChoiceScript = preload("res://choice.gd")
 # which chapter and map are being played, and whether the case file (menu) is open; static, so they
 # survive the scene reload that starts each map
 static var chapter := 0
@@ -259,7 +264,8 @@ func _ready() -> void:
 	_build_light()
 
 	_build_level()
-	_place_flocks()
+	if not level.get("under", false):   # no pigeons down in the subway
+		_place_flocks()
 	player = PuppetScript.new()
 	player.cfg = DETECTIVE
 	player.night = _undo_night(1.0)
@@ -277,7 +283,7 @@ func _ready() -> void:
 	fore.z_index = 10
 	add_child(fore)
 	_scatter_fore()
-	for k in range(-2, int(level_end / 4200.0) + 3):   # telephone wires sagging across the top of the frame, nearest of all
+	for k in range(-2, 0 if level.get("under", false) else int(level_end / 4200.0) + 3):   # telephone wires sagging across the top of the frame, nearest of all
 		var wire := Line2D.new()
 		var pts := PackedVector2Array()
 		for j in range(17):
@@ -297,12 +303,16 @@ func _ready() -> void:
 	cam.make_current()
 	_build_depth()
 	atmo.add_rain(cam, _undo_night(0.7), -WALL_LIFT + 18.0 - CAM_Y)
-	atmo.rain_far.amount = maxi(1, int(atmo.rain_far.amount * float(ch["rain"])))
-	atmo.rain_near.amount = maxi(1, int(atmo.rain_near.amount * float(ch["rain"])))
+	var rain: float = _rain()
+	atmo.rain_far.amount = maxi(1, int(atmo.rain_far.amount * rain))
+	atmo.rain_near.amount = maxi(1, int(atmo.rain_near.amount * rain))
+	if rain <= 0.0:   # underground: no rain, only the drip
+		atmo.rain_far.emitting = false
+		atmo.rain_near.emitting = false
 	atmo.add_post(self)
 	atmo.add_ash(cam, MenuScript.ash_level() if in_menu else float(level.get("ash", 0.3)), float(level.get("embers", 0.0)))
 	steps = atmo.add_steps(player, _undo_night(0.6))
-	if float(ch["rain"]) > 0.0:
+	if rain > 0.0:
 		_hat_rain = atmo.add_hat_rain(self, _undo_night(0.7))
 	fx = FxScript.new()
 	fx.night = _undo_night(1.0)
@@ -338,6 +348,7 @@ func _ready() -> void:
 		get_tree().paused = true   # the story first, the street holds still under it
 		_play_cut(CUTS_BEFORE["%d:%d" % [chapter, map]], func() -> void:
 			get_tree().paused = false
+			hud.release_all()
 			_in_cut = false
 			hud.visible = true
 			hud.title("%s  ·  %d / %d" % [String(ch["title"]), map + 1, ch["maps"].size()], String(level["name"]))
@@ -481,7 +492,8 @@ func _build_street() -> void:
 ## Where the wall lamps hang on each drawn street segment (fractions of its width), where a facade stands at that height.
 const SEGMENT_LAMPS := {"alley": [0.08, 0.62, 0.92], "bluenote": [0.12, 0.3, 0.9], "warehouse": [0.15, 0.42, 0.82], "laundry": [0.1, 0.3, 0.72],
 	"subway": [0.1, 0.38, 0.72], "church": [0.08, 0.9], "market": [0.1, 0.45, 0.86], "deadend": [0.22, 0.86],
-	"pier17": [0.12, 0.38, 0.8], "cranes": [0.7, 0.9], "shipping": [0.12, 0.42, 0.7], "quay": [0.74, 0.86], "harbor": [0.3, 0.56]}
+	"pier17": [0.12, 0.38, 0.8], "cranes": [0.7, 0.9], "shipping": [0.12, 0.42, 0.7], "quay": [0.74, 0.86], "harbor": [0.3, 0.56],
+	"platform": [0.3, 0.62, 0.86], "tunnel": [0.22, 0.5, 0.76], "yard": [0.1, 0.62]}
 # the signs that light up on each drawing: top-left of the glow picture (pixels of the drawing),
 # colour, and how it burns: steady, buzz (now and then a stutter) or dying (out as often as on)
 const SEGMENT_NEONS := {
@@ -508,6 +520,7 @@ const SEGMENT_DEEP := {
 	"subway": [Rect2(0.5, 0.25, 0.095, 0.63)], "church": [Rect2(0.432, 0.4, 0.125, 0.4)],
 	"market": [Rect2(0.54, 0.42, 0.13, 0.46)], "deadend": [Rect2(0.485, 0.4, 0.07, 0.46)],
 	"pier17": [Rect2(0.4699, 0.25, 0.2506, 0.63)], "cranes": [Rect2(0.4385, 0.42, 0.1984, 0.48)], "shipping": [Rect2(0.4908, 0.3, 0.0783, 0.6)], "quay": [Rect2(0.1671, 0.52, 0.1462, 0.34)], "harbor": [Rect2(0.71, 0.4, 0.2506, 0.46)],
+	"platform": [Rect2(0.1044, 0.31, 0.1357, 0.38)], "tunnel": [Rect2(0.8249, 0.33, 0.1253, 0.38)], "yard": [Rect2(0.4908, 0.45, 0.1357, 0.3)],
 }
 const CRANE_CUT := Rect2(0.3863, 0.2, 0.0783, 0.255)   # the hanging crate taken out of the crane yard drawing (setpieces.gd)
 const DEEP_SHADER := """
@@ -529,10 +542,12 @@ var deeps: Array = []   # {sprite, center (world), box (UV)}
 var _deep_rects: Array[Rect2] = []
 var _stain_hosts: Array = []   # [x0, x1, node]: the masks blood on each drawing is clipped to   # the same in world space, for the blood
 const SEGMENT_TRIM := {"alley": 134.0, "bluenote": 134.0, "warehouse": 133.0, "laundry": 133.0, "subway": 53.0, "church": 58.0, "market": 58.0, "deadend": 58.0,
-		"pier17": 132.0, "cranes": 132.0, "shipping": 132.0, "quay": 132.0, "harbor": 132.0}
+		"pier17": 132.0, "cranes": 132.0, "shipping": 132.0, "quay": 132.0, "harbor": 132.0,
+		"platform": 132.0, "tunnel": 132.0, "yard": 132.0}
 # evens out how light each drawing came out, so neighbours do not jump in brightness
 const SEGMENT_GAIN := {"alley": 0.92, "bluenote": 0.98, "warehouse": 0.9, "laundry": 1.02, "subway": 1.07, "church": 1.0, "market": 1.05, "deadend": 1.1,
-		"pier17": 0.86, "cranes": 0.91, "shipping": 0.96, "quay": 0.91, "harbor": 0.86}
+		"pier17": 0.86, "cranes": 0.91, "shipping": 0.96, "quay": 0.91, "harbor": 0.86,
+		"platform": 0.95, "tunnel": 1.12, "yard": 0.85}
 const SEGMENT_MOON := 1.6   # how much brighter than the bare night the drawn streets are kept
 const SEGMENT_BASE := 0.92   # the facades meet the pavement this far down each drawing
 
@@ -836,6 +851,11 @@ func _scatter_fore() -> void:
 
 ## Pigeons pecking about on the pavement here and there. The detective walking up, a shot, or
 ## an explosion sends the whole flock up and over the roofs in a clatter of wings.
+## How hard it rains on this map: the chapter's rain, unless the map is under a roof of its own.
+func _rain() -> float:
+	return float(level.get("rain", Levels.CAMPAIGN[chapter]["rain"]))
+
+
 func _place_flocks() -> void:
 	for n in ["stand", "peck", "walk", "crouch"] + BIRD_FLAP:
 		_bird_tex[n] = load("res://art/birds/" + n + ".png")
@@ -961,7 +981,7 @@ func _tick_sky(delta: float) -> void:
 	if _sky_mat == null:
 		return
 	_lightning_t -= delta
-	if _lightning_t <= 0.0 and float(Levels.CAMPAIGN[chapter]["rain"]) > 0.0:
+	if _lightning_t <= 0.0 and _rain() > 0.0:
 		_lightning_t = randf_range(35.0, 90.0)
 		var tw := create_tween()   # a double flicker, the second brighter
 		tw.tween_property(self, "_flash", 0.6, 0.05)
@@ -1998,17 +2018,13 @@ func _try_vault() -> void:
 			continue
 		var gap: float = b.position.y - feet
 		if gap >= -10.0 and gap < 95.0:
+			# his hands meet the top and push: no stop, no snap into a new pose, the dive just carries on
+			# a little higher and as fast, over the crate and down the far side
 			_vaulted = true
-			move_state = "flip"
-			roll_done = 0.0
-			_flip_way = player.dive_side
-			fall = -720.0
-			glide = signf(glide) * maxf(absf(glide), 950.0)
-			player.position.y = minf(player.position.y - DIVE_LAND * player.dive, b.position.y - 6.0)   # the origin up to his body: he tumbles over the top, not through it
-			player.dive = 0.0
-			sfx.play("land", -9.0, INF, 0.15)
+			fall = minf(fall, -560.0)
+			glide = signf(glide) * maxf(absf(glide), 1050.0)
+			sfx.play("land", -12.0, INF, 0.15)
 			fx.chip(Vector2(hands_x, b.position.y))
-			_word(["wham"], Vector2(hands_x, b.position.y - 200.0), 0.15)
 			if Engine.time_scale < 1.0:
 				slow_left = minf(1.0, slow_left + 0.1)   # a little slowed time back for the style
 			return
@@ -2203,6 +2219,15 @@ func _enemy_fire(e: Dictionary) -> void:
 	var m = e["node"]
 	match String(e["type"]):
 		"boss":
+			if e.has("shield"):
+				_fire(m, false, "shotgun")
+				e["cool"] = randf_range(1.2, 1.7)
+				e["shells"] = int(e["shells"]) - 1
+				_say(m, ["ONE.", "TWO.", "THREE.", "FOUR.", "FIVE."][clampi(4 - int(e["shells"]), 0, 4)])
+				if int(e["shells"]) <= 0:
+					e["reload_t"] = 2.4
+					sfx.play("reload_shells", 0.0, m.position.x, 0.05)
+				return
 			_boss_fire(m)
 			e["cool"] = randf_range(1.4, 2.3)
 		"tommy":
@@ -2269,6 +2294,11 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 			var part: String = e["node"].hit_part(pos)
 			if part == "":
 				continue
+			if _shield_stops(e, part):
+				fx.spark(pos)
+				sfx.play("hit_cover", -2.0, pos.x, 0.12)
+				_word(["zing"], pos + Vector2(0.0, -90.0), 0.16)
+				return true
 			fx.blood(pos, fx.hit_vel, part == "head" or e["hp"] <= 1)
 			e["node"].add_wound(pos, part)
 			sfx.play("hit_flesh", 0.0, pos.x)
@@ -2284,6 +2314,9 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 					_spawn_runner(e["node"].position.x + 2000.0, e["node"].position.x - 750.0)
 				if e["hp"] <= 0:
 					hud.boss_bar("", -1.0)
+					if e.has("shield"):   # Briggs goes down, but not out: the detective decides
+						_briggs_down(e)
+						return true
 			else:
 				e["hp"] -= MOBSTER_HP if part == "head" else 1   # a head shot always kills
 			e["seen"] = true   # being shot at wakes him up, however far away
@@ -2781,10 +2814,15 @@ const MOB_FACES := {"post": ["", "fedora", "cap", "homburg"], "tommy": ["fedora"
 
 func _mob_cfg(kind: String) -> Dictionary:
 	var c: Dictionary = MOBSTER.duplicate(true)
-	var face: String = (MOB_FACES.get(kind, [""]) as Array).pick_random()
+	var cops: bool = level.get("cops", false)
+	var face: String = ((COP_FACES if cops else MOB_FACES).get(kind, [""]) as Array).pick_random()
 	if kind == "boss":
 		face = BOSS_FACES.get(String(level.get("boss", "")), face)
-	if face != "":
+	if cops and COP_HEADS.has(face):
+		var cx: float = COP_HEADS[face]
+		c["head_tex"] = "res://art/police/heads/%s.png" % face
+		c["parts"]["head"] = {"a": Vector2(cx, 334.0), "b": Vector2(cx, 72.0), "ppm": 1000}
+	elif face != "":
 		var x: float = MOB_HEADS[face]
 		c["head_tex"] = "res://art/mobster/heads/%s.png" % face
 		c["parts"]["head"] = {"a": Vector2(x, 351.5), "b": Vector2(x, 75.6), "ppm": 1000}
@@ -2797,18 +2835,61 @@ func _add_enemy(at: Vector2, kind: String, state: String, goal_x: float) -> Dict
 	m.cfg = _mob_cfg(kind)
 	m.night = _undo_night(1.0)
 	m.position = at
-	m.modulate = ENEMY_TINT.get(kind, Color(1, 1, 1))
+	m.modulate = ENEMY_TINT.get(kind, Color(1, 1, 1)) * (COP_TINT if level.get("cops", false) else Color.WHITE)
 	add_child(m)
 	if kind == "boss":
 		m.size = 1.15
-	m.set_weapon({"tommy": "tommy", "shotgun": "shotgun", "boss": "pistols"}.get(kind, "pistol"))
+	var briggs: bool = kind == "boss" and String(level.get("boss", "")) == "briggs"
+	m.set_weapon("shotgun" if briggs else {"tommy": "tommy", "shotgun": "shotgun", "boss": "pistols"}.get(kind, "pistol"))
+	if briggs:
+		_add_shield(m)
 	m.set_state(0.0, Vector2(-1.0, 0.0), 0.0)
 	m.visible = state != "wait"
 	var e := {"node": m, "type": kind, "hp": BOSS_HP if kind == "boss" else MOBSTER_HP, "cool": randf_range(0.8, 1.6), "aim_off": 0.0,
 			"alive": true, "seen": state == "run", "cover": false if state != "post" else _has_cover(at), "up": false, "shot": false,
 			"timer": randf_range(0.5, 1.5), "state": state, "goal": goal_x, "trig": -1.0, "delay": 0.0, "boss": kind == "boss", "calls": 0}
+	if briggs:   # a steel shield on his arm, turned toward wherever the detective was a moment ago
+		e["shield"] = -1.0
+		e["shells"] = 5
+		e["reload_t"] = 0.0
 	enemies.append(e)
 	return e
+
+
+## Briggs's shield: a riveted steel plate with a slit to look through, carried on the front arm.
+func _add_shield(m) -> void:
+	var plate := Polygon2D.new()
+	plate.polygon = PackedVector2Array([Vector2(0, -150), Vector2(150, -165), Vector2(150, 165), Vector2(0, 150)])
+	plate.color = Color(0.13, 0.14, 0.16)
+	var slit := Polygon2D.new()
+	slit.polygon = PackedVector2Array([Vector2(40, -95), Vector2(120, -101), Vector2(120, -86), Vector2(40, -80)])
+	slit.color = Color(0.02, 0.02, 0.02)
+	plate.add_child(slit)
+	var rim := Line2D.new()
+	rim.points = PackedVector2Array([Vector2(0, -150), Vector2(150, -165), Vector2(150, 165), Vector2(0, 150), Vector2(0, -150)])
+	rim.width = 10.0
+	rim.default_color = Color(0.32, 0.33, 0.36)
+	plate.add_child(rim)
+	for k in 6:   # rivets down both edges
+		var r := Polygon2D.new()
+		var c := Vector2(14.0 if k < 3 else 136.0, -110.0 + (k % 3) * 110.0)
+		var pts := PackedVector2Array()
+		for a in 8:
+			pts.append(c + Vector2.from_angle(a * TAU / 8.0) * 7.0)
+		r.polygon = pts
+		r.color = Color(0.45, 0.46, 0.5)
+		plate.add_child(r)
+	plate.position = Vector2(95.0, -560.0)
+	plate.name = "Shield"
+	m.add_child(plate)
+
+
+## Briggs's shield is between his chest and anything fired from the side it faces; not his head, and
+## not while he has it down to thumb shells into the gun.
+func _shield_stops(e: Dictionary, part: String) -> bool:
+	if not e.has("shield") or part == "head" or float(e["reload_t"]) > 0.0:
+		return false
+	return signf(player.position.x - e["node"].position.x) * float(e["shield"]) > 0.2
 
 
 ## An interior: its drawn back wall in front of the street (the middle of the drawing, where the
@@ -2977,6 +3058,8 @@ func _read_page() -> void:
 	d.found = MenuScript.pages(chapter)
 	d.total = Levels.CAMPAIGN[chapter]["maps"].size()
 	d.sound = func(n: String, db: float) -> void: sfx.play(n, db, INF, 0.0)
+	d.done = hud.release_all
+	hud.release_all()
 	add_child(d)
 
 
@@ -2987,6 +3070,59 @@ func _spawn_runner(from_x: float, goal_x: float, kind := "post") -> void:
 
 
 ## The boss fires in bursts of three.
+## Words over somebody's head: Briggs counting his shells out loud.
+func _say(m, text: String) -> void:
+	if text == "":
+		return
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_override("font", load("res://fonts/SpecialElite.ttf"))
+	l.add_theme_font_size_override("font_size", 46)
+	l.add_theme_color_override("font_color", Color(0.95, 0.92, 0.85) * Color(_undo_night(0.5), 1.0))
+	l.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+	l.add_theme_constant_override("outline_size", 12)
+	l.position = m.position + Vector2(-60.0, -760.0)
+	l.z_index = 20
+	add_child(l)
+	var tw := l.create_tween()
+	tw.tween_property(l, "position:y", l.position.y - 60.0, 1.2)
+	tw.parallel().tween_property(l, "modulate:a", 0.0, 1.2).set_delay(0.5)
+	tw.tween_callback(l.queue_free)
+
+
+## Lieutenant Briggs on his knees, gun gone: the game waits for the detective's answer.
+func _briggs_down(e: Dictionary) -> void:
+	e["alive"] = false
+	var m = e["node"]
+	m.duck = 1.0
+	m._gun.visible = false   # the shotgun on the ground
+	var sh: Node2D = m.get_node_or_null("Shield")
+	if sh:
+		var tw := sh.create_tween()
+		tw.tween_property(sh, "position", sh.position + Vector2(140.0, 520.0), 0.4)
+		tw.parallel().tween_property(sh, "rotation", 1.4, 0.4)
+	sfx.play("body_fall", 0.0, m.position.x, 0.05)
+	_say(m, "GO ON, MALONE.")
+	if _auto != "":   # the test bot spares him
+		MenuScript.set_story("briggs", "spared")
+		return
+	var c = ChoiceScript.new()
+	c.question = "Briggs is on his knees. He counted every shell. He never once called you a murderer."
+	c.options = ["LET HIM LIVE", "FINISH IT"]
+	hud.release_all()
+	c.done = func(i: int) -> void:
+		hud.release_all()
+		if i == 0:
+			MenuScript.set_story("briggs", "spared")
+			_say(m, "...")
+		else:
+			MenuScript.set_story("briggs", "killed")
+			sfx.play("shot_player", 2.0, m.position.x, 0.0)
+			_drop(m, signf(m.position.x - player.position.x), true, "head")
+			fx.blood(m.position + Vector2(0.0, -620.0), Vector2(signf(m.position.x - player.position.x) * 600.0, -100.0), true)
+	add_child(c)
+
+
 func _boss_fire(m) -> void:
 	_fire(m, false)
 	for k in [1, 2]:
@@ -3110,6 +3246,23 @@ func _enemies(delta: float) -> void:
 				walk = signf(to_player.x)   # the shotgunner closes in
 				m.position.x += walk * 300.0 * delta
 			var in_range: bool = e["type"] != "shotgun" or absf(to_player.x) < 760.0
+			if e.has("shield"):   # Briggs: walks in behind his shield, turns slowly, and counts every shell
+				e["shield"] = move_toward(float(e["shield"]), signf(to_player.x), delta * 1.5)
+				if float(e["reload_t"]) > 0.0:
+					e["reload_t"] = float(e["reload_t"]) - delta
+					may_fire = false
+					if float(e["reload_t"]) <= 0.0:
+						e["shells"] = 5
+						_say(m, "LOADED.")
+				if signf(float(e["shield"])) != signf(to_player.x):
+					may_fire = false
+				if absf(to_player.x) > 420.0 and absf(m.position.y - player.position.y) < 60.0:
+					walk = signf(to_player.x)
+					m.position.x += walk * 210.0 * delta
+				var sh: Node2D = m.get_node_or_null("Shield")
+				if sh:
+					sh.position.y = -560.0 + (300.0 if float(e["reload_t"]) > 0.0 else 0.0)   # lowered while he loads
+				in_range = absf(to_player.x) < 900.0
 			if e["cool"] <= 0.0 and may_fire and in_range:
 				e["aim_off"] = randf_range(-150.0, 110.0) * _aim_spread()
 				_enemy_fire(e)

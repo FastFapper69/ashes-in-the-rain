@@ -441,6 +441,21 @@ func _input(event: InputEvent) -> void:
 			aim_left = 0.7
 
 
+## Forget every finger: after the game was paused (a notebook page, a choice) the lifts of fingers
+## that were down never arrived, and a stick still "held" would walk the detective off by himself.
+func release_all() -> void:
+	_stick_finger = -1
+	_aim_finger = -1
+	move = 0.0
+	duck = false
+	aim_held = false
+	fire_tapped = false
+	jump_tapped = false
+	dive_tapped = false
+	slow_tapped = false
+	_knob.position = _stick_at
+
+
 ## The thumbstick is the ring in the lower left and a little margin round it; a touch anywhere else
 ## that is not a button aims there and shoots, behind the detective as well as in front of him.
 func _in_stick_zone(at: Vector2) -> bool:

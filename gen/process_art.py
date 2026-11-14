@@ -17,6 +17,8 @@ STREET = {
     # chapter II, the docks: a frame down both edges, trimmed off both (the left one in main.gd)
     'pier17': ('42.png', 134, False), 'cranes': ('43.png', 134, False), 'shipping': ('44.png', 134, False),
     'quay': ('45.png', 134, False), 'harbor': ('46.png', 134, False),
+    # chapter III, underground: the subway, its tunnels, and the train yard up in the rain
+    'platform': ('66.png', 134, False), 'tunnel': ('67.png', 134, False), 'yard': ('68.png', 134, False),
 }
 # measured on the whole picture, before the right frame comes off: scaled to the trimmed one below
 FULL = 3168.0
@@ -37,10 +39,11 @@ DEEP = {'alley': [(0.465, 0.22, 0.11, 0.64)], 'bluenote': [(0.665, 0.3, 0.16, 0.
         'laundry': [(0.455, 0.32, 0.1, 0.54)], 'subway': [(0.5, 0.25, 0.095, 0.63)], 'church': [(0.432, 0.4, 0.125, 0.4)],
         'market': [(0.54, 0.42, 0.13, 0.46)], 'deadend': [(0.485, 0.4, 0.07, 0.46)],
         'pier17': [_sc((0.45, 0.25, 0.24, 0.63))], 'cranes': [_sc((0.42, 0.42, 0.19, 0.48))], 'shipping': [_sc((0.47, 0.3, 0.075, 0.6))],
-        'quay': [_sc((0.16, 0.52, 0.14, 0.34))], 'harbor': [_sc((0.68, 0.4, 0.24, 0.46))]}
+        'quay': [_sc((0.16, 0.52, 0.14, 0.34))], 'harbor': [_sc((0.68, 0.4, 0.24, 0.46))],
+        'platform': [_sc((0.1, 0.31, 0.13, 0.38))], 'tunnel': [_sc((0.79, 0.33, 0.12, 0.38))], 'yard': [_sc((0.47, 0.45, 0.13, 0.3))]}
 # parts of a drawing taken out of it to come alive in the game (the crate on the crane's chains)
 CUT = {'cranes': [_sc((0.37, 0.2, 0.075, 0.255))]}
-ROOMS = {'laundry': '29.png', 'warehouse': '30.png', 'tenement': '31.png', 'club': '32.png', 'cellar': '33.png', 'hold': '47.png', 'office': '48.png'}
+ROOMS = {'laundry': '29.png', 'warehouse': '30.png', 'tenement': '31.png', 'club': '32.png', 'cellar': '33.png', 'hold': '47.png', 'office': '48.png', 'catacombs': '69.png'}
 
 
 def sky_alpha(rgb, pockets=False):
@@ -114,7 +117,7 @@ for name, (f, trim, towers) in STREET.items():
     if ONLY and name not in ONLY:
         continue
     rgb = np.asarray(Image.open(SRC + f).convert('RGB'))
-    alpha = sky_alpha(rgb, f in ('42.png', '43.png', '44.png', '45.png', '46.png')).copy()
+    alpha = sky_alpha(rgb, f in ('42.png', '43.png', '44.png', '45.png', '46.png', '68.png')).copy()
     roof = remove_towers(rgb, alpha) if towers else -1
     rgb, alpha = rgb[:, :rgb.shape[1] - trim], alpha[:, :alpha.shape[1] - trim]
     for (x, y, w, h) in CUT.get(name, []):
@@ -159,6 +162,7 @@ FENCES = {
     'bluenote': [(0.65, 0.6, 0.15, 0.29)], 'laundry': [(0.875, 0.66, 0.08, 0.24)], 'deadend': [(0.47, 0.6, 0.09, 0.3), (0.85, 0.6, 0.11, 0.3)],
     'market': [(0.5, 0.7, 0.16, 0.2)], 'warehouse': [(0.43, 0.62, 0.25, 0.28)], 'alley': [],
     'pier17': [_sc((0.045, 0.72, 0.40, 0.18))], 'harbor': [_sc((0.045, 0.55, 0.2, 0.33))],
+    'yard': [_sc((0.77, 0.55, 0.18, 0.25))],
 }
 for name in STREET:
     if ONLY and name not in ONLY:

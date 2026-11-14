@@ -68,6 +68,20 @@ static func stars(chapter: int, map: int) -> int:
 	return int(cfg.get_value("stars", "%d-%d" % [chapter, map], 0))
 
 
+## What the detective chose when it was his to choose (Briggs: "spared" or "killed").
+static func set_story(key: String, value: String) -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE)
+	cfg.set_value("story", key, value)
+	cfg.save(SAVE)
+
+
+static func story(key: String) -> String:
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE)
+	return String(cfg.get_value("story", key, ""))
+
+
 static func mark_page(chapter: int, map: int) -> void:
 	var cfg := ConfigFile.new()
 	cfg.load(SAVE)
