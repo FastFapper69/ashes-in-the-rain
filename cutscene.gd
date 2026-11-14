@@ -48,7 +48,7 @@ const SCENES := {
 	],
 	"dream": [
 		{"img": 70, "from": [0.72, 0.5, 1.25], "to": [0.5, 0.45, 1.0], "rain": 0.0, "hit": 1,
-			"lines": ["That night I dreamed I was twenty-six again, with a new badge and a clean conscience.", "The doors were chained. Somebody on the other side kept knocking. I counted the hands. Eleven.", "I woke up before I could see whose side of the door I was on."],
+			"lines": ["That night I dreamed I was twenty-six again, with a new badge and a clean conscience.", "The doors were chained. Somebody on the other side kept knocking. I counted eleven knocks.", "I woke up before I could see whose side of the door I was on."],
 			"hard": [[2, "I woke up knowing exactly whose side of the door I was on. I'd been adding hands to it all week."]]},
 	],
 	"kessler": [
@@ -100,7 +100,7 @@ const LIVE := {
 	61: [[0.68, 0.28, 0.08, "neon"], [0.7, 0.46, 0.04, "fire"], [0.5, 0.95, 0.0, "fog"]],
 	64: [[0.06, 0.36, 0.09, "lamp"]],
 	65: [[0.1, 0.42, 0.1, "siren"], [0.8, 0.55, 0.07, "lamp"]],
-	70: [[0.1, 0.5, 0.2, "fire"], [0.9, 0.55, 0.2, "fire"], [0.45, 0.25, 0.18, "fire"], [0.8, 0.85, 0.12, "fire"], [0.5, 0.1, 0.08, "smoke"]],
+	70: [[0.1, 0.5, 0.2, "fire"], [0.93, 0.5, 0.2, "fire"], [0.17, 0.32, 0.16, "fire"], [0.62, 0.84, 0.12, "fire"], [0.66, 0.08, 0.08, "fire"], [0.5, 0.1, 0.08, "smoke"]],
 	74: [[0.81, 0.04, 0.09, "siren"], [0.12, 0.24, 0.035, "lamp"], [0.34, 0.24, 0.035, "lamp"], [0.5, 0.95, 0.0, "fog"]],
 	75: [[0.51, 0.17, 0.07, "lamp"], [0.2, 0.42, 0.04, "neon"], [0.5, 0.95, 0.0, "fog"]],
 	76: [[0.07, 0.6, 0.06, "fire"], [0.6, 0.36, 0.05, "lamp"], [0.42, 0.38, 0.05, "lamp"]],
