@@ -344,6 +344,32 @@ func toast(text: String) -> void:
 
 
 ## A cut through black: going through a door.
+## Hit: the edges of the screen go red and fade; at low health a red rim stays, beating.
+var _hurt_rim: TextureRect
+var _low := 0.0
+func hurt(health: float) -> void:
+	if _hurt_rim == null:
+		_hurt_rim = TextureRect.new()
+		var g := GradientTexture2D.new()
+		g.fill = GradientTexture2D.FILL_RADIAL
+		g.fill_from = Vector2(0.5, 0.5)
+		g.fill_to = Vector2(1.1, 1.1)
+		var gr := Gradient.new()
+		gr.set_color(0, Color(0.5, 0.02, 0.02, 0.0))
+		gr.add_point(0.55, Color(0.5, 0.02, 0.02, 0.0))
+		gr.set_color(gr.get_point_count() - 1, Color(0.55, 0.02, 0.02, 0.9))
+		g.gradient = gr
+		_hurt_rim.texture = g
+		_hurt_rim.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_hurt_rim.stretch_mode = TextureRect.STRETCH_SCALE
+		_hurt_rim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_hurt_rim)
+		move_child(_hurt_rim, 0)
+	_hurt_rim.size = get_viewport().get_visible_rect().size
+	_low = 0.35 if health <= 0.41 else 0.0
+	_hurt_rim.modulate.a = 1.0
+
+
 func flash() -> void:
 	var r := ColorRect.new()
 	r.color = Color(0.0, 0.0, 0.0, 0.85)
@@ -396,6 +422,8 @@ func rating(stars: int, lines: Array) -> void:
 ## fraction: 0 = dead, 1 = unhurt.
 func set_health(fraction: float) -> void:
 	var f := clampf(fraction, 0.0, 1.0)
+	if f > 0.41:   # patched up: the red rim goes
+		_low = 0.0
 	_fill.polygon = PackedVector2Array([BAR_INNER[0], BAR_INNER[0].lerp(BAR_INNER[1], f), BAR_INNER[3].lerp(BAR_INNER[2], f), BAR_INNER[3]])
 
 
@@ -484,6 +512,9 @@ func _in_stick_zone(at: Vector2) -> bool:
 
 
 func _process(delta: float) -> void:
+	if _hurt_rim != null:   # the red fades back to the low-health beat, or to nothing
+		var floor_a := _low * (0.7 + 0.3 * sin(Time.get_ticks_msec() * 0.008))
+		_hurt_rim.modulate.a = maxf(floor_a, _hurt_rim.modulate.a - delta / maxf(Engine.time_scale, 0.05) * 2.2)
 	if not aim_held:
 		aim_left = maxf(0.0, aim_left - delta / Engine.time_scale)
 

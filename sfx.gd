@@ -27,7 +27,7 @@ var _ambient_t := {"drip": 2.0}   # thunder comes from main.gd, after its lightn
 
 
 func _ready() -> void:
-	for b in ["Music", "SFX"]:   # two buses under the master, so the settings can set them apart
+	for b in ["Music", "SFX"]:   # the two buses are in default_bus_layout.tres (on the web they must exist from the start); this only covers a missing file
 		if AudioServer.get_bus_index(b) < 0:
 			AudioServer.add_bus()
 			var i := AudioServer.bus_count - 1

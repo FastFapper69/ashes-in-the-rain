@@ -28,6 +28,7 @@ var hit_test := Callable()      # func(pos: Vector2, from_player: bool) -> bool,
 
 var _unshaded: CanvasItemMaterial
 var _additive: CanvasItemMaterial
+var _soft: GradientTexture2D
 var _bits: Array = []      # loose particles under gravity, see _bit
 var _spots: Array = []   # drops and glass lying on the pavement
 const MAX_SPOTS := 50
@@ -194,17 +195,77 @@ func trail(active: bool, at: Vector2) -> void:
 
 
 func shoot(from: Vector2, velocity: Vector2, from_player: bool, life := 1.4) -> void:
+	# Three layers: a soft glow along the path, a hot streak that cools from white at the bullet to
+	# smoke at the tail, and the slug itself, a bright bead. His shots burn warm; theirs a harder red.
+	var hot := Color(1.0, 0.95, 0.8) if from_player else Color(1.0, 0.72, 0.6)
+	var mid := Color(1.0, 0.62, 0.25) if from_player else Color(0.95, 0.25, 0.15)
+	if _soft == null:   # cross-section of a streak: bright along the middle, nothing at the edges
+		var sg := Gradient.new()
+		sg.set_color(0, Color(1, 1, 1, 0))
+		sg.set_color(1, Color(1, 1, 1, 0))
+		sg.add_point(0.5, Color(1, 1, 1, 1))
+		sg.add_point(0.3, Color(1, 1, 1, 0.25))
+		sg.add_point(0.7, Color(1, 1, 1, 0.25))
+		_soft = GradientTexture2D.new()
+		_soft.gradient = sg
+		_soft.width = 4
+		_soft.height = 32
+		_soft.fill_from = Vector2(0, 0)
+		_soft.fill_to = Vector2(0, 1)
+	var glow := Line2D.new()
+	glow.width = 30.0
+	glow.texture = _soft
+	glow.texture_mode = Line2D.LINE_TEXTURE_STRETCH
+	var gg := Gradient.new()
+	gg.set_color(0, Color(mid, 0.0))
+	gg.set_color(1, Color(mid, 0.5))
+	glow.gradient = gg
+	glow.material = _additive
+	glow.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	glow.add_point(from)
+	add_child(glow)
 	var line := Line2D.new()
-	line.width = 12.0
+	line.width = 7.0
 	var taper := Curve.new()   # thin at the tail, full at the bullet
-	taper.add_point(Vector2(0.0, 0.0))
+	taper.add_point(Vector2(0.0, 0.15))
 	taper.add_point(Vector2(1.0, 1.0))
 	line.width_curve = taper
-	line.default_color = night
+	var g := Gradient.new()   # smoke, then the heat, then white at the head
+	g.set_color(0, Color(0.55, 0.55, 0.58, 0.0))
+	g.add_point(0.55, Color(mid * night, 0.55))
+	g.set_color(g.get_point_count() - 1, Color(hot, 1.0))
+	line.gradient = g
 	line.material = _unshaded
+	line.texture = _soft
+	line.texture_mode = Line2D.LINE_TEXTURE_STRETCH
+	line.end_cap_mode = Line2D.LINE_CAP_ROUND
 	line.add_point(from)
 	add_child(line)
-	_bullets.append({"pos": from, "vel": velocity, "line": line, "player": from_player, "life": 0.0, "max": life})
+	var head := Sprite2D.new()
+	head.texture = load("res://art/light_blob.png")
+	head.material = _additive
+	head.modulate = hot
+	head.scale = Vector2(0.2, 0.06)
+	head.rotation = velocity.angle()
+	head.position = from
+	add_child(head)
+	_bullets.append({"pos": from, "vel": velocity, "line": line, "glow": glow, "head": head, "player": from_player, "life": 0.0, "max": life, "wake": 0.0})
+
+
+## The air a bullet tore through, seen in slowed time: a ring of disturbed air left hanging behind it.
+func _wake(at: Vector2, dir: Vector2) -> void:
+	var w := Sprite2D.new()
+	w.texture = load("res://art/light_blob.png")
+	w.position = at
+	w.rotation = dir.angle()
+	w.scale = Vector2(0.05, 0.08)
+	w.modulate = Color(0.85, 0.87, 0.9, 0.22) * Color(night, 1.0)
+	w.z_index = -1
+	add_child(w)
+	var tw := w.create_tween().set_parallel()
+	tw.tween_property(w, "scale", Vector2(0.14, 0.32), 0.9).set_ease(Tween.EASE_OUT)
+	tw.tween_property(w, "modulate:a", 0.0, 0.9)
+	tw.chain().tween_callback(w.queue_free)
 
 
 ## The detective's bullets knock the mobsters' bullets out of the air. Both are fast, so the test
@@ -224,8 +285,10 @@ func _clashes() -> void:
 				var at: Vector2 = (near[0] + near[1]) * 0.5
 				spark(at)
 				spark(at + Vector2(randf_range(-20.0, 20.0), randf_range(-20.0, 20.0)))
-				_fade_out(mine["line"], 0.0, 0.2)
-				_fade_out(theirs["line"], 0.0, 0.2)
+				for bb in [mine, theirs]:
+					_fade_out(bb["line"], 0.0, 0.2)
+					_fade_out(bb["glow"], 0.0, 0.1)
+					_fade_out(bb["head"], 0.0, 0.05)
 				_bullets.remove_at(maxi(a, e))
 				_bullets.remove_at(mini(a, e))
 				if clash.is_valid():
@@ -374,14 +437,25 @@ func _process(delta: float) -> void:
 		b["pos"] = pos
 		b["life"] += delta
 		var line: Line2D = b["line"]
+		var glow: Line2D = b["glow"]
 		line.add_point(pos)
-		line.width = lerpf(12.0, 26.0, slow)
+		glow.add_point(pos)
+		line.width = lerpf(10.0, 18.0, slow)
+		glow.width = lerpf(30.0, 54.0, slow)
+		(b["head"] as Sprite2D).position = pos
+		(b["head"] as Sprite2D).scale = Vector2(lerpf(0.2, 0.32, slow), 0.06)
+		b["wake"] = float(b["wake"]) + pos.distance_to(b["prev"])
+		if slow > 0.3 and float(b["wake"]) > 55.0:   # slowed: the bullet leaves its wake in the air
+			b["wake"] = 0.0
+			_wake(pos - b["vel"].normalized() * 30.0, b["vel"])
 		if not b["player"] and not b.has("whizzed") and listener and pos.distance_to(listener.position + Vector2(0.0, -260.0)) < 260.0:
 			b["whizzed"] = true   # a near miss: the bullet whistles past his ear
 			if sound:
 				sound.play("whiz", -2.0, INF, 0.1)
 		while line.get_point_count() > 2 and line.get_point_position(0).distance_to(pos) > TRAIL_LENGTH:
 			line.remove_point(0)
+		while glow.get_point_count() > 2 and glow.get_point_position(0).distance_to(pos) > TRAIL_LENGTH * 0.6:
+			glow.remove_point(0)
 		var done := false
 		# A bullet covers 70 px or more a frame, more than a man is wide: test the whole stretch it
 		# flew this frame in short steps, or it would pass straight through people and crates.
@@ -401,6 +475,8 @@ func _process(delta: float) -> void:
 			done = true
 		if done:
 			_fade_out(line, 0.0, 0.25)
+			_fade_out(glow, 0.0, 0.15)
+			_fade_out(b["head"], 0.0, 0.05)
 			_bullets.remove_at(i)
 		i -= 1
 

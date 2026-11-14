@@ -30,7 +30,7 @@ const SLAB_SCALE := 0.42
 const SLAB_REGION_X := Vector2(250.0, 975.0)   # the part of slab_sidewalk.png that tiles without gaps
 const MASK_LIT := 1      # things lights fall on
 const MASK_UNLIT := 2    # foreground silhouettes: they stay black
-const ZOOM := 0.4
+const ZOOM := 0.45
 # The test level. Solid things he has to jump over and can hide behind: [drawing, left edge, width, height].
 # Cover is as tall as a crouching man (about 250 px = 1.25 m), so it hides him and he can still jump it.
 # The fire-escape catwalk: he can jump up onto it from the long crate and drop off its ends.
@@ -119,7 +119,7 @@ const DIVE_SPEED := Vector2(1250.0, -900.0)
 const VAULT_MAX := 270.0   # a dive carries him over anything up to this tall instead of stopping dead
 const DIVE_LAND := 125.0   # lying flat, the figure's origin sits this far below the pavement line
 const SLOW_SCALE := 0.3   # how fast time runs while it is slowed
-const CAM_Y := -572.0     # puts the pavement about four fifths of the way down the screen
+const CAM_Y := -508.0     # puts the pavement about four fifths of the way down the screen
 const CAM_LEAD := 400.0   # the camera looks ahead of the detective
 # Layers behind the street, nearest last: texture, how much they follow the camera (1 = not at all
 # displaced, i.e. infinitely far), top edge in world units, scale, brightness, blur.
@@ -203,6 +203,13 @@ var _slow_cancelled := false   # slowed time switched off during this dive: it s
 var _vaulted := false          # this dive has already vaulted off a crate
 var _flip_way := 1.0
 var dive_rolls := false        # this dive ends in a roll instead of a flat landing
+var _stop_t := 0.0            # real seconds of an impact freeze or a final-shot slow motion still to run
+var _stop_scale := 1.0        # how slow time runs during it
+var _slow_base := false       # slowed time proper (the stopwatch or a dive), not an impact freeze
+var _jump_buf := 0.0          # a jump pressed a moment too early still counts when he lands
+var _coyote := 0.0            # and one pressed a moment after he stepped off an edge
+var _step_half := 0
+var _w_was := false
 var _grace := 3.0             # seconds after a start or a checkpoint before anybody may fire
 var _vault := {}              # the speed vault in progress: from, to, top, t
 var glide := 0.0               # horizontal speed of a dive
@@ -244,7 +251,7 @@ func _ready() -> void:
 		if arg.begins_with("--map="):
 			map = int(arg.trim_prefix("--map="))
 		if arg.begins_with("--test="):
-			in_menu = arg == "--test=menu"
+			in_menu = arg == "--test=menu" or arg == "--test=neon"
 	var picked := false
 	for arg in OS.get_cmdline_user_args():
 		picked = picked or arg.begins_with("--chapter=")
@@ -1330,6 +1337,22 @@ func _process(delta: float) -> void:
 		fore.position.x = -cam.position.x * 0.35
 		for i in depth.size():
 			depth[i].position.x = cam.position.x * depth_follow[i]
+		if _auto == "neon":   # the painted neon lit, then cut out
+			_at += delta
+			for c in get_children():
+				if "_neon" in c and not (c._neon as Dictionary).is_empty():
+					if _at < 5.5:
+						c._neon["next"] = 99.0
+					elif _auto_done == 1:
+						c._neon["dip"] = 0.36
+			if _at > 5.0 and _auto_done == 0:
+				_auto_done = 1
+				_shot("neon_on")
+			if _at > 5.53 and _auto_done == 1:
+				_auto_done = 2
+				_shot("neon_off")
+			if _at > 5.8:
+				get_tree().quit()
 		if _auto == "menu":
 			_at += delta
 			if _at > 6.5 and _auto_done == 0:   # once the title is up and Frank's line typed out
@@ -1427,13 +1450,10 @@ func _process(delta: float) -> void:
 	if not over:
 		player.set_state(dir, aim, delta)
 	steps.emitting = (absf(dir) > 0.3 or absf(glide) > 180.0) and move_state == "ground"
-	if steps.emitting and player.duck < 0.5:   # footfalls on the wet pavement, quicker when he runs
-		_step_t -= delta
-		if _step_t <= 0.0:
-			_step_t = 0.3
-			sfx.play("step1" if randf() < 0.5 else "step2", -6.0, INF, 0.1)
-	else:
-		_step_t = 0.08
+	var foot := int(floor(player._phase * 2.0))
+	if steps.emitting and player.duck < 0.5 and absf(glide) < 180.0 and foot != _step_half:   # a footfall each time a foot comes down
+		sfx.play("step1" if foot == 0 else "step2", -6.0 if _room == "" else -8.0, INF, 0.06)
+	_step_half = foot
 
 	fire_cool = maxf(0.0, fire_cool - delta)
 	_fire_buf = maxf(0.0, _fire_buf - delta)
@@ -1494,7 +1514,7 @@ func _process(delta: float) -> void:
 	_tick_sky(delta)
 	_tick_music()
 	_afterimages(delta, absf(dir))
-	_slow_look = lerpf(_slow_look, 1.0 if Engine.time_scale < 1.0 else 0.0, 1.0 - exp(-10.0 * real))
+	_slow_look = lerpf(_slow_look, 1.0 if _slow_base else 0.0, 1.0 - exp(-10.0 * real))
 	atmo.set_slow(_slow_look)
 	sfx.slow = _slow_look
 	sfx.listener_x = player.position.x
@@ -1578,12 +1598,21 @@ func _auto_step(delta: float) -> void:
 				left += 1 if e["alive"] else 0
 			print("BOT t ", int(_at), " x ", int(player.position.x), " / ", int(level_end), " mobsters left ", left)
 		if DisplayServer.get_name() != "headless":   # with a screen: a few pictures of the chapter in play, then stop
-			for i in 4:
-				if _auto_done & (1 << i) == 0 and _at > [1.5, 9.0, 15.0, 21.0][i]:
-					_auto_done |= 1 << i
-					_shot("play_%d" % i)
-			if _at > 21.5:
-				get_tree().quit()
+			var film := OS.get_cmdline_user_args().has("--film")   # a strip of frames, every 0.15 s from 6 s
+			if film:
+				var k := int((_at - 6.0) / 0.15)
+				if k >= 0 and k < 24 and _auto_done & (1 << k) == 0:
+					_auto_done |= 1 << k
+					_shot("film_%02d" % k)
+				if _at > 9.8:
+					get_tree().quit()
+			else:
+				for i in 4:
+					if _auto_done & (1 << i) == 0 and _at > [1.5, 9.0, 15.0, 21.0][i]:
+						_auto_done |= 1 << i
+						_shot("play_%d" % i)
+				if _at > 21.5:
+					get_tree().quit()
 		if _at > 600.0:
 			print("BOT TIMEOUT at x ", int(player.position.x))
 			for e in enemies:
@@ -1693,6 +1722,24 @@ func _auto_step(delta: float) -> void:
 		hud.move = 1.0 if _at < 2.2 else 0.0
 		hp = PLAYER_HP
 		shots = [[0.9, "vault_1"], [1.0, "vault_2"], [1.1, "vault_3"], [1.2, "vault_4"], [1.3, "vault_5"], [1.4, "vault_6"], [1.5, "vault_7"], [1.6, "vault_8"]]
+	elif _auto == "bullets":   # a close look at shots in flight, at speed and in slowed time
+		if _auto_done & 1 == 0:
+			_auto_done |= 1
+			hud.visible = false
+			for e in enemies:
+				e["node"].position.x += 60000.0
+				e["goal"] = e["node"].position.x
+		var chest: Vector2 = player.position + SHOULDER
+		for k in [[0.5, 2], [1.5, 8]]:
+			if _at > k[0] and _auto_done & k[1] == 0:
+				_auto_done |= k[1]
+				fx.shoot(chest + Vector2(90.0, 0.0), Vector2(BULLET_SPEED, -40.0), true)
+				fx.shoot(chest + Vector2(1500.0, -30.0), Vector2(-BULLET_SPEED, 30.0), false)
+		if _at > 1.2 and _auto_done & 4 == 0:
+			_auto_done |= 4
+			slow_on = true
+			slow_left = 1.0
+		shots = [[0.56, "bullets_1"], [1.62, "bullets_2"], [1.8, "bullets_3"]]
 	elif _auto == "reload":   # the revolver emptied and loaded again, close up
 		if _auto_done & 1 == 0:
 			_auto_done |= 1
@@ -1951,7 +1998,12 @@ func _touch(at: Vector2, down: bool) -> void:
 
 ## Running, jumping, diving, sliding and rolling. Returns how fast the legs should run, -1..1.
 func _move(dir: float, aim: Vector2, delta: float) -> float:
-	var jump: bool = hud.jump_tapped or Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_SPACE)
+	if hud.jump_tapped or Input.is_action_just_pressed("ui_accept") or (Input.is_physical_key_pressed(KEY_W) and not _w_was):
+		_jump_buf = 0.15
+	_w_was = Input.is_physical_key_pressed(KEY_W)
+	_jump_buf = maxf(0.0, _jump_buf - delta)
+	_coyote = maxf(0.0, _coyote - delta)
+	var jump: bool = _jump_buf > 0.0
 	var dive: bool = Input.is_physical_key_pressed(KEY_CTRL) or Input.is_physical_key_pressed(KEY_E)
 	var duck_held: bool = Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_C) or hud.duck or _demo_duck
 	var slide: bool = duck_held and not _duck_was   # a fresh press: out of a run that is a slide
@@ -1975,6 +2027,8 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 		elif can_act and jump:
 			move_state = "jump"
 			fall = -JUMP_SPEED
+			_jump_buf = 0.0
+			_coyote = 0.0
 		elif can_act and absf(run) > 380.0 and player.duck < 0.3:   # running at a low crate: over it without breaking stride
 			var vb := _vault_box(signf(run))
 			if vb >= 0:
@@ -2006,6 +2060,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 		if floor_y > player.position.y - DIVE_LAND * player.dive + 36.0 and player.dive < 0.05:   # walked off an edge (a step down the stairs is just walked)
 			move_state = "jump"
 			fall = 0.0
+			_coyote = 0.12   # a jump a beat late still goes
 		else:
 			player.position.y = floor_y + DIVE_LAND * player.dive   # getting up brings him back onto his feet
 		legs = run / RUN_SPEED if player.dive < 0.05 else 0.0
@@ -2015,7 +2070,11 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 		run = move_toward(run, dir * RUN_SPEED, RUN_ACCEL * 0.5 * delta)
 		player.position.x += run * delta
 		player.air = move_toward(player.air, 1.0, delta * 8.0)
-		if dive:   # a dive can also be thrown out of a jump
+		if jump and _coyote > 0.0:
+			fall = -JUMP_SPEED
+			_coyote = 0.0
+			_jump_buf = 0.0
+		elif dive:   # a dive can also be thrown out of a jump
 			_start_dive(dir if dir != 0.0 else facing, facing, minf(fall, -300.0), false)
 		elif fall > 0.0 and player.position.y >= floor_y:
 			player.position.y = floor_y
@@ -2534,6 +2593,10 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 				return true
 			fx.blood(pos, fx.hit_vel, part == "head" or e["hp"] <= 1)
 			e["node"].add_wound(pos, part)
+			var hm = e["node"]
+			var tint: Color = hm.modulate
+			hm.modulate = Color(2.2, 2.0, 1.9)   # a white flash: the hit registers at a glance
+			hm.create_tween().tween_property(hm, "modulate", tint, 0.12)
 			sfx.play("hit_flesh", 0.0, pos.x)
 			if e["boss"]:   # the boss takes a lot; at two thirds and one third of his health he calls for help
 				e["hp"] -= 3 if part == "head" else 1
@@ -2580,6 +2643,8 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 	fx.blood(pos, fx.hit_vel)
 	player.add_wound(pos, "")   # he flinches
 	sfx.play("hit_flesh", 2.0)
+	_shake = maxf(_shake, 0.18)
+	hud.hurt(float(hp - 1) / PLAYER_HP)
 	if (_dt < 0.0 or _dt > 7.4) and _tt < 0.0 and (_auto == "" or _auto == "stand"):   # nobody gets hurt during the demo or the tests
 		hp -= 1
 		hud.set_health(float(hp) / PLAYER_HP)
@@ -2596,6 +2661,11 @@ func _kill(e: Dictionary, head: bool, quiet := false, part := "") -> void:
 	stats["heads"] += 1 if head else 0
 	stats["slow"] += 1 if Engine.time_scale < 1.0 else 0
 	var how := "head" if head else ("blast" if part == "blast" else ("leg" if part.begins_with("thigh") or part.begins_with("shin") else ""))
+	if _all_down() and not _stand:   # the last of them: the final shot plays out slowly
+		_impact(1.1, 0.22)
+		_shake = maxf(_shake, 0.12)
+	elif not quiet:
+		_impact(0.07 if head else 0.045, 0.05)
 	_drop(m, signf(m.position.x - player.position.x), true, how)
 	if not quiet:
 		_word(["crack"] if head else ["pow", "wham", "bam"], m.position + Vector2(0.0, -500.0), 0.27)
@@ -3401,6 +3471,33 @@ func _spawn_runner(from_x: float, goal_x: float, kind := "post") -> void:
 
 
 ## The boss fires in bursts of three.
+## The glint of a gun coming up to fire: a beat of warning, the time to get out of the way.
+func _glint(m) -> void:
+	var g := Sprite2D.new()
+	g.texture = load("res://art/light_blob.png")
+	var add := CanvasItemMaterial.new()
+	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	add.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+	g.material = add
+	g.modulate = Color(1.0, 0.92, 0.75) * Color(_undo_night(0.9), 1.0)
+	g.global_position = m.muzzle()
+	g.scale = Vector2.ZERO
+	g.z_index = 8
+	add_child(g)
+	for a in [0.0, PI * 0.5]:   # a four-point star across it
+		var l := Line2D.new()
+		l.points = PackedVector2Array([Vector2.from_angle(a) * -150.0, Vector2.from_angle(a) * 150.0])
+		l.width = 14.0
+		l.default_color = Color(1, 1, 1, 0.9)
+		g.add_child(l)
+	var tw := g.create_tween()
+	tw.tween_property(g, "scale", Vector2.ONE * 0.28, 0.08).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(g, "rotation", 0.8, 0.3)
+	tw.tween_property(g, "scale", Vector2.ZERO, 0.2)
+	tw.tween_callback(g.queue_free)
+	sfx.play("clink", -14.0, m.position.x, 0.2)
+
+
 ## Words over somebody's head: Briggs counting his shells out loud.
 func _say(m, text: String) -> void:
 	if text == "":
@@ -3576,6 +3673,9 @@ func _enemies(delta: float) -> void:
 		e["timer"] -= delta
 		if hiding:
 			if e["up"]:
+				if e["timer"] < 0.9 and not e.get("glinted", false) and may_fire:
+					e["glinted"] = true
+					_glint(m)
 				if e["timer"] < 0.55 and not e["shot"]:
 					e["shot"] = true
 					if may_fire:
@@ -3589,9 +3689,29 @@ func _enemies(delta: float) -> void:
 				if e["timer"] <= 0.0:
 					e["up"] = true
 					e["shot"] = false
+					e["glinted"] = false
 					e["timer"] = 1.15
 		else:
+			var was_cool: float = e["cool"]
 			e["cool"] -= delta
+			if was_cool > 0.32 and e["cool"] <= 0.32 and may_fire:   # a glint at the muzzle: he is about to fire
+				_glint(m)
+			# between shots a man without cover does not stand like a target: a step this way or that
+			if e["type"] == "post" and not e["boss"] and m.position.y == 0.0 and e["cool"] > 0.5:
+				if not e.has("home"):
+					e["home"] = m.position.x
+					e["wander"] = m.position.x
+				if absf(float(e["wander"]) - m.position.x) > 8.0:
+					walk = signf(float(e["wander"]) - m.position.x)
+					m.position.x += walk * 170.0 * delta
+				elif randf() < delta * 0.6:
+					var to: float = float(e["home"]) + randf_range(-150.0, 150.0)
+					var free := true
+					for bx in boxes:
+						if bx.grow(60.0).has_point(Vector2(to, -50.0)):
+							free = false
+					if free:
+						e["wander"] = to
 			if e["type"] == "shotgun" and absf(m.position.y - player.position.y) < 60.0 and absf(to_player.x) > 520.0:
 				walk = signf(to_player.x)   # the shotgunner closes in
 				m.position.x += walk * 300.0 * delta
@@ -3618,6 +3738,14 @@ func _enemies(delta: float) -> void:
 				_enemy_fire(e)
 		m.duck = move_toward(m.duck, want_duck, delta * 7.0)
 		m.set_state(walk, to_player + Vector2(0.0, e["aim_off"]), delta)
+
+
+## A kill lands: time all but stops for a moment (`secs` real seconds at `scale`).
+func _impact(secs: float, scale: float) -> void:
+	if _auto == "play":
+		return
+	_stop_t = maxf(_stop_t, secs)
+	_stop_scale = minf(_stop_scale, scale)
 
 
 ## Slowed time: Shift held, or the stopwatch button tapped on and off. It drains a meter that refills.
@@ -3651,9 +3779,15 @@ func _slow_time(real: float) -> void:
 		Engine.time_scale = 1.0
 	hud.set_slow(slow_left, Engine.time_scale < 1.0)
 	var now_slow := Engine.time_scale < 1.0
+	_slow_base = now_slow
 	if now_slow != _slowed_was:
 		sfx.play("slow_in" if now_slow else "slow_out", -3.0, INF, 0.0)
 		_slowed_was = now_slow
+	if _stop_t > 0.0:   # an impact: the world holds its breath for a few frames
+		_stop_t -= real
+		Engine.time_scale *= _stop_scale
+		if _stop_t <= 0.0:
+			_stop_scale = 1.0
 
 
 ## The nearest lamp throws the figure's shadow onto the wall behind it, leaning away from the light.

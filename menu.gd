@@ -47,9 +47,14 @@ var _on_case_file := false
 # The title is a painted scene, not the game's street: one picture for each part of the story, the
 # camera drifting slowly over it, rain and ash across it, its lights alive.
 const KEY_ART := {0: 78, 1: 78, 2: 79, 3: 80, 4: 80}
-const KEY_LIVE := {78: [[0.655, 0.49, 0.11, "neon"], [0.795, 0.14, 0.06, "lamp"], [0.915, 0.46, 0.02, "lamp"]],
-	79: [[0.632, 0.83, 0.03, "neon"], [0.495, 0.53, 0.03, "lamp"]],
-	80: [[0.497, 0.44, 0.025, "neon"], [0.51, 0.6, 0.06, "lamp"], [0.70, 0.27, 0.035, "lamp"], [0.955, 0.13, 0.03, "lamp"]]}
+## The lamps (gen/key_neon.py): the box each painted lamp and its cone sit in. Their glow is cut
+## from the painting itself, so it has the lamp's own shape and never floats as a disc in the air.
+const KEY_LAMPS := {78: [[0.70, 0.0, 0.90, 0.55]], 79: [[0.44, 0.40, 0.56, 0.80]], 80: [[0.65, 0.15, 0.76, 0.42]]}
+## The painted neon (gen/key_neon.py): the box each picture's red light and its reflections sit in.
+## A glow in the exact shape of the letters goes on over it, and a dark copy of those same pixels
+## goes over the picture whenever the tube cuts out, so the street's red goes out with the sign.
+const KEY_NEON := {78: [0.40, 0.40, 0.80, 1.0], 79: [0.55, 0.72, 0.72, 0.92], 80: [0.43, 0.36, 0.56, 0.55]}
+var _neon: Dictionary = {}
 var _back: Control
 var _art: TextureRect
 var _rain: Control
@@ -238,6 +243,9 @@ func _make_back() -> void:
 	_back.add_child(black)
 	var ch := maxi(0, progress()[0])
 	var img: int = KEY_ART.get(ch, 78)
+	for a in OS.get_cmdline_user_args():   # the tests can pick a picture
+		if a.begins_with("--key="):
+			img = int(a.substr(6))
 	_art = TextureRect.new()
 	_art.texture = load("res://art/ui/key_%d.jpg" % img)
 	_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -248,17 +256,31 @@ func _make_back() -> void:
 	create_tween().tween_property(_art, "modulate", Color.WHITE, 2.5)   # out of the dark
 	var add := CanvasItemMaterial.new()
 	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
-	for l in KEY_LIVE.get(img, []):
+	var lamps: Array = KEY_LAMPS.get(img, [])
+	for i in lamps.size():
 		var g := TextureRect.new()
-		g.texture = load("res://art/light_blob.png")
+		g.texture = load("res://art/ui/key_%d_lamp%d.png" % [img, i])
 		g.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		g.stretch_mode = TextureRect.STRETCH_SCALE
 		g.material = add
 		g.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var col := Color(1.0, 0.16, 0.1) if l[3] == "neon" else Color(1.0, 0.8, 0.5)
-		g.modulate = Color(col, 0.0)
+		g.modulate = Color(1.0, 0.85, 0.6, 0.0)
 		_art.add_child(g)
-		_lights.append({"node": g, "at": Vector2(l[0], l[1]), "r": float(l[2]), "kind": l[3], "next": randf_range(2.0, 5.0), "dip": 0.0, "phase": randf() * TAU})
+		_lights.append({"node": g, "box": lamps[i], "phase": randf() * TAU})
+	if KEY_NEON.has(img):
+		var off := TextureRect.new()
+		off.texture = load("res://art/ui/key_%d_off.png" % img)
+		var glow := TextureRect.new()
+		glow.texture = load("res://art/ui/key_%d_glow.png" % img)
+		glow.material = add
+		glow.modulate = Color(1.0, 0.22, 0.14, 0.0)
+		off.modulate.a = 0.0
+		for n in [off, glow]:
+			n.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			n.stretch_mode = TextureRect.STRETCH_SCALE
+			n.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			_art.add_child(n)
+		_neon = {"off": off, "glow": glow, "box": KEY_NEON[img], "next": randf_range(2.5, 5.0), "dip": 0.0}
 	var ash := CPUParticles2D.new()   # the ash, thicker the further the story has gone
 	ash.texture = load("res://art/light_blob.png")
 	ash.amount = int(20 + 50 * ash_level())
@@ -313,24 +335,28 @@ func _tick_back(delta: float) -> void:
 	_art.size = size
 	var slack := size - view
 	_art.position = -slack * Vector2(0.5 + 0.45 * sin(_clock * 0.037), 0.5 + 0.4 * sin(_clock * 0.029 + 1.0))
-	for l in _lights:
+	for l in _lights:   # a lamp breathes a little in the wet air
 		var n: TextureRect = l["node"]
-		var r: float = float(l["r"]) * size.x * 1.1
-		n.size = Vector2(r, r) * 2.0
-		n.position = (l["at"] as Vector2) * size - Vector2(r, r)
-		var a := 0.42 if l["kind"] == "neon" else 0.32
-		l["next"] = float(l["next"]) - delta
-		if l["kind"] == "neon":
-			a *= 0.92 + 0.08 * sin(_clock * 60.0 + float(l["phase"]))
-			if float(l["next"]) <= 0.0:
-				l["next"] = randf_range(3.0, 7.0)
-				l["dip"] = randf_range(0.15, 0.4)
-			if float(l["dip"]) > 0.0:
-				l["dip"] = float(l["dip"]) - delta
-				a *= 0.15 if fmod(float(l["dip"]), 0.12) < 0.06 else 1.0
-		else:
-			a *= 0.85 + 0.15 * sin(_clock * 1.2 + float(l["phase"]))
-		n.modulate.a = a
+		var b: Array = l["box"]
+		n.position = Vector2(float(b[0]), float(b[1])) * size
+		n.size = Vector2(float(b[2]) - float(b[0]), float(b[3]) - float(b[1])) * size
+		n.modulate.a = 0.35 + 0.1 * sin(_clock * 1.3 + float(l["phase"])) + 0.04 * sin(_clock * 7.0 + float(l["phase"]))
+	if not _neon.is_empty():
+		var b: Array = _neon["box"]
+		var lit := 0.94 + 0.06 * sin(_clock * 53.0)   # the hum of a tube
+		_neon["next"] = float(_neon["next"]) - delta
+		if float(_neon["next"]) <= 0.0:
+			_neon["next"] = randf_range(3.0, 7.0)
+			_neon["dip"] = randf_range(0.18, 0.5)
+		if float(_neon["dip"]) > 0.0:   # it stutters: off, on, off
+			_neon["dip"] = float(_neon["dip"]) - delta
+			lit = 0.05 if fmod(float(_neon["dip"]), 0.13) < 0.07 else 0.8
+		for key in ["off", "glow"]:
+			var n: TextureRect = _neon[key]
+			n.position = Vector2(float(b[0]), float(b[1])) * size
+			n.size = Vector2(float(b[2]) - float(b[0]), float(b[3]) - float(b[1])) * size
+		(_neon["glow"] as TextureRect).modulate.a = 0.55 * lit
+		(_neon["off"] as TextureRect).modulate.a = 1.0 - lit
 	var ash: CPUParticles2D = _back.get_node("Ash")
 	ash.position = Vector2(view.x * 0.5, -40.0)
 	ash.emission_rect_extents = Vector2(view.x * 0.7, 20.0)
