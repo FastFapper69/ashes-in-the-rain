@@ -100,7 +100,48 @@ const WEAPONS := {
 	"tommy": {"mag": 30, "reload": 1.2, "cool": 0.085, "ammo": 60, "pellets": 1, "spread": 0.05, "life": 1.4, "kick": 0.08, "sound": "shot_tommy", "name": "TOMMY GUN"},
 	"shotgun": {"mag": 5, "reload": 1.1, "cool": 0.7, "ammo": 10, "pellets": 6, "spread": 0.15, "life": 0.3, "kick": 0.35, "sound": "shot_shotgun", "name": "SHOTGUN"},
 }
-const WOOD := ["crate", "crate_long"]
+const WOOD := ["crate", "crate_long", "kegs", "milk_crates", "fruit_cart", "bench", "cable_spool", "linen_table", "desk", "court_bench", "newsstand", "paper_bundles"]
+# How far down each drawing its top surface is, the line a man stands on: the drawings are seen a
+# little from above, so the top of the picture is the far edge of the lid, not where feet go.
+const TOP_INSET := {"crate": 0.05, "crate_long": 0.07, "drum": 0.05, "dumpster": 0.06, "washer": 0.15, "laundry_cart": 0.2,
+	"linen_table": 0.3, "wash_tub": 0.2, "bench": 0.02, "newsstand": 0.05, "paper_bundles": 0.06, "cable_spool": 0.03,
+	"kegs": 0.05, "milk_crates": 0.1, "mailbox": 0.05, "desk": 0.25, "filing": 0.03, "safe": 0.05, "court_bench": 0.02}
+## The lamps painted into each interior, as fractions of its drawing, and their colour. A room's
+## light comes from these and only these: a soft glow on the bulb and a round, soft pool of light
+## round it (never a hard-edged cone), on the drawing and on everyone in it.
+const ROOM_BULBS := {
+	"tenement": [[0.498, 0.29, "warm"]],
+	"laundry": [[0.265, 0.27, "warm"], [0.493, 0.27, "warm"], [0.79, 0.28, "warm"]],
+	"warehouse": [[0.655, 0.47, "warm"], [0.38, 0.24, "sky"], [0.6, 0.24, "sky"], [0.87, 0.24, "sky"]],
+	"club": [[0.535, 0.185, "spot"], [0.48, 0.6, "warm"], [0.56, 0.6, "warm"], [0.62, 0.6, "warm"]],
+	"hold": [[0.505, 0.33, "warm"]],
+	"office": [[0.54, 0.53, "green"]],
+	"cityhall": [[0.8, 0.31, "warm"], [0.5, 0.12, "sky"]],
+	"catacombs": [[0.39, 0.37, "warm"], [0.6, 0.36, "warm"], [0.07, 0.53, "candle"], [0.25, 0.53, "candle"]],
+}
+const BULB_COLORS := {"warm": Color(1.0, 0.72, 0.4), "sky": Color(0.75, 0.82, 0.95), "spot": Color(1.0, 0.92, 0.75),
+	"green": Color(0.75, 0.95, 0.6), "candle": Color(1.0, 0.6, 0.3)}
+# What stands in for each kind of cover where: a laundry has washers and carts, a subway benches and
+# newsstands, an office desks and a safe. Collision stays the kind's box; the drawing keeps its own
+# proportions, standing on the ground in the middle of it. One of the list, picked by where it stands.
+const PROP_SETS := {
+	"laundry": {"machine": ["washer"], "crate": ["laundry_cart", "washer"], "crate_long": ["linen_table"], "drum": ["wash_tub"], "dumpster": ["laundry_cart"]},
+	"subway": {"crate": ["paper_bundles", "crate", "cable_spool"], "crate_long": ["bench"], "dumpster": ["newsstand"], "drum": ["mailbox"]},
+	"platform": {"crate": ["paper_bundles", "cable_spool", "crate"], "crate_long": ["bench"], "dumpster": ["newsstand"]},
+	"tunnel": {"crate": ["cable_spool", "crate", "paper_bundles"]},
+	"yard": {"crate": ["cable_spool", "crate"]},
+	"market": {"crate": ["milk_crates", "crate", "kegs"], "crate_long": ["fruit_cart"], "drum": ["mailbox", "drum"]},
+	"bluenote": {"crate": ["kegs", "milk_crates", "crate"], "drum": ["mailbox"]},
+	"alley": {"crate": ["crate", "kegs", "milk_crates"]},
+	"church": {"crate": ["crate", "paper_bundles", "milk_crates"], "drum": ["mailbox"]},
+	"deadend": {"crate": ["crate", "kegs"]},
+	"warehouse": {"crate": ["crate", "kegs", "cable_spool"]},
+	"harbor": {"crate": ["crate", "cable_spool", "kegs"]}, "quay": {"crate": ["crate", "kegs"]},
+	"pier17": {"crate": ["crate", "cable_spool"]}, "shipping": {"crate": ["crate", "kegs", "cable_spool"]},
+	"tenement": {"crate": ["paper_bundles", "milk_crates"], "crate_long": ["bench"]},
+	"office": {"crate_long": ["desk"], "machine": ["filing"], "crate": ["safe", "filing"]},
+	"cityhall": {"crate": ["safe"], "machine": ["filing"], "crate_long": ["court_bench", "desk"]},
+}
 const BOX_ART := {"barrel": ["drum", Color(1.0, 0.32, 0.26)], "machine": ["dumpster", Color(0.7, 0.72, 0.78)], "bar": ["crate_long", Color(0.45, 0.32, 0.26)]}
 const ENEMY_MAG := {"post": 6, "tommy": 3, "shotgun": 4, "boss": 5}   # shots (a tommy gunner's: bursts) before a reload
 const ENEMY_TINT := {"post": Color(1, 1, 1), "tommy": Color(0.82, 0.86, 1.0), "shotgun": Color(1.0, 0.9, 0.78), "boss": Color(1, 1, 1)}
@@ -207,6 +248,8 @@ var _stop_t := 0.0            # real seconds of an impact freeze or a final-shot
 var _stop_scale := 1.0        # how slow time runs during it
 var _slow_base := false       # slowed time proper (the stopwatch or a dive), not an impact freeze
 var _jump_buf := 0.0          # a jump pressed a moment too early still counts when he lands
+var _sprint := 0.0            # how long the stick has been held hard one way: only a committed run vaults
+var _sprint_side := 0.0
 var _coyote := 0.0            # and one pressed a moment after he stepped off an edge
 var _step_half := 0
 var _w_was := false
@@ -728,6 +771,11 @@ func _build_segments() -> void:
 func _add_deep(tex: Texture2D, facade: Sprite2D, r: Rect2, trim: float) -> void:
 	var size := Vector2(tex.get_size())
 	var px := Rect2(r.position * size, r.size * size)
+	# The view used to be warped against the wall for depth, but a warp bends every straight line in
+	# it (bridge towers, lamp posts). The drawing now stays as drawn; only the blood still keeps off it.
+	_deep_rects.append(Rect2(facade.position + (px.position - Vector2(trim, 0.0)) * facade.scale, px.size * facade.scale))
+	if true:
+		return
 	var d := Sprite2D.new()
 	d.texture = tex
 	d.centered = false
@@ -1542,6 +1590,10 @@ func _process(delta: float) -> void:
 	var want_y := CAM_Y * near + clampf(player.position.y * 0.45, -330.0, 0.0) + clampf(aim_n.y, -0.6, 0.6) * 90.0 * near
 	cam.position = Vector2(lerpf(cam.position.x, player.position.x + _lead, 1.0 - exp(-5.5 * real)),
 			lerpf(cam.position.y, want_y, 1.0 - exp(-3.0 * real)))
+	if _auto == "tops" and not boxes.is_empty():   # the test frames each crate close up
+		var tb: Rect2 = boxes[mini(int(_at / 1.2) / 2, boxes.size() - 1)]
+		cam.position = Vector2(tb.get_center().x, tb.position.y - 120.0)
+		cam.zoom = Vector2.ONE * 1.1
 	var tilt := clampf(aim_n.y, -0.7, 0.7) * _look * 0.012 + clampf(run / 1400.0, -1.0, 1.0) * 0.006
 	cam.rotation = lerpf(cam.rotation, 0.0 if over else tilt, 1.0 - exp(-2.0 * real))
 	if _shake > 0.0:   # an explosion shakes the picture
@@ -1811,6 +1863,29 @@ func _auto_step(delta: float) -> void:
 		if _at > 2.9:
 			get_tree().quit()
 		return
+	elif _auto == "tops":   # stand on every bit of cover in turn, then lean on its side, and take a picture of each
+		hud.visible = false
+		var k := int(_at / 1.2)
+		var idx := k / 2
+		if idx >= boxes.size() or idx >= 14:
+			get_tree().quit()
+			return
+		hp = PLAYER_HP
+		for e in enemies:
+			e["node"].visible = false
+			e["alive"] = false
+		var b: Rect2 = boxes[idx]
+		if _auto_done & (1 << k) == 0:
+			_auto_done |= 1 << k
+			move_state = "ground"
+			player.position = Vector2(b.get_center().x, b.position.y - 2.0) if k % 2 == 0 else Vector2(b.position.x - 40.0, 0.0)
+			fall = 0.0
+		cam.position = Vector2(b.get_center().x, b.position.y - 150.0)
+		cam.zoom = Vector2.ONE * 1.1
+		if fmod(_at, 1.2) > 1.0 and _auto_done & (1 << (k + 32)) == 0:
+			_auto_done |= 1 << (k + 32)
+			print("tops ", idx, " ", box_info[idx]["kind"], " ", b, " feet ", player.position)
+			_shot("tops_%02d" % k)
 	elif _auto.begins_with("look:"):   # --test=look:x1,x2,...: stand at each x for a moment, take a picture
 		var xs := _auto.trim_prefix("look:").split(",")
 		var k := int(_at / 2.6)
@@ -1984,6 +2059,8 @@ func _auto_step(delta: float) -> void:
 		end_t = maxf(end_t, float(shots[-1][0]) + 0.4)
 	if _auto == "poses":
 		end_t = 6.6
+	if _auto == "tops":
+		end_t = 999.0   # it quits itself after the last crate
 	if _at > end_t:
 		get_tree().quit()
 
@@ -1998,6 +2075,11 @@ func _touch(at: Vector2, down: bool) -> void:
 
 ## Running, jumping, diving, sliding and rolling. Returns how fast the legs should run, -1..1.
 func _move(dir: float, aim: Vector2, delta: float) -> float:
+	if absf(dir) > 0.85 and signf(dir) == _sprint_side:
+		_sprint += delta
+	else:
+		_sprint = 0.0
+		_sprint_side = signf(dir) if absf(dir) > 0.85 else 0.0
 	if hud.jump_tapped or Input.is_action_just_pressed("ui_accept") or (Input.is_physical_key_pressed(KEY_W) and not _w_was):
 		_jump_buf = 0.15
 	_w_was = Input.is_physical_key_pressed(KEY_W)
@@ -2029,7 +2111,10 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			fall = -JUMP_SPEED
 			_jump_buf = 0.0
 			_coyote = 0.0
-		elif can_act and absf(run) > 380.0 and player.duck < 0.3:   # running at a low crate: over it without breaking stride
+		# Running at a low crate: over it without breaking stride. Only on a committed run, the stick
+		# held hard that way for a moment, and not mid-fight: a man running to a crate while he shoots
+		# wants it for cover, not to leap it.
+		elif can_act and absf(run) > 560.0 and player.duck < 0.3 and _sprint > 0.5 and _idle_fire > 1.0 and not (hud.touch_seen and hud.aim_left > 0.0):
 			var vb := _vault_box(signf(run))
 			if vb >= 0:
 				_start_vault(vb, signf(run))
@@ -2245,7 +2330,7 @@ func _vault_box(way: float) -> int:
 			continue
 		var near: float = b.position.x - 45.0 if way > 0.0 else b.end.x + 45.0
 		var gap: float = (near - px) * way
-		if gap < -5.0 or gap > 90.0:
+		if gap < -5.0 or gap > 60.0:
 			continue
 		var land: float = (b.end.x if way > 0.0 else b.position.x) + way * 150.0
 		for o in boxes:   # somewhere to come down
@@ -2491,13 +2576,15 @@ func _fire(shooter, from_player: bool, kind := "") -> void:
 		sfx.play(sound, 0.0)
 	else:
 		sfx.play(sound, -2.0, at.x)
-	if gun == "tommy":
-		if randf() < 0.25:
-			_word(["rattat"], at + Vector2(signf(d.x) * 120.0, -150.0), 0.26, d)
-	elif gun == "shotgun":
+	# The comic words are a punctuation mark, not a soundtrack: only his own big moments get one,
+	# a shotgun blast or a shot in slowed time, so they never drown out the bullets and the blood.
+	var slowed := slow_on or Engine.time_scale < 0.9
+	if from_player and gun == "shotgun":
 		_word(["wham", "bam"], at + Vector2(signf(d.x) * 90.0, -160.0), 0.3, d)
-	else:
-		_word(["blam", "bam", "pow"] if from_player else ["bang", "pow"], at + Vector2(signf(d.x) * 70.0, -150.0), 0.29 if from_player else 0.3, d)
+	elif from_player and slowed and gun != "tommy":
+		_word(["blam", "bam", "pow"], at + Vector2(signf(d.x) * 70.0, -150.0), 0.27, d)
+	elif from_player and gun == "tommy" and slowed and randf() < 0.15:
+		_word(["rattat"], at + Vector2(signf(d.x) * 120.0, -150.0), 0.26, d)
 	shooter.next_hand()
 	if from_player:
 		mag -= 1
@@ -2667,7 +2754,7 @@ func _kill(e: Dictionary, head: bool, quiet := false, part := "") -> void:
 	elif not quiet:
 		_impact(0.07 if head else 0.045, 0.05)
 	_drop(m, signf(m.position.x - player.position.x), true, how)
-	if not quiet:
+	if not quiet and (head or _all_down() or slow_on):   # a headshot, the last man, or a kill in slowed time
 		_word(["crack"] if head else ["pow", "wham", "bam"], m.position + Vector2(0.0, -500.0), 0.27)
 	if e["type"] in ["tommy", "shotgun"]:
 		_add_pickup(String(e["type"]), m.position)
@@ -3113,18 +3200,43 @@ func _build_level() -> void:
 	for spec in level["boxes"]:
 		var kind := String(spec[0])
 		var art: String = BOX_ART[kind][0] if BOX_ART.has(kind) else kind
+		var bw := float(spec[2])
+		var bh := float(spec[3])
+		var place := _place_at(float(spec[1]) + bw * 0.5)
+		var choices: Array = (PROP_SETS.get(place, {}) as Dictionary).get(kind, [])
+		var local := kind != "barrel" and not choices.is_empty()
+		if local:   # the same spot always gets the same thing
+			art = String(choices[absi(int(float(spec[1]) / 37.0)) % choices.size()])
 		var tex: Texture2D = load("res://art/props/" + art + ".png")
 		var s := Sprite2D.new()
 		s.texture = tex
 		s.centered = false
-		s.scale = Vector2(float(spec[2]) / tex.get_width(), float(spec[3]) / tex.get_height())
-		s.position = Vector2(float(spec[1]), -float(spec[3]) + 6.0)
+		var inset: float = TOP_INSET.get(art, 0.05)
+		var cx := float(spec[1]) + bw * 0.5
+		var sx: float
+		var sy: float
+		if local:   # its own proportions, its top surface at the height of the cover
+			sy = bh / (tex.get_height() * (1.0 - inset))
+			if tex.get_width() * sy > bw * 1.6:
+				sy = bw * 1.6 / tex.get_width()
+			sx = sy
+		else:
+			sx = bw / tex.get_width()
+			sy = bh / (tex.get_height() * (1.0 - inset))
+		# the box is what he stands on and hides behind: exactly as wide as the drawing, and its top
+		# exactly the drawn surface (it used to sit 6 px over the lid, so he floated above crates)
+		var w := tex.get_width() * sx
+		var top := tex.get_height() * sy * (1.0 - inset)
+		s.scale = Vector2(sx, sy)
+		s.position = Vector2(cx - w * 0.5, -top - tex.get_height() * sy * inset + 3.0)
 		s.z_index = -2
-		if BOX_ART.has(kind):
+		if BOX_ART.has(kind) and not local:
 			s.modulate = BOX_ART[kind][1]
+		elif local:
+			s.modulate = Color(0.84, 0.82, 0.79)   # the new drawings came out paler than the old crates: match them
 		add_child(s)
-		boxes.append(Rect2(float(spec[1]), -float(spec[3]), float(spec[2]), float(spec[3])))
-		box_info.append({"kind": kind, "sprite": s, "hp": 7, "wood": kind in WOOD})
+		boxes.append(Rect2(cx - w * 0.5, -top, w, top))
+		box_info.append({"kind": kind, "sprite": s, "hp": 7, "wood": kind in WOOD and (not local or art in WOOD)})
 	var cat_tex: Texture2D = load("res://art/props/catwalk.png")
 	for c in level["floors"]:
 		var r := Rect2(float(c[0]), float(c[1]), float(c[2]), 0.0)
@@ -3144,6 +3256,8 @@ func _build_level() -> void:
 		_stairs(Vector2(float(rp[0]), float(rp[1])), Vector2(float(rp[2]), float(rp[3])))
 	for l in level["lamps"]:   # the rooms' lamps: a shaded bulb hanging on its cord from the ceiling, and its light
 		var at := Vector2(float(l[0]), float(l[1]))
+		if ROOM_BULBS.has(_room_at(at.x)):
+			continue   # that room's drawing has its own lamps (see _build_room)
 		_pendant(at)
 		lamps.append(at + Vector2(0.0, 8.0))
 		lamp_info.append({"nodes": [], "light": _lamp_light(at + Vector2(0.0, -8.0)), "on": true, "fixed": true})
@@ -3266,7 +3380,7 @@ func _build_room(x0: float, x1: float, style: String) -> void:
 	var top := -tex.get_height() * ROOM_SCALE * SEGMENT_BASE
 	wall.position = Vector2(x0, top)
 	wall.z_index = -5
-	wall.modulate = Color(0.8, 0.78, 0.76)
+	wall.modulate = Color(0.8, 0.78, 0.76)   # lit by its own painted lamps (below): pools of light, dark corners
 	add_child(wall)
 	var roof := Polygon2D.new()   # everything above the ceiling is solid black
 	roof.polygon = PackedVector2Array([Vector2(x0, -4200), Vector2(x1, -4200), Vector2(x1, top + 2.0), Vector2(x0, top + 2.0)])
@@ -3279,25 +3393,51 @@ func _build_room(x0: float, x1: float, style: String) -> void:
 	fade.z_index = -4
 	add_child(fade)
 	_room_tops.append([x0, x1, top])
-	for x in [x0, x1]:   # the doorways: a black gap in a thick frame
-		var door := Polygon2D.new()
-		door.polygon = PackedVector2Array([Vector2(-70, 0), Vector2(70, 0), Vector2(70, -520), Vector2(-70, -520)])
-		door.color = Color(0.01, 0.01, 0.01)
-		door.position = Vector2(x, 0.0)
-		door.z_index = -4
-		add_child(door)
-		var frame := Line2D.new()
-		frame.points = PackedVector2Array([Vector2(x - 80, 0), Vector2(x - 80, -530), Vector2(x + 80, -530), Vector2(x + 80, 0)])
-		frame.width = 16.0
-		frame.default_color = Color(0.16, 0.13, 0.11)
-		frame.z_index = -4
-		add_child(frame)
+	# Each end of the room goes off into darkness, the way a hallway runs on past the lamp: no drawn
+	# door frame stuck on the picture, and the street beyond is not seen through the wall.
+	for side: float in [-1.0, 1.0]:
+		var x: float = x1 if side > 0.0 else x0
+		var dark := Polygon2D.new()
+		var inner: float = x - side * 340.0
+		dark.polygon = PackedVector2Array([Vector2(inner, top), Vector2(x, top), Vector2(x, 40.0), Vector2(inner, 40.0)])
+		dark.vertex_colors = PackedColorArray([Color(0, 0, 0, 0), Color(0, 0, 0, 1), Color(0, 0, 0, 1), Color(0, 0, 0, 0)])
+		dark.z_index = -4
+		add_child(dark)
 		var wall_side := Polygon2D.new()   # the outside wall of the building, cut away above the door
-		wall_side.polygon = PackedVector2Array([Vector2(-60, -530), Vector2(60, -530), Vector2(60, -3200), Vector2(-60, -3200)])
-		wall_side.color = Color(0.03, 0.03, 0.035)
+		wall_side.polygon = PackedVector2Array([Vector2(-60, -560), Vector2(60, -560), Vector2(60, -3200), Vector2(-60, -3200)])
+		wall_side.color = Color(0.0, 0.0, 0.0)
 		wall_side.position = Vector2(x, 0.0)
 		wall_side.z_index = 9
 		add_child(wall_side)
+	# the painted lamps: a soft glow on each bulb and its light on whoever stands under it
+	var crop_x := maxf(0.0, (tex.get_width() - src_w) * 0.5)
+	for b in ROOM_BULBS.get(style, []):
+		var at := Vector2(x0 + (float(b[0]) * tex.get_width() - crop_x) * ROOM_SCALE, top + float(b[1]) * tex.get_height() * ROOM_SCALE)
+		if at.x < x0 + 60.0 or at.x > x1 - 60.0:
+			continue
+		var col: Color = BULB_COLORS.get(String(b[2]), BULB_COLORS["warm"])
+		var sky: bool = String(b[2]) == "sky"
+		if not sky:   # daylight through a skylight has no bulb to glow
+			var halo := Sprite2D.new()
+			halo.texture = _soft_glow()
+			halo.position = at
+			halo.scale = Vector2.ONE * (0.5 if String(b[2]) == "candle" else 0.8)
+			var add := CanvasItemMaterial.new()
+			add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+			add.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+			halo.material = add
+			halo.modulate = _undo_night(0.22) * col
+			halo.z_index = -4
+			add_child(halo)
+		var p := PointLight2D.new()   # round and soft: no cone painted onto the wall
+		p.texture = load("res://art/light_blob.png")
+		p.texture_scale = 5.5 if not sky else 7.0
+		p.position = at + Vector2(0.0, 260.0)
+		p.color = col
+		p.energy = 0.9 if not sky else 0.5
+		p.height = 140.0
+		p.range_item_cull_mask = MASK_LIT
+		add_child(p)
 
 
 ## A lamp hanging from an interior's ceiling: cord, enamel shade, the bulb glowing under it.
@@ -3385,6 +3525,18 @@ func _stairs(a: Vector2, b: Vector2) -> void:
 	add_child(rail)
 
 
+## What kind of place a spot on the map is: the room it is in, or else the street drawing behind it.
+func _place_at(x: float) -> String:
+	var room := _room_at(x)
+	if room != "":
+		return room
+	var seg := ""
+	for sg in level.get("street", []):
+		if x >= float(sg[1]):
+			seg = String(sg[0])
+	return seg
+
+
 func _room_at(x: float) -> String:
 	for r in rooms:
 		if x > float(r[0]) and x < float(r[1]):
@@ -3394,18 +3546,12 @@ func _room_at(x: float) -> String:
 
 ## Something to pick up: a gun or the flask, bobbing a little so it catches the eye.
 func _add_pickup(kind: String, at: Vector2) -> void:
+	if kind == "page":
+		_add_page(at)
+		return
 	var s := Sprite2D.new()
 	s.texture = load("res://art/items/" + kind + ".png")
 	s.scale = Vector2.ONE * (0.5 if kind == "flask" else 0.62)
-	if kind == "page":
-		if MenuScript.has_page(chapter, map) and _auto == "":
-			s.modulate.a = 0.35   # read before: still there, faded, for anyone who wants it again
-		var glow := Sprite2D.new()   # a pale patch of light so it can be found in the dark
-		glow.texture = load("res://art/light_blob.png")
-		glow.modulate = Color(1.0, 0.95, 0.8, 0.22)
-		glow.scale = Vector2.ONE * 1.1
-		glow.show_behind_parent = true
-		s.add_child(glow)
 	s.position = at + Vector2(0.0, -70.0)
 	s.modulate = _undo_night(0.95)
 	var mat := CanvasItemMaterial.new()
@@ -3416,14 +3562,60 @@ func _add_pickup(kind: String, at: Vector2) -> void:
 	var tw := s.create_tween().set_loops()
 	tw.tween_property(s, "position:y", at.y - 95.0, 0.6).set_trans(Tween.TRANS_SINE)
 	tw.tween_property(s, "position:y", at.y - 70.0, 0.6).set_trans(Tween.TRANS_SINE)
-	pickups.append({"kind": kind, "node": s})
+	pickups.append({"kind": kind, "node": s, "at": at})
+
+
+## A page of Eddie's notebook, nailed to the wall at a man's chest height where he left it to be
+## found: the real page, small, a little crooked, its corner lifting in the draught.
+func _add_page(at: Vector2) -> void:
+	var holder := Node2D.new()
+	# on the street it is nailed to the wall at chest height; left on a crate, it is nailed to the
+	# crate's face, just under the lid, where a man walking past sees it
+	var on_box := at.y < -10.0
+	holder.position = at + (Vector2(0.0, 40.0) if on_box else Vector2(0.0, -330.0))
+	holder.z_index = -1   # on the wall: people pass in front of it
+	add_child(holder)
+	var tex: Texture2D = load("res://art/items/page_note.png")   # the page small, its writing still legible as writing
+	var page := Sprite2D.new()
+	page.texture = tex
+	page.scale = Vector2.ONE * (130.0 / tex.get_width())
+	page.offset = Vector2(0.0, tex.get_height() * 0.5 - 12.0)   # hung from the nail near its top edge
+	page.rotation = deg_to_rad(randf_range(-9.0, 9.0))
+	page.modulate = _undo_night(0.5)   # pale paper: it reads in the dark without a glow round it
+	var flat := CanvasItemMaterial.new()
+	flat.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+	page.material = flat
+	if MenuScript.has_page(chapter, map) and _auto == "":
+		page.modulate.a = 0.45   # read before: still there, for anyone who wants it again
+	var shadow := Sprite2D.new()
+	shadow.texture = tex
+	shadow.scale = page.scale
+	shadow.offset = page.offset
+	shadow.position = Vector2(5.0, 7.0)
+	shadow.rotation = page.rotation
+	shadow.modulate = Color(0, 0, 0, 0.45)
+	holder.add_child(shadow)
+	holder.add_child(page)
+	var nail := Sprite2D.new()
+	nail.texture = load("res://art/light_blob.png")
+	nail.scale = Vector2.ONE * 0.045
+	nail.modulate = Color(0.05, 0.05, 0.05)
+	holder.add_child(nail)
+	var tw := page.create_tween().set_loops()   # the draught lifts it a little and lets it fall back
+	var r0 := page.rotation
+	tw.tween_property(page, "rotation", r0 + 0.05, 1.3).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(page, "rotation", r0 - 0.02, 1.6).set_trans(Tween.TRANS_SINE)
+	if on_box:
+		holder.z_index = 0   # on the crate's face, in front of the crate
+	pickups.append({"kind": "page", "node": holder, "at": Vector2(at.x, 0.0) if on_box else at, "reach": 220.0 if on_box else 160.0})
 
 
 func _pickups() -> void:
 	for i in range(pickups.size() - 1, -1, -1):
 		var pk: Dictionary = pickups[i]
-		var s: Sprite2D = pk["node"]
-		if absf(s.position.x - player.position.x) > 90.0 or absf(s.position.y + 80.0 - player.position.y) > 160.0:
+		var s: Node2D = pk["node"]
+		var spot: Vector2 = pk["at"]
+		if absf(spot.x - player.position.x) > 90.0 or absf(spot.y - player.position.y) > float(pk.get("reach", 160.0)):
 			continue
 		var kind: String = pk["kind"]
 		if kind == "page":

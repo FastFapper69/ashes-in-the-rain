@@ -149,9 +149,10 @@ var _boss_fill: ColorRect
 ## screen, one line after another, then gone.
 func caption(lines: Array) -> void:
 	var box := VBoxContainer.new()
-	box.position = Vector2(get_viewport().get_visible_rect().size.x * 0.5 - 430.0, 140.0)
-	box.custom_minimum_size = Vector2(860.0, 0.0)
-	box.add_theme_constant_override("separation", 10)
+	# Up in the corner under his portrait, small: the narration sits beside the action, never on it
+	box.position = Vector2(28.0, 128.0)
+	box.custom_minimum_size = Vector2(560.0, 0.0)
+	box.add_theme_constant_override("separation", 8)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(box)
 	var tw := create_tween()
@@ -161,9 +162,10 @@ func caption(lines: Array) -> void:
 		style.bg_color = PAPER
 		style.border_color = INK
 		style.set_border_width_all(4)
-		style.set_content_margin_all(14)
-		style.content_margin_left = 22
-		style.content_margin_right = 22
+		style.set_content_margin_all(9)
+		style.content_margin_left = 16
+		style.content_margin_right = 16
+		style.bg_color = Color(PAPER, 0.92)
 		style.shadow_color = Color(0.0, 0.0, 0.0, 0.5)
 		style.shadow_offset = Vector2(6.0, 6.0)
 		panel.add_theme_stylebox_override("panel", style)
@@ -171,17 +173,17 @@ func caption(lines: Array) -> void:
 		var l := Label.new()
 		l.text = String(lines[i]).to_upper()
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		l.custom_minimum_size = Vector2(minf(700.0, 60.0 + String(lines[i]).length() * 17.0), 0.0)
-		l.add_theme_font_size_override("font_size", 30)
+		l.custom_minimum_size = Vector2(minf(500.0, 40.0 + String(lines[i]).length() * 13.0), 0.0)
+		l.add_theme_font_size_override("font_size", 23)
 		l.add_theme_color_override("font_color", INK)
 		panel.add_child(l)
-		panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN if i % 2 == 0 else Control.SIZE_SHRINK_END   # boxes step across like panels on a page
+		panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		panel.modulate.a = 0.0
 		box.add_child(panel)
 		tw.tween_property(panel, "modulate:a", 1.0, 0.35)
-		tw.tween_interval(1.6 + String(lines[i]).length() * 0.03)
-	tw.tween_interval(1.6)
-	tw.tween_property(box, "modulate:a", 0.0, 0.7)
+		tw.tween_interval(1.2 + String(lines[i]).length() * 0.028)
+	tw.tween_interval(1.2)
+	tw.tween_property(box, "modulate:a", 0.0, 0.6)
 	tw.tween_callback(box.queue_free)
 
 

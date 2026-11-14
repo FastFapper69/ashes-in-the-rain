@@ -86,9 +86,9 @@ def chunk(name, hard):
              .runner(2050, 300, 2900).runner(2250, 300, 3100)
              .runner(300, 300, -900, delay=5.0).runner(1400, 300, 3000, kind="tommy", delay=9.0)
              .runner(150, 300, -1100, kind="shotgun", delay=13.0).pick("tommy", 1000))
-    elif name == "tenement":   # a stairwell: up a flight, along the landing, back down
-        c = (Chunk(2300).room(0, 2300, "tenement").ramp(250, 0, 750, F1).plat(750, F1, 800, "floor").ramp(1550, F1, 2050, 0.0)
-             .lamp(1150, -900).foe(1200, F1).foe(1000, 0.0, kind="shotgun" if hard > 0.5 else "post").foe(2200, 0.0).pick("flask", 1150, F1))
+    elif name == "tenement":   # the third-floor hallway: the drawing has no landing, so the fight is on its boards
+        c = (Chunk(2300).room(0, 2300, "tenement").box("crate", 600).box("crate_long", 1500)
+             .foe(1150).foe(1950, kind="shotgun" if hard > 0.5 else "post").foe(2200).pick("flask", 1050))
     elif name == "club":   # the Blue Note: the bar for cover, tables, a stage at the back
         c = (Chunk(2600).room(0, 2600, "club").box("bar", 400).box("crate_long", 1300).box("barrel", 1900).lamp(500).lamp(1400).lamp(2300)
              .foe(1050).foe(1700, kind="shotgun").foe(2400, kind="tommy").runner(1100, 900, -800, delay=2.0))
