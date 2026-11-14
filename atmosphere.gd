@@ -16,6 +16,7 @@ uniform float grain = 0.035;
 uniform float dot_size = 4.0;
 uniform float halftone = 0.16;
 uniform float slow = 0.0;
+uniform vec2 registration = vec2(1.6, 1.0);   // screen pixels between the ink and the colour plates
 
 float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
@@ -24,21 +25,24 @@ float hash(vec2 p) {
 void fragment() {
 	vec3 c = texture(screen_texture, SCREEN_UV).rgb;
 	float l = dot(c, vec3(0.299, 0.587, 0.114));
-	float mx = max(c.r, max(c.g, c.b));
-	float mn = min(c.r, min(c.g, c.b));
+	// the colour plate is printed a hair off the ink plate, like cheap 1940s newsprint
+	vec3 cc = texture(screen_texture, SCREEN_UV + registration * SCREEN_PIXEL_SIZE).rgb;
+	float lc = dot(cc, vec3(0.299, 0.587, 0.114));
+	float mx = max(cc.r, max(cc.g, cc.b));
+	float mn = min(cc.r, min(cc.g, cc.b));
 	float sat = (mx - mn) / (mx + 0.0001);
 	// crimson stays: a true red, not the orange of lamplit wood
-	float red = smoothstep(0.12, 0.3, c.r - max(c.g, c.b)) * smoothstep(0.5, 0.7, sat)
-			* (1.0 - smoothstep(0.3, 0.45, c.g / (c.r + 0.0001)));
+	float red = smoothstep(0.12, 0.3, cc.r - max(cc.g, cc.b)) * smoothstep(0.5, 0.7, sat)
+			* (1.0 - smoothstep(0.3, 0.45, cc.g / (cc.r + 0.0001)));
 	// lamplight stays warm, as a dirty, half-faded amber
-	float warm = smoothstep(0.08, 0.25, c.r - c.b) * smoothstep(0.28, 0.55, l);
+	float warm = smoothstep(0.08, 0.25, cc.r - cc.b) * smoothstep(0.28, 0.55, lc);
 	float t = clamp((l - black_point) / (white_point - black_point), 0.0, 1.0);
 	t = pow(mix(t, t * t * (3.0 - 2.0 * t), 0.5), 0.85);   // firm blacks, open grey mid-tones
 	vec3 mono = mix(ink, paper, t);
 	// amber belongs to the light sources: painted orange washes fade toward the newsprint grey
-	vec3 amber = mix(vec3(l), c, 0.3) * vec3(1.1, 0.93, 0.7);
+	vec3 amber = mix(vec3(lc), cc, 0.3) * vec3(1.1, 0.93, 0.7);
 	vec3 col = mix(mono, amber, warm * 0.55);
-	col = mix(col, c * vec3(1.05, 0.85, 0.85), red);
+	col = mix(col, cc * vec3(1.05, 0.85, 0.85), red);
 	// halftone dots in the mid-tones only, like cheap newsprint; deep shadows stay solid ink
 	vec2 p = FRAGCOORD.xy / dot_size;
 	vec2 rp = vec2(p.x + p.y, p.y - p.x) * 0.7071;

@@ -100,12 +100,14 @@ const WEAPONS := {
 	"tommy": {"mag": 30, "reload": 1.2, "cool": 0.085, "ammo": 60, "pellets": 1, "spread": 0.05, "life": 1.4, "kick": 0.08, "sound": "shot_tommy", "name": "TOMMY GUN"},
 	"shotgun": {"mag": 5, "reload": 1.1, "cool": 0.7, "ammo": 10, "pellets": 6, "spread": 0.15, "life": 0.3, "kick": 0.35, "sound": "shot_shotgun", "name": "SHOTGUN"},
 }
-const WOOD := ["crate", "crate_long", "kegs", "milk_crates", "fruit_cart", "bench", "cable_spool", "linen_table", "desk", "court_bench", "newsstand", "paper_bundles"]
+const WOOD := ["crate", "crate_long", "kegs", "barrel", "milk_crates", "fruit_cart", "bench", "cable_spool", "linen_table", "desk", "court_bench", "newsstand", "paper_bundles"]
 # How far down each drawing its top surface is, the line a man stands on: the drawings are seen a
-# little from above, so the top of the picture is the far edge of the lid, not where feet go.
-const TOP_INSET := {"crate": 0.05, "crate_long": 0.07, "drum": 0.05, "dumpster": 0.06, "washer": 0.15, "laundry_cart": 0.2,
+# little from above, so the top of the picture is the far edge of the lid, not where feet go. The
+# side-view redraws (art_src/94: drum, crates, washer, cart, can, sacks, barrel) have flat tops.
+const TOP_INSET := {"crate": 0.01, "crate_long": 0.07, "drum": 0.01, "dumpster": 0.06, "washer": 0.01, "laundry_cart": 0.12,
+	"trash_can": 0.08, "sacks": 0.06, "barrel": 0.01,
 	"linen_table": 0.3, "wash_tub": 0.2, "bench": 0.02, "newsstand": 0.05, "paper_bundles": 0.06, "cable_spool": 0.03, "fruit_cart": 0.03,
-	"kegs": 0.05, "milk_crates": 0.1, "mailbox": 0.05, "desk": 0.25, "filing": 0.03, "safe": 0.05, "court_bench": 0.02}
+	"kegs": 0.05, "milk_crates": 0.17, "mailbox": 0.05, "desk": 0.25, "filing": 0.03, "safe": 0.05, "court_bench": 0.02}
 ## The lamps painted into each interior, as fractions of its drawing, and their colour. A room's
 ## light comes from these and only these: a soft glow on the bulb and a round, soft pool of light
 ## round it (never a hard-edged cone), on the drawing and on everyone in it.
@@ -129,11 +131,11 @@ const PROP_SETS := {
 	"subway": {"crate": ["paper_bundles", "crate"], "crate_long": ["bench"], "drum": ["mailbox"]},
 	"platform": {"crate": ["paper_bundles", "crate"], "crate_long": ["bench"]},
 	"tunnel": {"crate": ["cable_spool", "crate"]}, "yard": {"crate": ["cable_spool", "crate"]},
-	"market": {"crate": ["milk_crates", "crate", "kegs"], "drum": ["mailbox", "drum"]},
-	"bluenote": {"crate": ["kegs", "milk_crates", "crate"]}, "alley": {"crate": ["crate", "milk_crates"]},
-	"church": {"crate": ["crate", "paper_bundles"], "drum": ["mailbox"]}, "deadend": {"crate": ["crate", "kegs"]},
+	"market": {"crate": ["milk_crates", "crate", "sacks"], "drum": ["mailbox", "drum", "barrel"]},
+	"bluenote": {"crate": ["kegs", "milk_crates", "crate"]}, "alley": {"crate": ["crate", "milk_crates", "trash_can"]},
+	"church": {"crate": ["crate", "paper_bundles"], "drum": ["mailbox"]}, "deadend": {"crate": ["crate", "trash_can"], "drum": ["drum", "barrel"]},
 	"warehouse": {"crate": ["crate", "cable_spool"]}, "harbor": {"crate": ["crate", "cable_spool", "kegs"]},
-	"quay": {"crate": ["crate", "kegs"]}, "pier17": {"crate": ["crate", "cable_spool"]}, "shipping": {"crate": ["crate", "kegs"]},
+	"quay": {"crate": ["crate", "sacks"], "drum": ["barrel", "drum"]}, "pier17": {"crate": ["crate", "cable_spool"]}, "shipping": {"crate": ["crate", "sacks"], "drum": ["drum", "barrel"]},
 	"room:laundry": {"machine": ["washer"], "crate": ["laundry_cart"], "crate_long": ["linen_table"], "drum": ["wash_tub"]},
 	"room:tenement": {"crate": ["milk_crates", "paper_bundles"], "crate_long": ["court_bench"]},
 	"room:office": {"crate_long": ["desk"], "machine": ["filing"], "crate": ["safe"]},
@@ -144,14 +146,14 @@ const PROP_SETS := {
 # stand on. The drawing is scaled to that and nothing else, and the cover is exactly the drawing.
 const PROP_H := {"washer": 258.0, "laundry_cart": 215.0, "linen_table": 195.0, "wash_tub": 190.0, "bench": 200.0,
 	"paper_bundles": 170.0, "cable_spool": 250.0, "kegs": 250.0, "milk_crates": 200.0, "mailbox": 250.0, "desk": 175.0,
-	"filing": 255.0, "safe": 245.0, "court_bench": 215.0}
+	"filing": 255.0, "safe": 245.0, "court_bench": 215.0, "trash_can": 175.0, "sacks": 140.0, "barrel": 215.0}
 const IRON_LAND_W := [547.0, 748.0, 949.0, 1149.0]
 const IRON_DECK := 193.5    # down the landing drawing to where feet stand
 const IRON_SPLIT := 236.0   # below this row: brackets and legs
 const IRON_FOOT := Vector2(49.5, 550.8)   # the lowest tread in the flight drawing
 const INDOOR_ONLY := ["washer", "wash_tub", "linen_table", "desk", "filing", "safe", "court_bench"]
 const OUTDOOR_ONLY := ["mailbox", "fruit_cart", "dumpster", "hydrant", "bench"]
-const BOX_ART := {"barrel": ["drum", Color(1.0, 0.32, 0.26)], "machine": ["dumpster", Color(0.7, 0.72, 0.78)], "bar": ["crate_long", Color(0.45, 0.32, 0.26)]}
+const BOX_ART := {"barrel": ["drum", Color(0.72, 0.3, 0.25)], "machine": ["dumpster", Color(0.7, 0.72, 0.78)], "bar": ["crate_long", Color(0.45, 0.32, 0.26)]}
 const ENEMY_MAG := {"post": 6, "tommy": 3, "shotgun": 4, "boss": 5}   # shots (a tommy gunner's: bursts) before a reload
 const ENEMY_TINT := {"post": Color(1, 1, 1), "tommy": Color(0.82, 0.86, 1.0), "shotgun": Color(1.0, 0.9, 0.78), "boss": Color(1, 1, 1)}
 var ambient := AMBIENT
