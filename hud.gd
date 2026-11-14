@@ -19,6 +19,8 @@ var aim_held := false       # an aiming finger is on the screen
 var aim_left := 0.0         # seconds the aim stays where the finger last was
 var _aim_finger := -1
 var reload_tapped := false  # the rounds under the health bar were tapped
+var pause_tapped := false
+var _pause: Node2D
 var target_at := Callable()   # func(screen: Vector2) -> bool: is there a mobster under this point (main.gd)
 var touch_seen := false    # true once a finger has touched the screen: then the mouse is ignored
 
@@ -69,6 +71,13 @@ func _ready() -> void:
 	_fire.visible = false   # a touch on the street aims and fires; the button is no longer needed
 	_dash = _add("res://art/ui/icon_dash.png", 0.5)
 	_jump = _add("res://art/ui/icon_jump.png", 0.5)
+	_pause = Node2D.new()   # top right: two ink bars on a dark disc
+	_pause.draw.connect(func() -> void:
+		_pause.draw_circle(Vector2.ZERO, 34.0, Color(0.04, 0.04, 0.05, 0.75))
+		_pause.draw_arc(Vector2.ZERO, 34.0, 0.0, TAU, 32, Color(0.93, 0.89, 0.8, 0.8), 3.0)
+		for x in [-8.0, 8.0]:
+			_pause.draw_rect(Rect2(x - 4.0, -13.0, 8.0, 26.0), Color(0.93, 0.89, 0.8)))
+	add_child(_pause)
 	set_health(1.0)
 	get_viewport().size_changed.connect(_layout)
 	_layout()
@@ -106,6 +115,7 @@ func _layout() -> void:
 	_portrait.position = Vector2(72.0, 62.0)
 	_bar.position = Vector2(128.0, 30.0)
 	_stick_at = Vector2(180.0, size.y - 175.0)
+	_pause.position = Vector2(size.x - 64.0, 56.0)
 	_ring.position = _stick_at
 	_knob.position = _stick_at
 	_fire.position = Vector2(size.x - 105.0, size.y - 215.0)
@@ -408,7 +418,9 @@ func _input(event: InputEvent) -> void:
 		if t.pressed:
 			# a finger on a mobster shoots him, even where it also touches a button: the man wins
 			var on_man: bool = target_at.is_valid() and target_at.call(t.position)
-			if on_man and _aim_finger == -1 and not _in_stick_zone(t.position):
+			if t.position.distance_to(_pause.position) < 46.0:
+				pause_tapped = true
+			elif on_man and _aim_finger == -1 and not _in_stick_zone(t.position):
 				_aim_finger = t.index
 				aim_at = t.position
 				aim_held = true

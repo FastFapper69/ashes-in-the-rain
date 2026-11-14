@@ -27,6 +27,13 @@ var _ambient_t := {"drip": 2.0}   # thunder comes from main.gd, after its lightn
 
 
 func _ready() -> void:
+	for b in ["Music", "SFX"]:   # two buses under the master, so the settings can set them apart
+		if AudioServer.get_bus_index(b) < 0:
+			AudioServer.add_bus()
+			var i := AudioServer.bus_count - 1
+			AudioServer.set_bus_name(i, b)
+			AudioServer.set_bus_send(i, "Master")
+	load("res://menu.gd").apply_settings()
 	for n in NAMES:
 		_streams[n] = load(DIR + n + ".wav")
 	for n in LOOPS:
@@ -37,6 +44,7 @@ func _ready() -> void:
 		_streams[n] = w
 	for i in VOICES:
 		var p := AudioStreamPlayer.new()
+		p.bus = "SFX"
 		add_child(p)
 		_pool.append(p)
 	var rain: AudioStreamWAV = load(DIR + "rain_loop.wav")
@@ -46,23 +54,27 @@ func _ready() -> void:
 	_rain = AudioStreamPlayer.new()
 	_rain.stream = rain
 	_rain.volume_db = -17.0
+	_rain.bus = "SFX"
 	add_child(_rain)
 	_rain.play()
 	var city := AudioStreamPlayer.new()   # the city behind it all, always there under the rain
 	city.stream = _streams["city"]
 	city.volume_db = -19.0
+	city.bus = "SFX"
 	add_child(city)
 	city.play()
 	for n in ["music_base", "music_lead"]:   # the two stems run in step, always; only their levels move
 		var mp := AudioStreamPlayer.new()
 		mp.stream = _streams[n]
 		mp.volume_db = -80.0
+		mp.bus = "Music"
 		add_child(mp)
 		mp.play()
 		_music.append(mp)
 	_heart = AudioStreamPlayer.new()   # slowed time: the heart, heard from inside
 	_heart.stream = _streams["heartbeat"]
 	_heart.volume_db = -60.0
+	_heart.bus = "SFX"
 	add_child(_heart)
 	_muffle = AudioEffectLowPassFilter.new()
 	_muffle.cutoff_hz = 20000.0
@@ -126,6 +138,7 @@ var view := Rect2()   # the part of the world on screen (main.gd keeps it up to 
 func add_loop(sound: String, at_x: float, volume_db: float, reach := 1400.0, at_y := INF) -> Dictionary:
 	var p := AudioStreamPlayer.new()
 	p.stream = _streams[sound]
+	p.bus = "SFX"
 	add_child(p)
 	var rec := {"player": p, "x": at_x, "y": at_y, "db": volume_db, "on": true, "reach": reach}
 	_loops.append(rec)

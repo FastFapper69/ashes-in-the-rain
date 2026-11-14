@@ -44,6 +44,10 @@ const CutsceneScript = preload("res://cutscene.gd")
 const DiaryScript = preload("res://diary.gd")
 const SetpiecesScript = preload("res://setpieces.gd")
 const LoadingScript = preload("res://loading.gd")
+const PauseScript = preload("res://pause.gd")
+const SettingsScript = preload("res://settings.gd")
+var _shake_on := true
+var _assist := true
 static var _card_up := false   # a title card is covering the screen across the reload: lift it once built
 var sets   # setpieces.gd: cars, blackouts, searchlights, fires, the crane's crate
 var _in_cut := false
@@ -343,6 +347,8 @@ func _ready() -> void:
 	hud = HudScript.new()
 	add_child(hud)
 	hud.target_at = _man_under
+	_shake_on = bool(MenuScript.setting("shake"))
+	_assist = bool(MenuScript.setting("assist"))
 	if in_menu:
 		hud.visible = false
 		var menu = MenuScript.new()
@@ -382,7 +388,17 @@ func _ready() -> void:
 			if _auto.begins_with("dive:"):   # --test=dive:1300 taps the dive button at that x
 				_dive_at = float(_auto.get_slice(":", 1))
 				_auto = "dive"
-	if _auto == "card":   # --test=card: the title card between maps
+	if _auto == "pause":   # --test=pause: the pause card, then its settings
+		get_tree().create_timer(1.0, true, false, true).timeout.connect(_pause)
+		get_tree().create_timer(2.0, true, false, true).timeout.connect(_shot.bind("pause"))
+		get_tree().create_timer(2.2, true, false, true).timeout.connect(func() -> void:
+			for c in get_children():
+				if c.get_script() == PauseScript:
+					c._settings())
+		get_tree().create_timer(3.0, true, false, true).timeout.connect(_shot.bind("settings"))
+		get_tree().create_timer(3.2, true, false, true).timeout.connect(get_tree().quit)
+		_auto = "cut:pause"
+	elif _auto == "card":   # --test=card: the title card between maps
 		var l = LoadingScript.new()
 		l.chapter = chapter
 		l.map = map
@@ -579,7 +595,8 @@ const SEGMENT_GAIN := {"alley": 0.92, "bluenote": 0.98, "warehouse": 0.9, "laund
 		"platform": 0.95, "tunnel": 1.12, "yard": 0.85}
 const SEGMENT_MOON := 1.6   # how much brighter than the bare night the drawn streets are kept
 const SEGMENT_BASE := 0.92
-const ROOM_SCALE := 1.15   # interiors: see _build_room
+const ROOM_SCALE := 0.75   # interiors: see _build_room
+const ROOM_ZOOM := 0.58    # indoors the camera comes in closer: a room is small, the people in it are not
 var _room_tops: Array = []   # [x0, x1, y of the ceiling] of each interior   # the facades meet the pavement this far down each drawing
 
 
@@ -1318,13 +1335,15 @@ func _process(delta: float) -> void:
 			if _at > 6.5 and _auto_done == 0:   # once the title is up and Frank's line typed out
 				_auto_done = 1
 				_shot("menu")
+			if _at > 6.6 and _auto_done == 1:
+				_auto_done = 3
 				for c in get_children():
 					if c.has_method("_case_file"):
 						c._case_file()
-			if _at > 6.75 and _auto_done == 1:
+			if _at > 6.85 and _auto_done == 3:
 				_auto_done = 2
 				_shot("casefile")
-			if _at > 7.0:
+			if _at > 7.1:
 				get_tree().quit()
 		return
 	if _auto != "" and not _auto.begins_with("cut:"):
@@ -1350,7 +1369,7 @@ func _process(delta: float) -> void:
 	elif hud.touch_seen:   # no finger: he keeps his gun on a mobster he can see, the way he is going
 		if dir != 0.0:
 			_face = signf(dir)
-		var near = _nearest_enemy(_face if dir != 0.0 else 0.0)
+		var near = _nearest_enemy(_face if dir != 0.0 else 0.0) if _assist else null
 		if near != null:
 			aim = near.position + SHOULDER + Vector2(0.0, DUCK_DROP * near.duck) - chest
 		else:
@@ -1455,6 +1474,10 @@ func _process(delta: float) -> void:
 		_pop = 0.15
 
 	_grace = maxf(0.0, _grace - delta)
+	if (hud.pause_tapped or Input.is_action_just_pressed("ui_cancel")) and not over and not cleared and not _in_cut:
+		hud.pause_tapped = false
+		_pause()
+	hud.pause_tapped = false
 	_enemies(delta)
 	_pickups()
 	_map_events(delta)
@@ -1492,14 +1515,18 @@ func _process(delta: float) -> void:
 		elif absf(aim.x) > 20.0:
 			_look = signf(aim.x)
 	_lead = lerpf(_lead, CAM_LEAD * _look, 1.0 - exp(-3.6 * real))
-	var want_y := CAM_Y + clampf(player.position.y * 0.45, -330.0, 0.0) + clampf(aim_n.y, -0.6, 0.6) * 90.0
+	var want_zoom := ROOM_ZOOM if _room != "" else ZOOM
+	cam.zoom = Vector2.ONE * lerpf(cam.zoom.x, want_zoom, 1.0 - exp(-3.0 * real))
+	var near := ZOOM / cam.zoom.x   # the pavement stays four fifths down the screen at any zoom
+	fore.modulate.a = move_toward(fore.modulate.a, 0.0 if _room != "" else 1.0, real * 3.0)   # no street furniture indoors
+	var want_y := CAM_Y * near + clampf(player.position.y * 0.45, -330.0, 0.0) + clampf(aim_n.y, -0.6, 0.6) * 90.0 * near
 	cam.position = Vector2(lerpf(cam.position.x, player.position.x + _lead, 1.0 - exp(-5.5 * real)),
 			lerpf(cam.position.y, want_y, 1.0 - exp(-3.0 * real)))
 	var tilt := clampf(aim_n.y, -0.7, 0.7) * _look * 0.012 + clampf(run / 1400.0, -1.0, 1.0) * 0.006
 	cam.rotation = lerpf(cam.rotation, 0.0 if over else tilt, 1.0 - exp(-2.0 * real))
 	if _shake > 0.0:   # an explosion shakes the picture
 		_shake = maxf(0.0, _shake - real)
-		cam.offset = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * 60.0 * _shake
+		cam.offset = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * 60.0 * _shake * (1.0 if _shake_on else 0.0)
 	else:
 		cam.offset = Vector2.ZERO
 	fore.position.x = -cam.position.x * 0.35
@@ -2895,6 +2922,23 @@ func _restart() -> void:
 	_travel(false)
 
 
+func _pause() -> void:
+	hud.release_all()
+	var p = PauseScript.new()
+	p.title = "%s  ·  %s" % [String(Levels.CAMPAIGN[chapter]["title"]), String(level["name"])]
+	p.sound = func(n: String) -> void: sfx.play(n, -4.0, INF, 0.1)
+	p.on_close = func() -> void:
+		hud.release_all()
+		_shake_on = bool(MenuScript.setting("shake"))
+		_assist = bool(MenuScript.setting("assist"))
+	p.on_restart = _restart
+	p.on_quit = func() -> void:
+		Engine.time_scale = 1.0
+		in_menu = true
+		_travel(false)
+	add_child(p)
+
+
 ## To the next map (or back to it, or to the title): through black, with the map's title card when
 ## `card`, so the screen is never a bare grey while it loads. The new map lifts the card.
 func _travel(card: bool) -> void:
@@ -3217,8 +3261,8 @@ func _pendant(at: Vector2) -> void:
 	add.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
 	bulb.material = add
 	bulb.position = Vector2(0.0, 2.0)
-	bulb.scale = Vector2(0.42, 0.22)
-	bulb.modulate = _undo_night(0.9) * LAMP_COLOR
+	bulb.scale = Vector2(0.22, 0.12)
+	bulb.modulate = _undo_night(0.55) * LAMP_COLOR
 	n.add_child(bulb)
 
 

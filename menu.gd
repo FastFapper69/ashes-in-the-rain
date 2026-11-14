@@ -47,7 +47,7 @@ var _on_case_file := false
 # The title is a painted scene, not the game's street: one picture for each part of the story, the
 # camera drifting slowly over it, rain and ash across it, its lights alive.
 const KEY_ART := {0: 78, 1: 78, 2: 79, 3: 80, 4: 80}
-const KEY_LIVE := {78: [[0.655, 0.49, 0.11, "neon"], [0.62, 0.84, 0.07, "neon"], [0.795, 0.14, 0.06, "lamp"], [0.915, 0.46, 0.02, "lamp"]],
+const KEY_LIVE := {78: [[0.655, 0.49, 0.11, "neon"], [0.795, 0.14, 0.06, "lamp"], [0.915, 0.46, 0.02, "lamp"]],
 	79: [[0.632, 0.83, 0.03, "neon"], [0.495, 0.53, 0.03, "lamp"]],
 	80: [[0.497, 0.44, 0.025, "neon"], [0.51, 0.6, 0.06, "lamp"], [0.70, 0.27, 0.035, "lamp"], [0.955, 0.13, 0.03, "lamp"]]}
 var _back: Control
@@ -83,6 +83,33 @@ static func stars(chapter: int, map: int) -> int:
 	var cfg := ConfigFile.new()
 	cfg.load(SAVE)
 	return int(cfg.get_value("stars", "%d-%d" % [chapter, map], 0))
+
+
+## The player's settings: music and sound volume 0..10, screen shake and aim assist on or off.
+const SETTING_DEFAULTS := {"music": 7, "sound": 8, "shake": true, "assist": true}
+
+static func setting(key: String):
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE)
+	return cfg.get_value("settings", key, SETTING_DEFAULTS[key])
+
+
+static func set_setting(key: String, value) -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE)
+	cfg.set_value("settings", key, value)
+	cfg.save(SAVE)
+	apply_settings()
+
+
+## Volumes onto the audio buses (sfx.gd makes the Music and SFX buses).
+static func apply_settings() -> void:
+	for pair in [["Music", "music"], ["SFX", "sound"]]:
+		var i := AudioServer.get_bus_index(pair[0])
+		if i >= 0:
+			var v: float = float(setting(pair[1])) / 10.0
+			AudioServer.set_bus_volume_db(i, linear_to_db(maxf(v, 0.0001)) + 0.0)
+			AudioServer.set_bus_mute(i, v <= 0.0)
 
 
 ## What the detective chose when it was his to choose (Briggs: "spared" or "killed").
@@ -437,6 +464,12 @@ func _title() -> void:
 		_page.add_child(subl)
 		y += 112.0
 	_button("CASE FILE", Vector2(left, y), 300.0, false, _case_file)
+	_button("SETTINGS", Vector2(left, y + 72.0), 300.0, false, func() -> void:
+		var st = load("res://settings.gd").new()
+		st.sound = sound
+		_page.visible = false
+		st.done = func() -> void: _page.visible = true
+		add_child(st))
 
 	var stamp := _label(String(ph[1]), _font_type, 20, Color(PAPER, 0.75), 5)
 	stamp.position = Vector2(view.x - 640.0, view.y - 52.0)
