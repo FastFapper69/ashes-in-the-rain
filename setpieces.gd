@@ -8,6 +8,8 @@ const CAR_W := 1000.0
 # where the windows burn on a drawing that is set on fire: fractions of the (trimmed) picture
 const FIRES := {"shipping": [Vector2(0.11, 0.193), Vector2(0.21, 0.193), Vector2(0.36, 0.193), Vector2(0.165, 0.333),
 		Vector2(0.31, 0.333), Vector2(0.11, 0.562), Vector2(0.41, 0.562)],   # window sills, measured on the drawing
+	"laundry": [Vector2(0.275, 0.415), Vector2(0.36, 0.415), Vector2(0.795, 0.33), Vector2(0.965, 0.33), Vector2(0.795, 0.505)],
+	"market": [Vector2(0.065, 0.505), Vector2(0.18, 0.505), Vector2(0.29, 0.505), Vector2(0.86, 0.385), Vector2(0.97, 0.385)],
 	"pier17": [Vector2(0.14, 0.34), Vector2(0.25, 0.34), Vector2(0.36, 0.34), Vector2(0.2, 0.68)]}
 
 var game   # main.gd
@@ -411,14 +413,13 @@ func _burn(seg_name: String) -> void:
 			tw.tween_property(heat, "energy", randf_range(0.8, 1.6), randf_range(0.06, 0.18))
 		for f in FIRES.get(seg_name, []):   # fractions of the drawing, to where it stands once trimmed and stretched
 			_flames(Vector2(x0 + (f.x * tex.get_width() - trim) * sx * ws, top + h * f.y))
-		game.sfx.add_loop("fire", x0 + w * 0.27, -4.0, 1600.0, top + h * 0.4)
-		return
+		game.sfx.add_loop("fire", x0 + w * 0.27, -4.0, 1600.0, top + h * 0.4)   # (every drawing of that name burns)
 
 
 func _flames(at: Vector2) -> void:
 	for k in 3:   # the painted flames licking out of the window, each on its own breath
 		var hgt := randf_range(210.0, 260.0) * (1.2 if k == 1 else 0.8)
-		var f = game._flame(at + Vector2(-26.0 + 26.0 * k + randf_range(-5.0, 5.0), 4.0), hgt * 0.75, randi(), -8)
+		var f = game._flame(at + Vector2(-26.0 + 26.0 * k + randf_range(-5.0, 5.0), 4.0), hgt, randi(), -8)
 		f.modulate = game._undo_night(0.8) * Color(1.0, 0.78, 0.55)
 	var smoke := CPUParticles2D.new()   # black smoke rolling off the top of each window: the inked puffs, darkened
 	smoke.texture = load("res://art/fx/puff3.png")

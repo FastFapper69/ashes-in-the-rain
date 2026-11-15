@@ -52,6 +52,7 @@ const PHASES := [
 	[2, 2, "A ship called Santa Lucia, and a dock master\nwho hadn't closed a door in eight years.", "THE SANTA LUCIA  ·  DEC 19, 1947  ·  5:10 AM"],
 	[2, 3, "Below decks it smelled of tar and other people's prayers.", "THE SANTA LUCIA  ·  DEC 19, 1947  ·  5:50 AM"],
 	[2, 4, "Kessler ran for his office.\nMen like him always run toward their paperwork.", "HARBOR MASTER  ·  DEC 19, 1947  ·  6:20 AM"],
+	[2, 5, "Rourke drove me himself. He didn't say a word.\nThe last time I sat behind him I was seventeen.", "HELL'S KITCHEN  ·  MARCH 3, 1931  ·  1:40 AM"],
 	[3, 0, "They read me my rights in the rain.\nEddie would have written it down.", "10TH PRECINCT  ·  DEC 19, 1947  ·  7:00 AM"],
 	[3, 1, "Briggs's men knew the stations.\nI knew the tunnels.", "UNDER 14TH STREET  ·  DEC 19, 1947  ·  8:40 AM"],
 	[3, 2, "Down here the dark has a sound.\nIt sounds like trains that never come.", "THE TUNNELS  ·  DEC 19, 1947  ·  10:15 AM"],
@@ -276,7 +277,7 @@ static func ending() -> String:
 	var total := 0
 	for c in Levels.CAMPAIGN.size():
 		for mp in Levels.CAMPAIGN[c]["maps"]:
-			total += 0 if mp.get("dream", false) else 2
+			total += 0 if mp.get("dream", false) or mp.get("memory", false) else 2
 	if guilt() < 4 and story("briggs") == "spared" and evidence() * 2 >= total:
 		return "snow"
 	return "ash"

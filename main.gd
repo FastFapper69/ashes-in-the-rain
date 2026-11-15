@@ -475,7 +475,7 @@ func _ready() -> void:
 	# telephone wires sagging across the top of the frame, nearest of all: only in the streets of
 	# Hell's Kitchen (the docks and the subway have no poles to hang them from); every span meets the
 	# next at the same height, only the sag differs
-	for k in range(-2, int(level_end / 4200.0) + 3 if chapter <= 1 and not level.get("dream", false) else -2):
+	for k in range(-2, int(level_end / 4200.0) + 3 if chapter <= 1 and not _unreal() else -2):
 		var wire := Line2D.new()
 		var pts := PackedVector2Array()
 		for j in range(17):
@@ -503,7 +503,7 @@ func _ready() -> void:
 		atmo.rain_near.emitting = false
 	atmo.add_post(self)
 	atmo.set_ash(MenuScript.guilt() / 10.0)
-	if level.get("dream", false):
+	if level.get("dream", false):   # (not in the street memories: there it turns every lit shop window orange)
 		atmo.set_fire_keep(1.0)
 	# the ash thickens with what Frank has done: men shot with their hands up stay in the air
 	atmo.add_ash(cam, MenuScript.ash_level() if in_menu else minf(1.2, float(level.get("ash", 0.3)) + MenuScript.guilt() * 0.06), float(level.get("embers", 0.0)))
@@ -3913,7 +3913,7 @@ func _morale(at: Vector2, ugly: bool) -> void:
 ## He drops the gun and puts his hands up. Shot like that, he is an execution; left alone, he backs
 ## off and is gone, and what he saw is Frank's to use later.
 func _give_up(e: Dictionary, delay := 0.0) -> void:
-	if e["state"] == "give" or level.get("dream", false):   # in the dream nobody gives up
+	if e["state"] == "give" or _unreal():   # in the dream nobody gives up
 		return
 	e["state"] = "give"
 	e["give_t"] = -delay
@@ -4938,7 +4938,7 @@ func _add_enemy(at: Vector2, kind: String, state: String, goal_x: float) -> Dict
 	m.night = _undo_night(1.0)
 	m.position = at
 	m.modulate = ENEMY_TINT.get(kind, Color(1, 1, 1)) * (COP_TINT if level.get("cops", false) else Color.WHITE)
-	if level.get("dream", false):   # the men who set the fire, as he dreams them: shadows with the fire behind them
+	if _unreal():   # the men who set the fire, as he dreams them: shadows with the fire behind them
 		m.modulate = Color(0.2, 0.15, 0.14)
 	add_child(m)
 	if kind == "boss":
@@ -6149,7 +6149,7 @@ func _stick_goes(k: int) -> void:
 var _loads: Array = []
 
 func _place_loads() -> void:
-	if chapter != 2 or diff_step < 0 or in_menu:
+	if chapter != 2 or diff_step < 0 or in_menu or _unreal():   # crane loads hang over the docks, not over 1931
 		return
 	var last := -99999.0
 	var n := 0
@@ -6743,6 +6743,11 @@ func _cast_shadow(p) -> void:
 	var reach := 900.0
 	var k := clampf(1.0 - absf(dx) / reach, 0.0, 1.0)
 	p.set_shadow(dx * 0.9, clampf(dx / 600.0, -0.9, 0.9), 0.45 * k)
+
+
+## The dream and the memories: shadows for men, nobody gives up, the fire keeps its colour.
+func _unreal() -> bool:
+	return level.get("dream", false) or level.get("memory", false)
 
 
 func _dump_textures() -> void:

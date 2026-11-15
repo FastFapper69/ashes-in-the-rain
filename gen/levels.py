@@ -585,6 +585,13 @@ CAMPAIGN = [
      "intro": ["Bruno Kessler. Dock master since '38. He hadn't closed a door in eight years."],
      "diary": "Dec 12. If anything happens to me, the report is in the harbor office, second drawer. Frank, if you're reading this, then you already know that I know.",
      "outro": ["Kessler gave me a key on a chain. It had been warm against his chest for eight years.", "In the second drawer, the report. At the bottom, a name I knew better than my own."]},
+    # between chapters II and III: in the back of Rourke's car Frank is seventeen again (2026-11-15)
+    {"name": "1931", "seed": 206, "feature": "laundry", "memory": True, "pool": ["laundry", "market", "alley"], "rain": 0.0,
+     "start": 0.5, "end": 0.75, "ash": 1.0, "embers": 1.0,
+     "fixed": ["smoke_men", "blaze", "arsonists", "breather", "blaze", "smoke_men", "arsonists", "blaze", "smoke_men"],
+     "events": [["burn", "laundry"], ["burn", "market"]],
+     "intro": ["Rourke drove me himself. He didn't say a word all the way uptown.", "The last time I sat behind him like that I was seventeen, and the whole block was burning."],
+     "outro": ["My father brought out three of the Kowalczyk kids. He went back up for the fourth. The roof came down at ten past two.", "Declan Rourke held me back by the collar. He smelled of smoke and of something else. Kerosene. I was seventeen. I didn't know what it meant."]},
   ]},
   {"title": "CHAPTER III", "name": "UNDERGROUND", "ready": True, "hero": "frank", "ambient": [0.17, 0.16, 0.2], "rain": 0.0, "maps": [
     {"name": "14TH STREET", "seed": 301, "feature": "station14", "pool": UNDER_POOL, "under": True, "cops": True, "start": 0.5, "end": 0.75, "ash": 0.2,
@@ -660,6 +667,7 @@ def gd(campaign):
             if "rain" in lv: out.append(f'\t\t\t"rain": {lv["rain"]},')
             if lv.get("under"): out.append('\t\t\t"under": true,')
             if lv.get("dream"): out.append('\t\t\t"dream": true,')
+            if lv.get("memory"): out.append('\t\t\t"memory": true,')
             if lv.get("moving"): out.append(f'\t\t\t"moving": {lv["moving"]},')
             if lv.get("cops"): out.append('\t\t\t"cops": true,')
             if m.roof:
