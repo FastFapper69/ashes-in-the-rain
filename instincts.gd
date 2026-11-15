@@ -16,7 +16,7 @@ const ASH_LOCK := 6   # this much ash and the last two Conscience cards stay dow
 const CARDS := {
 	"lead": [
 		["FAST HANDS", "Reloads a third faster."],
-		["STEADY HAND", "Tighter shots, and the aim help reaches further."],
+		["STEADY HAND", "Tighter shots and a longer aim help."],
 		["THROUGH AND THROUGH", "Bullets go through wooden cover."],
 		["LAST ROUND", "The last round always kills, in slowed time."],
 		["DEAD EYE", "In slowed time, mark three men, then fire."],
@@ -26,14 +26,14 @@ const CARDS := {
 		["BLOOD FOR TIME", "A kill gives back half as much time again."],
 		["LONG DIVE", "Dives fly further and land in a roll."],
 		["LAST CHANCE", "With one hit left, time slows on its own."],
-		["SHOOT THEM DOWN", "Their bullets are easier to hit and give back time."],
+		["SHOOT THEM DOWN", "Shoot their bullets down for time."],
 	],
 	"mercy": [
 		["VOICE OF THE LAW", "A shaken crew gives up sooner."],
-		["OPEN HAND", "Shoot the gun out of a hand without slowed time."],
+		["OPEN HAND", "Disarm a man without slowed time."],
 		["QUESTIONING", "A man let go says where Eddie's page is."],
 		["SECOND WIND", "Letting a man go gives back a hit."],
-		["ALLY", "Men let go may fight beside Frank in the tower."],
+		["ALLY", "Men let go may fight beside him."],
 	],
 }
 # hits Frank can take, and how fast slowed time drains and comes back, by leads earned

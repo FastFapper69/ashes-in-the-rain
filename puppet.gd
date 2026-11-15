@@ -48,6 +48,12 @@ var _skirt_shadow: Polygon2D
 const SKIRT_ROWS := 7
 const SKIRT_COLS := 4
 var _gun2: Sprite2D   # the second pistol, in the far hand
+# The lead pipe (art/guns/pipe.png) he keeps in his coat: swing 0..1 is one blow (wind up over the
+# shoulder, down onto the man, follow through), -1 = not swinging. The gun goes back in the coat meanwhile.
+const PIPE_LEN := 0.62
+const PIPE_GRIP := Vector2(0.17, 0.234)
+var swing := -1.0
+var _pipe: Sprite2D
 var _left_shot := false   # with two pistols: the next shot comes from the far hand
 
 # Set before the node enters the tree. See main.gd for the two characters.
@@ -195,6 +201,16 @@ func _ready() -> void:
 		_body.add_child(s)
 		_spr[row[0]] = s
 	set_weapon(String(cfg.get("weapon", "revolver")))
+	_pipe = Sprite2D.new()
+	var pt: Texture2D = load("res://art/guns/pipe.png")
+	_pipe.texture = pt
+	_pipe.centered = false
+	_pipe.offset = -Vector2(pt.get_size()) * PIPE_GRIP
+	_pipe.scale = Vector2.ONE * PIPE_LEN * PPM / pt.get_width()
+	_pipe.modulate = Color(0.78, 0.78, 0.8)
+	_pipe.texture_filter = MIPS
+	_pipe.visible = false
+	_body.add_child(_pipe)
 	if cfg.has("leg_tex"):   # whole legs that bend at the knee, instead of a thigh and a shin on a pin
 		for side in ["b", "f"]:
 			var lm := _make_leg_mesh()
@@ -479,6 +495,16 @@ func _pose() -> void:
 		near_target = near_target.lerp(shoulder + Vector2(0.24, 0.24), rl)
 	if hands_up > 0.0 and not _dead:
 		near_target = near_target.lerp(shoulder + Vector2(0.16, -(ua + fa) * 0.82), hands_up)
+	var blow := 0.0   # the angle of the pipe arm, in his own forward frame
+	if swing >= 0.0 and not _dead:
+		var aim_a := _aim.angle()
+		if swing < 0.35:      # up and back over the shoulder
+			blow = lerp_angle(aim_a, -2.3, smoothstep(0.0, 0.35, swing))
+		elif swing < 0.55:    # down onto him, fast
+			blow = lerpf(-2.3, 0.95, smoothstep(0.35, 0.55, swing))
+		else:                 # the follow-through, then back to the aim
+			blow = lerp_angle(0.95, aim_a, smoothstep(0.6, 1.0, swing))
+		near_target = shoulder + Vector2.from_angle(blow) * (ua + fa) * 0.9
 	var reach_up := (ua + fa) * 0.96
 	hang_top = shoulder.y - reach_up
 	var climb_c := 0.5 - 0.5 * cos(hang_cycle * TAU) if hang_cycle >= 0.0 else 0.0
@@ -548,7 +574,12 @@ func _pose() -> void:
 	_place("farm_f", "farm", kn[0], kn[1])
 	_gun.position = hand * PPM
 	_gun.rotation = _aim.angle()
-	_gun.visible = not disarmed and not (hang > 0.5 and not hang_one)   # both hands on the rope: the gun is in his coat
+	_gun.visible = not disarmed and not (hang > 0.5 and not hang_one) and not (swing >= 0.0 and not _dead)   # both hands on the rope: the gun is in his coat
+	if _pipe != null:
+		_pipe.visible = swing >= 0.0 and not _dead
+		if _pipe.visible:
+			_pipe.position = hand * PPM
+			_pipe.rotation = blow
 	if disarmed:
 		_gun2.visible = false
 	if rl > 0.0:   # muzzle up; near the end a flick of the wrist snaps the cylinder home

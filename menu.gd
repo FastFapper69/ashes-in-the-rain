@@ -48,7 +48,7 @@ const PHASES := [
 	[1, 4, "Mickey Teague owned the Blue Note and lost every fight he was paid to.\nSomebody was paying for this one too.", "THE BLUE NOTE  ·  DEC 18, 1947  ·  11:30 PM"],
 	[2, 0, "Rosie gave me his diary. First page, his hand:\nPier 17. Eleven dead. Who signed the report?", "PIER 17  ·  DEC 19, 1947"],
 	[2, 1, "Pier 17 burned twice. Once for money, once for paper.\nThe cranes were next.", "NORTH RIVER  ·  DEC 19, 1947  ·  4:30 AM"],
-	[2, 2, "A ship called Santa Lucia, and a dock master\nwho hadn't closed a door in eight years.", "PIER 21  ·  DEC 19, 1947  ·  5:10 AM"],
+	[2, 2, "A ship called Santa Lucia, and a dock master\nwho hadn't closed a door in eight years.", "THE SANTA LUCIA  ·  DEC 19, 1947  ·  5:10 AM"],
 	[2, 3, "Below decks it smelled of tar and other people's prayers.", "THE SANTA LUCIA  ·  DEC 19, 1947  ·  5:50 AM"],
 	[2, 4, "Kessler ran for his office.\nMen like him always run toward their paperwork.", "HARBOR MASTER  ·  DEC 19, 1947  ·  6:20 AM"],
 	[3, 0, "They read me my rights in the rain.\nEddie would have written it down.", "10TH PRECINCT  ·  DEC 19, 1947  ·  7:00 AM"],
@@ -777,10 +777,10 @@ func _instincts(back_to := Callable()) -> void:
 				_page.add_child(card)
 				(card.get_node("Drawing") as TextureRect).modulate = Color(0.62, 0.6, 0.57)
 			var info: Array = Instincts.CARDS[branch][t]
-			Paper.write(card, String(info[0]), _font_head, 15, INK, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0, 1, 0.24), 4.0)
-			Paper.write(card, String(info[1]), _font_type, 12, INK, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0.24, 1, 0.5), 6.0)
+			Paper.write(card, String(info[0]), _font_head, 16, INK, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0, 1, 0.24), 4.0)
+			Paper.write(card, String(info[1]), _font_type, 14, INK, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0.24, 1, 0.5), 4.0)
 			var foot := "PINNED" if have else (why if why != "" else "PIN IT: %d LEADS" % Instincts.COST[t])
-			Paper.write(card, foot, _font_head, 13, CRIMSON if (have or why == "") else INK, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0.74, 1, 0.26), 4.0)
+			Paper.write(card, foot, _font_head, 14, CRIMSON if (have or why == "") else INK, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0.74, 1, 0.26), 4.0)
 			if have:   # the head of the card's own pin, turned with the card
 				var half := Vector2(w, h) * 0.5
 				pins.append(at + half + (Vector2(w * 0.535, h * 0.06) - half).rotated(card.rotation))

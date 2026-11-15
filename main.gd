@@ -1875,6 +1875,7 @@ func _process(delta: float) -> void:
 		_pause()
 	hud.pause_tapped = false
 	_swap_boxes()
+	_tick_pipe(delta)
 	_enemies(delta)
 	_pickups()
 	_map_events(delta)
@@ -2514,6 +2515,40 @@ func _auto_step(delta: float) -> void:
 		if _at > 5.9:
 			get_tree().quit()
 		return
+	elif _auto == "pipe":   # walk up on the nearest mobster: the pipe, frame by frame, and what he does after
+		hp = max_hp
+		_grace = 99.0
+		var first = null
+		for e in enemies:
+			if e["alive"] and (first == null or e["node"].position.x < first["node"].position.x) and e["node"].position.y == 0.0 and e["state"] == "post" and not e.has("shield") \
+					and not _has_cover(e["node"].position) and not _has_cover(e["node"].position - Vector2(400.0, 0.0)):
+				first = e
+		if _auto_done & 1 == 0:
+			_auto_done |= 1
+			player.position = Vector2(first["node"].position.x - 215.0, 0.0)
+			for e in enemies:
+				if e != first:
+					e["alive"] = false
+					e["node"].visible = false
+			first["seen"] = true
+			first["cool"] = 99.0
+			_kick_target = first
+		cam.position.x = player.position.x + 300.0
+		hud.move = 1.0 if _pipe_t < 0.0 and _pipe_cool == 0.0 else 0.0
+		var times := [0.0, 0.1, 0.17, 0.24, 0.31, 0.4, 1.0, 3.6]
+		if _pipe_t >= 0.0 and _auto_done & 2 == 0:
+			_auto_done |= 2
+			_kick_at = _at
+		if _auto_done & 2:
+			for i in times.size():
+				var bit := 1 << (3 + i)
+				if _at > _kick_at + times[i] and _auto_done & bit == 0:
+					_auto_done |= bit
+					print("PIPE t ", times[i], " state ", _kick_target["state"])
+					_shot("pipe_%d" % i)
+		if _at > 7.0:
+			get_tree().quit()
+		return
 	elif _auto.begins_with("look:"):   # --test=look:x1,x2,...: stand at each x for a moment, take a picture
 		var xs := _auto.trim_prefix("look:").split(",")
 		var k := int(_at / 2.6)
@@ -2523,6 +2558,10 @@ func _auto_step(delta: float) -> void:
 		hp = max_hp
 		if _auto_done & (1 << (k + 16)) == 0:
 			_auto_done |= 1 << (k + 16)
+			if k == 0 and OS.get_cmdline_user_args().has("--inner"):   # one hit from the end: the voice in his head
+				_inner_voice()
+			if k == 0 and OS.get_cmdline_user_args().has("--smoke"):   # Kessler's canister, a second before the shot
+				sets.smoke(Vector2(float(xs[0].split("@")[0]) + 700.0, 0.0))
 			var at: PackedStringArray = xs[k].split("@")   # x@y: standing on whatever floor is under that height
 			var feet := float(at[1]) if at.size() > 1 else -2000.0
 			player.position = Vector2(float(at[0]), _floor_at(float(at[0]), feet))
@@ -3479,6 +3518,8 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 	if (_dt < 0.0 or _dt > 7.4) and _tt < 0.0 and (_auto == "" or _auto == "stand"):   # nobody gets hurt during the demo or the tests
 		hp -= 1
 		hud.set_health(float(hp) / max_hp)
+		if hp == 1:
+			_inner_voice()
 		if hp <= 0:
 			_player_down()
 		elif hp == 1 and _knack("time", 3) and not _last_chance_used:   # time slows by itself, once a map
@@ -3487,6 +3528,23 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 			slow_on = true
 			hud.toast("LAST CHANCE")
 	return true
+
+
+## One hit from the end, the voice in his head (voice/<md5>.mp3, the narrator's): never the same line
+## twice running, and not again for a while.
+const INNER := ["Barely a flesh wound.", "Get up, old man.", "Not tonight. Not like this.", "Breathe, Malone. Just breathe.",
+	"Eddie never quit. Neither do you.", "Bleed later. Shoot now."]
+var _inner_t := -100.0
+var _inner_last := ""
+func _inner_voice() -> void:
+	if over or chapter == 0 or _time - _inner_t < 40.0 or sfx.voice_on():
+		return
+	_inner_t = _time
+	var pick: String = INNER.pick_random()
+	if pick == _inner_last:
+		pick = INNER[(INNER.find(pick) + 1) % INNER.size()]
+	_inner_last = pick
+	hud.caption([pick])
 
 
 ## The kick: a dive into a man knocks him flat on his back. On the pavement he cannot shoot and one
@@ -3517,6 +3575,61 @@ func _kick_check() -> void:
 		return
 
 
+## The lead pipe: walk up on a man and Frank lays him out with the pipe from his coat (puppet.gd swing),
+## once every PIPE_COOL seconds. Flat on the stones he gives himself up when he comes round.
+const PIPE_COOL := 6.0
+const PIPE_TIME := 0.42
+const PIPE_REACH := 170.0
+var _pipe_cool := 0.0
+var _pipe_t := -1.0
+var _pipe_hit := false
+var _pipe_e = null
+var _kick_at := 0.0
+func _tick_pipe(delta: float) -> void:
+	_pipe_cool = maxf(0.0, _pipe_cool - delta)
+	if _pipe_t >= 0.0:
+		_pipe_t += delta / PIPE_TIME
+		player.swing = minf(_pipe_t, 1.0)
+		if not _pipe_hit and _pipe_t >= 0.47 and _pipe_e != null:
+			_pipe_hit = true
+			var e: Dictionary = _pipe_e
+			if e["alive"] and String(e["state"]) in ["post", "run", "move", "hop"]:
+				var m = e["node"]
+				var dx: float = m.position.x - player.position.x
+				e["state"] = "down"
+				e["down_t"] = 0.0
+				e["seen"] = true
+				e["pipe"] = true
+				m.duck = 0.0
+				m.slide_side = 1.0
+				e["push"] = signf(dx) * 520.0
+				sfx.play("punch", 2.0, m.position.x, 0.06)
+				sfx.play("hit_cover", -6.0, m.position.x, 0.1)   # the ring of the iron
+				_word(["wham", "bam"], m.position + Vector2(0.0, -520.0), 0.3)
+				_shake = maxf(_shake, 0.28)
+				_impact(0.06, 0.05)
+				stats["pipe"] = int(stats.get("pipe", 0)) + 1
+		if _pipe_t >= 1.0:
+			_pipe_t = -1.0
+			player.swing = -1.0
+		return
+	if _pipe_cool > 0.0 or over or diff_step < 0 or move_state != "ground" or reloading > 0.0 or player.duck > 0.3:
+		return
+	for e in enemies:
+		if not e["alive"] or e["boss"] or e.has("shield") or not (String(e["state"]) in ["post", "run", "move", "hop"]):
+			continue
+		var m = e["node"]
+		var dx: float = m.position.x - player.position.x
+		if absf(dx) > PIPE_REACH or absf(m.position.y - player.position.y) > 120.0:
+			continue
+		_pipe_e = e
+		_pipe_t = 0.0
+		_pipe_hit = false
+		_pipe_cool = PIPE_COOL
+		player.snap_aim(Vector2(signf(dx), 0.15))
+		return
+
+
 const KNOCK_ROLL := 0.5
 func _knocked(e: Dictionary, delta: float) -> void:
 	var m = e["node"]
@@ -3537,7 +3650,7 @@ func _knocked(e: Dictionary, delta: float) -> void:
 	m.set_state(0.0, Vector2(signf(player.position.x - m.position.x), 0.4), delta)
 	if t > 2.3 and not e.has("decided"):   # he has had time to think about it
 		e["decided"] = true
-		var gives: float = 0.45 + (0.25 if _knack("mercy", 0) else 0.0) + (0.2 if e.get("shaken", false) else 0.0)
+		var gives: float = 0.45 + (0.25 if _knack("mercy", 0) else 0.0) + (0.2 if e.get("shaken", false) else 0.0) + (1.0 if e.get("pipe", false) else 0.0)
 		if randf() < gives:
 			m.slide = 0.0
 			m.roll = 0.0
@@ -3711,6 +3824,8 @@ func _blast(at: Vector2, reach: float, hurt_reach: float, hits: int) -> void:
 		hp -= hits
 		stats["hits"] += 1
 		hud.set_health(float(hp) / max_hp)
+		if hp == 1:
+			_inner_voice()
 		if hp <= 0:
 			_player_down()
 	for k in range(boxes.size() - 1, -1, -1):
@@ -4683,9 +4798,9 @@ func _build_room(x0: float, x1: float, style: String) -> void:
 	wall.light_mask = 0
 	wall.modulate = Color.WHITE * ROOM_BASE
 	add_child(wall)
-	var roof := Polygon2D.new()   # everything above the ceiling is solid black
+	var roof := Polygon2D.new()   # above the ceiling: the storeys over the room, the facade seen dim through the cut
 	roof.polygon = PackedVector2Array([Vector2(x0, sky_top), Vector2(x1, sky_top), Vector2(x1, top + 2.0), Vector2(x0, top + 2.0)])
-	roof.color = Color(0.0, 0.0, 0.0)
+	roof.color = Color(0.0, 0.0, 0.0, 0.6)
 	roof.z_index = 9
 	add_child(roof)
 	var fade := Polygon2D.new()   # the top of the drawing dissolves into the dark ceiling, no hard edge

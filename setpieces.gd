@@ -107,7 +107,15 @@ func lit(p: Vector2) -> bool:
 ## Kessler's smoke: a grey wall rolling out over the quay for a few seconds.
 func smoke(at: Vector2) -> void:
 	var p := CPUParticles2D.new()
-	p.texture = _fire_tex
+	p.texture = load("res://art/fx/puff3.png")   # inked puffs, the same as the street's steam (the round flame blob read as white discs)
+	p.angle_min = 0.0
+	p.angle_max = 360.0
+	p.angular_velocity_min = -12.0
+	p.angular_velocity_max = 12.0
+	var grow := Curve.new()
+	grow.add_point(Vector2(0.0, 0.5))
+	grow.add_point(Vector2(1.0, 1.4))
+	p.scale_amount_curve = grow
 	p.amount = 60
 	p.lifetime = 4.0
 	p.one_shot = false
@@ -122,12 +130,12 @@ func smoke(at: Vector2) -> void:
 	p.initial_velocity_max = 220.0
 	p.damping_min = 40.0
 	p.damping_max = 70.0
-	p.scale_amount_min = 6.0
-	p.scale_amount_max = 11.0
+	p.scale_amount_min = 1.4
+	p.scale_amount_max = 2.6
 	var g := Gradient.new()
 	g.set_color(0, Color(0.55, 0.57, 0.55, 0.0))
-	g.add_point(0.12, Color(0.5, 0.52, 0.5, 0.8))
-	g.add_point(0.7, Color(0.42, 0.44, 0.43, 0.6))
+	g.add_point(0.12, Color(0.48, 0.5, 0.49, 0.7))
+	g.add_point(0.7, Color(0.4, 0.42, 0.41, 0.5))
 	g.set_color(g.get_point_count() - 1, Color(0.4, 0.4, 0.4, 0.0))
 	p.color_ramp = g
 	p.modulate = game._undo_night(0.35)
