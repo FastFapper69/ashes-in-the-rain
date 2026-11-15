@@ -493,14 +493,14 @@ PROLOGUE = {"name": "THE LAST NOTE", "seed": 1, "feature": "bluenote", "start": 
     "hints": [[200, "DRAG THE STICK TO MOVE"], [1500, "TAP ANYWHERE TO SHOOT THERE"], [2700, "PULL THE STICK DOWN TO HIDE BEHIND COVER"],
               [4300, "THE RUNNING MAN BUTTON DIVES OVER CRATES"], [6100, "SHOOT THE RED BARREL"], [7900, "TAP THE STOPWATCH TO SLOW TIME"]],
     "intro": ["They came out of the rain at both ends of the street.", "Eddie had six rounds and a long way to the Blue Note."],
-    "outro": ["His pencil found the notebook one last time. One word: FRANK.", "Eddie Doyle bled out in this alley at ten past two.", "Somebody had to call me. Somebody always does."]}
+    "outro": ["His pencil found the notebook one last time. One word: FRANK.", "Eddie Doyle bled out in that alley a little before two.", "At ten past, somebody called me. Somebody always does."]}
 
 CAMPAIGN = [
   {"title": "PROLOGUE", "name": "EDDIE DOYLE", "ready": True, "hero": "eddie", "ambient": [0.2, 0.21, 0.27], "rain": 1.2, "maps": [PROLOGUE]},
   {"title": "CHAPTER I", "name": "RAIN ON HELL'S KITCHEN", "ready": True, "hero": "frank", "ambient": [0.2, 0.21, 0.27], "rain": 1.0, "maps": [
     {"name": "THE ALLEY", "seed": 101, "feature": "alley", "start": 0.0, "end": 0.35,
      "fixed": ["crate_cover", "drum_duo", "dumpster_alley", "fire_escape", "barrel_trap", "crate_cover", "pistols_cache", "ambush_behind", "gauntlet"],
-     "intro": ["The shooters hadn't gone far. Rain doesn't wash a trail away that fast.", "Neither does whiskey. I'd tried."],
+     "intro": ["The shooters hadn't gone far. Rain doesn't wash a trail away that fast.", "Eddie had left a trail too: pages torn from his diary, nailed up where only I would look."],
      "diary": "Nov 3. Rosie showed me Tommy's photo again. Eleven men burned in '39 and the papers called it bad wiring. Bad wiring doesn't lock doors from the outside.",
      "outro": ["The shooters ran east. So did I."]},
     {"name": "BACK STREETS", "seed": 102, "start": 0.2, "end": 0.5,
@@ -517,13 +517,13 @@ CAMPAIGN = [
      "fixed": ["tenement", "ambush_behind", "fire_escape", "car_ambush", "breather", "barrel_trap", "tenement", "gauntlet", "scaffold"],
      "roof": True, "roofs": ["roof_b", "roof_a"],
      "intro": ["Iron stairs, wet as a liar's palm."],
-     "diary": "Dec 9. Found the patrolman who signed the report. I wish I hadn't. I need to hear it from him before I take it upstairs.",
+     "diary": "Dec 9. The precinct log says who walked the Pier 17 beat that night. I wish I hadn't read it. I need to hear it from him before I take it upstairs.",
      "outro": ["Below me the neon said JAZZ.", "Mickey Teague owned the Blue Note. Somebody else owned Mickey."]},
     {"name": "THE BLUE NOTE", "seed": 105, "feature": "bluenote", "start": 0.6, "end": 0.85, "boss": "teague", "boss_room": "club",
      "fixed": ["crate_cover", "fire_escape", "breather", "warehouse_arena", "rush"],
      "intro": ["Mickey 'Canvas' Teague. Forty fights, and he lost every one he was paid to lose.", "Tonight nobody was paying."],
      "diary": "Dec 17. Meeting a guy from the Blue Note tonight. Says he'll sell me the name of who paid. If I'm wrong about this, I'll buy Frank a drink and tell him everything.",
-     "outro": ["Mickey went down on cue, like always. He asked me to feed his birds. Then: ask your boss.", "Eddie's girl came down off the stage with his diary. I didn't open it. Not then."]},
+     "outro": ["Mickey went down on cue, like always. They'd told him to shoot Eddie, and he never could say no. Then: ask your boss.", "Eddie's girl came down off the stage with his diary. I didn't open it. Not then."]},
   ]},
   {"title": "CHAPTER II", "name": "THE DOCKS", "ready": True, "hero": "frank", "ambient": [0.16, 0.18, 0.25], "rain": 1.5, "maps": [
     {"name": "PIER 17", "seed": 201, "feature": "pier17", "pool": DOCKS_POOL, "start": 0.45, "end": 0.7, "ash": 1.0, "embers": 0.6,

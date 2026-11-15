@@ -153,10 +153,10 @@ func _ready() -> void:
 	var ink := Color(0.1, 0.09, 0.09)
 	var red := Color(0.55, 0.09, 0.07)
 	var hfs := 20
-	while hfs > 12 and type.get_string_size("EDDIE DOYLE'S NOTEBOOK", HORIZONTAL_ALIGNMENT_LEFT, -1, hfs).x > 580.0 * k:
+	while hfs > 12 and type.get_string_size("EDDIE DOYLE'S DIARY", HORIZONTAL_ALIGNMENT_LEFT, -1, hfs).x > 580.0 * k:
 		hfs -= 1
 	var title := Label.new()
-	title.text = "EDDIE DOYLE'S NOTEBOOK"
+	title.text = "EDDIE DOYLE'S DIARY"
 	var page_no := Label.new()
 	page_no.text = "PAGE %d OF %d" % [found, total]
 	for l in [title, page_no]:

@@ -20,9 +20,9 @@ const SCENES := {
 		{"img": 78, "from": [0.4, 0.45, 1.1], "to": [0.58, 0.5, 1.0], "rain": 0.6, "stamp": "NEW YORK  ·  DECEMBER 17, 1947  ·  11:40 P.M.",
 			"lines": ["Eddie Doyle wrote crime for the Evening Ledger. Nobody read past the second paragraph.", "That winter he was reading about a fire. Pier 17. Eight years cold. Eleven dead."]},
 		{"img": 79, "from": [0.5, 0.45, 1.0], "to": [0.45, 0.4, 1.2], "rain": 1.0,
-			"lines": ["Somebody called the paper and asked for him by name. Said they'd talk.", "\"Behind the Blue Note. Two o'clock. Come alone.\""]},
+			"lines": ["Somebody called the paper and asked for him by name. Said he'd sell him the man who paid.", "\"Behind the Blue Note. Half past one. Come alone.\"", "He didn't call me. He wanted to be wrong first."]},
 		{"img": 80, "from": [0.55, 0.55, 1.2], "to": [0.5, 0.5, 1.0], "rain": 0.0, "hit": 1,
-			"lines": ["Eddie never carried a gun. He said a reporter with a gun is just a man with a gun.", "That night he carried one."]},
+			"lines": ["Eddie carried a rifle across Guadalcanal. He came home and swore he'd never carry a gun again.", "That night he carried one."]},
 		{"img": 81, "from": [0.45, 0.5, 1.0], "to": [0.6, 0.55, 1.18], "rain": 1.2,
 			"lines": ["He was early. He was always early.", "They were earlier."]},
 	],
@@ -45,8 +45,8 @@ const SCENES := {
 			"lines": ["Two weeks ago Eddie bought the coffee. Eddie never bought the coffee.", "\"Frank, I need to tell you something. Tomorrow.\"", "Tomorrow was a long time coming. Then it didn't come at all."]},
 	],
 	"teague": [
-		{"img": 56, "from": [0.3, 0.6, 1.15], "to": [0.55, 0.5, 1.0], "rain": 0.0,
-			"lines": ["Mickey went down on cue, like always.", "\"Feed my birds, Frank... Pier Seventeen. Ask your boss.\""],
+		{"img": 56, "from": [0.3, 0.6, 1.15], "to": [0.55, 0.5, 1.0], "rain": 0.0, "at": ["tl", "tl", "br"],
+			"lines": ["Mickey went down on cue, like always.", "\"They said sell the kid a name. Then they said shoot him. I never could say no, Frank.\"", "\"Feed my birds... Pier Seventeen. Ask your boss.\""],
 			"hard": [[0, "Mickey went down. This time nobody had paid him to."]]},
 		{"img": 57, "from": [0.5, 0.42, 1.0], "to": [0.47, 0.38, 1.16], "rain": 0.0,
 			"lines": ["Rosie Kowalski came down off the stage like it was the last song of the night.", "Eddie's girl. She'd been holding something for him."]},
@@ -62,8 +62,8 @@ const SCENES := {
 			"hard": [[2, "I woke up knowing exactly whose side of the door I was on. I'd been adding hands to it all week."]]},
 	],
 	"kessler": [
-		{"img": 64, "from": [0.35, 0.45, 1.05], "to": [0.55, 0.62, 1.4], "rain": 0.0, "hit": 1,
-			"lines": ["Second drawer, like Eddie said. PIER 17. FIRE. CAUSE: ACCIDENTAL.", "At the bottom, in ink gone brown: Ptl. F. Malone. My hand. My two hundred dollars."]},
+		{"img": 64, "from": [0.35, 0.45, 1.05], "to": [0.55, 0.62, 1.4], "rain": 0.0, "hit": 1, "at": ["tl", "tl", "bl"],
+			"lines": ["Second drawer, like Eddie said. PIER 17. FIRE. CAUSE: ACCIDENTAL.", "At the bottom, in ink gone brown: Ptl. F. Malone. My hand. My two hundred dollars.", "Kessler had kept the original for eight years. Insurance against the Saint, he called it. Against men like me."]},
 		{"img": 65, "from": [0.7, 0.4, 1.2], "to": [0.4, 0.45, 1.0], "rain": 0.8, "sound": "door",
 			"lines": ["\"Frank Malone. You're under arrest for the murder of Eddie Doyle.\"", "Declan Rourke taught me how to tie a tie. He coughed into my mother's handkerchief and wouldn't look me in the eye."]},
 	],
@@ -598,7 +598,16 @@ func _place_box(box: Control, n: int) -> void:
 		return
 	var view := _view()
 	var margin := Vector2(48.0, 44.0)
-	if n % 2 == 0:   # the first of a pair at the top left, the next at the bottom right
+	var at: Array = _panels[_i].get("at", []) if _i < _panels.size() else []
+	if n < at.size():   # this panel says where its boxes go, clear of what the picture is about
+		var corner := String(at[n])
+		var k := 0   # boxes already in that corner stack under (or over) it
+		for j in n:
+			k += 1 if String(at[j]) == corner else 0
+		var x := margin.x + float(k) * 24.0 if corner.ends_with("l") else view.x - box.size.x - margin.x - float(k) * 24.0
+		var y := margin.y + float(k) * 150.0 if corner.begins_with("t") else view.y - box.size.y - margin.y - float(k) * 150.0
+		box.position = Vector2(x, y)
+	elif n % 2 == 0:   # the first of a pair at the top left, the next at the bottom right
 		box.position = Vector2(margin.x + float(n / 2) * 24.0, margin.y + float(n / 2) * 150.0)
 	else:
 		box.position = Vector2(view.x - box.size.x - margin.x, view.y - box.size.y - margin.y - float(n / 2) * 150.0)

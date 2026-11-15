@@ -62,7 +62,7 @@ const TESTIMONY := {
 	"1:2": "\"The laundry don't wash shirts. It washes money for the Saint. Mickey just signs.\"",
 	"1:3": "\"Mickey's scared, Frank. Scared of a man downtown with a cough.\"",
 	"1:4": "\"The girl? Leave her be. She's the only one Eddie told everything.\"",
-	"2:0": "\"Kessler keeps the old keys on a nail in his office. Never moved 'em. Eight years.\"",
+	"2:0": "\"Kessler wears a key round his neck on a chain. Eight years he never took it off. Not even to wash.\"",
 	"2:1": "\"Sully ain't a drunk. Sully saw the chains. Then he started drinking.\"",
 	"2:2": "\"Eleven crates went on the Santa Lucia that night. They didn't weigh like machine parts.\"",
 	"2:3": "\"The hold's got a second manifest. The real one. Kessler's too scared to burn it.\"",
