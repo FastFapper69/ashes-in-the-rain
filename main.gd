@@ -49,6 +49,9 @@ const PauseScript = preload("res://pause.gd")
 const SettingsScript = preload("res://settings.gd")
 var _shake_on := true
 var _assist := true
+const FLAME_FRAMES := 8
+var _flames: Array = []
+var _flame_mat: CanvasItemMaterial
 static var _erased := false   # test: the erase went through, this is the title after it
 static var _card_up := false   # a title card is covering the screen across the reload: lift it once built
 var sets   # setpieces.gd: cars, blackouts, searchlights, fires, the crane's crate
@@ -500,6 +503,8 @@ func _ready() -> void:
 		atmo.rain_near.emitting = false
 	atmo.add_post(self)
 	atmo.set_ash(MenuScript.guilt() / 10.0)
+	if level.get("dream", false):
+		atmo.set_fire_keep(1.0)
 	# the ash thickens with what Frank has done: men shot with their hands up stay in the air
 	atmo.add_ash(cam, MenuScript.ash_level() if in_menu else minf(1.2, float(level.get("ash", 0.3)) + MenuScript.guilt() * 0.06), float(level.get("embers", 0.0)))
 	steps = atmo.add_steps(player, _undo_night(0.6))
@@ -1751,6 +1756,8 @@ func _stream_tick(first := false) -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
+	if not _flames.is_empty():
+		_tick_flames(delta)
 	_stream_t -= delta
 	if _stream_t <= 0.0 and not _stream.is_empty():
 		_stream_t = 0.2
@@ -4964,44 +4971,13 @@ const FIRE_SPOTS := {
 	"fire_c": [[0.307, 0.84, 0.375, 0.266], [0.768, 0.762, 0.198, 0.19], [0.929, 0.901, 0.147, 0.094], [0.105, 0.443, 0.195, 0.085],
 		[0.675, 0.286, 0.099, 0.137], [0.929, 0.493, 0.135, 0.093], [0.218, 0.24, 0.108, 0.057]],
 }
-const FLAME_SHADER := """
-shader_type canvas_item;
-render_mode unshaded;
-uniform float seed = 0.0;
-uniform float speed = 1.0;
-uniform float sway = 0.035;
-float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
-float noise(vec2 p) {
-	vec2 i = floor(p);
-	vec2 f = fract(p);
-	f = f * f * (3.0 - 2.0 * f);
-	return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
-}
-void fragment() {
-	float t = TIME * speed + seed * 17.0;
-	float up = 1.0 - UV.y;   // 0 at the root of the flame, 1 at its tips
-	// the heat lifts and licks: the drawing is pulled sideways by rising noise, most at the tips
-	float n1 = noise(vec2(UV.x * 3.0 + seed, UV.y * 4.0 + t * 2.2)) - 0.5;
-	float n2 = noise(vec2(UV.x * 7.0 - seed, UV.y * 9.0 + t * 4.1)) - 0.5;
-	vec2 uv = UV + vec2((n1 + n2 * 0.5) * sway * (0.25 + up * 1.6), n2 * sway * 0.4 * up);
-	vec4 c = texture(TEXTURE, uv);
-	float flick = 0.86 + 0.14 * sin(t * 11.0) * sin(t * 6.7 + 1.3);
-	c.rgb *= flick * 1.12;
-	c.a *= smoothstep(0.0, 0.04, uv.y) * smoothstep(1.0, 0.72, uv.y);   // it rises out of the painted fire, no hard root
-	COLOR = c * COLOR;
-}
-"""
 var _fire_glows: Array = []   # [sprite, phase]: the painted fire's glow layers, breathing
 var _fire_lights: Array = []  # [PointLight2D, base energy, phase]: firelight on the people in front of it
-var _flame_shader: Shader
 
 
 func _fire_life(w: Sprite2D, glow: Sprite2D, seg_name: String, ws: float) -> void:
 	_fire_glows.append([glow, randf() * 10.0])
 	glow.modulate = _undo_night(0.75)
-	if _flame_shader == null:
-		_flame_shader = Shader.new()
-		_flame_shader.code = FLAME_SHADER
 	var size: Vector2 = Vector2(w.texture.get_size()) * ws
 	var k := 0
 	for spot in FIRE_SPOTS.get(seg_name, []):
@@ -5011,8 +4987,10 @@ func _fire_life(w: Sprite2D, glow: Sprite2D, seg_name: String, ws: float) -> voi
 		var hgt: float = float(spot[2]) * size.y
 		var wid: float = float(spot[3]) * size.x
 		var n := clampi(int(wid / 260.0) + 1, 1, 3)   # a wide fire is a few flames side by side
-		for j in n:
-			_flame(foot + Vector2((float(j) - (n - 1) * 0.5) * wid / float(n), 6.0), hgt * randf_range(0.75, 1.05), (k * 7 + j * 3) % 6, -9)
+		for j in n:   # overlapping, of different heights, the tallest in the middle: one fire, not a row of candles
+			var mid: float = 1.0 - absf(float(j) - (n - 1) * 0.5) / maxf(1.0, n * 0.5)
+			_flame(foot + Vector2((float(j) - (n - 1) * 0.5) * wid / float(n) * 0.7 + randf_range(-20.0, 20.0), 14.0),
+				hgt * randf_range(0.6, 0.8) * (0.75 + mid * 0.45), k * 7 + j * 3, -9)
 		if k < 3 and hgt > 150.0:   # the biggest fires light whoever stands in front of them
 			var l := PointLight2D.new()
 			l.texture = _soft_glow()
@@ -5028,31 +5006,52 @@ func _fire_life(w: Sprite2D, glow: Sprite2D, seg_name: String, ws: float) -> voi
 		k += 1
 
 
-## One hand-inked flame standing at `foot`, `hgt` tall, licking in the heat shimmer.
+## One hand-inked flame standing at `foot`, `hgt` tall.
 func _flame(foot: Vector2, hgt: float, variant: int, z: int) -> Sprite2D:
-	if _flame_shader == null:
-		_flame_shader = Shader.new()
-		_flame_shader.code = FLAME_SHADER
+	# a hand-drawn flame, eight drawings of it played in a loop (art/fx/fire/anim.png), each fire on
+	# its own beat and its own speed so no two neighbours flicker together
+	if _flame_mat == null:
+		_flame_mat = CanvasItemMaterial.new()
+		_flame_mat.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED   # fire is its own light
 	var f := Sprite2D.new()
-	f.texture = load("res://art/fx/fire/flame%d.png" % (variant % 6))
+	f.texture = load("res://art/fx/fire/anim.png")
+	f.hframes = FLAME_FRAMES
+	f.frame = (variant + randi()) % FLAME_FRAMES
 	f.centered = false
-	f.offset = Vector2(-f.texture.get_width() * 0.5, -f.texture.get_height())
-	var sc: float = hgt / f.texture.get_height()
-	f.scale = Vector2(sc * randf_range(0.85, 1.1) * (1.0 if randf() < 0.5 else -1.0), sc)
+	var fw: float = f.texture.get_width() / float(FLAME_FRAMES)
+	var fh: float = f.texture.get_height()
+	f.offset = Vector2(-fw * 0.5, -fh)
+	var sc: float = hgt / fh
+	f.scale = Vector2(sc * randf_range(0.9, 1.1) * (1.0 if randf() < 0.5 else -1.0), sc)
 	f.position = foot
-	var mat := ShaderMaterial.new()
-	mat.shader = _flame_shader
-	mat.set_shader_parameter("seed", randf() * 10.0)
-	mat.set_shader_parameter("speed", randf_range(0.8, 1.25))
-	f.material = mat
-	f.modulate = _undo_night(0.8)
+	f.material = _flame_mat
+	f.modulate = _undo_night(0.42)   # the drawing as painted: brighter and its ink and reds burn out to white
 	f.z_index = z
+	f.set_meta("fps", randf_range(10.0, 14.0))
+	f.set_meta("t", randf())
 	add_child(f)
-	var tw := f.create_tween().set_loops()   # it gathers and leaps, never in step with its neighbour
+	_flames.append(f)
+	var tw := f.create_tween().set_loops()   # and the whole fire gathers and leaps, slowly
 	var s0 := f.scale
-	tw.tween_property(f, "scale", s0 * Vector2(0.94, 1.1), randf_range(0.35, 0.6)).set_trans(Tween.TRANS_SINE)
-	tw.tween_property(f, "scale", s0 * Vector2(1.04, 0.9), randf_range(0.3, 0.55)).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(f, "scale", s0 * Vector2(0.96, 1.07), randf_range(0.5, 0.8)).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(f, "scale", s0 * Vector2(1.03, 0.94), randf_range(0.45, 0.75)).set_trans(Tween.TRANS_SINE)
 	return f
+
+
+func _tick_flames(delta: float) -> void:
+	var i := 0
+	while i < _flames.size():
+		var f: Sprite2D = _flames[i]
+		if not is_instance_valid(f):
+			_flames.remove_at(i)
+			continue
+		var t: float = float(f.get_meta("t")) + delta * float(f.get_meta("fps"))
+		if t >= 1.0:
+			t -= 1.0
+			# mostly the next drawing; now and then one skipped, so the loop never reads as a loop
+			f.frame = (f.frame + (2 if randf() < 0.18 else 1)) % FLAME_FRAMES
+		f.set_meta("t", t)
+		i += 1
 
 
 ## The fire gets him: a hit, the screen jolts, a grunt. Not in the tests (the bot does not jump fires).

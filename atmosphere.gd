@@ -17,6 +17,7 @@ uniform float dot_size = 4.0;
 uniform float halftone = 0.16;
 uniform float slow = 0.0;
 uniform vec2 registration = vec2(1.6, 1.0);
+uniform float fire_keep = 0.0;   // 1 in the dream: the flames are not greyed with the rest
 uniform float ash = 0.0;   // 0..1, Frank's guilt: the paper greys, the amber dies, the rain goes to soot   // screen pixels between the ink and the colour plates
 
 float hash(vec2 p) {
@@ -48,6 +49,9 @@ void fragment() {
 	float g = dot(col, vec3(0.299, 0.587, 0.114));
 	col = mix(col, vec3(g) * vec3(0.96, 0.95, 0.94), ash * 0.6 * (1.0 - red));
 	col *= 1.0 - ash * 0.1;
+	// in the burning dream the fire keeps its own colour: deep orange that is also bright stays
+	float fire = smoothstep(0.3, 0.55, cc.r - cc.b) * smoothstep(0.35, 0.6, lc) * fire_keep;
+	col = mix(col, cc * vec3(1.0, 0.92, 0.85), fire * 0.8);
 	// halftone dots in the mid-tones only, like cheap newsprint; deep shadows stay solid ink
 	vec2 p = FRAGCOORD.xy / dot_size;
 	vec2 rp = vec2(p.x + p.y, p.y - p.x) * 0.7071;
@@ -112,6 +116,10 @@ func add_post(parent: Node) -> void:
 	_post = mat
 	layer.add_child(rect)
 	post_layer = layer
+
+
+func set_fire_keep(amount: float) -> void:
+	_post.set_shader_parameter("fire_keep", amount)
 
 
 func set_ash(amount: float) -> void:

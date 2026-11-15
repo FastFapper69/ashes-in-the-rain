@@ -387,8 +387,7 @@ func _burn(seg_name: String) -> void:
 func _flames(at: Vector2) -> void:
 	for k in 3:   # the painted flames licking out of the window, each on its own breath
 		var hgt := randf_range(210.0, 260.0) * (1.2 if k == 1 else 0.8)
-		# the drawing's root fades out over its lowest quarter: the foot goes that much under the sill
-		var f = game._flame(at + Vector2(-26.0 + 26.0 * k + randf_range(-5.0, 5.0), hgt * 0.22), hgt, randi(), -8)
+		var f = game._flame(at + Vector2(-26.0 + 26.0 * k + randf_range(-5.0, 5.0), 4.0), hgt * 0.75, randi(), -8)
 		f.modulate = game._undo_night(0.8) * Color(1.0, 0.78, 0.55)
 	var smoke := CPUParticles2D.new()   # black smoke rolling off the top of each window: the inked puffs, darkened
 	smoke.texture = load("res://art/fx/puff3.png")
