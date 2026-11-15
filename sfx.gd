@@ -19,7 +19,7 @@ const HEAR := 2600.0   # world pixels from the listener at which a sound has fad
 var listener_x := 0.0   # set by main.gd each frame: the camera's x
 var slow := 0.0         # 0..1, set by main.gd
 
-var _streams := {}
+static var _streams := {}
 var _pool: Array[AudioStreamPlayer] = []
 var _next := 0
 var _rain: AudioStreamPlayer
@@ -49,10 +49,14 @@ func _ready() -> void:
 			AudioServer.set_bus_name(i, b)
 			AudioServer.set_bus_send(i, "Master")
 	load("res://menu.gd").apply_settings()
-	for n in NAMES:
-		_streams[n] = load(DIR + n + ".wav")
-	for n in LOOPS + ["rain_loop", MELODIES["jazz"], MELODIES["dusk"]]:
-		_streams[n] = _looped(n)
+	# kept across scene reloads (static): on the web every sound is decoded whole into the browser's
+	# audio memory, and loading them all again for each map, before the old copies are collected,
+	# doubled that memory at exactly the moment the next map's drawings load (the phone crashes)
+	if _streams.is_empty():
+		for n in NAMES:
+			_streams[n] = load(DIR + n + ".wav")
+		for n in LOOPS + ["rain_loop", MELODIES["jazz"], MELODIES["dusk"]]:
+			_streams[n] = _looped(n)
 	for i in VOICES:
 		var p := AudioStreamPlayer.new()
 		p.bus = "SFX"

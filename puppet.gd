@@ -371,6 +371,7 @@ func ghost() -> CanvasGroup:
 ## dx: how far the shadow lands from the feet (world pixels), skew: its lean, alpha: 0 = no lamp near.
 func set_shadow(dx: float, skew_amount: float, alpha: float) -> void:
 	_shadow.self_modulate = Color(1.0, 1.0, 1.0, alpha)
+	_shadow.visible = alpha > 0.01   # an invisible group still costs a pass over the screen on a phone
 	_shadow.position = Vector2(dx * scale.x, -6.0)
 	_shadow.skew = skew_amount * scale.x
 	_shadow.scale = Vector2(1.12, 1.12)

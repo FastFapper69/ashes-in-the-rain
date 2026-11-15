@@ -476,7 +476,10 @@ static func crumb(text: String) -> void:
 
 
 func _mem_line() -> String:
-	return "%s %d:%d x=%d static=%dMB peak=%dMB tex=%dMB buf=%dMB fps=%d nodes=%d cut=%s lowfail=%d" % ["menu" if in_menu else "map", chapter, map,
+	var heap := -1
+	if OS.has_feature("web"):
+		heap = int(JavaScriptBridge.eval("window.ashesMem?ashesMem():-1", true))
+	return ("heap=%dMB " % heap) + "%s %d:%d x=%d static=%dMB peak=%dMB tex=%dMB buf=%dMB fps=%d nodes=%d cut=%s lowfail=%d" % ["menu" if in_menu else "map", chapter, map,
 		int(player.position.x) if player != null else -1, OS.get_static_memory_usage() / 1048576, OS.get_static_memory_peak_usage() / 1048576,
 		int(Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED)) / 1048576, int(Performance.get_monitor(Performance.RENDER_BUFFER_MEM_USED)) / 1048576,
 		Engine.get_frames_per_second(), int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)), _in_cut, LowRes.failed]
@@ -1997,12 +2000,16 @@ static var _dumped_cut := false
 static var _dumped_play := false
 var _measure_t := 0.0
 var _beat_t := 2.0
+var _worst_dt := 0.0
 func _process(delta: float) -> void:
 	_time += delta
-	_beat_t -= delta / maxf(Engine.time_scale, 0.05)
+	var real_dt := delta / maxf(Engine.time_scale, 0.05)
+	_beat_t -= real_dt
+	_worst_dt = maxf(_worst_dt, real_dt)
 	if _beat_t <= 0.0:
 		_beat_t = 5.0
-		crumb("beat " + _mem_line())
+		crumb("beat worst_frame=%dms %s" % [int(_worst_dt * 1000.0), _mem_line()])   # the longest frame of the last five seconds: the lag
+		_worst_dt = 0.0
 	if _measure_from >= 0:
 		_measure_t -= delta
 		if _measure_t <= 0.0:

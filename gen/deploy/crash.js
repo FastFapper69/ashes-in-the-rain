@@ -2,6 +2,28 @@
 // no chance to say so; so the game leaves breadcrumbs in localStorage as it runs, and the next load
 // sends the last ones home if the page did not go away cleanly. Script errors are sent as they happen.
 (function () {
+  // A phone draws the game at most at twice its CSS size: at 3x an iPhone pushes 2.25x the pixels
+  // through every full-screen pass (and the memory for them) for detail nobody sees at arm's length.
+  try {
+    var real = window.devicePixelRatio || 1;
+    Object.defineProperty(window, 'devicePixelRatio', { get: function () { return Math.min(real, 2); }, configurable: true });
+  } catch (e) {}
+  // the engine's memory (the WebAssembly heap) for the crash report's heartbeat lines
+  var wasmMem = null;
+  try {
+    var grab = function (res) {
+      try {
+        var inst = res && (res.instance || res);
+        var ex = inst && inst.exports;
+        for (var k in ex) if (ex[k] instanceof WebAssembly.Memory) wasmMem = ex[k];
+      } catch (e) {}
+      return res;
+    };
+    var oi = WebAssembly.instantiate, ois = WebAssembly.instantiateStreaming;
+    WebAssembly.instantiate = function () { return oi.apply(WebAssembly, arguments).then(grab); };
+    if (ois) WebAssembly.instantiateStreaming = function () { return ois.apply(WebAssembly, arguments).then(grab); };
+  } catch (e) {}
+  window.ashesMem = function () { return wasmMem ? Math.round(wasmMem.buffer.byteLength / 1048576) : -1; };
   var URL_ = 'https://mpxfppuigwvwlfhsnbgr.supabase.co/rest/v1/ashes_reports';
   var KEY = 'sb_publishable_X7rB8j45EHq79TnlzSxxsw_slxNAD8G';
   var BUILD = '__BUILD__';
