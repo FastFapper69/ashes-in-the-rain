@@ -521,7 +521,7 @@ func _ready() -> void:
 			in_menu = true
 			chapter = 0
 			map = 0
-			get_tree().reload_current_scene()
+			_travel(false)   # through black, the old title let go first (a straight reload held both: the phone killed the page)
 		menu.sound = func(n: String) -> void: sfx.play(n, -8.0 if n == "type" else -4.0, INF, 0.15)
 		add_child(menu)
 		_hide_world.call_deferred()
@@ -557,6 +557,14 @@ func _ready() -> void:
 			if _auto.begins_with("dive:"):   # --test=dive:1300 taps the dive button at that x
 				_dive_at = float(_auto.get_slice(":", 1))
 				_auto = "dive"
+	if "--newgame" in OS.get_cmdline_user_args() and in_menu and not _card_up:   # debug: erase, then start the story as a player would
+		get_tree().create_timer(2.0).timeout.connect(func() -> void:
+			MenuScript.erase_progress()
+			_start_map(0, 0))
+	if "--newgame" in OS.get_cmdline_user_args() and not in_menu:
+		get_tree().create_timer(6.0, true, false, true).timeout.connect(func() -> void:
+			print("NEWGAME ALIVE ", chapter, ":", map, " in_cut ", _in_cut)
+			get_tree().quit())
 	if _auto == "hops":   # --test=hops: map after map through reloads, printing the memory each time
 		get_tree().create_timer(4.0, true, false, true).timeout.connect(func() -> void:
 			print("HOP %d:%d  static %d MB (peak %d)  textures %d MB  video %d MB" % [chapter, map,
