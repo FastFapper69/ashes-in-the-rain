@@ -1,10 +1,10 @@
-# ASHES IN THE RAIN – handoff for the next session (14. 11. 2026, 16:55)
+# ASHES IN THE RAIN – handoff for the next session (updated 15. 11. 2026, 11:30)
 
 Read this first when picking the project up in a new chat. Reply to the user in Czech, short. In-game text English, nothing Czech in the story, hero Frank Malone.
 
 ## Where things live
 - GitHub: `FastFapper69/ink-and-lead` – `main` = sources, `gh-pages` = web build (https://fastfapper69.github.io/ink-and-lead/). The user plays on an iPhone 17.
-- PC project folder: `C:\Users\super\Documents\MobileGames\Ink and Lead` (Gemini images in `art_src`, numbered; last used **99**, next is **100**).
+- PC project folder: `C:\Users\super\Documents\MobileGames\Ink and Lead` (Gemini images in `art_src`, numbered; last used **135**, next is **136**).
 - Docs (claude.ai): GDD `aac76a8f-a825-409f-a7d5-7834fe45049d` (tab Úkoly = task list by blocks 1–7), story doc `c223d676-08b8-42df-ae12-8f2cdf9b9dc3`, Gemini briefs `855fd524-d34d-495e-a18c-22e6eefa5dee`.
 - UI rules: `.claude/skills/ui-papir/SKILL.md` (paper.gd kit, mandatory `UI BAD` audit at 1280 and 1560 wide).
 
@@ -12,7 +12,8 @@ Read this first when picking the project up in a new chat. Reply to the user in 
 1. `git clone` the repo (main), download Godot 4.7.2 stable linux + export templates.
 2. `godot --headless --import`
 3. Web export (art/_src holds generator inputs and art kept for later; it is not exported): `godot --headless --export-release Web build/index.html` (pck must stay < 100 MB, now ~94 MB; `export_presets.cfg` exclude_filter keeps unused art out).
-4. Deploy: copy sources into the `main` clone (never copy a `.git` folder over it); commit; copy `build/index.{pck,html,js,wasm}` into a `gh-pages` worktree, commit, push, check `git rev-parse HEAD == origin/gh-pages`.
+4. Deploy: `/home/claude/deploy.sh "msg"` (work in /home/claude/repo; the script copies repo -> this main clone, so edit files ONLY in repo). The web build goes to gh-pages under versioned names `ashes-<md5 of pck>.{pck,wasm,js,audio*.worklet.js}` (/home/claude/version_build.py) so Safari can never mix a cached old pack with a new page. HANDOFF.md lives only in this main clone.
+   The container cannot reach github.io: check a deploy in the built-in browser on the user's PC (Claude_Browser preview_start, javascript_tool reads GODOT_CONFIG.executable).
 5. Commit trailer:
    `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` and the current `Claude-Session:` link.
 
@@ -83,3 +84,21 @@ Read this first when picking the project up in a new chat. Reply to the user in 
 - 15. 11. ráno: podzemní mapy bez oblohy (_build_depth vrací hned), nad zmenšenými kresbami metra zrcadlený tmavší pruh klenby; mezipatro line 0.94 (navazuje na strop bez mezery); pod střechami 4 fasády tenrow_a–d (119, 120), všechny římsou na stejné výšce.
 
 - 15. 11.: Útok trubkou (_tick_pipe: dosah 170, cooldown 6 s, puppet.swing + art/guns/pipe.png z 121; muž leží a pak se vzdá; test --test=pipe). Vnitřní hlas při hp==1 (INNER, 6 hlášek, voice/<md5>.mp3 Gravity, hud.caption, 40 s pauza, ne v prologu; look test --inner). Kesslerův kouř z puff3 (look --smoke). Instincts karty: písmo 16/14/14, kratší texty. Nad interiéry fasáda prosvítá (roof polygon alpha 0.6). Menu karta Santa Lucia místo PIER 21.
+
+
+## 15. 11. 2026 – phone crashes, dream, fixes
+- **Phone memory (iPhone crashed at map ends, after cutscenes, after erasing progress).** Causes and fixes:
+  - Web audio decodes every stream whole: music/rain now 22 kHz mono, piano/jazz/dusk loops 110 s, rain 50 s (decoded ~230 -> ~90 MB). New long audio: keep it short and 22 kHz mono.
+  - Texture streaming (main.gd `_collect_stream`/`_stream_tick`): every Sprite2D/Polygon2D using a big art/street or art/rooms drawing is listed; the texture is loaded within 2600 px of the screen and dropped past 4200 px. Under the title (`_world_off`, set in `_hide_world`) and during cutscenes (`_in_cut`) all of them are dropped. Anything that reads a street sprite's `.texture` after build must not assume it is loaded.
+  - paper.gd `_baked` capped at 40 and `Paper.forget()` called in `_travel` (it grew forever across maps).
+  - Measure: `--test=hops` (map after map, prints texture MB), `--texdump` with any shot test (lists textures in the tree), every `_shot` prints textures/static MB. Desktop numbers: map ~230 MB, title ~190 MB, cut ~200 MB textures.
+  - Erase progress waits 0.8 s before the reload so the web save reaches storage (`menu._erase`). Test: `--test=erase`.
+- **Tutorial hints** wait until a narration caption is gone (hud.gd `_captions`, `_hint_queue`, `_next_hint`).
+- **Red barrels**: art/props/drum_red.png (recoloured drum), BOX_ART modulate 1.7.
+- **Rain** ends at the pavement line on screen (atmosphere.gd RAIN_CUT shader + `set_ground`, splashes follow it); drops live 30 % longer.
+- **Wall lamp** art without its brick patch (art/props/lamp_wall.png cut by script).
+- **Fire**: art/fx/fire/anim.png = 8 hand-inked flame drawings (art_src 135, Gemini sheet 4×2, keyed on black, root fades over the lowest 13 %). main.gd `_flame()` plays them (hframes, 10–14 fps each, random start, sometimes skips a frame; `_tick_flames`). Old FLAME_SHADER removed. In the dream the post grade keeps orange fire (`atmo.set_fire_keep`). Vail Shipping window fires (setpieces FIRES, measured sills) use the same flames.
+- **Shootable searchlights** (setpieces `shoot_light`, beam dead -> no longer `lit`). **Swinging pendants**: `_pendant` returns a pivot node at the ceiling, `_tick_swingers`, light reparented to swing; shot = jolt + swing dies away. Painted room bulbs (ROOM_BULBS) are shootable but do not swing (they are in the painting).
+- **Art still needed from Gemini** (code primitives still on screen): searchlight drum + mast (setpieces `_add_beam` uses Line2D), pendant shade (`_pendant` uses Polygon2D), falling beam for the dream (falls back to crate_long), smoke under the dream's roof. For painted hold/laundry lamps to swing: Gemini "remove the lamp" versions of the room paintings + lamp cutouts.
+- **Voices still missing**: dream panel 70 lines, dream map intro/outro, LOOP_LINES. Artlist voice settings above; quoted lines are not voiced.
+- **Next**: interlude maps after ch II (1931 tenement fire) and ch III (Rosie, Eddie memory); ch IV plan; story doc update; feedback round (self + Gemini) over scaling, continuity, transitions, story, effects, UI.
