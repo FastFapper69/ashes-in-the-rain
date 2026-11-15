@@ -381,6 +381,7 @@ func _add_print_sheet() -> void:
 
 
 func _ready() -> void:
+	if _auto_arg() == "hops": print("READY ", chapter, ":", map)
 	_add_print_sheet()
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--chapter="):
@@ -556,6 +557,20 @@ func _ready() -> void:
 			if _auto.begins_with("dive:"):   # --test=dive:1300 taps the dive button at that x
 				_dive_at = float(_auto.get_slice(":", 1))
 				_auto = "dive"
+	if _auto == "hops":   # --test=hops: map after map through reloads, printing the memory each time
+		get_tree().create_timer(4.0, true, false, true).timeout.connect(func() -> void:
+			print("HOP %d:%d  static %d MB (peak %d)  textures %d MB  video %d MB" % [chapter, map,
+				OS.get_static_memory_usage() / 1048576, OS.get_static_memory_peak_usage() / 1048576,
+				int(Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED)) / 1048576,
+				int(Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED)) / 1048576])
+			map += 1
+			if map >= (Levels.CAMPAIGN[chapter]["maps"] as Array).size():
+				chapter += 1
+				map = 0
+			if not Levels.CAMPAIGN[chapter]["ready"]:
+				get_tree().quit()
+				return
+			_travel(true))
 	if _auto == "pause":   # --test=pause: the pause card, then its settings
 		get_tree().create_timer(1.0, true, false, true).timeout.connect(_pause)
 		get_tree().create_timer(2.0, true, false, true).timeout.connect(_shot.bind("pause"))
@@ -1726,7 +1741,7 @@ func _process(delta: float) -> void:
 			if _at > 7.1:
 				get_tree().quit()
 		return
-	if _auto != "" and not _auto.begins_with("cut:"):
+	if _auto != "" and not _auto.begins_with("cut:") and _auto != "hops":
 		_auto_step(delta)
 	if _auto == "poses":
 		return
@@ -4110,6 +4125,17 @@ func _travel(card: bool) -> void:
 	l.to_menu = in_menu or not card
 	l.then = func() -> void:
 		_card_up = true
+		# The card covers the screen: let go of this map's drawings first and give the browser a few
+		# frames to hand the memory back, so the old map and the new one are never held at once
+		# (on a phone that peak was enough for the browser to kill the page and load it again).
+		set_process(false)
+		set_physics_process(false)
+		for n in get_children():
+			n.queue_free()
+		for k in 4:
+			await get_tree().process_frame
+		if _auto == "hops":
+			print("  between maps: textures %d MB" % (int(Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED)) / 1048576))
 		get_tree().reload_current_scene()
 	get_tree().root.add_child(l)
 
