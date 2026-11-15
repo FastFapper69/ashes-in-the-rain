@@ -436,6 +436,7 @@ func _fetch_pack() -> void:
 	var req := HTTPRequest.new()
 	req.download_file = file
 	req.use_threads = false
+	req.accept_gzip = false   # the browser has already unpacked what GitHub sent gzipped
 	add_child(req)
 	var tick := Timer.new()
 	tick.wait_time = 0.3
