@@ -6,13 +6,14 @@ const DIR := "res://sfx/"
 const NAMES := ["shot_player", "shot_enemy", "shot_tommy", "shot_shotgun", "hit_flesh", "hit_cover", "clink", "casing",
 		"slow_in", "slow_out", "dive", "land", "body_fall", "step1", "step2", "whiz", "death_sting", "explosion", "glass",
 		"pickup", "drink", "flutter", "dry_fire", "reload_revolver", "reload_mag", "reload_shells", "reload_done",
-		"thunder", "coo", "wing", "knock", "foghorn", "cuffs", "drawer", "punch", "cup", "hammer", "toast", "creak", "resolve", "drip", "wood_break", "wood_hit", "zap", "type", "page", "skid", "phone_ring", "match", "sting", "car_arrive", "door", "power_down", "chain", "train_pass", "cyl_open", "shell_in", "cyl_spin"]
+		"thunder", "coo", "wing", "knock", "foghorn", "cuffs", "drawer", "punch", "cup", "hammer", "toast", "creak", "resolve", "drip", "wood_break", "wood_hit", "zap", "type", "page", "skid", "phone_ring", "match", "sting", "car_arrive", "door", "power_down", "chain", "train_pass", "cyl_open", "shell_in", "cyl_spin", "collapse", "beams"]
 const LOOPS := ["train_loop", "fire", "neon_hum", "lamp_hum", "steam", "city", "heartbeat", "siren", "crowd", "water", "rain_in",
 		"music_base", "music_lead", "music_tension", "music_fight"]
 const STEMS := ["music_base", "music_lead", "music_tension", "music_fight"]   # all four run in step; only their levels move
 ## The jazz (Artlist: The Magnetic Buzz - Keep Your Head Down; Rotem Cinamon - Dusk). It takes the place of the
 ## base and lead stems whenever nothing is fighting; a fight hands over to the drawn stems again.
-const MELODIES := {"jazz": "music_jazz", "dusk": "music_dusk", "gnossienne": "music_gnossienne", "melancholia": "music_melancholia", "broken_trust": "music_broken_trust"}
+const MELODIES := {"jazz": "music_jazz", "dusk": "music_dusk", "gnossienne": "music_gnossienne", "melancholia": "music_melancholia", "broken_trust": "music_broken_trust",
+		"dream_fire": "music_dream_fire"}   # the burning warehouse of the dream (Artlist: Alon Peretz - Fire and Ice)
 const VOICES := 20
 const HEAR := 2600.0   # world pixels from the listener at which a sound has faded out
 
@@ -289,6 +290,20 @@ func play(sound: String, volume_db := 0.0, at_x := INF, vary := 0.06) -> void:
 	p.volume_db = vol
 	p.pitch_scale = randf_range(1.0 - vary, 1.0 + vary) * lerpf(1.0, 0.62, slow)
 	p.play()
+
+
+## The roar of a whole building on fire, everywhere at once (the dream; Artlist: Sam Fourie - Rampaging
+## Forest Fire). Loaded only there: on the web every stream is decoded whole into memory.
+var _bed_fire: AudioStreamPlayer
+func fire_bed(db: float) -> void:
+	if _bed_fire == null:
+		_bed_fire = AudioStreamPlayer.new()
+		_bed_fire.stream = _looped("fire_bed")
+		_bed_fire.bus = "SFX"
+		add_child(_bed_fire)
+		_bed_fire.volume_db = -40.0
+		_bed_fire.play()
+	_bed_fire.create_tween().tween_property(_bed_fire, "volume_db", db, 2.5)
 
 
 ## A cutscene starts its piece from the top, so its opening bars are heard.

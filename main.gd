@@ -1578,6 +1578,9 @@ func _tick_birds(delta: float) -> void:
 func _tick_music() -> void:
 	if _in_cut:   # the cutscene sets its own music and sound
 		return
+	if level.get("dream", false):
+		_tick_dream_sound()
+		return
 	sfx.melody = "jazz"
 	sfx.rain_want = 0.0 if level.get("under", false) else _rain()
 	sfx.indoor = move_toward(sfx.indoor, 1.0 if _room_at(player.position.x) != "" else 0.0, get_process_delta_time() * 2.0)
@@ -1615,6 +1618,39 @@ func _tick_music() -> void:
 		sfx.music_want = [-17.0, -80.0, -17.0, -80.0]
 	else:
 		sfx.music_want = [-18.0, -20.0, -80.0, -80.0]
+
+
+## The dream's sound: its own piece instead of the jazz (Alon Peretz - Fire and Ice), the whole building
+## roaring underneath, and every few seconds it groans, a beam gives, glass bursts, near a fire he can see.
+func _tick_dream_sound() -> void:
+	if not _dream_music_on:
+		_dream_music_on = true
+		sfx.melody_from_start("dream_fire")
+		sfx.fire_bed(-11.0)
+	sfx.melody = "dream_fire"
+	sfx.rain_want = 0.0
+	var fighting := false
+	for e in enemies:
+		if e["alive"] and e["seen"] and absf(e["node"].position.x - player.position.x) < 2300.0:
+			fighting = true
+	# calm keeps the piece on its own; in a fight the tension stem comes in under it
+	sfx.music_want = [-80.0, -80.0, -80.0, -80.0] if over else [-80.0, -8.0, -24.0 if fighting else -80.0, -80.0]
+	_dream_event_t -= get_process_delta_time()
+	if _dream_event_t <= 0.0 and not over and not _dream_fires.is_empty():
+		_dream_event_t = randf_range(4.0, 9.0)
+		var near: Array = []
+		for f in _dream_fires:
+			if absf((f as Vector2).x - player.position.x) < 1500.0:
+				near.append(f)
+		if near.is_empty():
+			return
+		var at: Vector2 = near.pick_random()
+		var what: String = ["collapse", "beams", "beams", "glass", "creak", "wood_break"].pick_random()
+		sfx.play(what, -4.0 if what in ["collapse", "beams"] else -8.0, at.x, 0.08)
+		if what == "collapse":   # a ceiling coming down: the ground shakes and sparks fly up from it
+			_shake = maxf(_shake, 0.08)
+			for k in 5:
+				fx.spark(at + Vector2(randf_range(-160.0, 160.0), randf_range(-260.0, -40.0)))
 
 
 ## The sky: clouds drifting, and now and then lightning far off, the thunder a moment later.
@@ -5754,6 +5790,9 @@ const FIRE_SPOTS := {
 	"fire_c": [[0.307, 0.84, 0.375, 0.266], [0.768, 0.762, 0.198, 0.19], [0.929, 0.901, 0.147, 0.094], [0.105, 0.443, 0.195, 0.085],
 		[0.675, 0.286, 0.099, 0.137], [0.929, 0.493, 0.135, 0.093], [0.218, 0.24, 0.108, 0.057]],
 }
+var _dream_fires: Array = []   # where the fires stand: the building groans and gives way near them
+var _dream_event_t := 3.0
+var _dream_music_on := false
 var _fire_glows: Array = []   # [sprite, phase]: the painted fire's glow layers, breathing
 var _fire_lights: Array = []  # [PointLight2D, base energy, phase]: firelight on the people in front of it
 
@@ -5785,7 +5824,8 @@ func _fire_life(w: Sprite2D, glow: Sprite2D, seg_name: String, ws: float) -> voi
 			l.range_item_cull_mask = MASK_LIT
 			add_child(l)
 			_fire_lights.append([l, 1.1, randf() * 10.0])
-		sfx.add_loop("fire", foot.x, -40.0, 900.0, foot.y)
+		sfx.add_loop("fire", foot.x, -20.0, 1300.0, foot.y)   # crackle and roar where it burns (Artlist: Barney Oram - Flames)
+		_dream_fires.append(foot)
 		k += 1
 
 
