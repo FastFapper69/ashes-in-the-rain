@@ -17,6 +17,7 @@ uniform float dot_size = 4.0;
 uniform float halftone = 0.16;
 uniform float slow = 0.0;
 uniform vec2 registration = vec2(1.6, 1.0);
+uniform float lift = 0.0;   // 0 = Sin City blacks; 1 = the darks opened up so walls in the dark keep their lines
 uniform float fire_keep = 0.0;   // 1 in the dream: the flames are not greyed with the rest
 uniform float ash = 0.0;   // 0..1, Frank's guilt: the paper greys, the amber dies, the rain goes to soot   // screen pixels between the ink and the colour plates
 
@@ -40,7 +41,8 @@ void fragment() {
 	float warm = smoothstep(0.08, 0.25, cc.r - cc.b) * smoothstep(0.28, 0.55, lc);
 	float t = clamp((l - black_point) / (white_point - black_point), 0.0, 1.0);
 	t = pow(mix(t, t * t * (3.0 - 2.0 * t), 0.5), 0.85);   // firm blacks, open grey mid-tones
-	vec3 mono = mix(ink, paper, t);
+	t = mix(t, pow(t, 0.62), lift);
+	vec3 mono = mix(mix(ink, vec3(0.12, 0.115, 0.11), lift), paper, t);
 	// amber belongs to the light sources: painted orange washes fade toward the newsprint grey
 	vec3 amber = mix(vec3(lc), cc, 0.3) * vec3(1.1, 0.93, 0.7);
 	vec3 col = mix(mono, amber, warm * 0.55);
@@ -116,6 +118,10 @@ func add_post(parent: Node) -> void:
 	_post = mat
 	layer.add_child(rect)
 	post_layer = layer
+
+
+func set_lift(amount: float) -> void:
+	_post.set_shader_parameter("lift", amount)
 
 
 func set_fire_keep(amount: float) -> void:

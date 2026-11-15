@@ -12,7 +12,8 @@ const HudScript = preload("res://hud.gd")
 const PPM := 200.0
 const WALL_SCALE := 1.9         # sized so a doorway on the wall drawing is a little taller than a man
 const WALL_LIFT := 60.0         # the wall stands at the back of the pavement
-const SHOULDER := Vector2(0.0, -1.45 * 200.0)
+const FIG := 1.18   # figures are drawn 18 % bigger than at first (Gemini audit, the user agreed); cover props and the jump grew with them
+const SHOULDER := Vector2(0.0, -1.45 * 200.0 * FIG)
 
 # Night: everything a light does not reach sinks to this colour.
 const AMBIENT := Color(0.2, 0.21, 0.27)
@@ -36,7 +37,7 @@ const ZOOM := 0.45
 # The fire-escape catwalk: he can jump up onto it from the long crate and drop off its ends.
 # Where the mobsters stand: x, and the height of what they stand on.
 # A mobster with cover close in front of him crouches behind it and pops up to shoot.
-const DUCK_DROP := 116.0   # how much lower the chest is when crouched, px
+const DUCK_DROP := 116.0 * FIG   # how much lower the chest is when crouched, px
 const Levels = preload("res://levels.gd")   # the chapters, made by gen/levels.py
 const RUNNER_SPEED := 560.0
 const MenuScript = preload("res://menu.gd")
@@ -53,6 +54,7 @@ const FLAME_FRAMES := 8
 var _flames: Array = []
 var _flame_mat: CanvasItemMaterial
 static var _erased := false   # test: the erase went through, this is the title after it
+var _cones: bool = "--cones" in OS.get_cmdline_user_args()   # test comparisons: inked light cones
 static var _card_up := false   # a title card is covering the screen across the reload: lift it once built
 var sets   # setpieces.gd: cars, blackouts, searchlights, fires, the crane's crate
 var _in_cut := false
@@ -205,11 +207,11 @@ const BULLET_SPEED := 4200.0
 const PLAYER_HP := 5
 const MOBSTER_HP := 3
 const GRAVITY := 3000.0
-const JUMP_SPEED := 1300.0   # clears the 230 px cover with room to spare
+const JUMP_SPEED := 1300.0 * 1.0863   # sqrt(FIG): clears the (bigger) cover with the same room to spare
 const RUN_SPEED := 640.0
 const RUN_ACCEL := 4200.0   # he gets up to speed and stops over a few steps, not in one frame
 const DIVE_SPEED := Vector2(1250.0, -900.0)
-const VAULT_MAX := 270.0   # a dive carries him over anything up to this tall instead of stopping dead
+const VAULT_MAX := 270.0 * FIG   # a dive carries him over anything up to this tall instead of stopping dead
 const DIVE_LAND := 125.0   # lying flat, the figure's origin sits this far below the pavement line
 const SLOW_SCALE := 0.3   # how fast time runs while it is slowed
 const CAM_Y := -508.0     # puts the pavement about four fifths of the way down the screen
@@ -508,6 +510,10 @@ func _ready() -> void:
 		atmo.rain_near.emitting = false
 	atmo.add_post(self)
 	atmo.set_ash(MenuScript.guilt() / 10.0)
+	atmo.set_lift(0.2)   # the darkest darks opened a little: walls in the dark keep their lines (the user: a fifth of the trial)
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--lift="):
+			atmo.set_lift(float(a.trim_prefix("--lift=")))
 	if level.get("dream", false):   # (not in the street memories: there it turns every lit shop window orange)
 		atmo.set_fire_keep(1.0)
 	# the ash thickens with what Frank has done: men shot with their hands up stay in the air
@@ -747,6 +753,9 @@ func _build_street() -> void:
 			beam.position = at + Vector2(0.0, 256.0 * 1.35)
 			beam.material = additive
 			beam.modulate = Color(0.0, 0.0, 0.0)   # switched off: the plain lamp glow read better
+			if _cones:
+				beam.texture = load("res://art/light_cone_ink.png")
+				beam.modulate = _undo_night(0.22) * LAMP_COLOR
 			beam.z_index = -6
 			add_child(beam)
 			rec["nodes"].append(beam)
@@ -964,6 +973,18 @@ func _build_segments() -> void:
 			fix.position = at
 			fix.z_index = -7
 			add_child(fix)
+			if _cones:   # (comparison) an inked cone of light down from the lamp
+				var cone := Sprite2D.new()
+				cone.texture = load("res://art/light_cone_ink.png")
+				cone.centered = false
+				cone.offset = Vector2(-256.0, 0.0)
+				cone.scale = Vector2(1.1, 1.5)
+				cone.position = at + Vector2(0.0, 6.0)
+				cone.material = additive
+				cone.modulate = _undo_night(0.22) * LAMP_COLOR
+				cone.z_index = -6
+				add_child(cone)
+				rec["nodes"].append(cone)
 			var halo := Sprite2D.new()
 			halo.texture = halo_tex
 			halo.scale = Vector2.ONE * 1.0   # tight round the glass: a wide soft disc reads as a blob, not light
@@ -4537,9 +4558,10 @@ func _build_level() -> void:
 	for spec in level["boxes"]:
 		var kind := String(spec[0])
 		var art: String = BOX_ART[kind][0] if BOX_ART.has(kind) else kind
-		var bw := float(spec[2])
-		var bh := float(spec[3])
-		var place := _place_at(float(spec[1]) + bw * 0.5)
+		var grow: float = 1.0 if kind in ["stack", "car"] else FIG   # a cargo stack is sized to the rope that swings over it
+		var bw := float(spec[2]) * grow
+		var bh := float(spec[3]) * grow
+		var place := _place_at(float(spec[1]) + float(spec[2]) * 0.5)
 		var choices: Array = (PROP_SETS.get(place, {}) as Dictionary).get(kind, [])
 		var local: bool = kind != "barrel" and not choices.is_empty() and (spec.size() <= 4 or float(spec[4]) == 0.0)   # up on the roof: tar drums and builders' crates
 		if local:   # the same spot always gets the same thing
@@ -4549,7 +4571,7 @@ func _build_level() -> void:
 		s.texture = tex
 		s.centered = false
 		var inset: float = TOP_INSET.get(art, 0.05)
-		var cx := float(spec[1]) + bw * 0.5
+		var cx := float(spec[1]) + float(spec[2]) * 0.5   # grown round its own middle, not into the next one
 		var base := float(spec[4]) if spec.size() > 4 else 0.0   # up on the roof, or on the street
 		var sx: float
 		var sy: float
@@ -4579,9 +4601,9 @@ func _build_level() -> void:
 				why = "indoor thing outdoors"
 			elif art in OUTDOOR_ONLY and place.begins_with("room:"):
 				why = "street thing indoors"
-			elif top < 110.0:
+			elif top < 110.0 * FIG:
 				why = "too small beside a man"
-			elif top > 262.0 and kind != "bar" and kind != "stack":   # a cargo stack is meant to be swung over
+			elif top > 262.0 * FIG and kind != "bar" and kind != "stack":   # a cargo stack is meant to be swung over
 				why = "too tall to get over: it would block the street"
 			if why != "":
 				print("AUDIT BAD ", why, ": ", art, " in ", place, " at ", cx, " top ", top)
@@ -5776,7 +5798,7 @@ func _player_covered(side: float) -> bool:
 			continue
 		var near_edge: float = bx.position.x if side > 0.0 else bx.end.x
 		var gap: float = (near_edge - player.position.x) * side
-		if gap > -10.0 and gap < 260.0 and bx.size.y > 200.0:
+		if gap > -10.0 and gap < 260.0 * FIG and bx.size.y > 200.0 * FIG:
 			return true
 	return false
 
@@ -6361,9 +6383,9 @@ func _tick_aim_line() -> void:
 const LADDER_W := 125.0       # rail to rail
 const LADDER_PROUD := 230.0   # how far it stands up past the deck it leans on
 const LADDER_HANDS := 200.0   # his hands at the top, before he steps off onto the deck
-const ROPE_REACH := 392.0       # feet to fists, arms straight up (the puppet's hang_top: 1.95 m)
+const ROPE_REACH := 392.0 * FIG       # feet to fists, arms straight up (the puppet's hang_top: 1.95 m)
 const SWING_ANCHOR := -1460.0   # the crane's jib, above the top of the picture
-const SWING_BOTTOM := -650.0   # the rope's end: within reach of a jump
+const SWING_BOTTOM := -650.0 - 392.0 * (FIG - 1.0)   # the rope's end: within reach of a jump; higher by what his longer arms add, so his feet still clear the stacks
 const SWING_AMP := 1.33         # how far out he swings (radians)
 const SWING_LET_GO := 0.98      # and where he lets go, on the way up
 var _ropes: Array = []
