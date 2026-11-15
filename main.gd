@@ -1058,6 +1058,9 @@ const SEGMENT_GAIN := {"alley": 0.92, "bluenote": 0.98, "warehouse": 0.9, "laund
 		"platform": 0.95, "tunnel": 1.12, "yard": 0.85, "station14": 0.9,
 		"bowery": 0.92, "walkway": 1.0, "pump": 0.95, "tunnel_lo": 1.12, "signal": 1.0, "arches": 1.0}
 # A drawing whose doors and bins came out too big for a man is shown smaller (gen/levels.py SEG_SIZE).
+# variants of a kit (gen/levels.py KIT, art_src 164-168): their own picture, the kit's everything else
+const SEGMENT_KIT := {"walkway_b": "walkway", "signal_b": "signal", "arches_b": "arches", "tunnel_lo_b": "tunnel_lo",
+	"yard_b": "yard", "tunnel_b": "tunnel"}
 const SEGMENT_SIZE := {"deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
 	"signal": 0.52, "arches": 0.52, "sheds": 0.55, "fire_a": 0.605, "fire_b": 0.605, "fire_c": 0.605}
 # A drawing whose floor runs into the depth: where on it a man's feet go, as a share of its height (the
@@ -1083,11 +1086,12 @@ func _build_segments() -> void:
 	var unshaded := CanvasItemMaterial.new()
 	unshaded.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
 	for seg in level["street"]:
-		var seg_name := String(seg[0])
+		var art := String(seg[0])   # the picture; a variant (SEGMENT_KIT) is its kit in everything else
+		var seg_name := String(SEGMENT_KIT.get(art, art))
 		var ws: float = WALL_SCALE * float(SEGMENT_SIZE.get(seg_name, 1.0))
 		_sign_scale = ws
 		var x0 := float(seg[1])
-		var diffuse: Texture2D = BigTex.get_tex("res://art/street/" + seg_name + ".png")
+		var diffuse: Texture2D = BigTex.get_tex("res://art/street/" + art + ".png")
 		var w := Sprite2D.new()   # no normal map: lamplight falls on the drawing as it is, like the moonlit wash
 		w.texture = diffuse
 		w.centered = false
@@ -1126,7 +1130,7 @@ func _build_segments() -> void:
 		for r in SEGMENT_DEEP.get(seg_name, []):
 			_add_deep(diffuse, w, r as Rect2, trim, seg_name)
 		var glow := Sprite2D.new()   # its lit windows and signs, pushed through the night at full strength
-		glow.texture = load("res://art/street/" + seg_name + "_lit.png")
+		glow.texture = load("res://art/street/" + art + "_lit.png")
 		glow.centered = false
 		glow.region_enabled = true   # the glow layer is stored at half size
 		glow.region_rect = Rect2(trim * 0.5, 0.0, glow.texture.get_width() - trim * 0.5, glow.texture.get_height())
@@ -1137,7 +1141,7 @@ func _build_segments() -> void:
 		glow.z_index = -9
 		add_child(glow)
 		var host := Sprite2D.new()   # blood lands only on what is solid in the drawing: see _stain_host
-		host.texture = load("res://art/street/" + seg_name + "_solid.png")
+		host.texture = load("res://art/street/" + art + "_solid.png")
 		host.centered = false
 		host.region_enabled = true
 		host.region_rect = Rect2(trim * 0.5, 0.0, host.texture.get_width() - trim * 0.5, host.texture.get_height())
@@ -6229,7 +6233,7 @@ func _place_at(x: float) -> String:
 	var seg := ""
 	for sg in level.get("street", []):
 		if x >= float(sg[1]):
-			seg = String(sg[0])
+			seg = String(SEGMENT_KIT.get(String(sg[0]), String(sg[0])))   # a variant is its kit
 	return seg
 
 

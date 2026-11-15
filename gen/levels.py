@@ -27,8 +27,16 @@ SEG_SIZE = {"deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.
 UNDER_ROOF = ["tenrow_a", "tenrow_c", "tenrow_b", "tenrow_d"]   # the facades under the rooftops: their cornice meets the roof drawings   # shown smaller: see main.gd SEGMENT_SIZE
 STREET_POOL = ["alley", "warehouse", "laundry", "subway", "church", "market"]
 DOCKS_POOL = ["pier17", "cranes", "shipping", "quay", "sheds"]   # (the harbor with its lighthouse: only the Harbor Master's own)
-UNDER_POOL = ["walkway", "tunnel_lo", "signal", "arches"]   # the pump room (art_src 106) is drawn at four times a man: not used
-TRACKLESS = {"pump", "arches"}   # (the arches have a handcar standing on the rails)   # no rails in the drawing: a passing train may not be in sight of it
+# variants (2026-11-15): the same kit redrawn with other details over the same floor, rails, edges and lamps,
+# so a map does not show one drawing again and again; everything about them but the picture is the kit's
+KIT = {"walkway_b": "walkway", "signal_b": "signal", "arches_b": "arches", "tunnel_lo_b": "tunnel_lo",
+       "yard_b": "yard", "tunnel_b": "tunnel"}
+for _v, _k in KIT.items():
+    SEGMENTS[_v] = SEGMENTS[_k]
+    if _k in SEG_SIZE:
+        SEG_SIZE[_v] = SEG_SIZE[_k]
+UNDER_POOL = ["walkway", "tunnel_lo", "signal", "arches", "walkway_b", "signal_b", "arches_b", "tunnel_lo_b"]   # the pump room (art_src 106) is drawn at four times a man: not used
+TRACKLESS = {"pump", "arches", "arches_b"}   # (the arches have a handcar standing on the rails)   # no rails in the drawing: a passing train may not be in sight of it
 CRANE_CRATE = (0.3863 + 0.0783 / 2)   # where the crate hangs in the crane yard drawing (see main.gd CRANE_CUT)
 F1, F2 = -370.0, -740.0   # floor heights: first and second storey
 JUMP_REACH = 282.0
@@ -365,6 +373,8 @@ def street(mp, m, rng):
             x += SEGMENTS[name] * 1.9 * SEG_SIZE[name]
             k += 1
     pool = [s for s in mp.get("pool", STREET_POOL) if s != mp.get("feature")] or [mp["feature"]]
+    if len(pool) < 2:   # a map of one kit and its variant: the feature takes its turns too
+        pool = list(mp.get("pool", STREET_POOL))
     last = None
     i = 0
     roof_a = m.roof[2][0][1] - 4000 if m.roof else None
@@ -387,6 +397,9 @@ def street(mp, m, rng):
             ok = lambda s: s not in TRACKLESS or not any(x - 3500 < t < x + SEGMENTS[s] * 1.9 + 1000 for t in trains)
             cand = [s for s in pool if ok(s)] or pool
             cand = [s for s in cand if s != last] or cand   # never the same twice in a row
+            cand = [s for s in cand if KIT.get(s, s) != KIT.get(last, last)] or cand   # nor a kit next to its own variant
+            if i == 0:   # nor the one the feature is about to show next to it
+                cand = [s for s in cand if s != mp.get("feature")] or cand
             cand = sorted(cand, key=lambda s: used.count(s))   # and the least used first
             least = [s for s in cand if used.count(s) == used.count(cand[0])]
             name = rng.choice(least)
@@ -605,12 +618,12 @@ CAMPAIGN = [
      "intro": ["Down here the dark has a sound. It sounds like trains that never come."],
      "diary": "Dec 14. Found a fireman's helmet in a pawnshop on Ninth. Engine 54. Same company as Frank's old man. The pawnbroker said a cop sold it. Years ago.",
      "outro": ["Briggs was counting his shells out loud somewhere behind me. A man who counts like that has never missed."]},
-    {"name": "TRAIN YARD", "seed": 303, "feature": "yard", "pool": ["yard"], "cops": True, "rain": 1.6, "start": 0.55, "end": 0.8, "ash": 0.4,
+    {"name": "TRAIN YARD", "seed": 303, "feature": "yard", "pool": ["yard", "yard_b"], "cops": True, "rain": 1.6, "start": 0.55, "end": 0.8, "ash": 0.4,
      "fixed": ["drum_duo", "car_ambush", "searchlight_yard", "crane_swing", "crate_cover", "blackout", "gauntlet"],
      "intro": ["The yard was the only way out that didn't have a badge standing in it."],
      "diary": "Dec 15. 1931. A tenement on West 47th burned with nine families inside. Engine 54 got there first. One fireman went in for the kids and didn't come out. Patrick Malone.",
      "outro": ["The last train out of the yard was an empty one. I've never been so glad of an empty thing."]},
-    {"name": "THE LAST TRAIN", "seed": 304, "feature": "tunnel", "pool": ["tunnel"], "under": True, "cops": True, "moving": 2600, "start": 0.55, "end": 0.85, "ash": 0.0,
+    {"name": "THE LAST TRAIN", "seed": 304, "feature": "tunnel", "pool": ["tunnel", "tunnel_b"], "under": True, "cops": True, "moving": 2600, "start": 0.55, "end": 0.85, "ash": 0.0,
      "fixed": ["roof_vents", "breather", "roof_rush", "roof_vents", "breather", "roof_rush", "roof_vents"],
      "intro": ["They caught up with me on the roof of the express. Fifty feet of tunnel to every second, and the girders hang low."],
      "hints": [[2400, "RED LIGHT: A GIRDER. GET DOWN."]],
