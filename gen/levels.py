@@ -25,12 +25,14 @@ SUB = 0.52
 SEG_SIZE = {"deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": SUB, "walkway": SUB, "bowery": SUB, "tunnel_lo": SUB,
             "signal": SUB, "arches": SUB, "sheds": 0.55, "fire_a": 0.605, "fire_b": 0.605, "fire_c": 0.605}
 UNDER_ROOF = ["tenrow_a", "tenrow_c", "tenrow_b", "tenrow_d"]   # the facades under the rooftops: their cornice meets the roof drawings   # shown smaller: see main.gd SEGMENT_SIZE
-STREET_POOL = ["alley", "warehouse", "laundry", "subway", "church", "market"]
+STREET_POOL = ["alley", "warehouse", "laundry", "subway", "church", "market",
+               "alley_b", "warehouse_b", "laundry_b", "subway_b", "church_b", "market_b", "market_c"]
 DOCKS_POOL = ["pier17", "cranes", "shipping", "quay", "sheds", "pier17_b", "shipping_b", "quay_b", "sheds_b"]   # (the harbor with its lighthouse: only the Harbor Master's own)
 # variants (2026-11-15): the same kit redrawn with other details over the same floor, rails, edges and lamps,
 # so a map does not show one drawing again and again; everything about them but the picture is the kit's
 KIT = {"walkway_b": "walkway", "signal_b": "signal", "arches_b": "arches", "tunnel_lo_b": "tunnel_lo",
-       "yard_b": "yard", "tunnel_b": "tunnel", "sheds_b": "sheds", "pier17_b": "pier17", "shipping_b": "shipping", "quay_b": "quay"}
+       "yard_b": "yard", "tunnel_b": "tunnel", "sheds_b": "sheds", "pier17_b": "pier17", "shipping_b": "shipping", "quay_b": "quay",
+       "laundry_b": "laundry", "alley_b": "alley", "warehouse_b": "warehouse", "church_b": "church", "subway_b": "subway", "market_b": "market", "market_c": "market"}
 for _v, _k in KIT.items():
     SEGMENTS[_v] = SEGMENTS[_k]
     if _k in SEG_SIZE:
@@ -253,14 +255,44 @@ def chunk(name, hard):
 def build(mp):
     """Built again with the ironwork moved along until every fire escape hangs on solid wall."""
     nudge = {}
+    plain = dict(mp, plain=True)   # the layout is found on the kits alone, so the variants never move a fight
     for tries in range(60):
-        m = _build(mp, nudge)
+        m = _build(plain, nudge)
         bad = [i for i, xa, xb, ya, yb in m.iron if facade(m.street, xa, xb, ya, yb) < 0.93]
         if not bad or mp.get("pool") is DOCKS_POOL:
-            return m
+            break
         nudge[bad[0]] = nudge.get(bad[0], 0) + 160
-    print("  no wall found for the ironwork of", mp["name"])
-    return m
+    else:
+        print("  no wall found for the ironwork of", mp["name"])
+        return m
+    # the same map with the variants among the drawings; where a fire escape would hang in front of a
+    # variant's sky, the kit's own drawing (same width, so nothing moves) goes back under it
+    v = _build(mp, nudge)
+    for _ in range(20):
+        bad = [(xa, xb) for i, xa, xb, ya, yb in v.iron if facade(v.street, xa, xb, ya, yb) < 0.93]
+        if not bad or mp.get("pool") is DOCKS_POOL:
+            break
+        xa, xb = bad[0]
+        pool = mp.get("pool", STREET_POOL)
+        for k, (name, x0) in enumerate(v.street):
+            if name in KIT and x0 < xb and x0 + SEGMENTS[name] * 1.9 * SEG_SIZE.get(name, 1.0) > xa:
+                # another drawing of the same width (so nothing moves) with wall where the iron hangs:
+                # the least used, never next to its own kit; the kit itself if nothing else holds
+                used = [q[0] for q in v.street]
+                nb = [v.street[j][0] for j in (k - 1, k + 1) if 0 <= j < len(v.street)]
+                cands = [c for c in pool if SEGMENTS[c] == SEGMENTS[name] and SEG_SIZE.get(c, 1.0) == SEG_SIZE.get(name, 1.0)
+                         and KIT.get(c, c) not in [KIT.get(n, n) for n in nb]]
+                ok = []
+                for c in sorted(cands, key=lambda c: used.count(c)):
+                    trial = [list(q) for q in v.street]
+                    trial[k] = [c, x0]
+                    if facade(trial, xa, xb, *[(ya, yb) for i, a2, b2, ya, yb in v.iron if (a2, b2) == (xa, xb)][0]) >= 0.93:
+                        ok.append(c)
+                        break
+                v.street[k] = [ok[0] if ok else KIT[name], x0]
+        if [(xa2, xb2) for i, xa2, xb2, ya, yb in v.iron if facade(v.street, xa2, xb2, ya, yb) < 0.93] == bad:
+            break
+    return v
 
 
 def _build(mp, nudge):
@@ -372,9 +404,9 @@ def street(mp, m, rng):
             seq.append([name, x])
             x += SEGMENTS[name] * 1.9 * SEG_SIZE[name]
             k += 1
-    pool = [s for s in mp.get("pool", STREET_POOL) if s != mp.get("feature")] or [mp["feature"]]
+    pool = [s for s in mp.get("pool", STREET_POOL) if s != mp.get("feature") and not (mp.get("plain") and s in KIT)] or [mp["feature"]]
     if len(pool) < 2:   # a map of one kit and its variant: the feature takes its turns too
-        pool = list(mp.get("pool", STREET_POOL))
+        pool = [s for s in mp.get("pool", STREET_POOL) if not (mp.get("plain") and s in KIT)]
     last = None
     i = 0
     roof_a = m.roof[2][0][1] - 4000 if m.roof else None
@@ -529,7 +561,7 @@ def draw(m, name, path):
     im.save(path)
 
 
-PROLOGUE = {"name": "THE LAST NOTE", "seed": 1, "feature": "bluenote", "start": 0.0, "end": 0.2, "extra": last_stand,
+PROLOGUE = {"name": "THE LAST NOTE", "seed": 1, "feature": "bluenote", "pool": ["alley", "warehouse", "laundry", "subway", "church", "market"], "start": 0.0, "end": 0.2, "extra": last_stand,
     "fixed": ["breather", "crate_cover", "drum_duo", "barrel_trap", "rush"],
     "hints": [[200, "DRAG THE STICK TO MOVE"], [1500, "TAP ANYWHERE TO SHOOT THERE"], [2700, "PULL THE STICK DOWN TO HIDE BEHIND COVER"],
               [4300, "THE RUNNING MAN BUTTON DIVES OVER CRATES"], [6100, "SHOOT THE RED BARREL"], [7900, "TAP THE STOPWATCH TO SLOW TIME"]],
@@ -599,7 +631,7 @@ CAMPAIGN = [
      "diary": "Dec 12. If anything happens to me, the report is in the harbor office, second drawer. Frank, if you're reading this, then you already know that I know.",
      "outro": ["Kessler gave me a key on a chain. It had been warm against his chest for eight years.", "In the second drawer, the report. At the bottom, a name I knew better than my own."]},
     # between chapters II and III: in the back of Rourke's car Frank is seventeen again (2026-11-15)
-    {"name": "1931", "seed": 206, "feature": "laundry", "memory": True, "pool": ["laundry", "market", "alley"], "rain": 0.0,
+    {"name": "1931", "seed": 206, "feature": "laundry", "memory": True, "pool": ["laundry", "market", "alley", "market_b", "alley_b"], "rain": 0.0,
      "start": 0.5, "end": 0.75, "ash": 1.0, "embers": 1.0,
      "fixed": ["smoke_men", "blaze", "arsonists", "breather", "blaze", "smoke_men", "arsonists", "blaze", "smoke_men"],
      "events": [["burn", "laundry"], ["burn", "market"]],

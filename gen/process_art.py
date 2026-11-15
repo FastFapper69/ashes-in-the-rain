@@ -33,9 +33,12 @@ STREET = {
     'walkway_b': ('172.jpg', 134, False), 'signal_b': ('165.jpg', 134, False), 'arches_b': ('175.jpg', 134, False),
     'yard_b': ('167.jpg', 134, False), 'tunnel_b': ('173.jpg', 134, False), 'tunnel_lo_b': ('173.jpg', 134, False),
     'sheds_b': ('177.jpg', 125, False), 'pier17_b': ('176.jpg', 134, False), 'shipping_b': ('174.jpg', 134, False), 'quay_b': ('178.jpg', 134, False),
+    'laundry_b': ('179.jpg', 140, False), 'alley_b': ('180.jpg', 140, False), 'warehouse_b': ('181.jpg', 140, False),
+    'church_b': ('182.jpg', 60, False), 'subway_b': ('183.jpg', 60, False), 'market_b': ('184.jpg', 130, False), 'market_c': ('185.jpg', 130, False),
 }
 KIT = {'walkway_b': 'walkway', 'signal_b': 'signal', 'arches_b': 'arches', 'yard_b': 'yard', 'tunnel_b': 'tunnel', 'tunnel_lo_b': 'tunnel_lo',
-       'sheds_b': 'sheds', 'pier17_b': 'pier17', 'shipping_b': 'shipping', 'quay_b': 'quay'}
+       'sheds_b': 'sheds', 'pier17_b': 'pier17', 'shipping_b': 'shipping', 'quay_b': 'quay',
+       'laundry_b': 'laundry', 'alley_b': 'alley', 'warehouse_b': 'warehouse', 'church_b': 'church', 'subway_b': 'subway', 'market_b': 'market', 'market_c': 'market'}
 # measured on the whole picture, before the right frame comes off: scaled to the trimmed one below
 FULL = 3168.0
 def _sc(r, trim=134): k = FULL / (FULL - trim); return (r[0] * k, r[1], r[2] * k, r[3])
