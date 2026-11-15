@@ -314,19 +314,25 @@ var _weapon_label: Label
 var _bag_label: Label
 
 
-## The guns in his coat, small beside his picture: what a tap on it switches to.
-func set_bag(names: Array) -> void:
-	if _bag_label == null:
-		_bag_label = Label.new()
-		_bag_label.position = Vector2(140.0, 98.0)
-		_bag_label.add_theme_font_override("font", load("res://fonts/Oswald.ttf"))
-		_bag_label.add_theme_font_size_override("font_size", 18)
-		_bag_label.add_theme_color_override("font_color", PAPER)
-		_bag_label.add_theme_color_override("font_outline_color", INK)
-		_bag_label.add_theme_constant_override("outline_size", 6)
-		_bag_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		add_child(_bag_label)
-	_bag_label.text = "" if names.is_empty() else "IN HIS COAT: " + ", ".join(names) + "   (TAP FRANK)"
+## The gun slot, GTA style: a card like his picture's with the gun in hand drawn on it, and the
+## other gun he carries as a smaller card tucked behind. Tapping either switches guns.
+var _gun_card: Sprite2D
+var _gun_spare: Sprite2D
+const GUN_CARD_AT := Vector2(418.0, 64.0)
+func set_guns(hand: String, other: String) -> void:
+	if _gun_card == null:
+		_gun_spare = _add("res://art/ui/gun_revolver.png", 0.12)
+		_gun_spare.rotation = deg_to_rad(6.0)
+		_gun_card = _add("res://art/ui/gun_revolver.png", 0.19)
+	_gun_card.texture = load("res://art/ui/gun_%s.png" % hand)
+	_gun_spare.visible = other != ""
+	if other != "":
+		_gun_spare.texture = load("res://art/ui/gun_%s.png" % other)
+	_gun_card.position = GUN_CARD_AT
+	_gun_spare.position = GUN_CARD_AT + Vector2(62.0, -18.0)
+	var tw := _gun_card.create_tween()   # a little flip as the gun changes
+	_gun_card.scale = Vector2(0.02, 0.19)
+	tw.tween_property(_gun_card, "scale", Vector2.ONE * 0.19, 0.16)
 
 
 ## The gun in hand and its rounds, under the health bar; the revolver never runs dry, so it shows none.
@@ -477,7 +483,7 @@ func flash() -> void:
 ## their corner): the score, one to three stars for it, and what it was made of.
 ## rows: pairs [label, value], set out in two columns.
 var _tally: Control
-func rating(stars: int, head: String, score: int, rows: Array) -> void:
+func rating(level_line: String, head: String, score: int, rows: Array) -> void:
 	var Paper = load("res://paper.gd")
 	var view := get_viewport().get_visible_rect().size
 	if is_instance_valid(_tally):
@@ -494,26 +500,8 @@ func rating(stars: int, head: String, score: int, rows: Array) -> void:
 	oswald.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): 600}
 	var type: Font = load("res://fonts/SpecialElite.ttf")
 	Paper.write(card, head, oswald, 24, Paper.INK, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0.0, 1, 0.17), 8.0)
-	Paper.write(card, "SCORE %d" % score, oswald, 28, CRIMSON, HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0.17, 0.62, 0.22), 10.0)
-	var inner: Rect2 = card.get_meta("inner")
-	var st := Control.new()   # the stars, inked beside the score
-	st.position = inner.position + inner.size * Vector2(0.62, 0.17)
-	st.size = inner.size * Vector2(0.38, 0.22)
-	st.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	st.draw.connect(func() -> void:
-		var r := minf(st.size.y * 0.4, 15.0)
-		for i in 3:
-			var at := Vector2(st.size.x * 0.5 + (i - 1) * r * 2.6, st.size.y * 0.5)
-			var pts := PackedVector2Array()
-			for k in 10:
-				var a := -PI * 0.5 + k * PI / 5.0
-				pts.append(at + Vector2(cos(a), sin(a)) * (r if k % 2 == 0 else r * 0.42))
-			if i < stars:
-				st.draw_colored_polygon(pts, CRIMSON)
-			else:
-				pts.append(pts[0])
-				st.draw_polyline(pts, Color(CRIMSON, 0.7), 2.0, true))
-	card.add_child(st)
+	Paper.write(card, "SCORE %d" % score, oswald, 28, CRIMSON, HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0.17, 0.5, 0.22), 10.0)
+	Paper.write(card, level_line, type, 17, CRIMSON, HORIZONTAL_ALIGNMENT_RIGHT, Rect2(0.5, 0.17, 0.5, 0.22), 10.0)
 	for i in rows.size():   # two columns, typed
 		var col := i % 2
 		var row := i / 2
@@ -595,7 +583,7 @@ func _input(event: InputEvent) -> void:
 			var on_man: bool = target_at.is_valid() and target_at.call(t.position)
 			if t.position.distance_to(_pause.position) < 46.0:
 				pause_tapped = true
-			elif t.position.distance_to(_portrait.position) < 60.0:
+			elif _gun_card != null and (t.position.distance_to(_gun_card.position) < 56.0 or (_gun_spare.visible and t.position.distance_to(_gun_spare.position) < 40.0)):
 				switch_tapped = true
 			elif on_man and _aim_finger == -1 and not _in_stick_zone(t.position):
 				_aim_finger = t.index

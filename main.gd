@@ -562,10 +562,14 @@ func _ready() -> void:
 		_place_flocks()
 	player = PuppetScript.new()
 	player.cfg = DETECTIVE
+	player.dual = String(Levels.CAMPAIGN[chapter]["hero"]) != "eddie" and _perk_early("twoguns")
 	if ch["hero"] == "eddie" and not in_menu:   # Eddie (the title always shows Frank: it is his story)
 		player.cfg = _eddie_cfg()
 	player.night = _undo_night(1.0)
 	add_child(player)
+	mag = _mag_size("revolver")
+	if player.dual:
+		player.set_weapon("revolver")   # the second revolver into the far hand
 	if ch["hero"] == "eddie" and not in_menu:   # his navy pea coat, short at the hip, not Frank's long tan trench
 		for part in ["torso", "skirt", "uarm_f", "uarm_b", "collar_front", "collar_back"]:
 			if player._spr.has(part):
@@ -654,6 +658,8 @@ func _ready() -> void:
 	if String(Levels.CAMPAIGN[chapter]["hero"]) == "eddie":   # the prologue is Eddie's: his picture in the corner
 		hud.set_portrait("res://art/ui/portrait_eddie.png")
 	hud.voice = sfx.voice
+	if not in_menu:
+		_show_guns()
 	hud.target_at = _man_under
 	_shake_on = bool(MenuScript.setting("shake"))
 	_assist = bool(MenuScript.setting("assist"))
@@ -2300,7 +2306,7 @@ func _process(delta: float) -> void:
 				player.snap_aim(aim)
 			_fire(player, true)
 			_pop = 0.15
-		fire_cool = float(WEAPONS[weapon]["cool"])
+		fire_cool = float(WEAPONS[weapon]["cool"]) * (0.6 if weapon == "revolver" and player.dual else 1.0)
 	hud.fire_tapped = false
 	if not _queued_shot:   # the time risen out of cover counts from the shot, not from the tap
 		_pop = maxf(0.0, _pop - delta)
@@ -3623,12 +3629,12 @@ func _try_vault() -> void:
 			sfx.play("land", -12.0, INF, 0.15)
 			fx.chip(Vector2(hands_x, b.position.y))
 			if Engine.time_scale < 1.0:
-				slow_left = minf(1.0, slow_left + (0.15 if _knack("time", 1) else 0.1))   # a little slowed time back for the style
+				slow_left = minf(1.0, slow_left + (0.15 if _perk("bloodtime") else 0.1))   # a little slowed time back for the style
 			return
 
 
 func _dive_g() -> float:
-	return GRAVITY * (0.8 if _knack("time", 2) else 1.0)
+	return GRAVITY * (0.8 if _perk("longdive") else 1.0)
 
 
 func _start_dive(way: float, facing: float, up: float, from_run: bool) -> void:
@@ -3746,10 +3752,10 @@ func _dry_fire() -> void:
 
 
 func _start_reload() -> void:
-	var full := int(WEAPONS[weapon]["mag"])
+	var full := _mag_size(weapon)
 	if reloading > 0.0 or mag >= full or (weapon != "revolver" and ammo <= 0):
 		return
-	var dur := float(WEAPONS[weapon]["reload"]) * (0.67 if _knack("lead", 0) else 1.0)
+	var dur := float(WEAPONS[weapon]["reload"]) * (0.67 if _perk("fasthands") else 1.0)
 	reloading = dur
 	var missing := full - mag
 	var later := func(t: float, what: Callable) -> void:
@@ -3783,14 +3789,14 @@ func _tick_reload(delta: float) -> void:
 		hud.reload_tapped = false
 		_start_reload()
 	_idle_fire += delta
-	if reloading <= 0.0 and mag < int(WEAPONS[weapon]["mag"]) and _idle_fire > 2.2 and not over:
+	if reloading <= 0.0 and mag < _mag_size(weapon) and _idle_fire > 2.2 and not over:
 		_start_reload()
-	player.reload = 0.0 if reloading <= 0.0 else 1.0 - reloading / (float(WEAPONS[weapon]["reload"]) * (0.67 if _knack("lead", 0) else 1.0))
+	player.reload = 0.0 if reloading <= 0.0 else 1.0 - reloading / (float(WEAPONS[weapon]["reload"]) * (0.67 if _perk("fasthands") else 1.0))
 	if reloading > 0.0:
 		reloading -= delta
 		if reloading <= 0.0:
 			reloading = 0.0
-			var full := int(WEAPONS[weapon]["mag"])
+			var full := _mag_size(weapon)
 			if weapon == "revolver":
 				mag = full
 			else:
@@ -3805,6 +3811,15 @@ func _tick_reload(delta: float) -> void:
 ## Guns in his coat besides the one in hand: kind -> {mag, ammo}; the revolver is kept here too when
 ## another gun is in his hand (its rounds in the cylinder).
 var _bag := {}
+func _show_guns() -> void:
+	var other := ""
+	for k in _bag:
+		if k != weapon:
+			other = k
+	var card := func(k: String) -> String: return "twoguns" if k == "revolver" and player.dual else ("revolver" if not k in ["shotgun", "tommy"] else k)
+	hud.set_guns(card.call(weapon), "" if other == "" else card.call(other))
+
+
 func _bag_names() -> Array:
 	var out: Array = []
 	for k in _bag:
@@ -3813,8 +3828,39 @@ func _bag_names() -> Array:
 	return out
 
 
-## Tap on Frank's picture (or Q): the next gun out of his coat, the one in hand goes in.
+## His big gun (a shotgun or a tommy gun), in hand or in the coat, or "". He carries one, besides
+## his revolver.
+var _swap_offer = null   # a big gun on the ground he is standing at, while he already has one
+func _big_gun() -> String:
+	if weapon != "revolver":
+		return weapon
+	for k in _bag:
+		if k != "revolver":
+			return k
+	return ""
+
+
+## Tap on Frank's picture (or Q): the next gun out of his coat, the one in hand goes in. Standing at
+## a big gun while he has one already: the two are swapped (his goes down with its rounds).
 func _switch_gun() -> void:
+	if _swap_offer != null and pickups.has(_swap_offer) and absf(float(_swap_offer["at"].x) - player.position.x) < 120.0:
+		var old := _big_gun()
+		var st: Dictionary = {"mag": mag, "ammo": ammo} if weapon == old else _bag[old]
+		var kind := String(_swap_offer["kind"])
+		(_swap_offer["node"] as Node2D).queue_free()
+		pickups.erase(_swap_offer)
+		_swap_offer = null
+		_add_pickup(old, player.position + Vector2(-60.0 * player.scale.x, 0.0))
+		pickups[pickups.size() - 1]["left"] = int(st["mag"]) + int(st["ammo"])
+		_bag.erase(old)
+		if weapon == old:
+			weapon = "revolver"   # so _equip keeps nothing of the old gun
+			mag = int(_bag.get("revolver", {}).get("mag", _mag_size("revolver")))
+			_bag.erase("revolver")
+		_bag[kind] = {"mag": int(WEAPONS[kind]["mag"]), "ammo": int(WEAPONS[kind]["ammo"]) - int(WEAPONS[kind]["mag"])}
+		_equip(kind)
+		sfx.play("pickup", 0.0)
+		return
 	var order: Array = ["revolver"]
 	for k in _bag:
 		if k != "revolver":
@@ -3840,13 +3886,18 @@ func _equip(kind: String) -> void:
 	if kind == "revolver" and mag <= 0:
 		_start_reload()
 	_show_ammo()
-	hud.set_bag(_bag_names())
+	_show_guns()
+
+
+## Rounds the gun holds: TWO GUNS doubles the revolver's.
+func _mag_size(kind: String) -> int:
+	return int(WEAPONS[kind]["mag"]) * (2 if kind == "revolver" and player != null and player.dual else 1)
 
 
 func _show_ammo() -> void:
 	var w: Dictionary = WEAPONS[weapon]
-	var left := 0.0 if reloading <= 0.0 else 1.0 - reloading / (float(w["reload"]) * (0.67 if _knack("lead", 0) else 1.0))
-	hud.set_ammo(String(w["name"]) if weapon != "revolver" else "", mag, int(w["mag"]), ammo if weapon != "revolver" else -1, left)
+	var left := 0.0 if reloading <= 0.0 else 1.0 - reloading / (float(w["reload"]) * (0.67 if _perk("fasthands") else 1.0))
+	hud.set_ammo("", mag, _mag_size(weapon), ammo if weapon != "revolver" else -1, left)
 
 
 ## One shot: flash, bullet (or a shotgun's pellets), casing, kick of the arm and the lettered bang.
@@ -3878,7 +3929,7 @@ func _fire(shooter, from_player: bool, kind := "") -> void:
 					point_blank = true
 					break
 	for k in (0 if point_blank and int(w["pellets"]) == 1 else int(w["pellets"])):
-		var spread: float = float(w["spread"]) * (0.5 if from_player and _knack("lead", 1) else 1.0)
+		var spread: float = float(w["spread"]) * (0.5 if from_player and _perk("steady") else 1.0)
 		fx.shoot(at, d.rotated(randf_range(-spread, spread)) * BULLET_SPEED, from_player, w["life"])
 	if gun != "revolver":   # a revolver keeps its empties until it is reloaded
 		fx.casing(at - d * 50.0, signf(d.x))
@@ -3899,7 +3950,7 @@ func _fire(shooter, from_player: bool, kind := "") -> void:
 		_word(["rattat"], at + Vector2(signf(d.x) * 120.0, -150.0), 0.26, d)
 	shooter.next_hand()
 	if from_player:
-		if mag == 1 and _knack("lead", 3) and gun == "revolver":   # the last round: it finds its man
+		if mag == 1 and _perk("lastround") and gun == "revolver":   # the last round: it finds its man
 			_last_round_t = 0.6
 			slow_on = true
 		mag -= 1
@@ -4067,7 +4118,7 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 				e["hp"] = 0
 				_kill(e, part == "head", true, part)
 				return true
-			if part.begins_with("farm") and (slow_on or _knack("mercy", 1)) and not e["boss"] and chapter > 0 and e["state"] != "give":
+			if part.begins_with("farm") and (slow_on or _perk("openhand")) and not e["boss"] and chapter > 0 and e["state"] != "give":
 				_disarm(e, pos)   # the gun is shot out of his hand: he has nothing left to fight with
 				return true
 			fx.blood(pos, fx.hit_vel, part == "head" or e["hp"] <= 1)
@@ -4093,7 +4144,7 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 						_briggs_down(e)
 						return true
 			else:
-				e["hp"] -= mob_hp if (part == "head" or _last_round_t > 0.0) else 1   # a head shot always kills
+				e["hp"] -= mob_hp if (part == "head" or _last_round_t > 0.0) else (2 if _perk("heavy") and weapon == "revolver" else 1)   # a head shot always kills
 				if e["hp"] > 0:   # still up: knocked back a step, off his aim for a moment
 					var m2 = e["node"]
 					var back: float = signf(m2.position.x - player.position.x) * (70.0 if part == "torso" else 40.0)
@@ -4134,7 +4185,7 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 			_inner_voice()
 		if hp <= 0:
 			_player_down()
-		elif hp == 1 and _knack("time", 3) and not _last_chance_used:   # time slows by itself, once a map
+		elif hp == 1 and _perk("lastchance") and not _last_chance_used:   # time slows by itself, once a map
 			_last_chance_used = true
 			slow_left = 1.0
 			slow_on = true
@@ -4262,7 +4313,7 @@ func _knocked(e: Dictionary, delta: float) -> void:
 	m.set_state(0.0, Vector2(signf(player.position.x - m.position.x), 0.4), delta)
 	if t > 2.3 and not e.has("decided"):   # he has had time to think about it
 		e["decided"] = true
-		var gives: float = 0.45 + (0.25 if _knack("mercy", 0) else 0.0) + (0.2 if e.get("shaken", false) else 0.0) + (1.0 if e.get("pipe", false) else 0.0)
+		var gives: float = 0.45 + (0.25 if _perk("voice") else 0.0) + (0.2 if e.get("shaken", false) else 0.0) + (1.0 if e.get("pipe", false) else 0.0)
 		if randf() < gives:
 			m.slide = 0.0
 			m.roll = 0.0
@@ -4314,6 +4365,21 @@ func _kill(e: Dictionary, head: bool, quiet := false, part := "") -> void:
 ## doubled again in the air, half again in slowed time, more for a trick (a ricochet, a blast), and
 ## all of it times the streak. A man who had already given up is worth nothing and ends the streak:
 ## the game never pays for an execution. The map's stars come from this score (see _rate).
+## Experience earned on this map so far (saved when the map is won; a death loses it). A level
+## reached mid-fight is announced at once.
+var _xp_run := 0
+func _gain_xp(n: int) -> void:
+	if _stand or diff_step < 0 or n <= 0:
+		return
+	var before := Instincts.level_at(Instincts.xp() + _xp_run)
+	_xp_run += n
+	var now := Instincts.level_at(Instincts.xp() + _xp_run)
+	if now > before:
+		hud.banner("LEVEL %d" % now)
+		sfx.play("sting", -4.0)
+		crumb("level up %d" % now)
+
+
 func _score(e: Dictionary, head: bool, part: String) -> void:
 	if e["state"] == "give" or _stand or diff_step < 0:
 		_combo = 0
@@ -4341,15 +4407,16 @@ func _score(e: Dictionary, head: bool, part: String) -> void:
 	_combo_t = COMBO_GAP
 	pts *= _combo
 	stats["score"] += int(pts)
+	_gain_xp(int(pts))
 	stats["best_combo"] = maxi(int(stats["best_combo"]), _combo)
 	hud.combo(_combo, int(pts), " ".join(how))
 	if _combo == 2 and chapter == 1 and map == 0 and not _streak_told:   # once: what the numbers up top are
 		_streak_told = true
 		hud.hint("KILLS CLOSE TOGETHER BUILD A STREAK. IN THE AIR AND TO THE HEAD SCORE MORE. THE SCORE EARNS THE STARS.", true)
-	if _combo == 3 and _knack("lead", 4) and ammo < int(WEAPONS[weapon]["ammo"]):   # HOT STREAK: a round back
+	if _combo == 3 and _perk("hotstreak") and ammo < int(WEAPONS[weapon]["ammo"]):   # HOT STREAK: a round back
 		ammo += 1
 		_show_ammo()
-	if air and _knack("time", 4):   # ACROBAT: a kill in the air gives back slowed time
+	if air and _perk("acrobat"):   # ACROBAT: a kill in the air gives back slowed time
 		slow_left = minf(1.0, slow_left + 0.25)
 
 
@@ -4371,7 +4438,7 @@ func _morale(at: Vector2, ugly: bool) -> void:
 				others += 1
 		if others > 0:
 			continue
-		var chance := 1.0 if int(e2["hp"]) < mob_hp else (0.65 if ugly else 0.4) + (0.25 if e2.get("shaken", false) else 0.0) + (0.25 if _knack("mercy", 0) else 0.0)
+		var chance := 1.0 if int(e2["hp"]) < mob_hp else (0.65 if ugly else 0.4) + (0.25 if e2.get("shaken", false) else 0.0) + (0.25 if _perk("voice") else 0.0)
 		if randf() < chance:
 			_give_up(e2, 0.55)
 
@@ -4404,7 +4471,7 @@ func _hit_box(i: int, pos: Vector2) -> void:
 	sfx.play("wood_hit", -3.0, pos.x, 0.12)
 	for k in 3:   # chips fly off the boards where the bullet went in
 		fx.chip(pos)
-	info["hp"] -= 3 if _knack("lead", 2) else 1   # SPLINTERS: wooden cover goes to pieces in a few shots
+	info["hp"] -= 3 if _perk("splinters") else 1   # SPLINTERS: wooden cover goes to pieces in a few shots
 	var s: Sprite2D = info["sprite"]
 	s.modulate = Color(1, 1, 1).darkened(0.08 * (7 - int(info["hp"])))
 	var tw := s.create_tween()
@@ -4553,10 +4620,11 @@ func _bullets_clash(at: Vector2) -> void:
 	fx.word("res://art/fx/word_clink.png", at + Vector2(0.0, -110.0), 0.22)
 	if not _stand and diff_step >= 0:   # a bullet shot out of the air is style too, and keeps the streak alive
 		stats["score"] += 50
+		_gain_xp(50)
 		_combo_t = maxf(_combo_t, COMBO_GAP)
 		hud.combo(_combo, 50, "CLINK")
 	sfx.play("clink", -3.0, at.x)
-	slow_left = minf(1.0, slow_left + (0.225 if _knack("time", 1) else 0.15))   # a little slowed time back as a reward
+	slow_left = minf(1.0, slow_left + (0.225 if _perk("bloodtime") else 0.15))   # a little slowed time back as a reward
 
 
 ## The detective is shot dead: he goes down in slow motion, the screen says so, and the level restarts.
@@ -4753,19 +4821,23 @@ func _map_events(delta: float) -> void:
 ## slowed-time kills). Frank's stars are his leads: his experience and what pins his instincts.
 func _rate() -> void:
 	var kills: int = int(stats["kills"]) - int(stats["executed"])
-	var par := maxf(100.0, kills * 100.0)   # a plain shot for every man
 	var score: int = stats["score"]
-	var stars := 1   # for closing it
-	if score >= par * STAR_2:
-		stars += 1
-	if score >= par * STAR_3:
-		stars += 1
-	MenuScript.mark_stars(chapter, map, stars)
+	var lvl0 := Instincts.level()
+	if _auto == "" or _auto == "tally":
+		Instincts.add_xp(_xp_run)
+	var x := Instincts.xp() + (_xp_run if _auto != "" else 0)
+	var lvl := Instincts.level_at(x)
+	var stars := 1 + (1 if score >= maxf(100.0, kills * 100.0) * STAR_2 else 0) + (1 if score >= maxf(100.0, kills * 100.0) * STAR_3 else 0)
+	MenuScript.mark_stars(chapter, map, stars)   # kept for the case file's history; nothing is bought with them now
 	var t := int(stats["time"])
 	var head := String(Levels.CAMPAIGN[chapter]["title"]) + " CLOSED" if map + 1 >= (Levels.CAMPAIGN[chapter]["maps"] as Array).size() else String(level["name"]).to_upper()
 	if _auto != "":
-		print("SCORE ", score, " par ", par, " ratio ", snappedf(score / par, 0.01), " stars ", stars, " combo ", stats["best_combo"])
-	hud.rating(stars, head, score, [["BEST COMBO", "X%d" % stats["best_combo"]], ["IN THE AIR", stats["air"]],
+		print("SCORE ", score, " xp ", _xp_run, " level ", lvl, " combo ", stats["best_combo"])
+	var nxt := Instincts.xp_for(lvl + 1)
+	var lv_line := "LEVEL %d   %d / %d XP" % [lvl, x, nxt]
+	if lvl > lvl0 and _auto == "":
+		lv_line = "LEVEL UP: %d   A POINT TO SPEND" % lvl
+	hud.rating(lv_line, head, score, [["BEST COMBO", "X%d" % stats["best_combo"]], ["IN THE AIR", stats["air"]],
 		["HEAD SHOTS", stats["heads"]], ["SLOWED TIME", stats["slow"]], ["HITS TAKEN", stats["hits"]], ["TIME", "%d:%02d" % [t / 60, t % 60]]])
 
 
@@ -5187,8 +5259,12 @@ var diff_step := -1   # -1 in the prologue
 
 
 ## An instinct Frank has pinned (never Eddie's: the prologue is played as it is).
-func _knack(branch: String, tier: int) -> bool:
-	return diff_step >= 0 and Instincts.has(branch, tier)
+func _perk_early(fx: String) -> bool:   # before the difficulty step is known (building the hero)
+	return Instincts.has_fx(fx)
+
+
+func _perk(fx: String) -> bool:
+	return diff_step >= 0 and Instincts.has_fx(fx)
 
 
 func _set_difficulty(hero: String) -> void:
@@ -5214,7 +5290,7 @@ func _set_difficulty(hero: String) -> void:
 		diff["shooters"] = clampi(int(diff["shooters"]) + int(k["shooters"]), 1, 3)
 		var r := Instincts.rank()
 		diff["hp"] = maxi(2, int(r[0]) + int(k["hp"]))
-		diff["drain"] = float(r[1]) * (0.8 if _knack("time", 0) else 1.0)
+		diff["drain"] = float(r[1])
 		diff["refill"] = r[2]
 	max_hp = int(diff["hp"])
 	mob_hp = int(diff["mob_hp"])
@@ -6052,10 +6128,16 @@ func _pickups() -> void:
 			elif _bag.has(kind):
 				_bag[kind]["ammo"] = int(_bag[kind]["ammo"]) + int(WEAPONS[kind]["ammo"])
 				hud.toast("+%d %s ROUNDS" % [int(WEAPONS[kind]["ammo"]), String(WEAPONS[kind]["name"])])
+			elif _big_gun() != "":   # one big gun only: this one waits on the ground for a swap
+				if _swap_offer != pk:
+					_swap_offer = pk
+					hud.toast("TAP THE GUN: %s FOR THE %s" % [String(WEAPONS[_big_gun()]["name"]), String(WEAPONS[kind]["name"])])
+				continue
 			else:
-				_bag[kind] = {"mag": int(WEAPONS[kind]["mag"]), "ammo": int(WEAPONS[kind]["ammo"]) - int(WEAPONS[kind]["mag"])}
-				hud.toast("%s TAKEN: TAP FRANK TO SWITCH" % String(WEAPONS[kind]["name"]))
-			hud.set_bag(_bag_names())
+				var total: int = int(pk.get("left", WEAPONS[kind]["ammo"]))   # a gun he put down keeps its rounds
+				_bag[kind] = {"mag": mini(total, int(WEAPONS[kind]["mag"])), "ammo": maxi(0, total - int(WEAPONS[kind]["mag"]))}
+				hud.toast("%s TAKEN: TAP THE GUN TO SWITCH" % String(WEAPONS[kind]["name"]))
+			_show_guns()
 		s.queue_free()
 		pickups.remove_at(i)
 
@@ -6205,7 +6287,7 @@ func _man_under(screen: Vector2) -> bool:
 			continue
 		var m = e["node"]
 		var top: float = m.position.y - 400.0 * m.size + DUCK_DROP * m.duck
-		if absf(w.x - m.position.x) < (130.0 if _knack("lead", 1) else 80.0) and w.y > top and w.y < m.position.y + 30.0:
+		if absf(w.x - m.position.x) < (130.0 if _perk("steady") else 80.0) and w.y > top and w.y < m.position.y + 30.0:
 			return true
 	return false
 
@@ -7188,11 +7270,12 @@ func _giving_up(e: Dictionary, delta: float) -> void:
 			e["spared"] = true
 			m.visible = false
 			stats["spared"] += 1
-			if _knack("mercy", 3) and hp < max_hp and not over:   # letting him go puts something back in Frank
+			_gain_xp(250)   # a man let go is worth as much as a clean kill or two
+			if _perk("secondwind") and hp < max_hp and not over:   # letting him go puts something back in Frank
 				hp += 1
 				hud.set_health(float(hp) / max_hp)
 				hud.toast("SECOND WIND")
-			if _knack("mercy", 2) and stats["spared"] == 1:
+			if _perk("questioning") and stats["spared"] == 1:
 				var page_x := INF
 				for pk in pickups:
 					if pk["kind"] == "page" and is_instance_valid(pk["node"]):
@@ -7243,6 +7326,7 @@ func _disarm(e: Dictionary, at: Vector2) -> void:
 	e["said"] = true   # he has said it already: no second line over the first
 	if not _stand and diff_step >= 0:   # style: a man taken out of the fight without a kill
 		stats["score"] += 150
+		_gain_xp(150)
 		_combo_t = maxf(_combo_t, COMBO_GAP)
 		hud.combo(_combo, 150, "DISARMED")
 
@@ -7272,6 +7356,7 @@ func _hat_off(e: Dictionary, at: Vector2) -> void:
 	_impact(0.1, 0.25)
 	if not _stand and diff_step >= 0:
 		stats["score"] += 100
+		_gain_xp(100)
 		_combo_t = maxf(_combo_t, COMBO_GAP)
 		hud.combo(_combo, 100, "HAT TRICK")
 

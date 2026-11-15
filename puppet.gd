@@ -48,6 +48,7 @@ var _skirt_shadow: Polygon2D
 const SKIRT_ROWS := 7
 const SKIRT_COLS := 4
 var _gun2: Sprite2D   # the second pistol, in the far hand
+var dual := false   # TWO GUNS: a second revolver in the far hand
 # The lead pipe (art/guns/pipe.png) he keeps in his coat: swing 0..1 is one blow (wind up over the
 # shoulder, down onto the man, follow through), -1 = not swinging. The gun goes back in the coat meanwhile.
 const PIPE_LEN := 0.62
@@ -587,7 +588,7 @@ func _pose() -> void:
 	if long_gun:
 		var tex_size := Vector2((_gun.texture as Texture2D).get_size())
 		far_target = hand + ((tex_size * ((gd["fore"] as Vector2) - (gd["grip"] as Vector2))) * gun_scale).rotated(_aim.angle())
-	elif weapon == "pistols" and not _dead:
+	elif (weapon == "pistols" or (dual and weapon == "revolver")) and not _dead:
 		far_target = far_shoulder + _aim * reach + Vector2(0.0, 0.07)
 	if _dead:   # dead weight: the arm lies almost straight along the thrown direction
 		far_target = far_shoulder + Vector2.from_angle(_aim.angle() + dead_far) * (ua + fa) * 0.96
@@ -919,7 +920,7 @@ func set_weapon(name: String) -> void:
 		g.texture = tex
 		g.offset = -Vector2(tex.get_size()) * (gd["grip"] as Vector2)
 		g.scale = Vector2.ONE * float(gd["len"]) * PPM / tex.get_width()
-	_gun2.visible = name == "pistols"
+	_gun2.visible = name == "pistols" or (dual and name == "revolver")
 	if _shadow_spr.has("gun"):
 		for k in ["gun", "gun2"]:
 			var src: Sprite2D = _gun if k == "gun" else _gun2
@@ -953,7 +954,7 @@ func muzzle() -> Vector2:
 
 ## After a shot with two pistols, the other hand fires next.
 func next_hand() -> void:
-	if weapon == "pistols":
+	if weapon == "pistols" or (dual and weapon == "revolver"):
 		_left_shot = not _left_shot
 
 

@@ -599,11 +599,11 @@ func _title() -> void:
 	Paper.line_button(report, cf, LINE_1, _case_file, sound)
 	var st_line := LINE_2
 	if Instincts.reached(1):   # Frank's board, right on the sheet once the story is his
-		var left := Instincts.unspent() + Instincts.unspent("statements")
+		var left := Instincts.unspent()
 		var il := Paper.write(report, "INSTINCTS", _font_head, 30, CRIMSON if left > 0 else INK, HORIZONTAL_ALIGNMENT_LEFT, LINE_2, 8.0)
 		Paper.line_button(report, il, LINE_2, _instincts.bind(_title), sound)
 		if left > 0:   # how many leads wait to be spent, typed small at the end of the line
-			Paper.write(report, "%d NEW" % left, _font_type, 17, CRIMSON, HORIZONTAL_ALIGNMENT_RIGHT, LINE_2, 10.0).set_meta("decor", true)
+			Paper.write(report, "%d POINTS" % left, _font_type, 17, CRIMSON, HORIZONTAL_ALIGNMENT_RIGHT, LINE_2, 10.0).set_meta("decor", true)
 		st_line = LINE_3
 	var st_l := Paper.write(report, "SETTINGS", _font_head, 30, INK, HORIZONTAL_ALIGNMENT_LEFT, st_line, 8.0)
 	Paper.line_button(report, st_l, st_line, _open_settings, sound)
@@ -710,9 +710,9 @@ func _case_file() -> void:
 	var back := _paper("tape", Vector2(M, view.y - M - 60.0), Vector2(180.0, 60.0), TILT[5], _title)
 	Paper.write(back, "BACK", _font_head, 24, INK)
 	if Instincts.reached(1):   # Frank's board, once the story is his
-		var left := Instincts.unspent() + Instincts.unspent("statements")
+		var left := Instincts.unspent()
 		var ib := _paper("tape", Vector2(view.x - M - 300.0, view.y - M - 60.0), Vector2(300.0, 60.0), TILT[2], _instincts.bind(_case_file))
-		Paper.write(ib, "INSTINCTS" if left == 0 else "INSTINCTS (%d NEW)" % left, _font_head, 24, CRIMSON if left > 0 else INK)
+		Paper.write(ib, "INSTINCTS" if left == 0 else "INSTINCTS (%d POINTS)" % left, _font_head, 24, CRIMSON if left > 0 else INK)
 
 
 ## The marks a closed case earned, inked like a rubber stamp: up to three stars, the rest outlined.
@@ -741,10 +741,8 @@ func _instincts(back_to := Callable()) -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_page.add_child(title)
 	var r := Instincts.rank()
-	var nr := Instincts.next_rank()
-	var line := "LEADS %d        STATEMENTS %d        TAKES %d HITS" % [Instincts.unspent(), Instincts.unspent("statements"), r[0]]
-	if not nr.is_empty():
-		line += ", %d AT %d EARNED" % [nr[1], nr[0]]
+	var lv := Instincts.level()
+	var line := "LEVEL %d        %d / %d XP        POINTS %d        TAKES %d HITS" % [lv, Instincts.xp(), Instincts.xp_for(lv + 1), Instincts.unspent(), r[0]]
 	var sub := _label(line, _font_type, 20, PAPER, 6)
 	sub.position = Vector2(0.0, 82.0)
 	sub.size = Vector2(view.x, 28.0)
@@ -766,7 +764,7 @@ func _instincts(back_to := Callable()) -> void:
 		tag.position = Vector2(x0, y + (h - 64.0) * 0.5)
 		tag.rotation = deg_to_rad(TILT[bi + 2])
 		_page.add_child(tag)
-		Paper.write(tag, String(Instincts.BRANCH_NAMES[branch]), _font_head, 20, INK)
+		Paper.write(tag, String(Instincts.BRANCH_NAMES[branch]), _font_head, 18, INK)
 		var pins: Array = []
 		for t in 5:
 			var at := Vector2(x0 + tag_w + GAP + t * (w + gap), y)
@@ -847,7 +845,7 @@ func _pin_card(branch: String, tier: int) -> void:
 ## A card's drawing (art/ui/instincts/icon_<branch><tier>.png, art_src 142), fitted into `part` of the
 ## card's inner area, greyed when the card is locked.
 func _card_icon(card: Control, branch: String, tier: int, part: Rect2) -> void:
-	var path := "res://art/ui/instincts/icon_%s%d.png" % [branch, tier]
+	var path := "res://art/ui/instincts/icon_%s.png" % String(Instincts.CARDS[branch][tier][3])
 	if not ResourceLoader.exists(path):
 		return
 	var inner: Rect2 = card.get_meta("inner")
@@ -886,7 +884,7 @@ func _card_detail(branch: String, tier: int) -> void:
 	Paper.write(card, String(info[0]), _font_head, 40, INK, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0.0, 1, 0.22), 8.0)
 	_card_icon(card, branch, tier, Rect2(0.02, 0.24, 0.36, 0.48))   # the evidence photo pinned on it
 	Paper.write(card, String(info[1]), _font_type, 26, INK, HORIZONTAL_ALIGNMENT_LEFT, Rect2(0.4, 0.24, 0.6, 0.48), 8.0)
-	var price := "%d %s" % [Instincts.cost(branch, tier), "STATEMENTS" if branch == "mercy" else "LEADS"]
+	var price := "1 POINT"
 	var foot := "PINNED ON THE BOARD" if have else (why if why != "" else "COSTS " + price)
 	Paper.write(card, foot, _font_head, 24, CRIMSON, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0.74, 1, 0.24), 8.0)
 	var y := M + h + 16.0

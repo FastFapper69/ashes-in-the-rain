@@ -1,150 +1,137 @@
-## Frank's instincts: the skill tree. Three branches of five cards. LEAD and TIME are bought with leads:
-## the stars on Frank's closed cases, earned by how he shoots (style points, combos, main.gd _score).
-## MERCY is bought only with statements: men let go who talked. A gunman and a man with a conscience,
-## two ways to grow, and the game never pays for the first with the second. Everything earned
-## (spent or not) is his experience: more hits he can take, longer slowed time.
-## The cards can be taken down and pinned again for free between maps.
+## Frank's instincts: the upgrade board. Frank earns experience from how he fights (main.gd _score:
+## style points for every man taken down, disarmed or sent off without his hat, plus men let go),
+## levels up as it grows, and every level is one point to pin a card with. Three rows: FRANK (how much
+## he can take), REVOLVER (his own gun, up to a second one in the other hand) and INSTINCT (tricks).
+## A row is pinned left to right. Cards can be taken down and pinned again for free between maps.
 extends RefCounted
 
 const MenuScript = preload("res://menu.gd")
 const Levels = preload("res://levels.gd")
 
-const BRANCHES := ["lead", "time", "mercy"]
-const BRANCH_NAMES := {"lead": "LEAD", "time": "TIME", "mercy": "MERCY"}
-const COST := [2, 3, 4, 5, 6]
-const MERCY_COST := [1, 2, 2, 3, 3]   # in statements: at most one man talks on each map
-const FROM_CHAPTER := [1, 1, 2, 3, 3]   # a tier opens once the story has reached this chapter (ALLY: chapter IV)
-const SPARED_NEEDED := [3, 6, 10, 15, 20]   # the Conscience cards also want men let go
-const ASH_LOCK := 6   # this much ash and the last two Conscience cards stay down
+const BRANCHES := ["frank", "gun", "instinct"]
+const BRANCH_NAMES := {"frank": "FRANK", "gun": "GUN", "instinct": "TRICKS"}
+const FROM_CHAPTER := [1, 1, 2, 2, 3]   # a tier opens once the story has reached this chapter
+# name, text, effect id (main.gd _perk), icon (art/ui/instincts/icon_<icon>.png)
 const CARDS := {
-	"lead": [
-		["FAST HANDS", "Reloads a third faster."],
-		["STEADY HAND", "Tighter shots and a longer aim help."],
-		["SPLINTERS", "Wooden cover goes to pieces in a few shots."],
-		["LAST ROUND", "The last round always kills, in slowed time."],
-		["HOT STREAK", "A combo of three puts a round back in the gun."],
+	"frank": [
+		["TOUGH", "He takes one more hit.", "tough1", "mercy0"],
+		["LONG WATCH", "Slowed time lasts a quarter longer.", "longwatch", "time0"],
+		["TOUGHER", "He takes one more hit.", "tough2", "time1"],
+		["LAST CHANCE", "With one hit left, time slows on its own.", "lastchance", "time3"],
+		["IRON", "He takes one more hit.", "tough3", "mercy4"],
 	],
-	"time": [
-		["LONG WATCH", "Slowed time lasts a quarter longer."],
-		["BLOOD FOR TIME", "A kill gives back half as much time again."],
-		["LONG DIVE", "Dives fly further and land in a roll."],
-		["LAST CHANCE", "With one hit left, time slows on its own."],
-		["ACROBAT", "A kill in the air gives back slowed time."],
+	"gun": [
+		["FAST HANDS", "Reloads a third faster.", "fasthands", "lead0"],
+		["HEAVY LOADS", "A body shot hits twice as hard.", "heavy", "lead3"],
+		["STEADY HAND", "Tighter shots and a longer aim help.", "steady", "lead1"],
+		["LAST ROUND", "The last round always kills, in slowed time.", "lastround", "lead3"],
+		["TWO GUNS", "A second revolver in the other hand.", "twoguns", "time2"],
 	],
-	"mercy": [
-		["VOICE OF THE LAW", "A shaken crew gives up sooner."],
-		["OPEN HAND", "Disarm a man without slowed time."],
-		["QUESTIONING", "A man let go says where Eddie's page is."],
-		["SECOND WIND", "Letting a man go gives back a hit."],
-		["ALLY", "Men let go may fight beside him."],
+	"instinct": [
+		["OPEN HAND", "Shoot a gun out of a hand without slowed time.", "openhand", "mercy1"],
+		["HOT STREAK", "A combo of three puts a round back in the gun.", "hotstreak", "lead4"],
+		["SPLINTERS", "Wooden cover goes to pieces in a few shots.", "splinters", "lead2"],
+		["ACROBAT", "A kill in the air gives back slowed time.", "acrobat", "time4"],
+		["SECOND WIND", "Letting a man go gives back a hit.", "secondwind", "mercy3"],
 	],
 }
-# hits Frank can take, and how fast slowed time drains and comes back, by leads earned
-const RANKS := [[0, 3, 0.4, 0.1], [10, 4, 0.34, 0.12], [24, 5, 0.3, 0.13]]
+const BASE_HITS := 3
+const DRAIN := 0.36    # slowed time used per second
+const REFILL := 0.12   # and won back per second
 
 
-static func _test_leads() -> int:
+static func _arg(name: String) -> int:
 	for a in OS.get_cmdline_user_args():
-		if a.begins_with("--leads="):
-			return int(a.trim_prefix("--leads="))
+		if a.begins_with(name):
+			return int(a.trim_prefix(name))
 	return -1
 
 
-## All Frank has earned, both kinds: his experience (rank).
-static func earned() -> int:
-	var t := _test_leads()
+## Experience: everything Frank has earned. Tests: --xp=N.
+static func xp() -> int:
+	var t := _arg("--xp=")
 	if t >= 0:
 		return t
-	return leads_earned() + statements_earned()
+	return int(MenuScript.story("xp")) if MenuScript.story("xp") != "" else 0
 
 
-## Leads: the stars on his cases (not Eddie's).
-static func leads_earned() -> int:
-	var t := _test_leads()
-	if t >= 0:
-		return t
-	var n := 0
-	for c in range(1, Levels.CAMPAIGN.size()):
-		for m in (Levels.CAMPAIGN[c]["maps"] as Array).size():
-			n += MenuScript.stars(c, m)
-	return n
+static func add_xp(n: int) -> void:
+	if _arg("--xp=") >= 0:
+		return
+	MenuScript.set_story("xp", str(xp() + n))
 
 
-## Statements: men let go who talked.
-static func statements_earned() -> int:
-	var t := _test_leads()
-	if t >= 0:
-		return t / 2
-	var n := 0
-	for c in Levels.CAMPAIGN.size():
-		for m in (Levels.CAMPAIGN[c]["maps"] as Array).size():
-			n += 1 if MenuScript.story("testimony_%d-%d" % [c, m]) == "yes" else 0
-	return n
+## Experience needed to reach `lvl` (level 1 at nothing): each level a little further off.
+static func xp_for(lvl: int) -> int:
+	var n := lvl - 1
+	return 2500 * n + 250 * n * n
 
 
-static func cost(branch: String, tier: int) -> int:
-	return MERCY_COST[tier] if branch == "mercy" else COST[tier]
+static func level_at(x: int) -> int:
+	var l := 1
+	while x >= xp_for(l + 1):
+		l += 1
+	return l
 
 
-static func spent(kind := "") -> int:
+static func level() -> int:
+	return level_at(xp())
+
+
+static func points() -> int:
+	return level() - 1
+
+
+static func spent() -> int:
 	var n := 0
 	for b in BRANCHES:
-		if kind == "leads" and b == "mercy" or kind == "statements" and b != "mercy":
-			continue
 		for t in 5:
 			if owned(b, t):
-				n += cost(b, t)
+				n += 1
 	return n
 
 
-## What is left to pin: leads (LEAD, TIME) and statements (MERCY) are kept apart.
-static func unspent(kind := "leads") -> int:
-	if kind == "statements":
-		return maxi(0, statements_earned() - spent("statements"))
-	return maxi(0, leads_earned() - spent("leads"))
+static func unspent() -> int:
+	return maxi(0, points() - spent())
 
 
 static func owned(branch: String, tier: int) -> bool:
-	return MenuScript.story("instinct_%s_%d" % [branch, tier]) == "yes"
+	return MenuScript.story("perk_%s_%d" % [branch, tier]) == "yes"
 
 
-## Tests: --instincts=all or a list like lead0,lead1,time0
+static func cost(_branch: String, _tier: int) -> int:
+	return 1
+
+
+## Is the card with this effect pinned? Tests: --perks=all or a list of effect ids.
 ## Asked many times a second during play, so read once per map (forget() when the board changes).
 static var _cache := {}
 
-static func has(branch: String, tier: int) -> bool:
-	var k := "%s%d" % [branch, tier]
-	if not _cache.has(k):
-		var v := owned(branch, tier)
+static func has_fx(fx: String) -> bool:
+	if not _cache.has(fx):
+		var v := false
+		for b in BRANCHES:
+			for t in 5:
+				if String(CARDS[b][t][2]) == fx:
+					v = owned(b, t)
 		for a in OS.get_cmdline_user_args():
-			if a.begins_with("--instincts="):
-				var arg := a.trim_prefix("--instincts=")
-				v = arg == "all" or k in arg.split(",")
-		_cache[k] = v
-	return _cache[k]
+			if a.begins_with("--perks="):
+				var arg := a.trim_prefix("--perks=")
+				v = arg == "all" or fx in arg.split(",")
+		_cache[fx] = v
+	return _cache[fx]
 
 
 static func forget() -> void:
 	_cache.clear()
 
 
-## Frank's rank by experience: [hits, drain per second, refill per second].
+## [hits, drain per second, refill per second]
 static func rank() -> Array:
-	var e := earned()
-	var best: Array = RANKS[0]
-	for r in RANKS:
-		if e >= int(r[0]):
-			best = r
-	return [int(best[1]), float(best[2]), float(best[3])]
-
-
-## The next rank: [leads needed, hits it gives], or [] at the top.
-static func next_rank() -> Array:
-	var e := earned()
-	for r in RANKS:
-		if e < int(r[0]):
-			return [int(r[0]), int(r[1])]
-	return []
+	var hits := BASE_HITS
+	for f in ["tough1", "tough2", "tough3"]:
+		hits += 1 if has_fx(f) else 0
+	return [hits, DRAIN * (0.8 if has_fx("longwatch") else 1.0), REFILL]
 
 
 static func reached(chapter: int) -> bool:
@@ -156,35 +143,26 @@ static func reached(chapter: int) -> bool:
 static func why_locked(branch: String, tier: int) -> String:
 	if owned(branch, tier):
 		return ""
-	var ch: int = 4 if branch == "mercy" and tier == 4 else FROM_CHAPTER[tier]
+	var ch: int = FROM_CHAPTER[tier]
 	if not reached(ch) or not Levels.CAMPAIGN[mini(ch, Levels.CAMPAIGN.size() - 1)]["ready"]:
 		return "OPENS IN " + String(Levels.CAMPAIGN[mini(ch, Levels.CAMPAIGN.size() - 1)]["title"])
-	if branch == "mercy":
-		if tier >= 3 and MenuScript.guilt() >= ASH_LOCK:
-			return "NOT FOR A MAN LIKE YOU, FRANK."
-		var need: int = SPARED_NEEDED[tier]
-		if MenuScript.spared_total() < need:
-			return "LET %d MEN GO FIRST" % need
 	if tier > 0 and not owned(branch, tier - 1):
 		return "PIN THE CARD BEFORE IT"
-	if branch == "mercy":
-		if unspent("statements") < cost(branch, tier):
-			return "NEEDS %d STATEMENTS" % cost(branch, tier)
-	elif unspent() < cost(branch, tier):
-		return "NEEDS %d LEADS" % cost(branch, tier)
+	if unspent() < 1:
+		return "NEEDS A POINT: LEVEL %d" % (level() + 1)
 	return ""
 
 
 static func pin(branch: String, tier: int) -> bool:
 	if why_locked(branch, tier) != "" or owned(branch, tier):
 		return false
-	MenuScript.set_story("instinct_%s_%d" % [branch, tier], "yes")
+	MenuScript.set_story("perk_%s_%d" % [branch, tier], "yes")
 	forget()
 	return true
 
 
-## Taking a card down takes the ones after it in its branch down too.
+## Taking a card down takes the ones after it in its row down too.
 static func unpin(branch: String, tier: int) -> void:
 	for t in range(tier, 5):
-		MenuScript.set_story("instinct_%s_%d" % [branch, t], "")
+		MenuScript.set_story("perk_%s_%d" % [branch, t], "")
 	forget()
