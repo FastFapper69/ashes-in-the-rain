@@ -49,9 +49,9 @@ func _ready() -> void:
 	_bar.add_child(_fill)
 	set_segments(SEGMENTS)
 	_ring = _add("res://art/ui/stick_base.png", 0.8)   # the stick's base: an empty printed badge, its middle see-through
-	_ring.modulate.a = 0.75
+	_ring.modulate.a = 0.55   # see-through enough that cover under the thumb still reads
 	_knob = _add("res://art/ui/stick_knob.png", 0.62)
-	_knob.modulate.a = 0.9
+	_knob.modulate.a = 0.75
 	_slow = _add("res://art/ui/stopwatch.png", 0.215)
 	_meter = Line2D.new()
 	_meter.width = 5.0
@@ -68,10 +68,20 @@ func _ready() -> void:
 	_dash = _add("res://art/ui/badge_dive.png", 0.37)
 	_jump = _add("res://art/ui/badge_jump.png", 0.37)
 	_pause = _add("res://art/ui/badge_pause.png", 0.27)
+	_dash.modulate.a = 0.82
+	_jump.modulate.a = 0.82
 	set_health(1.0)
 	get_viewport().size_changed.connect(_layout)
 	_layout()
 	set_slow(1.0, false)
+
+
+## A card over the game (pause, a diary page, a choice): the thumb controls step out of the way, so the
+## card is the only thing on the screen to look at or touch.
+func modal(on: bool) -> void:
+	for n in [_ring, _knob, _slow, _meter, _dash, _jump, _pause]:
+		if n != null:
+			n.visible = not on
 
 
 func _add(path: String, size: float) -> Sprite2D:

@@ -19,7 +19,7 @@ const SCENES := {
 	"opening": [
 		{"img": 82, "from": [0.5, 0.35, 1.18], "to": [0.5, 0.5, 1.0], "rain": 1.2, "stamp": "NEW YORK  ·  DECEMBER, 1947",
 			"lines": ["New York, the winter of 1947. The war was over. The city still hadn't come home.", "It rained like it meant to wash something away. It never did."]},
-		{"img": 83, "from": [0.3, 0.5, 1.12], "to": [0.62, 0.5, 1.0], "rain": 0.3, "at": ["tl", "bl"],
+		{"img": 83, "from": [0.3, 0.5, 1.12], "to": [0.62, 0.5, 1.0], "rain": 0.3, "at": ["tl", "tl"],
 			"lines": ["The docks fed the city, and the city fed on the docks. Every morning men stood in the rain and waited to be picked.", "Cornelius Vail owned the ships, the piers and most of the men who worked them. The papers called him the Saint. He built churches."]},
 		{"img": 84, "from": [0.45, 0.4, 1.0], "to": [0.32, 0.55, 1.2], "rain": 0.0, "hit": 1, "stamp": "PIER 17  ·  AUGUST 14, 1939  ·  2:10 A.M.",
 			"lines": ["In the summer of '39 the longshoremen on Pier 17 voted to strike. That night the pier burned with eleven of them inside.", "The report said bad wiring. A young cop signed it. Nobody ever asked him how he slept."]},
@@ -74,7 +74,7 @@ const SCENES := {
 			"lines": ["March 1931. I came running from the pool hall when I heard the bells.", "Engine 54 was already there. My father went up the ladder for the Kowalczyk kids on the fourth floor."]},
 	],
 	"kessler": [
-		{"img": 64, "from": [0.35, 0.45, 1.05], "to": [0.55, 0.62, 1.4], "rain": 0.0, "hit": 1, "at": ["tl", "tl", "bl"],
+		{"img": 64, "from": [0.35, 0.45, 1.05], "to": [0.55, 0.62, 1.4], "rain": 0.0, "hit": 1, "at": ["tr", "br", "br"],
 			"lines": ["Second drawer, like Eddie said. PIER 17. FIRE. CAUSE: ACCIDENTAL.", "At the bottom, in ink gone brown: Ptl. F. Malone. My hand. My two hundred dollars.", "Kessler had kept the original for eight years. Insurance against the Saint, he called it. Against men like me."]},
 		{"img": 65, "from": [0.7, 0.4, 1.2], "to": [0.4, 0.45, 1.0], "rain": 0.8, "sound": "door",
 			"lines": ["\"Frank Malone. You're under arrest for the murder of Eddie Doyle.\"", "Declan Rourke taught me how to tie a tie. He coughed into my mother's handkerchief and wouldn't look me in the eye."]},
@@ -228,7 +228,7 @@ var _pan_t := 0.0
 var _pan_len := 8.0
 var _font_type: Font
 var _font_head: FontVariation
-var _stamp: Label
+var _stamp_box: Control
 var _flash: ColorRect
 var _black: ColorRect
 var _ending := false
@@ -373,8 +373,7 @@ func _process(delta: float) -> void:
 			d = Vector3(randf() * 1.2, -0.1 - randf() * 0.2, d.z)
 		_drops[k] = d
 	_rain.queue_redraw()
-	if _stamp != null and _stamp.visible_characters < _stamp.text.length():
-		_stamp.visible_characters = mini(_stamp.text.length(), _stamp.visible_characters + 1)
+	pass
 
 
 func _draw_rain() -> void:
@@ -533,9 +532,9 @@ func _next_panel() -> void:
 			tw.tween_callback(b.queue_free)
 	_boxes.clear()
 	_typing = null
-	if _stamp != null:
-		_stamp.queue_free()
-		_stamp = null
+	if _stamp_box != null:
+		_stamp_box.queue_free()
+		_stamp_box = null
 	if _old != null:
 		_old.queue_free()
 	_old = _pic
@@ -573,21 +572,15 @@ func _next_panel() -> void:
 				sound.call("sting", -3.0)
 			_flash.color.a = 0.35
 			create_tween().tween_property(_flash, "color:a", 0.0, 0.9))
-	if p.has("stamp"):
-		_stamp = Label.new()
-		_stamp.text = String(p["stamp"])
-		_stamp.add_theme_font_override("font", _font_head)
-		_stamp.add_theme_font_size_override("font_size", 30)
-		_stamp.add_theme_color_override("font_color", PAPER)
-		_stamp.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
-		_stamp.add_theme_constant_override("shadow_offset_x", 3)
-		_stamp.add_theme_constant_override("shadow_offset_y", 3)
-		_stamp.visible_characters = 0
-		_stamp.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-		_stamp.position = Vector2(48.0, -78.0)
-		_stamp.size = Vector2(900.0, 50.0)
-		_stamp.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		add_child(_stamp)
+	if p.has("stamp"):   # where and when: the comic's location caption, on paper like every other box
+		var Paper = load("res://paper.gd")
+		_stamp_box = Paper.caption(Paper.place_time(String(p["stamp"])).to_upper(), _cap_font(), 20)
+		var vs := _view()
+		_stamp_box.position = Vector2(vs.x - 48.0 - _stamp_box.size.x, 112.0)   # top right, under SKIP: the captions step down the left and bottom
+		_stamp_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_stamp_box.modulate.a = 0.0
+		add_child(_stamp_box)
+		create_tween().tween_property(_stamp_box, "modulate:a", 1.0, 0.5)
 	get_tree().create_timer(0.9 if _i == 0 else 0.5, true, false, true).timeout.connect(func() -> void:
 		if is_inside_tree() and not _ending and _line == 0 and _typing == null:
 			_show_line())
@@ -641,7 +634,7 @@ func _place_box(box: Control, n: int) -> void:
 		if j < _boxes.size() and is_instance_valid(_boxes[j]) and _corner(j) == corner:
 			same.append(_boxes[j])
 	if corner.begins_with("t"):
-		var y := margin.y
+		var y := margin.y if corner == "tl" else 104.0   # top right starts under the SKIP tape
 		for o in same:
 			y = maxf(y, (o as Control).position.y + (o as Control).size.y + GAP)
 		box.position = Vector2(x, y)

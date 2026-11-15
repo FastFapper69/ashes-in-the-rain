@@ -30,7 +30,7 @@ func _ready() -> void:
 	dim.color = Color(0, 0, 0, 0.75)
 	dim.size = view
 	add_child(dim)
-	var size := Vector2(minf(720.0, view.x - 96.0), minf(view.y - 40.0, 640.0 if erase.is_valid() else 560.0))
+	var size := Vector2(minf(600.0, view.x - 96.0), minf(view.y - 40.0, 640.0 if erase.is_valid() else 560.0))
 	_card = Paper.sheet("panel", size)   # an inked comic panel of old paper
 	_card.position = (view - size) * 0.5
 	_card.rotation = deg_to_rad(-0.5)

@@ -619,7 +619,7 @@ func _ready() -> void:
 				get_tree().quit()
 				return
 			_travel(true))
-	if _auto == "pause":   # --test=pause: the pause card, then its settings
+	if _auto == "pause":   # --test=pause: the pause card, then its settings (the controls hidden under it)
 		get_tree().create_timer(1.0, true, false, true).timeout.connect(_pause)
 		get_tree().create_timer(2.0, true, false, true).timeout.connect(_shot.bind("pause"))
 		get_tree().create_timer(2.2, true, false, true).timeout.connect(func() -> void:
@@ -642,7 +642,8 @@ func _ready() -> void:
 			var c = ChoiceScript.new()
 			c.question = "Briggs is on his knees. He counted every shell. He never once called you a murderer."
 			c.options = ["LET HIM LIVE", "FINISH IT"]
-			c.done = func(_i: int) -> void: pass
+			c.done = func(_i: int) -> void: hud.modal(false)
+			hud.modal(true)
 			add_child(c))
 		get_tree().create_timer(2.6, true, false, true).timeout.connect(_shot.bind("choice"))
 		get_tree().create_timer(2.6, true, false, true).timeout.connect(func() -> void: hud.caption(["The shooters hadn't gone far. Rain doesn't wash a trail away that fast.", "Neither does whiskey. I'd tried."]))
@@ -1423,6 +1424,13 @@ func _ground_shadow(cx: float, w: float, y := 0.0) -> void:
 	sh.position = Vector2(cx, y - 4.0)
 	sh.z_index = -3
 	add_child(sh)
+	var core := Sprite2D.new()   # and a tight dark line where it actually touches the ground
+	core.texture = _shadow_tex
+	core.scale = Vector2(w * 0.95 / 128.0, 14.0 / 128.0)
+	core.position = Vector2(cx, y - 2.0)
+	core.modulate = Color(1, 1, 1, 0.9)
+	core.z_index = -3
+	add_child(core)
 
 
 func _soft_glow() -> GradientTexture2D:
@@ -4306,12 +4314,15 @@ func _pause() -> void:
 	var p = PauseScript.new()
 	p.title = "%s\n%s" % [String(Levels.CAMPAIGN[chapter]["title"]), String(level["name"])]
 	p.sound = func(n: String) -> void: sfx.play(n, -4.0, INF, 0.1)
+	hud.modal(true)
 	p.on_close = func() -> void:
+		hud.modal(false)
 		hud.release_all()
 		_shake_on = bool(MenuScript.setting("shake"))
 		_assist = bool(MenuScript.setting("assist"))
 	p.on_restart = _restart
 	p.on_quit = func() -> void:
+		hud.modal(false)
 		Engine.time_scale = 1.0
 		in_menu = true
 		_travel(false)
@@ -5230,7 +5241,7 @@ func _build_room(x0: float, x1: float, style: String) -> void:
 		pool.texture = _soft_glow()
 		pool.position = at + Vector2(0.0, 110.0)   # spreading from the bulb itself, falling off down the wall
 		var low: bool = String(b[3]) == "small"   # a table lamp or a lantern lights its corner, a ceiling lamp the room
-		pool.scale = (Vector2(2.4, 2.0) if low else Vector2(4.2, 3.6)) if not sky else Vector2(6.0, 5.0)
+		pool.scale = (Vector2(1.7, 1.6) if low else Vector2(2.8, 2.9)) if not sky else Vector2(4.2, 4.0)   # the light the lamp throws, not a halo hung in the air
 		pool.material = add
 		pool.light_mask = 0
 		pool.modulate = _undo_night(0.1 if not sky else 0.045) * col.lerp(Color.WHITE, 0.8)   # warm, not orange
@@ -5589,8 +5600,11 @@ func _read_page() -> void:
 	d.found = map + 1   # this page's place in the chapter
 	d.total = Levels.CAMPAIGN[chapter]["maps"].size()
 	d.sound = func(n: String, db: float) -> void: sfx.play(n, db, INF, 0.0)
-	d.done = hud.release_all
+	d.done = func() -> void:
+		hud.modal(false)
+		hud.release_all()
 	hud.release_all()
+	hud.modal(true)
 	add_child(d)
 
 
@@ -5670,7 +5684,9 @@ func _briggs_down(e: Dictionary) -> void:
 	c.question = "Briggs is on his knees. He counted every shell. He never once called you a murderer."
 	c.options = ["LET HIM LIVE", "FINISH IT"]
 	hud.release_all()
+	hud.modal(true)
 	c.done = func(i: int) -> void:
+		hud.modal(false)
 		hud.release_all()
 		if i == 0:
 			MenuScript.set_story("briggs", "spared")

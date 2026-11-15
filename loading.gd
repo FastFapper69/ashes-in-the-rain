@@ -86,10 +86,10 @@ func _card(view: Vector2) -> void:
 	for ph in MenuScript.PHASES:   # where and when, and Frank's line for it
 		if int(ph[0]) == chapter and int(ph[1]) == map:
 			var Paper = load("res://paper.gd")
-			var stamp := _text(Paper.place_time(String(ph[3])), type, 24, Color(PAPER, 0.75))
+			var stamp := _text(Paper.place_time(String(ph[3])), type, 26, Color(PAPER, 0.85))
 			stamp.position = Vector2(x, y + 190.0)
 			_root.add_child(stamp)
-			var line := _text(String(ph[2]), type, 26, Color(PAPER, 0.55))
+			var line := _text(String(ph[2]), type, 30, Color(PAPER, 0.8))
 			line.position = Vector2(x, y + 264.0)
 			_root.add_child(line)
 

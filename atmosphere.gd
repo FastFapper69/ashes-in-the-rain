@@ -243,16 +243,16 @@ func add_steam(parent: Node, at: Vector2) -> void:
 	p.initial_velocity_max = 80.0
 	p.angular_velocity_min = -8.0
 	p.angular_velocity_max = 8.0
-	p.scale_amount_min = 0.35
-	p.scale_amount_max = 0.6
+	p.scale_amount_min = 0.7   # broad soft puffs: small ones strung in a line read as a white squiggle
+	p.scale_amount_max = 1.1
 	var grow := Curve.new()
-	grow.add_point(Vector2(0.0, 0.4))
-	grow.add_point(Vector2(1.0, 1.6))
+	grow.add_point(Vector2(0.0, 0.5))
+	grow.add_point(Vector2(1.0, 1.8))
 	p.scale_amount_curve = grow
 	var g := Gradient.new()
 	g.set_color(0, Color(0.6, 0.62, 0.66, 0.0))
 	g.set_color(1, Color(0.6, 0.62, 0.66, 0.0))
-	g.add_point(0.25, Color(0.6, 0.62, 0.66, 0.28))
+	g.add_point(0.3, Color(0.6, 0.62, 0.66, 0.16))
 	p.color_ramp = g
 	p.z_index = -3
 	parent.add_child(p)

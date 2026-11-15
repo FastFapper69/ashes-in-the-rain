@@ -143,7 +143,7 @@ func _ready() -> void:
 	var mat := ShaderMaterial.new()
 	mat.shader = sh
 	mat.set_shader_parameter("line", Vector3(0.03, 0.03, 0.035))
-	mat.set_shader_parameter("width", 2.2)
+	mat.set_shader_parameter("width", 2.8)   # the cream contour keeps a dark coat apart from a dark wall
 	mat.set_shader_parameter("boost", Vector3(body_boost.r, body_boost.g, body_boost.b))
 	_body.material = mat
 	add_child(_body)
