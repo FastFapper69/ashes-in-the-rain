@@ -33,6 +33,8 @@ Read this first when picking the project up in a new chat. Reply to the user in 
 ## The user's standing rules (he gets angry when they are broken)
 - Look at every graphic change yourself before delivering. No AI tells: six fingers, hands through solid wood, glyph soup text (fix text with `gen/fix_cut_text.py`).
 - Geometry matches the painted art, feet on surfaces, straight lines stay straight, no code-drawn slabs.
+- RULE: enemies shoot (and throw dynamite) only at a Frank on their own floor (main.gd `_same_floor`, FLOOR_REACH 400 from `_ground_y` = where Frank last stood; gated in `_can_see`, `_fire`, `_throw_stick`). Where a level has an upper floor (level["roof"]: roofs, mezzanine) the camera zooms in so only the current floor fills the picture (want_zoom from roof y). Any new multi-floor map must keep both.
+- Lamps go only where a real lamp would hang (over a shop sign or door, on bare wall); never on a window, fire escape or sign. Street drawings list them in SEGMENT_LIGHTS (pixels of the drawing; "painted" = the drawing has the lamp, only light is added; goose/cage/lantern = art/props/lamp_*.png from art_src 141).
 - Logic audit of props; no enemy fire right after spawn/checkpoint.
 - Every light has a visible source; glows in the source's shape.
 

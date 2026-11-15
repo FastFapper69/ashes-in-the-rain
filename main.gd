@@ -119,7 +119,8 @@ var stats := {"kills": 0, "heads": 0, "slow": 0, "hits": 0, "time": 0.0, "execut
 var _combo := 0          # kills in a row, each within COMBO_GAP of the last
 var _combo_t := 0.0      # time left to keep the streak going
 var _bounce_t := 0.0
-var _hit_at := Vector2.INF   # the last bullet's point of impact     # a ricochet is still in flight: a kill now is a trick shot
+var _hit_at := Vector2.INF
+var _ground_y := 0.0   # where Frank last stood: his floor   # the last bullet's point of impact     # a ricochet is still in flight: a kill now is a trick shot
 const COMBO_GAP := 2.5
 var _streak_told := false
 const COMBO_MAX := 5
@@ -954,10 +955,29 @@ func _build_street() -> void:
 
 
 ## Where the wall lamps hang on each drawn street segment (fractions of its width), where a facade stands at that height.
-const SEGMENT_LAMPS := {"alley": [0.08, 0.62, 0.92], "bluenote": [0.12, 0.3, 0.9], "warehouse": [0.15, 0.42, 0.82], "laundry": [0.1, 0.3, 0.72],
-	"subway": [0.1, 0.38, 0.72], "church": [0.08, 0.9], "market": [0.1, 0.45, 0.86], "deadend": [0.22, 0.86],
-	"pier17": [0.12, 0.38, 0.8], "cranes": [0.7, 0.9], "shipping": [0.12, 0.42, 0.7], "quay": [0.74, 0.86], "harbor": [0.3, 0.56],
-	"platform": [0.3, 0.62, 0.86], "tunnel": [0.22, 0.5, 0.76], "yard": [0.1, 0.62]}
+# The lamps of each street drawing, in its pixels: [x, y of the bulb, kind(, mirrored)].
+# "painted": the drawing already has the lamp; only its light is added. The others hang a drawn lamp
+# (art/props/lamp_<kind>.png, art_src 141) where a real one would be: over a shop sign, over a door,
+# on bare wall between windows; never on a window, a fire escape or a sign.
+const SEGMENT_LIGHTS := {
+	"laundry": [[2110, 748, "painted"], [455, 735, "goose"], [985, 735, "goose", true]],
+	"bluenote": [[1262, 880, "painted"], [284, 852, "lantern"], [2877, 833, "goose", true]],
+	"alley": [[507, 908, "painted"], [2034, 766, "goose"], [2365, 766, "goose", true]],
+	"warehouse": [[435, 568, "goose"], [1003, 568, "goose", true]],
+	"subway": [[185, 796, "painted"], [307, 812, "painted"], [670, 796, "painted"], [874, 748, "goose"], [1166, 748, "goose", true], [1535, 800, "cage"]],
+	"church": [[2298, 948, "painted"]],
+	"market": [[247, 779, "goose"], [513, 779, "goose", true], [797, 779, "goose"]],
+	"deadend": [[361, 735, "painted"], [1291, 795, "cage"]],
+	"pier17": [[2939, 891, "painted"], [2399, 862, "cage"]],
+	"cranes": [[1991, 827, "painted"], [2939, 884, "painted"]],
+	"shipping": [[1574, 777, "painted"], [550, 895, "cage"], [1005, 895, "cage"], [2048, 815, "goose"]],
+	"quay": [[2095, 429, "painted"]],
+	"harbor": [[1071, 828, "cage"]],
+	"platform": [[1583, 372, "painted"], [2892, 305, "painted"]],
+	"tunnel": [[997, 559, "painted"], [1126, 446, "painted"], [1716, 408, "painted"], [2357, 398, "painted"], [2986, 389, "painted"]],
+}
+const LAMP_KINDS := {   # the drawn lamps: where the bulb is on the drawing, and how big they hang
+	"goose": [Vector2(351, 500), 0.24], "cage": [Vector2(256, 310), 0.2], "lantern": [Vector2(176, 241), 0.24]}
 # the signs that light up on each drawing: top-left of the glow picture (pixels of the drawing),
 # colour, and how it burns: steady, buzz (now and then a stutter) or dying (out as often as on)
 const SEGMENT_NEONS := {
@@ -1117,22 +1137,34 @@ func _build_segments() -> void:
 		for k in signs.size():
 			var p0: Vector2 = signs[k][0]
 			_add_sign("res://art/street/%s_neon%d.png" % [seg_name, k], w.position + Vector2((p0.x - trim) * sx, p0.y) * ws, signs[k][1], String(signs[k][2]), halo_tex, signs[k].size() > 3)
-		for f in SEGMENT_LAMPS.get(seg_name, []):
-			var at := Vector2(x0 + seg_w * float(f), -WALL_LIFT - 880.0)
+		for f in SEGMENT_LIGHTS.get(seg_name, []):
+			if float(f[0]) < trim:   # cut off with the drawing's trimmed edge
+				continue
+			var at: Vector2 = w.position + Vector2((float(f[0]) - trim) * sx, float(f[1])) * ws
 			if _room_at(at.x) != "":
 				continue
+			var kind := String(f[2])
 			lamps.append(at)
-			var rec := {"nodes": [], "light": null, "on": true}
+			var rec := {"nodes": [], "light": null, "on": true, "glass": 0.0}
 			lamp_info.append(rec)
 			rec["hum"] = sfx.add_loop("lamp_hum", at.x, -26.0, 450.0, at.y)
-			var fix := Sprite2D.new()
-			fix.texture = load("res://art/props/lamp_wall.png")
-			fix.centered = false
-			fix.scale = Vector2.ONE * 0.2
-			fix.offset = -LAMP_BULB
-			fix.position = at
-			fix.z_index = -7
-			add_child(fix)
+			if kind == "painted":   # the drawing's own lamp: its light only, and a painted lamp can't be shot dark
+				rec["fixed"] = true
+			else:
+				var fix := Sprite2D.new()
+				var spec: Array = LAMP_KINDS[kind]
+				fix.texture = LowRes.tex("res://art/props/lamp_%s.png" % kind, 0.5)
+				fix.centered = false
+				fix.scale = Vector2.ONE * float(spec[1])
+				fix.flip_h = f.size() > 3 and bool(f[3])
+				var bulb_px: Vector2 = spec[0]
+				if fix.flip_h:
+					bulb_px.x = fix.texture.get_width() - bulb_px.x
+				fix.offset = -bulb_px
+				fix.position = at
+				fix.modulate = Color(0.5, 0.48, 0.46)   # dark wet iron, like the painted ironwork round it
+				fix.z_index = -7
+				add_child(fix)   # not in rec["nodes"]: shot out, the lamp stays on the wall, dark
 			if _cones:   # (comparison) an inked cone of light down from the lamp
 				var cone := Sprite2D.new()
 				cone.texture = load("res://art/light_cone_ink.png")
@@ -1164,6 +1196,8 @@ func _build_segments() -> void:
 				wet.z_index = -7
 				add_child(wet)
 				rec["nodes"].append(wet)
+			if kind == "painted":
+				continue
 			var bulb := Sprite2D.new()
 			bulb.texture = load("res://art/light_blob.png")
 			bulb.scale = Vector2.ONE * 0.11
@@ -2317,7 +2351,12 @@ func _process(delta: float) -> void:
 		elif absf(aim.x) > 20.0:
 			_look = signf(aim.x)
 	_lead = lerpf(_lead, CAM_LEAD * _look, 1.0 - exp(-3.6 * real))
+	if move_state == "ground":
+		_ground_y = player.position.y
 	var want_zoom := ROOM_ZOOM if _room != "" else ZOOM
+	if not roof.is_empty() and player.position.x > float(roof["x0"]) - 1600.0 and player.position.x < float(roof["x1"]) + 1600.0:
+		# where there is a floor above the street, closer in: only the floor he is on fills the picture
+		want_zoom = maxf(want_zoom, get_viewport().get_visible_rect().size.y / (absf(float(roof["y"])) * 0.92))
 	cam.zoom = Vector2.ONE * lerpf(cam.zoom.x, want_zoom, 1.0 - exp(-3.0 * real))
 	var near := ZOOM / cam.zoom.x   # the pavement stays four fifths down the screen at any zoom
 	fore.modulate.a = move_toward(fore.modulate.a, 0.0 if _room != "" or player.position.y < -900.0 else 1.0, real * 3.0)   # no street furniture indoors, nor up on the scaffold
@@ -3656,6 +3695,8 @@ func _show_ammo() -> void:
 ## One shot: flash, bullet (or a shotgun's pellets), casing, kick of the arm and the lettered bang.
 ## kind: the mobster's gun (post, tommy, shotgun); the detective fires whatever he holds.
 func _fire(shooter, from_player: bool, kind := "") -> void:
+	if not from_player and shooter != player and not _same_floor(shooter):   # never from another floor
+		return
 	var at: Vector2 = shooter.muzzle()
 	var d: Vector2 = shooter.aim_dir()
 	if from_player and _aim_point != Vector2.INF and _aim_point.distance_to(at) > 120.0:
@@ -6073,7 +6114,14 @@ func _can_see(m) -> bool:
 	var half_h: float = get_viewport().get_visible_rect().size.y * 0.5 / cam.zoom.y
 	if absf(m.position.y - 60.0 - cam.position.y) > half_h + 40.0:
 		return false
-	return m.position.y - player.position.y < 260.0   # he is not far below Frank
+	return _same_floor(m)
+
+
+## RULE (the user's, 15. 11.): a man shoots only at a Frank on his own floor. Frank's floor is where
+## he last stood (a jump or a ladder doesn't change it); a crate is still the same floor.
+const FLOOR_REACH := 400.0
+func _same_floor(m) -> bool:
+	return absf(m.position.y - _ground_y) < FLOOR_REACH
 
 
 func _on_screen(p: Vector2) -> bool:
@@ -6429,6 +6477,8 @@ func _hook_man(e: Dictionary, m, to_player: Vector2, delta: float) -> void:
 var _sticks: Array = []
 
 func _throw_stick(m) -> void:
+	if not _same_floor(m):
+		return
 	var from: Vector2 = m.muzzle()
 	var target := Vector2(player.position.x + randf_range(-70.0, 70.0), player.position.y)
 	var t := clampf(absf(target.x - from.x) / 900.0, 0.7, 1.3)
