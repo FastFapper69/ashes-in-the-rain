@@ -19,17 +19,43 @@ uniform float slow = 0.0;
 uniform vec2 registration = vec2(1.6, 1.0);
 uniform float lift = 0.0;   // 0 = Sin City blacks; 1 = the darks opened up so walls in the dark keep their lines
 uniform float fire_keep = 0.0;   // 1 in the dream: the flames are not greyed with the rest
+uniform float dream = 0.0;   // the burning dream (2026-11-15): heat shimmer, smoke under the roof, embers at the edges, the plates slipping
+uniform float jolt = 0.0;   // a start in the nightmare: the picture doubles for a moment
 uniform float ash = 0.0;   // 0..1, Frank's guilt: the paper greys, the amber dies, the rain goes to soot   // screen pixels between the ink and the colour plates
 
 float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
 }
 
+float vnoise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+
+float smoke_at(vec2 p) {
+	float v = vnoise(p) * 0.55 + vnoise(p * 2.1 + 3.7) * 0.3 + vnoise(p * 4.3 + 9.1) * 0.15;
+	return v;
+}
+
 void fragment() {
-	vec3 c = texture(screen_texture, SCREEN_UV).rgb;
+	vec2 uv = SCREEN_UV;
+	vec2 q0 = uv - 0.5;
+	float edge2 = dot(q0, q0);
+	if (dream > 0.0) {
+		// heat: the air wavers, more low down where the fires stand, and it never keeps still
+		float low = 0.35 + 0.65 * smoothstep(0.2, 1.0, uv.y);
+		uv.x += (sin(uv.y * 70.0 + TIME * 4.3) + 0.6 * sin(uv.y * 31.0 - TIME * 2.7)) * 0.0011 * dream * low;
+		uv.y += sin(uv.x * 45.0 + TIME * 3.1) * 0.0007 * dream * low;
+		uv += vec2(sin(TIME * 47.0), cos(TIME * 39.0)) * jolt * 0.004;
+	}
+	vec3 c = texture(screen_texture, uv).rgb;
 	float l = dot(c, vec3(0.299, 0.587, 0.114));
 	// the colour plate is printed a hair off the ink plate, like cheap 1940s newsprint
-	vec3 cc = texture(screen_texture, SCREEN_UV + registration * SCREEN_PIXEL_SIZE).rgb;
+	// (in the dream it slips further toward the edges of the page, and a start doubles it)
+	vec2 reg = registration * (1.0 + dream * edge2 * 14.0) + vec2(jolt * 14.0, -jolt * 6.0);
+	vec3 cc = texture(screen_texture, uv + reg * SCREEN_PIXEL_SIZE).rgb;
 	float lc = dot(cc, vec3(0.299, 0.587, 0.114));
 	float mx = max(cc.r, max(cc.g, cc.b));
 	float mn = min(cc.r, min(cc.g, cc.b));
@@ -64,9 +90,19 @@ void fragment() {
 	// paper grain, redrawn twelve times a second
 	float n = hash(floor(FRAGCOORD.xy * 0.5) + floor(TIME * 12.0) * 17.0);
 	col += (n - 0.5) * grain;
+	if (dream > 0.0) {
+		// smoke rolling under the roof, thick at the top of the page, thinning down to his shoulders
+		vec2 sp = vec2(SCREEN_UV.x * 2.6 + TIME * 0.035, SCREEN_UV.y * 3.2 + TIME * 0.09);
+		float sm = smoothstep(0.3, 0.72, smoke_at(sp)) * (1.0 - smoothstep(0.05, 0.62, SCREEN_UV.y));
+		col = mix(col, ink * 1.6, sm * 0.75 * dream);
+		// the edges of the page smoulder: a breathing ember red in place of the plain black
+		float beat = pow(0.5 + 0.5 * sin(TIME * 1.7), 3.0);
+		float rim = smoothstep(0.1, 0.32, edge2 + (vnoise(SCREEN_UV * 6.0 + TIME * 0.2) - 0.5) * 0.06);
+		col = mix(col, vec3(0.42, 0.07, 0.02) * (0.6 + beat * 0.6), rim * dream * 0.55);
+	}
 	// heavy vignette
 	vec2 q = SCREEN_UV - 0.5;
-	col *= clamp(1.0 - dot(q, q) * (vignette + slow * 0.35) * 2.6, 0.0, 1.0);
+	col *= clamp(1.0 - dot(q, q) * (vignette + slow * 0.35 + dream * 0.25) * 2.6, 0.0, 1.0);
 	// slowed time: a hand-inked panel border closes in, with a thin paper line inside it
 	vec2 px = FRAGCOORD.xy;
 	vec2 size = px / max(SCREEN_UV, vec2(0.0001));
@@ -126,6 +162,18 @@ func set_lift(amount: float) -> void:
 
 func set_fire_keep(amount: float) -> void:
 	_post.set_shader_parameter("fire_keep", amount)
+
+
+## The burning dream's own page (0 = none): see `dream` in POST_SHADER. It gets worse each time it starts over.
+func set_dream(amount: float) -> void:
+	_post.set_shader_parameter("dream", amount)
+
+
+## A start: the picture doubles and shakes for a moment, then settles.
+func jolt(amount: float) -> void:
+	_post.set_shader_parameter("jolt", amount)
+	var tw := create_tween()
+	tw.tween_method(func(v: float) -> void: _post.set_shader_parameter("jolt", v), amount, 0.0, 0.45)
 
 
 func set_ash(amount: float) -> void:

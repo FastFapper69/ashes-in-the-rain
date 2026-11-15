@@ -32,7 +32,9 @@ DOCKS_POOL = ["pier17", "cranes", "shipping", "quay", "sheds", "pier17_b", "ship
 # so a map does not show one drawing again and again; everything about them but the picture is the kit's
 KIT = {"walkway_b": "walkway", "signal_b": "signal", "arches_b": "arches", "tunnel_lo_b": "tunnel_lo",
        "yard_b": "yard", "tunnel_b": "tunnel", "sheds_b": "sheds", "pier17_b": "pier17", "shipping_b": "shipping", "quay_b": "quay",
-       "laundry_b": "laundry", "alley_b": "alley", "warehouse_b": "warehouse", "church_b": "church", "subway_b": "subway", "market_b": "market", "market_c": "market"}
+       "laundry_b": "laundry", "alley_b": "alley", "warehouse_b": "warehouse", "church_b": "church", "subway_b": "subway", "market_b": "market", "market_c": "market",
+       # the dream's rooms gone wrong (gen/process_dream.py): the burning warehouse's own cut and floor
+       "fire_d": "fire_a", "fire_e": "fire_b", "fire_f": "fire_c", "fire_g": "fire_a"}
 for _v, _k in KIT.items():
     SEGMENTS[_v] = SEGMENTS[_k]
     if _k in SEG_SIZE:
@@ -400,7 +402,8 @@ def street(mp, m, rng):
                 m.end = x + w * 0.42   # he stops in front of the doors
                 seq.append(["fire_a", x + w])   # (beyond them, out of reach, more of the same)
                 return seq
-            name = ["fire_a", "fire_b"][k % 2]
+            # the same two rooms at first; after each time it starts over they are rooms gone wrong
+            name = (["fire_a", "fire_b", "fire_a", "fire_b", "fire_d", "fire_b", "fire_e", "fire_f", "fire_g"] + ["fire_e", "fire_g"] * 9)[k]
             seq.append([name, x])
             x += SEGMENTS[name] * 1.9 * SEG_SIZE[name]
             k += 1

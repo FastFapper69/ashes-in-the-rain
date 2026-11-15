@@ -647,6 +647,8 @@ func _ready() -> void:
 			atmo.set_lift(float(a.trim_prefix("--lift=")))
 	if level.get("dream", false):   # (not in the street memories: there it turns every lit shop window orange)
 		atmo.set_fire_keep(1.0)
+		atmo.set_dream(0.55)
+		_dream_vfx.call_deferred()
 	# the ash thickens with what Frank has done: men shot with their hands up stay in the air
 	atmo.add_ash(cam, MenuScript.ash_level() if in_menu else minf(1.2, float(level.get("ash", 0.3)) + MenuScript.guilt() * 0.06), float(level.get("embers", 0.0)))
 	steps = atmo.add_steps(player, _undo_night(0.6))
@@ -1108,7 +1110,8 @@ const SEGMENT_GAIN := {"alley": 0.92, "bluenote": 0.98, "warehouse": 0.9, "laund
 # variants of a kit (gen/levels.py KIT, art_src 164-168): their own picture, the kit's everything else
 const SEGMENT_KIT := {"walkway_b": "walkway", "signal_b": "signal", "arches_b": "arches", "tunnel_lo_b": "tunnel_lo",
 	"yard_b": "yard", "tunnel_b": "tunnel", "sheds_b": "sheds", "pier17_b": "pier17", "shipping_b": "shipping", "quay_b": "quay",
-	"laundry_b": "laundry", "alley_b": "alley", "warehouse_b": "warehouse", "church_b": "church", "subway_b": "subway", "market_b": "market", "market_c": "market"}
+	"laundry_b": "laundry", "alley_b": "alley", "warehouse_b": "warehouse", "church_b": "church", "subway_b": "subway", "market_b": "market", "market_c": "market",
+	"fire_d": "fire_a", "fire_e": "fire_b", "fire_f": "fire_c", "fire_g": "fire_a"}
 const SEGMENT_SIZE := {"deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
 	"signal": 0.52, "arches": 0.52, "sheds": 0.55, "fire_a": 0.605, "fire_b": 0.605, "fire_c": 0.605}
 # A drawing whose floor runs into the depth: where on it a man's feet go, as a share of its height (the
@@ -1701,6 +1704,7 @@ func _tick_dream_sound() -> void:
 		sfx.play(what, -4.0 if what in ["collapse", "beams"] else -8.0, at.x, 0.08)
 		if what == "collapse":   # a ceiling coming down: the ground shakes and sparks fly up from it
 			_shake = maxf(_shake, 0.08)
+			atmo.jolt(0.6)
 			for k in 5:
 				fx.spark(at + Vector2(randf_range(-160.0, 160.0), randf_range(-260.0, -40.0)))
 
@@ -3343,6 +3347,24 @@ func _auto_step(delta: float) -> void:
 		if fmod(_at, 2.6) > 2.3 and _auto_done & (1 << k) == 0:
 			_auto_done |= 1 << k
 			_shot("look_%d" % k)
+		return
+	elif _auto == "rooms":   # each drawing of the street as he walks through it, one picture each, enemies away
+		var segs: Array = level["street"]
+		var k := int(_at / 1.2)
+		if _at < 0.05:
+			for e in enemies:
+				e["node"].position.x += 90000.0
+				e["goal"] = e["node"].position.x
+		if k < segs.size():
+			var x: float = float(segs[k][1]) + 1500.0
+			player.position = Vector2(x, _floor_at(x, -3000.0))
+			move_state = "ground"
+			cam.position = Vector2(player.position.x + _lead, CAM_Y)
+			if fmod(_at, 1.2) > 1.0 and _auto_done & (1 << k) == 0:
+				_auto_done |= 1 << k
+				_shot("room_%d_%s" % [k, String(segs[k][0])])
+		else:
+			get_tree().quit()
 		return
 	elif _auto == "seams":   # the joins between street drawings, zoomed out, no HUD, one picture each
 		hud.visible = false
@@ -5856,8 +5878,18 @@ const FIRE_SPOTS := {
 		[0.542, 0.866, 0.212, 0.081], [0.106, 0.441, 0.194, 0.084], [0.405, 0.458, 0.126, 0.058], [0.218, 0.242, 0.112, 0.058]],
 	"fire_c": [[0.307, 0.84, 0.375, 0.266], [0.768, 0.762, 0.198, 0.19], [0.929, 0.901, 0.147, 0.094], [0.105, 0.443, 0.195, 0.085],
 		[0.675, 0.286, 0.099, 0.137], [0.929, 0.493, 0.135, 0.093], [0.218, 0.24, 0.108, 0.057]],
+	# the rooms gone wrong (gen/process_dream.py); fires on a beam, a stair or the flying front page stay painted
+	"fire_d": [[0.711, 0.891, 0.362, 0.326], [0.302, 0.721, 0.262, 0.251], [0.105, 0.448, 0.2, 0.085], [0.93, 0.501, 0.143, 0.092],
+		[0.084, 0.752, 0.184, 0.044], [0.692, 0.283, 0.093, 0.138], [0.225, 0.242, 0.117, 0.072]],
+	"fire_e": [[0.785, 0.638, 0.513, 0.328, false], [0.694, 0.893, 0.468, 0.193], [0.262, 0.79, 0.357, 0.193], [0.922, 0.897, 0.134, 0.108],
+		[0.105, 0.445, 0.197, 0.085], [0.536, 0.875, 0.166, 0.092], [0.349, 0.632, 0.128, 0.061, false]],
+	"fire_f": [[0.326, 0.839, 0.378, 0.252], [0.769, 0.766, 0.214, 0.199], [0.927, 0.9, 0.142, 0.098], [0.105, 0.449, 0.201, 0.085],
+		[0.524, 0.608, 0.313, 0.055, false], [0.726, 0.277, 0.21, 0.067], [0.935, 0.502, 0.144, 0.081]],
+	"fire_g": [[0.525, 0.701, 0.53, 0.258, false], [0.923, 0.898, 0.134, 0.106], [0.867, 0.541, 0.273, 0.143], [0.102, 0.44, 0.19, 0.079],
+		[0.327, 0.936, 0.133, 0.149], [0.725, 0.319, 0.184, 0.121], [0.745, 0.895, 0.177, 0.103], [0.55, 0.876, 0.174, 0.116]],
 }
 var _dream_fires: Array = []   # where the fires stand: the building groans and gives way near them
+var _dream_soot: Array = []   # the tops of the biggest fires, where their smoke starts
 var _dream_event_t := 3.0
 var _dream_music_on := false
 var _fire_glows: Array = []   # [sprite, phase]: the painted fire's glow layers, breathing
@@ -5880,6 +5912,8 @@ func _fire_life(w: Sprite2D, glow: Sprite2D, seg_name: String, ws: float) -> voi
 			var mid: float = 1.0 - absf(float(j) - (n - 1) * 0.5) / maxf(1.0, n * 0.5)
 			_flame(foot + Vector2((float(j) - (n - 1) * 0.5) * wid / float(n) * 0.7 + randf_range(-20.0, 20.0), 14.0),
 				hgt * randf_range(0.6, 0.8) * (0.75 + mid * 0.45), k * 7 + j * 3, -9)
+		if k < 3 and hgt > 150.0:
+			_dream_soot.append(foot + Vector2(0.0, -hgt * 0.9))
 		if k < 3 and hgt > 150.0:   # the biggest fires light whoever stands in front of them
 			var l := PointLight2D.new()
 			l.texture = _soft_glow()
@@ -5894,6 +5928,60 @@ func _fire_life(w: Sprite2D, glow: Sprite2D, seg_name: String, ws: float) -> voi
 		sfx.add_loop("fire", foot.x, -20.0, 1300.0, foot.y)   # crackle and roar where it burns (Artlist: Barney Oram - Flames)
 		_dream_fires.append(foot)
 		k += 1
+
+
+## The dream burns nearer than the paintings (2026-11-15): flames along the boards in front of him,
+## low enough to keep the men's guns and hands in sight, and soot rising from the big fires.
+func _dream_vfx() -> void:
+	var end: float = float(level.get("end", 20000.0))
+	var x := 700.0
+	var k := 0
+	while x < end + 1500.0:
+		var f := _flame(Vector2(x, 190.0), randf_range(330.0, 430.0), k * 5, 7)
+		f.modulate = _undo_night(0.3) * Color(1.0, 0.85, 0.75)
+		if k % 2 == 0:   # and a lower one leaning in beside it, so it is a fire and not a candle
+			_flame(Vector2(x + randf_range(110.0, 190.0), 200.0), randf_range(200.0, 270.0), k * 5 + 2, 7)
+		x += randf_range(900.0, 1500.0)
+		k += 1
+	for sp in _dream_soot:
+		_soot(sp as Vector2)
+
+
+func _soot(top: Vector2) -> void:
+	var p := CPUParticles2D.new()
+	p.texture = load("res://art/fx/puff%d.png" % (randi() % 4 + 1))
+	p.amount = 7
+	p.lifetime = 6.0
+	p.preprocess = 6.0
+	p.position = top   # from the tips of the flames up into the roof, not over the fire itself
+	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	p.emission_rect_extents = Vector2(90.0, 30.0)
+	p.direction = Vector2(0.0, -1.0)
+	p.spread = 25.0
+	p.gravity = Vector2(14.0, -30.0)
+	p.initial_velocity_min = 40.0
+	p.initial_velocity_max = 90.0
+	p.angle_min = 0.0
+	p.angle_max = 360.0
+	p.angular_velocity_min = -10.0
+	p.angular_velocity_max = 10.0
+	var grow := Curve.new()
+	grow.add_point(Vector2(0.0, 0.5))
+	grow.add_point(Vector2(1.0, 2.2))
+	p.scale_amount_curve = grow
+	p.scale_amount_min = 1.6
+	p.scale_amount_max = 2.6
+	var g := Gradient.new()
+	g.set_color(0, Color(0.06, 0.05, 0.05, 0.0))
+	g.add_point(0.2, Color(0.07, 0.06, 0.06, 0.6))
+	g.add_point(0.7, Color(0.1, 0.09, 0.09, 0.4))
+	g.set_color(g.get_point_count() - 1, Color(0.12, 0.12, 0.12, 0.0))
+	p.color_ramp = g
+	var mat := CanvasItemMaterial.new()
+	mat.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED   # soot: the firelight does not turn it white
+	p.material = mat
+	p.z_index = -8
+	add_child(p)
 
 
 ## One hand-inked flame standing at `foot`, `hgt` tall.

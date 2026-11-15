@@ -693,7 +693,7 @@ func _girder() -> Node2D:
 var _blazes: Array = []   # {x0, x1, until, flames}: floor on fire; standing in it burns
 var _burn_cool := 0.0
 var _loops := 0
-const LOOP_LINES := [["The same room again. It's always the same room."], ["Every time the fire is closer, and the knocking a little quieter."]]
+const LOOP_LINES := [["The same room again. Only it isn't."], ["Every time it's worse. And the knocking a little quieter."]]
 
 
 ## A strip of floor on fire from x0, w wide: low hand-inked flames along it, the boards glowing.
@@ -812,6 +812,8 @@ func _loop_again(_ev: Dictionary) -> void:
 	game.sfx.play("sting", -4.0, INF, 0.0)
 	game.hud.caption(LOOP_LINES[mini(_loops, LOOP_LINES.size() - 1)])
 	_loops += 1
+	game.atmo.set_dream(0.55 + 0.25 * _loops)   # each time round the page burns worse
+	game.atmo.jolt(1.0)
 
 
 ## A knock on the chained doors at the far end: far off at first, louder the nearer he gets.
