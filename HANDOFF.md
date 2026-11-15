@@ -79,3 +79,5 @@ Read this first when picking the project up in a new chat. Reply to the user in 
 - street(): nikdy stejný segment dvakrát za sebou, jinak nejméně použitý.
 - Horní patra zobecněná: KITS v levels.py ("roof", "mezz": scale/line/stub/y/deco/goal/under). 14TH STREET: na konci "stairs_up" (rampa se stylem "station", sprite art/props/station_stairs.png z 118, schody STAIR_FOOT→STAIR_TOP), mezipatro mezz_a/mezz_b (113/114) na y -1318, cíl u schodů ven (mezz_b 0.55).
 - _block: bedny na patře nad ním (na mezipatře nad schody) ho neblokují. Bot: na horním patře doleva až když je opravdu nahoře (y < roof.y+8); u zakopaného muže po 16 s jde až k němu.
+
+- 15. 11. ráno: podzemní mapy bez oblohy (_build_depth vrací hned), nad zmenšenými kresbami metra zrcadlený tmavší pruh klenby; mezipatro line 0.94 (navazuje na strop bez mezery); pod střechami 4 fasády tenrow_a–d (119, 120), všechny římsou na stejné výšce.
