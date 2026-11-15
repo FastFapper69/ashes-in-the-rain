@@ -48,7 +48,9 @@ var _skirt_shadow: Polygon2D
 const SKIRT_ROWS := 7
 const SKIRT_COLS := 4
 var _gun2: Sprite2D   # the second pistol, in the far hand
-var dual := false   # TWO GUNS: a second revolver in the far hand
+var dual := false
+var _skirt_fly: Sprite2D
+const SKIRT_FLY_WAIST := Vector2(528.0, 10.0)   # the belt's middle on art/detective/skirt_fly.png (art_src 155)   # TWO GUNS: a second revolver in the far hand
 # The lead pipe (art/guns/pipe.png) he keeps in his coat: swing 0..1 is one blow (wind up over the
 # shoulder, down onto the man, follow through), -1 = not swinging. The gun goes back in the coat meanwhile.
 const PIPE_LEN := 0.62
@@ -238,6 +240,18 @@ func _ready() -> void:
 		_body.add_child(_skirt_mesh)
 		_body.move_child(_skirt_mesh, _spr["skirt"].get_index())
 		_spr["skirt"].visible = false
+		if ResourceLoader.exists(String(cfg["dir"]) + "skirt_fly.png"):   # the coat caught by the wind, for dives
+			_skirt_fly = Sprite2D.new()
+			_skirt_fly.texture = _tex(String(cfg["dir"]) + "skirt_fly")
+			_skirt_fly.centered = false
+			_skirt_fly.flip_h = true   # the flare hangs below him in a dive, not up over his back
+			_skirt_fly.offset = -Vector2(754.0 - SKIRT_FLY_WAIST.x, SKIRT_FLY_WAIST.y)
+			_skirt_fly.scale = _spr["skirt"].scale
+			_skirt_fly.light_mask = MASK_FIGURE
+			_skirt_fly.texture_filter = MIPS
+			_skirt_fly.visible = false
+			_body.add_child(_skirt_fly)
+			_body.move_child(_skirt_fly, _skirt_mesh.get_index())
 	_build_shadow()
 	_build_back_light()
 	_pose()
@@ -644,6 +658,15 @@ func _pose() -> void:
 		_place("skirt", "skirt", belt, hem)
 		if _skirt_mesh:
 			_bend_skirt(belt, lean, hem, leg_f, leg_b)
+		if _skirt_fly:   # flung through the air: the drawn wind-blown coat takes over from the hanging one
+			var f := 0.0 if _dead else smoothstep(0.35, 0.8, dive)
+			_skirt_fly.visible = f > 0.01
+			_skirt_mesh.visible = f < 0.99
+			if _skirt_fly.visible:
+				_skirt_fly.position = belt * PPM
+				_skirt_fly.rotation = (hem - belt).angle() - PI * 0.5 - 0.15 * dive_side
+				_skirt_fly.self_modulate.a = f
+				_skirt_mesh.self_modulate.a = 1.0 - f
 	_place("torso", "torso", hip, neck)
 	for c in _collars:
 		c.position = _spr["torso"].position

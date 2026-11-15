@@ -120,6 +120,7 @@ var _combo := 0          # kills in a row, each within COMBO_GAP of the last
 var _combo_t := 0.0      # time left to keep the streak going
 var _bounce_t := 0.0
 var _q_held := false
+var _speed_t := 0.0
 var _hit_at := Vector2.INF
 var _ground_y := 0.0   # where Frank last stood: his floor   # the last bullet's point of impact     # a ricochet is still in flight: a kill now is a trick shot
 const COMBO_GAP := 2.5
@@ -2810,6 +2811,34 @@ func _auto_step(delta: float) -> void:
 		if _at > 15.0:
 			get_tree().quit()
 		return
+	elif _auto == "fxsheet":   # --test=fxsheet: each new effect on an empty street, a picture of each
+		hp = max_hp
+		_grace = 99.0
+		if _at < 0.05:
+			for e in enemies:
+				e["node"].position.x += 60000.0
+				e["goal"] = e["node"].position.x
+		var c: Vector2 = player.position + Vector2(300.0, -200.0)
+		var steps := [[0.6, "muzzle"], [0.9, "shotgun"], [1.2, "spark"], [1.5, "smoke"], [2.4, "dust"], [2.8, "blast"]]
+		for i in steps.size():
+			var bit := 1 << (1 + i)
+			if _at > float(steps[i][0]) and _auto_done & bit == 0:
+				_auto_done |= bit
+				match String(steps[i][1]):
+					"muzzle": fx.muzzle(c, Vector2.RIGHT, "")
+					"shotgun": fx.muzzle(c + Vector2(0, 120), Vector2.RIGHT, "shotgun")
+					"spark":
+						for k in 3: fx.spark(c + Vector2(200.0 + k * 150.0, 100.0))
+					"smoke": fx.smoke(c, Vector2(60, -90), 0.5, 1.2)
+					"dust": fx.dust(player.position + Vector2(300.0, 0.0), 0.6)
+					"blast": fx.blast(c + Vector2(500.0, 100.0))
+			for dt in [0.04, 0.35]:
+				var b2 := 1 << (10 + i * 2 + (0 if dt < 0.1 else 1))
+				if _at > float(steps[i][0]) + dt and _auto_done & b2 == 0:
+					_auto_done |= b2
+					_shot("fx_%s_%d" % [steps[i][1], 0 if dt < 0.1 else 1])
+		if _at > 3.6:
+			get_tree().quit()
 	elif _auto == "jumpseq":   # --test=jumpseq: a running jump, a picture every tenth of a second
 		hp = max_hp
 		_grace = 99.0
@@ -3431,6 +3460,8 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 		elif fall > 0.0 and player.position.y >= floor_y:
 			player.position.y = floor_y
 			player.crouch = clampf(fall / 1500.0, 0.3, 0.9)   # the harder the landing, the deeper the knees
+			if fall > 900.0:
+				fx.dust(player.position, 0.35 + clampf(fall / 4000.0, 0.0, 0.3))
 			move_state = "ground"
 			steps.restart()
 			sfx.play("land", -4.0)
@@ -3440,6 +3471,10 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 		player.position.y += fall * delta
 		player.position.x += glide * delta
 		player.dive = move_toward(player.dive, 1.0, delta * 6.0)
+		_speed_t -= delta
+		if _speed_t <= 0.0 and absf(glide) > 300.0:   # comic speed lines streaming off him
+			_speed_t = 0.07
+			fx.speed_lines(player.position + Vector2(-signf(glide) * 120.0, -150.0 + randf_range(-70.0, 70.0)), signf(glide), randf_range(0.4, 0.6))
 		player.air_v = move_toward(player.air_v, clampf(fall / 900.0, -1.0, 1.0), delta * 5.0)
 		player.air = move_toward(player.air, 0.0, delta * 8.0)
 		_try_vault()
@@ -3457,6 +3492,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			run = 0.0
 			glide *= 0.8
 			move_state = "ground"
+			fx.dust(player.position + Vector2(0.0, -DIVE_LAND), 0.6)
 			steps.restart()
 			sfx.play("land", -4.0)
 			sfx.play("skid", -5.0, INF, 0.1)
@@ -4543,6 +4579,7 @@ func _blast(at: Vector2, reach: float, hurt_reach: float, hits: int) -> void:
 	sfx.play("explosion", 2.0, at.x, 0.0)
 	_shake = 0.5
 	fx.word("res://art/fx/word_krakoom.png", at + Vector2(0.0, -260.0), 0.5)
+	fx.blast(at)
 	var flash := Sprite2D.new()
 	flash.texture = _soft_glow()
 	flash.position = at

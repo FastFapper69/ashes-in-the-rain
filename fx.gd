@@ -3,7 +3,15 @@ extends Node2D
 # blood, casings and smoke. Everything here is drawn unshaded and lifted by `night` (the inverse
 # of the scene's darkness), so the effects keep the colours they were drawn in.
 
-const FLASHES := ["res://art/fx/flash1.png", "res://art/fx/flash2.png", "res://art/fx/flash3.png", "res://art/fx/flash4.png"]
+const FLASHES := ["res://art/fx/ink/flash0.png", "res://art/fx/ink/flash1.png", "res://art/fx/ink/flash3.png", "res://art/fx/ink/flash5.png",
+		"res://art/fx/ink/flash6.png", "res://art/fx/ink/flash7.png"]   # hand-painted flashes (art_src 150), fired to the right
+const BIG_FLASHES := ["res://art/fx/ink/flash1.png", "res://art/fx/ink/flash5.png", "res://art/fx/ink/flash6.png"]   # the long ragged ones, for a shotgun
+const SMOKE := ["res://art/fx/ink/smoke0.png", "res://art/fx/ink/smoke1.png", "res://art/fx/ink/smoke2.png", "res://art/fx/ink/smoke3.png",
+		"res://art/fx/ink/smoke4.png", "res://art/fx/ink/smoke5.png", "res://art/fx/ink/smoke6.png", "res://art/fx/ink/smoke7.png"]   # one puff, born to gone (art_src 151)
+const INK_SPARKS := ["res://art/fx/ink/spark0.png", "res://art/fx/ink/spark1.png", "res://art/fx/ink/spark2.png", "res://art/fx/ink/spark3.png",
+		"res://art/fx/ink/spark4.png", "res://art/fx/ink/spark5.png", "res://art/fx/ink/spark6.png", "res://art/fx/ink/spark7.png"]   # art_src 152
+const SPEED := ["res://art/fx/ink/speed0.png", "res://art/fx/ink/speed1.png", "res://art/fx/ink/speed2.png", "res://art/fx/ink/speed3.png"]   # art_src 153
+const DUST := ["res://art/fx/ink/dust0.png", "res://art/fx/ink/dust1.png", "res://art/fx/ink/dust2.png", "res://art/fx/ink/dust3.png"]
 const STAIN_SPRAYS := ["res://art/fx/stain_spray1.png", "res://art/fx/stain_spray2.png"]
 const STAIN_DRIPS := ["res://art/fx/stain_drip1.png", "res://art/fx/stain_drip2.png"]
 const STAIN_MISTS := ["res://art/fx/stain_mist1.png", "res://art/fx/stain_mist2.png"]
@@ -53,7 +61,7 @@ func _ready() -> void:
 	_additive.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
 	_additive.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	# read every drawing now: loading one in the middle of a fight makes the game stutter
-	for path in FLASHES + BLOODS + PUFFS + WORDS + STAIN_SPRAYS + STAIN_DRIPS + STAIN_MISTS + ["res://art/fx/stain_smear1.png", "res://art/fx/spark1.png", "res://art/fx/spark2.png", "res://art/fx/flash3.png", "res://art/fx/casing1.png", "res://art/light_blob.png"]:
+	for path in FLASHES + SMOKE + INK_SPARKS + SPEED + DUST + BLOODS + PUFFS + WORDS + STAIN_SPRAYS + STAIN_DRIPS + STAIN_MISTS + ["res://art/fx/stain_smear1.png", "res://art/fx/spark1.png", "res://art/fx/spark2.png", "res://art/fx/flash3.png", "res://art/fx/casing1.png", "res://art/light_blob.png"]:
 		_cache[path] = LowRes.tex(path, 0.5)   # words and splashes are drawn far bigger than they show
 
 
@@ -80,9 +88,9 @@ func _fade_out(node: CanvasItem, hold: float, fade: float) -> void:
 ## and the gun sets the scale (a shotgun roars, a tommy gun stutters small and fast).
 func muzzle(at: Vector2, dir: Vector2, kind := "") -> void:
 	var big: float = {"shotgun": 1.35, "tommy": 0.78}.get(kind, 1.0) * randf_range(0.82, 1.18)
-	var s := _sprite(FLASHES.pick_random(), at, 0.34)
+	var s := _sprite((BIG_FLASHES if kind == "shotgun" else FLASHES).pick_random(), at, 0.34)
 	s.centered = false   # the drawings fire to the right from their left edge
-	s.offset = Vector2(-30.0, -s.texture.get_height() * 0.5)
+	s.offset = Vector2(-20.0, -s.texture.get_height() * 0.5)
 	s.rotation = dir.angle() + randf_range(-0.1, 0.1)
 	s.flip_v = randf() < 0.5
 	s.scale = Vector2(0.2, 0.3) * big
@@ -124,18 +132,7 @@ func muzzle(at: Vector2, dir: Vector2, kind := "") -> void:
 		var v := dir.rotated(randf_range(-0.35, 0.35)) * randf_range(700.0, 1500.0)
 		_bit(SPARKS.pick_random(), at + dir * 20.0, v, randf_range(0.04, 0.07), randf_range(0.08, 0.2), 900.0, true, Color(1.0, 0.75, 0.4))
 
-	for k in (2 if randf() < 0.3 else 1):
-		var p := _sprite(PUFFS.pick_random(), at + dir * randf_range(30.0, 60.0), 0.25 * big)
-		p.modulate = Color(night.r, night.g, night.b, randf_range(0.4, 0.65))
-		p.rotation = randf() * TAU
-		var life := randf_range(0.55, 0.95)
-		var tp := create_tween()
-		tp.set_parallel(true)
-		tp.tween_property(p, "position", p.position + Vector2(dir.x * randf_range(20.0, 70.0), -randf_range(50.0, 110.0)), life)
-		tp.tween_property(p, "scale", Vector2.ONE * randf_range(0.45, 0.65) * big, life)
-		tp.tween_property(p, "rotation", p.rotation + randf_range(-0.6, 0.6), life)
-		tp.tween_property(p, "modulate:a", 0.0, life)
-		tp.chain().tween_callback(p.queue_free)
+	smoke(at + dir * randf_range(30.0, 55.0), Vector2(dir.x * randf_range(40.0, 90.0), -randf_range(60.0, 120.0)), 0.3 * big, randf_range(0.7, 1.1))
 
 
 ## A loose particle flying under gravity: a powder spark, a drop of blood, a sliver of glass.
@@ -419,9 +416,82 @@ func _stain(at: Vector2, dir: Vector2) -> void:
 
 
 func spark(at: Vector2) -> void:
-	var s := _sprite("res://art/fx/spark1.png", at, 0.2)
-	s.rotation = randf() * TAU
-	_fade_out(s, 0.05, 0.08)
+	var s := _sprite(INK_SPARKS.pick_random(), at, 0.22)
+	s.material = _additive
+	s.offset = Vector2(0.0, -s.texture.get_height() * 0.38)   # the drawings burst up from a point low in the picture
+	s.rotation = randf_range(-0.9, 0.9)
+	s.flip_h = randf() < 0.5
+	var tw := create_tween()
+	tw.tween_property(s, "scale", Vector2.ONE * randf_range(0.3, 0.4), 0.06).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(s, "modulate:a", 0.0, 0.16).set_delay(0.04)
+	tw.tween_callback(s.queue_free)
+
+
+## A puff of smoke that lives its drawn life: the eight painted stages from a dense bright puff to
+## torn wisps, drifting with `vel`, over `life` seconds.
+func smoke(at: Vector2, vel: Vector2, size: float, life: float, alpha := 0.7) -> void:
+	var p := _sprite(SMOKE[0], at, size)
+	p.modulate = Color(night.r, night.g, night.b, alpha)
+	p.rotation = randf_range(-0.3, 0.3)
+	p.flip_h = randf() < 0.5
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_method(func(t: float) -> void:
+		if is_instance_valid(p):
+			p.texture = _cache[SMOKE[mini(int(t * SMOKE.size()), SMOKE.size() - 1)]], 0.0, 0.999, life)
+	tw.tween_property(p, "position", at + vel * life, life).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	tw.tween_property(p, "scale", Vector2.ONE * size * 1.5, life)
+	tw.chain().tween_callback(p.queue_free)
+
+
+## An explosion's own drawing: a painted fireball bursting out, sparks thrown wide and a column of
+## dark smoke climbing after it.
+func blast(at: Vector2) -> void:
+	for path in ["res://art/fx/ink/flash2.png", "res://art/fx/ink/flash4.png"]:
+		var b := _sprite(path, at, 0.3)
+		b.rotation = randf() * TAU
+		var tw := create_tween()
+		tw.tween_property(b, "scale", Vector2.ONE * randf_range(1.0, 1.25), 0.1).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_EXPO)
+		tw.tween_property(b, "modulate:a", 0.0, 0.18)
+		tw.tween_callback(b.queue_free)
+	for k in 5:
+		var v := Vector2.from_angle(randf_range(-PI, 0.0)) * randf_range(900.0, 1900.0)
+		_bit(SPARKS.pick_random(), at, v, randf_range(0.06, 0.1), randf_range(0.4, 0.8), 1600.0, true, Color(1.0, 0.7, 0.35))
+	for k in 6:
+		var d := Vector2(randf_range(-160.0, 160.0), randf_range(-60.0, 40.0))
+		var sm_at := at + d
+		get_tree().create_timer(0.05 * k).timeout.connect(func() -> void:
+			smoke(sm_at, Vector2(d.x * 0.4, -randf_range(180.0, 320.0)), randf_range(0.8, 1.15), randf_range(1.6, 2.4), 0.6))
+
+
+## Comic speed lines left in the air behind a body flying sideways (`dir` the way it flies).
+func speed_lines(at: Vector2, dir: float, size := 0.5) -> void:
+	var s := _sprite(SPEED.pick_random(), at, size)
+	s.centered = false
+	s.flip_h = dir < 0.0   # the drawings trail off to the left: the thick end at the body
+	s.offset = Vector2(-s.texture.get_width() if dir > 0.0 else 0.0, -s.texture.get_height() * 0.5)
+	s.modulate = Color(night.r, night.g, night.b, 0.55)
+	s.z_index = -1
+	var tw := create_tween()
+	tw.tween_property(s, "modulate:a", 0.0, 0.22)
+	tw.parallel().tween_property(s, "scale:x", size * 1.3, 0.22)
+	tw.tween_callback(s.queue_free)
+
+
+## Wet dust and spray kicked up off the pavement where a man lands hard.
+func dust(at: Vector2, size := 0.45) -> void:
+	var p := _sprite(DUST[0], at, size)
+	p.centered = false
+	p.offset = Vector2(-p.texture.get_width() * 0.5, -p.texture.get_height() * 0.85)
+	p.modulate = Color(night.r, night.g, night.b, 0.75)
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_method(func(t: float) -> void:
+		if is_instance_valid(p):
+			p.texture = _cache[DUST[mini(int(t * DUST.size()), DUST.size() - 1)]], 0.0, 0.999, 0.5)
+	tw.tween_property(p, "scale", Vector2(size * 1.4, size * 1.1), 0.5)
+	tw.tween_property(p, "modulate:a", 0.0, 0.5).set_delay(0.15)
+	tw.chain().tween_callback(p.queue_free)
 
 
 func casing(at: Vector2, side: float) -> void:
@@ -629,14 +699,8 @@ func break_apart(s: Sprite2D, hit: Vector2, floor_y: float) -> void:
 		sp.position = s.global_position + Vector2(randf_range(-0.4, 0.4) * rect.size.x * s.global_scale.x, randf_range(-0.4, 0.4) * rect.size.y * s.global_scale.y)
 		add_child(sp)
 		_debris.append({"node": sp, "vel": Vector2(randf_range(-600.0, 600.0), -randf_range(300.0, 1100.0)), "spin": randf_range(-20.0, 20.0), "floor": floor_y, "bounces": 0, "rest": 0.0})
-	for k in 3:   # dust
-		var p := _sprite(PUFFS.pick_random(), s.global_position + Vector2(randf_range(-60.0, 60.0), randf_range(-20.0, 40.0)), 0.3)
-		p.modulate = Color(0.55 * night.r, 0.48 * night.g, 0.4 * night.b, 0.5)
-		var tp := create_tween().set_parallel(true)
-		tp.tween_property(p, "scale", Vector2.ONE * randf_range(0.7, 1.0), 1.0)
-		tp.tween_property(p, "position", p.position + Vector2(randf_range(-60.0, 60.0), -80.0), 1.0)
-		tp.tween_property(p, "modulate:a", 0.0, 1.0)
-		tp.chain().tween_callback(p.queue_free)
+	for k in 3:   # dust off the broken boards
+		smoke(s.global_position + Vector2(randf_range(-60.0, 60.0), randf_range(-20.0, 40.0)), Vector2(randf_range(-60.0, 60.0), -80.0), randf_range(0.45, 0.6), randf_range(0.9, 1.2), 0.5)
 
 
 func _fly_debris(delta: float) -> void:
