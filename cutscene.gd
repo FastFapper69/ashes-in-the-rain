@@ -17,9 +17,15 @@ const HARD_AT := 3
 const SCENES := {
 	# before the prologue (2026-11-15): who Eddie was, and why he walked into that alley
 	"opening": [
+		{"img": 82, "from": [0.5, 0.35, 1.18], "to": [0.5, 0.5, 1.0], "rain": 1.2, "stamp": "NEW YORK  ·  DECEMBER, 1947",
+			"lines": ["New York, the winter of 1947. The war was over. The city still hadn't come home.", "It rained like it meant to wash something away. It never did."]},
+		{"img": 83, "from": [0.3, 0.5, 1.12], "to": [0.62, 0.5, 1.0], "rain": 0.3, "at": ["tl", "bl"],
+			"lines": ["The docks fed the city, and the city fed on the docks. Every morning men stood in the rain and waited to be picked.", "Cornelius Vail owned the ships, the piers and most of the men who worked them. The papers called him the Saint. He built churches."]},
+		{"img": 84, "from": [0.45, 0.4, 1.0], "to": [0.32, 0.55, 1.2], "rain": 0.0, "hit": 1, "stamp": "PIER 17  ·  AUGUST 14, 1939  ·  2:10 A.M.",
+			"lines": ["In the summer of '39 the longshoremen on Pier 17 voted to strike. That night the pier burned with eleven of them inside.", "The report said bad wiring. A young cop signed it. Nobody ever asked him how he slept."]},
 		{"img": 78, "from": [0.4, 0.45, 1.1], "to": [0.58, 0.5, 1.0], "rain": 0.6, "stamp": "NEW YORK  ·  DECEMBER 17, 1947  ·  11:40 P.M.",
-			"lines": ["Eddie Doyle wrote crime for the Evening Ledger. Nobody read past the second paragraph.", "That winter he was reading about a fire. Pier 17. Eight years cold. Eleven dead."]},
-		{"img": 79, "from": [0.5, 0.45, 1.0], "to": [0.45, 0.4, 1.2], "rain": 1.0,
+			"lines": ["Eddie Doyle wrote crime for the Evening Ledger. Nobody read past the second paragraph.", "Eight years on, he was the only man in New York still asking about Pier 17."]},
+		{"img": 79, "from": [0.5, 0.45, 1.0], "to": [0.45, 0.4, 1.2], "rain": 0.6, "at": ["tl", "tl", "br"],
 			"lines": ["Somebody called the paper and asked for him by name. Said he'd sell him the man who paid.", "\"Behind the Blue Note. Half past one. Come alone.\"", "He didn't call me. He wanted to be wrong first."]},
 		{"img": 80, "from": [0.55, 0.55, 1.2], "to": [0.5, 0.5, 1.0], "rain": 0.0, "hit": 1,
 			"lines": ["Eddie carried a rifle across Guadalcanal. He came home and swore he'd never carry a gun again.", "That night he carried one."]},
@@ -36,7 +42,7 @@ const SCENES := {
 		{"img": 52, "from": [0.5, 0.5, 1.0], "to": [0.5, 0.56, 1.22], "rain": 0.6,
 			"lines": ["Somebody had to look. Somebody always does.", "The man in the puddle looked like he owed somebody money."]},
 		{"img": 53, "from": [0.35, 0.45, 1.05], "to": [0.66, 0.58, 1.3], "rain": 0.7, "hit": 1,
-			"lines": ["In his fist, a matchbook from the Blue Note.", "His notebook was soaked through. They didn't let me read it. Not yet."]},
+			"lines": ["In his fist, a matchbook from the Blue Note.", "His notebook lay open in the rain, one word on the page. My name. They took it before I could ask it anything."]},
 	],
 	"interlude": [
 		{"img": 54, "from": [0.62, 0.45, 1.0], "to": [0.52, 0.52, 1.2], "rain": 0.0,
@@ -58,8 +64,8 @@ const SCENES := {
 	],
 	"dream": [
 		{"img": 70, "from": [0.72, 0.5, 1.25], "to": [0.5, 0.45, 1.0], "rain": 0.0, "hit": 1,
-			"lines": ["That night I dreamed I was twenty-six again, with a new badge and a clean conscience.", "The doors were chained. Somebody on the other side kept knocking. I counted eleven knocks.", "I woke up before I could see whose side of the door I was on."],
-			"hard": [[2, "I woke up knowing exactly whose side of the door I was on. I'd been adding hands to it all week."]]},
+			"lines": ["Pier 17, August 1939. In the dream I'm twenty-six again, with a new badge and a clean conscience.", "The doors are chained. Somebody on the other side keeps knocking. I count the knocks.", "I always count them. I never get to the door."],
+			"hard": [[2, "Lately there are more hands on that door. I've been adding them all week."]]},
 	],
 	"kessler": [
 		{"img": 64, "from": [0.35, 0.45, 1.05], "to": [0.55, 0.62, 1.4], "rain": 0.0, "hit": 1, "at": ["tl", "tl", "bl"],
@@ -93,10 +99,22 @@ const SCENES := {
 	],
 }
 
+## The piano under each story: Satie's first Gnossienne for Eddie, a slow lament for the guilt,
+## a smoky jazz for the nights on the move.
+const PIANO := {"opening": "gnossienne", "eddie": "gnossienne", "interlude": "broken_trust", "teague": "melancholia",
+	"dream": "melancholia", "kessler": "melancholia", "docks": "broken_trust", "underground": "broken_trust", "briggs": "gnossienne"}
+
 ## What lives in each picture, so no panel is a still: [x, y, radius (fractions of the picture), kind].
 ## neon: buzzes and now and then stutters; lamp: breathes; fire: flickers fast; siren: turns on and
 ## off; storm: lightning in the windows now and then; smoke: drifts up from there; fog: rolls along the bottom.
 const LIVE := {
+	78: [[0.437, 0.388, 0.06, "lamp"]],
+	79: [[0.279, 0.336, 0.07, "lamp"]],
+	80: [[0.224, 0.02, 0.07, "lamp"]],
+	81: [[0.829, 0.283, 0.05, "lamp"], [0.985, 0.13, 0.05, "neon"], [0.5, 0.95, 0.0, "fog"]],
+	82: [[0.5, 0.95, 0.0, "fog"], [0.4, 0.55, 0.05, "smoke"], [0.7, 0.6, 0.05, "smoke"]],
+	83: [[0.5, 0.95, 0.0, "fog"]],
+	84: [[0.25, 0.3, 0.16, "fire"], [0.5, 0.25, 0.2, "fire"], [0.7, 0.42, 0.15, "fire"], [0.6, 0.08, 0.08, "smoke"]],
 	49: [[0.405, 0.68, 0.07, "neon"], [0.6, 0.47, 0.06, "lamp"], [0.06, 0.4, 0.04, "lamp"], [0.2, 0.05, 0.05, "smoke"], [0.85, 0.08, 0.05, "smoke"]],
 	50: [[0.83, 0.45, 0.11, "lamp"], [0.5, 0.95, 0.0, "fog"]],
 	51: [[0.55, 0.13, 0.11, "neon"], [0.57, 0.55, 0.05, "lamp"], [0.66, 0.5, 0.05, "lamp"], [0.5, 0.95, 0.0, "fog"]],
@@ -124,8 +142,11 @@ const TUNE := [-13.0, -12.0, -80.0, -80.0]
 const DREAD := [-24.0, -80.0, -12.0, -80.0]
 const AUDIO := {
 	"opening": [
+		{"bed": {"city": -14.0}, "rain": 1.2},
+		{"bed": {"city": -18.0, "water": -16.0}, "rain": 0.3},
+		{"bed": {"fire": -8.0, "crowd": -20.0, "siren": -24.0}, "rain": 0.0},
 		{"bed": {"lamp_hum": -22.0}, "rain": 0.6, "in": true, "cues": [[0.8, "type", -8.0], [3.6, "type", -9.0]]},
-		{"bed": {"city": -15.0}, "rain": 1.0},
+		{"bed": {"lamp_hum": -24.0}, "rain": 0.6, "in": true, "cues": [[0.2, "phone_ring", -8.0]]},
 		{"bed": {"lamp_hum": -24.0}, "rain": 0.5, "in": true, "cues": [[1.0, "cyl_open", -6.0], [2.0, "shell_in", -6.0], [2.6, "shell_in", -7.0], [3.6, "cyl_spin", -6.0]]},
 		{"bed": {"city": -17.0, "neon_hum": -18.0}, "rain": 1.1, "cues": [[1.4, "step1", -10.0], [1.95, "step2", -10.0], [2.5, "step1", -11.0]]},
 	],
@@ -598,20 +619,36 @@ func _place_box(box: Control, n: int) -> void:
 		return
 	var view := _view()
 	var margin := Vector2(48.0, 44.0)
-	var at: Array = _panels[_i].get("at", []) if _i < _panels.size() else []
-	if n < at.size():   # this panel says where its boxes go, clear of what the picture is about
-		var corner := String(at[n])
-		var k := 0   # boxes already in that corner stack under (or over) it
-		for j in n:
-			k += 1 if String(at[j]) == corner else 0
-		var x := margin.x + float(k) * 24.0 if corner.ends_with("l") else view.x - box.size.x - margin.x - float(k) * 24.0
-		var y := margin.y + float(k) * 150.0 if corner.begins_with("t") else view.y - box.size.y - margin.y - float(k) * 150.0
+	const GAP := 16.0
+	# Each box has a corner: the panel can name them ("at": "tl", "bl", "tr", "br"), clear of what the
+	# picture is about; otherwise the first of a pair goes top left, the next bottom right. Boxes in one
+	# corner share its edge and stack with even gaps, read top to bottom: at the top a new box goes
+	# under the last one, at the bottom it takes the bottom and lifts the ones before it.
+	var corner := _corner(n)
+	var x := margin.x if corner.ends_with("l") else view.x - box.size.x - margin.x
+	var same: Array = []
+	for j in n:
+		if j < _boxes.size() and is_instance_valid(_boxes[j]) and _corner(j) == corner:
+			same.append(_boxes[j])
+	if corner.begins_with("t"):
+		var y := margin.y
+		for o in same:
+			y = maxf(y, (o as Control).position.y + (o as Control).size.y + GAP)
 		box.position = Vector2(x, y)
-	elif n % 2 == 0:   # the first of a pair at the top left, the next at the bottom right
-		box.position = Vector2(margin.x + float(n / 2) * 24.0, margin.y + float(n / 2) * 150.0)
 	else:
-		box.position = Vector2(view.x - box.size.x - margin.x, view.y - box.size.y - margin.y - float(n / 2) * 150.0)
+		box.position = Vector2(x, view.y - box.size.y - margin.y)
+		var lift := box.size.y + GAP
+		for o in same:
+			var c := o as Control
+			c.create_tween().tween_property(c, "position:y", c.position.y - lift, 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	box.create_tween().tween_property(box, "modulate:a", 1.0, 0.25)
+
+
+func _corner(n: int) -> String:
+	var at: Array = _panels[_i].get("at", []) if _i < _panels.size() else []
+	if n < at.size():
+		return String(at[n])
+	return "tl" if n % 2 == 0 else "br"
 
 
 var _cap_f: Font
@@ -629,7 +666,9 @@ func _panel_audio(p: Dictionary) -> void:
 		return
 	audio.bed(a.get("bed", {"lamp_hum": -24.0}))
 	audio.music_want = (a.get("music", TUNE) as Array).duplicate()
-	audio.melody = "dusk"
+	if not audio.story or audio.melody != String(PIANO.get(scene_id, "gnossienne")):
+		audio.story = true
+		audio.melody_from_start(String(PIANO.get(scene_id, "gnossienne")))
 	audio.rain_want = float(a.get("rain", p.get("rain", 0.0)))
 	audio.indoor = 1.0 if a.get("in", false) else 0.0
 	var me := _i
@@ -645,6 +684,7 @@ func _finish() -> void:
 	_ending = true
 	if audio != null:   # the street comes back as the page goes dark
 		audio.bed({})
+		audio.story = false
 	var tw := create_tween()
 	tw.tween_property(_black, "color:a", 1.0, 0.8)
 	tw.tween_callback(func() -> void:

@@ -45,7 +45,8 @@ const PHASES := [
 	[1, 1, "The shooters ran east. So did I.\nI was always better at running after than running from.", "HELL'S KITCHEN  ·  DEC 18, 1947  ·  3:05 AM"],
 	[1, 2, "Somebody gave up a laundry on Tenth.\nIn this town even the dirty money gets washed.", "TENTH AVENUE  ·  DEC 18, 1947  ·  4:40 AM"],
 	[1, 3, "A receipt signed M. T. and a road over the roofs.\nDown below, a neon sign kept saying JAZZ.", "HELL'S KITCHEN  ·  DEC 18, 1947  ·  5:15 AM"],
-	[1, 4, "Mickey Teague owned the Blue Note and lost every fight he was paid to.\nSomebody was paying for this one too.", "THE BLUE NOTE  ·  DEC 18, 1947  ·  11:30 PM"],
+	[1, 4, "The Blue Note didn't open till dark. I waited across the street all day.\nMickey Teague lost every fight he was paid to. Somebody was paying for this one too.", "THE BLUE NOTE  ·  DEC 18, 1947  ·  11:30 PM"],
+	[1, 5, "I slept an hour in the car outside the Blue Note.\nLong enough for the dream. It's always the same one.", "PIER 17  ·  AUGUST 14, 1939  ·  2:10 AM"],
 	[2, 0, "Rosie gave me his diary. First page, his hand:\nPier 17. Eleven dead. Who signed the report?", "PIER 17  ·  DEC 19, 1947"],
 	[2, 1, "Pier 17 burned twice. Once for money, once for paper.\nThe cranes were next.", "NORTH RIVER  ·  DEC 19, 1947  ·  4:30 AM"],
 	[2, 2, "A ship called Santa Lucia, and a dock master\nwho hadn't closed a door in eight years.", "THE SANTA LUCIA  ·  DEC 19, 1947  ·  5:10 AM"],
@@ -274,7 +275,8 @@ static func evidence() -> int:
 static func ending() -> String:
 	var total := 0
 	for c in Levels.CAMPAIGN.size():
-		total += (Levels.CAMPAIGN[c]["maps"] as Array).size() * 2
+		for mp in Levels.CAMPAIGN[c]["maps"]:
+			total += 0 if mp.get("dream", false) else 2
 	if guilt() < 4 and story("briggs") == "spared" and evidence() * 2 >= total:
 		return "snow"
 	return "ash"

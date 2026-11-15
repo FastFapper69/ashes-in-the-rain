@@ -73,8 +73,8 @@ const TESTIMONY := {
 	"3:3": "\"The trains run late tonight because somebody paid them to. Somebody wants you in the tunnels.\"",
 	"3:4": "\"The Saint's throwing a ball Christmas Eve. Rourke's the guest of honour.\"",
 }
-const CUTS := {"0:0": "eddie", "1:2": "interlude", "1:4": "teague", "2:2": "dream", "2:4": "kessler", "3:4": "briggs"}   # the cutscene after a map ("chapter:map")
-const CUTS_BEFORE := {"2:0": "docks", "3:0": "underground"}   # "0:0": "opening" once its panels 78-81 are drawn   # and before one, the first time it is played
+const CUTS := {"0:0": "eddie", "1:2": "interlude", "1:4": "teague", "2:4": "kessler", "3:4": "briggs"}   # the cutscene after a map ("chapter:map")
+const CUTS_BEFORE := {"0:0": "opening", "1:5": "dream", "2:0": "docks", "3:0": "underground"}   # and before one, the first time it is played
 const BOSS_HP := 16
 const BOSS_NAMES := {"teague": "MICKEY 'CANVAS' TEAGUE", "kessler": "BRUNO KESSLER", "briggs": "LT. HARLAN BRIGGS"}
 const BOSS_FACES := {"teague": "boxer", "kessler": "cap", "briggs": "briggs"}
@@ -462,7 +462,7 @@ func _ready() -> void:
 	# telephone wires sagging across the top of the frame, nearest of all: only in the streets of
 	# Hell's Kitchen (the docks and the subway have no poles to hang them from); every span meets the
 	# next at the same height, only the sag differs
-	for k in range(-2, int(level_end / 4200.0) + 3 if chapter <= 1 else -2):
+	for k in range(-2, int(level_end / 4200.0) + 3 if chapter <= 1 and not level.get("dream", false) else -2):
 		var wire := Line2D.new()
 		var pts := PackedVector2Array()
 		for j in range(17):
@@ -797,7 +797,10 @@ const SEGMENT_GAIN := {"alley": 0.92, "bluenote": 0.98, "warehouse": 0.9, "laund
 		"bowery": 0.92, "walkway": 1.0, "pump": 0.95, "tunnel_lo": 1.12, "signal": 1.0, "arches": 1.0}
 # A drawing whose doors and bins came out too big for a man is shown smaller (gen/levels.py SEG_SIZE).
 const SEGMENT_SIZE := {"deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
-	"signal": 0.52, "arches": 0.52, "sheds": 0.55}
+	"signal": 0.52, "arches": 0.52, "sheds": 0.55, "fire_a": 0.605, "fire_b": 0.605, "fire_c": 0.605}
+# A drawing whose floor runs into the depth: where on it a man's feet go, as a share of its height (the
+# street drawings stand at the back of the pavement at SEGMENT_BASE instead).
+const SEGMENT_FLOOR := {"fire_a": 0.905, "fire_b": 0.905, "fire_c": 0.905}
 var _sign_scale := WALL_SCALE
 const ROOM_BASE := 0.95     # an interior's painting under the night grade, before its lamps' pools
 const SEGMENT_MOON := 1.6   # how much brighter than the bare night the drawn streets are kept
@@ -835,6 +838,9 @@ func _build_segments() -> void:
 		w.scale = Vector2(ws * sx, ws)
 		var seg_w := diffuse.get_width() * ws
 		w.position = Vector2(x0, -diffuse.get_height() * ws * SEGMENT_BASE - WALL_LIFT)
+		var floored: bool = SEGMENT_FLOOR.has(seg_name)
+		if floored:   # its own floor under his feet: no pavement in front of it
+			w.position.y = -diffuse.get_height() * ws * float(SEGMENT_FLOOR[seg_name])
 		w.z_index = -10
 		w.material = atmo.blur_material(1.4)
 		w.modulate = Color.WHITE * SEGMENT_MOON * float(SEGMENT_GAIN.get(seg_name, 1.0))   # a moonlit wash, so the drawing reads between the lamps
@@ -880,9 +886,14 @@ func _build_segments() -> void:
 		host.light_mask = 0
 		add_child(host)
 		_stain_hosts.append([w.position.x, w.position.x + seg_w, host])
-		atmo.add_mist(self, x0, seg_w, -WALL_LIFT, _undo_night(0.8))
-		atmo.add_steam(self, Vector2(x0 + seg_w * 0.45, -20.0))
-		sfx.add_loop("steam", x0 + seg_w * 0.45, -20.0, 600.0, -20.0)
+		if floored:
+			_rect(Rect2(x0, w.position.y + diffuse.get_height() * ws - 2.0, seg_w, 900.0), Color(0.04, 0.03, 0.03))
+			if seg_name.begins_with("fire"):
+				_fire_life(w, glow, seg_name, ws)
+		else:
+			atmo.add_mist(self, x0, seg_w, -WALL_LIFT, _undo_night(0.8))
+			atmo.add_steam(self, Vector2(x0 + seg_w * 0.45, -20.0))
+			sfx.add_loop("steam", x0 + seg_w * 0.45, -20.0, 600.0, -20.0)
 		var signs: Array = SEGMENT_NEONS.get(seg_name, [])
 		for k in signs.size():
 			var p0: Vector2 = signs[k][0]
@@ -931,8 +942,9 @@ func _build_segments() -> void:
 			bulb.z_index = -6
 			add_child(bulb)
 			rec["nodes"].append(bulb)
-		_pavement(x0, seg_w)
-		if seg != level["street"][0]:   # a firewall pier over the join with the drawing before
+		if not floored:
+			_pavement(x0, seg_w)
+		if seg != level["street"][0] and not floored:   # a firewall pier over the join with the drawing before
 			var pier := Sprite2D.new()
 			pier.texture = load("res://art/street/pier.png")
 			pier.centered = false
@@ -1636,6 +1648,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
+	if not _fire_glows.is_empty():
+		_tick_fire(_time)
 	if in_menu:   # the title over the street: the rain, the signs, the birds, a slow drift of the camera
 		sfx.listener_x = cam.position.x
 		sfx.music_want = [-9.0, -7.0, -80.0, -80.0]
@@ -3737,7 +3751,7 @@ func _morale(at: Vector2, ugly: bool) -> void:
 ## He drops the gun and puts his hands up. Shot like that, he is an execution; left alone, he backs
 ## off and is gone, and what he saw is Frank's to use later.
 func _give_up(e: Dictionary, delay := 0.0) -> void:
-	if e["state"] == "give":
+	if e["state"] == "give" or level.get("dream", false):   # in the dream nobody gives up
 		return
 	e["state"] = "give"
 	e["give_t"] = -delay
@@ -4728,6 +4742,8 @@ func _add_enemy(at: Vector2, kind: String, state: String, goal_x: float) -> Dict
 	m.night = _undo_night(1.0)
 	m.position = at
 	m.modulate = ENEMY_TINT.get(kind, Color(1, 1, 1)) * (COP_TINT if level.get("cops", false) else Color.WHITE)
+	if level.get("dream", false):   # the men who set the fire, as he dreams them: shadows with the fire behind them
+		m.modulate = Color(0.2, 0.15, 0.14)
 	add_child(m)
 	if kind == "boss":
 		m.size = 1.15
@@ -4794,6 +4810,106 @@ func _shield_stops(e: Dictionary, part: String) -> bool:
 	if not e.has("shield") or part == "head" or float(e["reload_t"]) > 0.0:
 		return false
 	return signf(player.position.x - e["node"].position.x) * float(e["shield"]) > 0.2
+
+
+## The burning warehouse of the dream (2026-11-15): where each drawing's painted fire burns, as
+## [x, foot y, height, width] in shares of the drawing (gen/process_fire.py found them). Hand-inked
+## flames (art/fx/fire, art_src 134) burn over them, swaying in a heat shimmer, so the painting moves.
+const FIRE_SPOTS := {
+	"fire_a": [[0.299, 0.716, 0.257, 0.256], [0.771, 0.715, 0.194, 0.192], [0.626, 0.826, 0.156, 0.133], [0.106, 0.447, 0.199, 0.084],
+		[0.929, 0.497, 0.141, 0.093], [0.691, 0.285, 0.082, 0.137], [0.218, 0.233, 0.105, 0.057]],
+	"fire_b": [[0.673, 0.895, 0.477, 0.234], [0.803, 0.591, 0.466, 0.289], [0.271, 0.747, 0.34, 0.209, false], [0.922, 0.898, 0.125, 0.109],
+		[0.542, 0.866, 0.212, 0.081], [0.106, 0.441, 0.194, 0.084], [0.405, 0.458, 0.126, 0.058], [0.218, 0.242, 0.112, 0.058]],
+	"fire_c": [[0.307, 0.84, 0.375, 0.266], [0.768, 0.762, 0.198, 0.19], [0.929, 0.901, 0.147, 0.094], [0.105, 0.443, 0.195, 0.085],
+		[0.675, 0.286, 0.099, 0.137], [0.929, 0.493, 0.135, 0.093], [0.218, 0.24, 0.108, 0.057]],
+}
+const FLAME_SHADER := """
+shader_type canvas_item;
+render_mode unshaded;
+uniform float seed = 0.0;
+uniform float speed = 1.0;
+uniform float sway = 0.035;
+float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+float noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
+}
+void fragment() {
+	float t = TIME * speed + seed * 17.0;
+	float up = 1.0 - UV.y;   // 0 at the root of the flame, 1 at its tips
+	// the heat lifts and licks: the drawing is pulled sideways by rising noise, most at the tips
+	float n1 = noise(vec2(UV.x * 3.0 + seed, UV.y * 4.0 + t * 2.2)) - 0.5;
+	float n2 = noise(vec2(UV.x * 7.0 - seed, UV.y * 9.0 + t * 4.1)) - 0.5;
+	vec2 uv = UV + vec2((n1 + n2 * 0.5) * sway * (0.25 + up * 1.6), n2 * sway * 0.4 * up);
+	vec4 c = texture(TEXTURE, uv);
+	float flick = 0.86 + 0.14 * sin(t * 11.0) * sin(t * 6.7 + 1.3);
+	c.rgb *= flick * 1.12;
+	c.a *= smoothstep(0.0, 0.04, uv.y) * smoothstep(1.0, 0.72, uv.y);   // it rises out of the painted fire, no hard root
+	COLOR = c * COLOR;
+}
+"""
+var _fire_glows: Array = []   # [sprite, phase]: the painted fire's glow layers, breathing
+var _fire_lights: Array = []  # [PointLight2D, base energy, phase]: firelight on the people in front of it
+var _flame_shader: Shader
+
+
+func _fire_life(w: Sprite2D, glow: Sprite2D, seg_name: String, ws: float) -> void:
+	_fire_glows.append([glow, randf() * 10.0])
+	glow.modulate = _undo_night(0.75)
+	if _flame_shader == null:
+		_flame_shader = Shader.new()
+		_flame_shader.code = FLAME_SHADER
+	var size: Vector2 = Vector2(w.texture.get_size()) * ws
+	var k := 0
+	for spot in FIRE_SPOTS.get(seg_name, []):
+		if float(spot[1]) < 0.6 or (spot.size() > 4 and not spot[4]):   # fires up in the roof stay painted: a loose flame up there floats
+			continue
+		var foot := w.position + Vector2(float(spot[0]) * size.x, float(spot[1]) * size.y)
+		var hgt: float = float(spot[2]) * size.y
+		var wid: float = float(spot[3]) * size.x
+		var n := clampi(int(wid / 260.0) + 1, 1, 3)   # a wide fire is a few flames side by side
+		for j in n:
+			var f := Sprite2D.new()
+			f.texture = load("res://art/fx/fire/flame%d.png" % ((k * 7 + j * 3) % 6))
+			f.centered = false
+			f.offset = Vector2(-f.texture.get_width() * 0.5, -f.texture.get_height())
+			var sc: float = hgt * randf_range(0.75, 1.05) / f.texture.get_height()
+			f.scale = Vector2(sc * randf_range(0.85, 1.1) * (1.0 if randf() < 0.5 else -1.0), sc)
+			f.position = foot + Vector2((float(j) - (n - 1) * 0.5) * wid / float(n), 6.0)
+			var mat := ShaderMaterial.new()
+			mat.shader = _flame_shader
+			mat.set_shader_parameter("seed", randf() * 10.0)
+			mat.set_shader_parameter("speed", randf_range(0.8, 1.25))
+			f.material = mat
+			f.modulate = _undo_night(0.8)
+			f.z_index = -9
+			add_child(f)
+			var tw := f.create_tween().set_loops()   # it gathers and leaps, never in step with its neighbour
+			var s0 := f.scale
+			tw.tween_property(f, "scale", s0 * Vector2(0.94, 1.1), randf_range(0.35, 0.6)).set_trans(Tween.TRANS_SINE)
+			tw.tween_property(f, "scale", s0 * Vector2(1.04, 0.9), randf_range(0.3, 0.55)).set_trans(Tween.TRANS_SINE)
+		if k < 3 and hgt > 150.0:   # the biggest fires light whoever stands in front of them
+			var l := PointLight2D.new()
+			l.texture = _soft_glow()
+			l.texture_scale = 7.0
+			l.color = Color(1.0, 0.55, 0.22)
+			l.energy = 1.1
+			l.position = foot + Vector2(0.0, -hgt * 0.4)
+			l.height = 120.0
+			l.range_item_cull_mask = MASK_LIT
+			add_child(l)
+			_fire_lights.append([l, 1.1, randf() * 10.0])
+		sfx.add_loop("fire", foot.x, -40.0, 900.0, foot.y)
+		k += 1
+
+
+func _tick_fire(t: float) -> void:
+	for g in _fire_glows:
+		(g[0] as Sprite2D).modulate.a = 0.8 + 0.2 * sin(t * 7.0 + g[1]) * sin(t * 3.1 + g[1] * 2.0)
+	for l in _fire_lights:
+		(l[0] as PointLight2D).energy = float(l[1]) * (0.78 + 0.22 * sin(t * 9.0 + l[2]) * sin(t * 4.3 + l[2] * 1.7))
 
 
 ## An interior: its drawn back wall in front of the street (the middle of the drawing, where the

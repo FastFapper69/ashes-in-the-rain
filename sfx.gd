@@ -12,7 +12,7 @@ const LOOPS := ["train_loop", "fire", "neon_hum", "lamp_hum", "steam", "city", "
 const STEMS := ["music_base", "music_lead", "music_tension", "music_fight"]   # all four run in step; only their levels move
 ## The jazz (Artlist: The Magnetic Buzz - Keep Your Head Down; Rotem Cinamon - Dusk). It takes the place of the
 ## base and lead stems whenever nothing is fighting; a fight hands over to the drawn stems again.
-const MELODIES := {"jazz": "music_jazz", "dusk": "music_dusk"}
+const MELODIES := {"jazz": "music_jazz", "dusk": "music_dusk", "gnossienne": "music_gnossienne", "melancholia": "music_melancholia", "broken_trust": "music_broken_trust"}
 const VOICES := 20
 const HEAR := 2600.0   # world pixels from the listener at which a sound has faded out
 
@@ -28,6 +28,7 @@ var _heart: AudioStreamPlayer
 var _music: Array[AudioStreamPlayer] = []
 var melody := "jazz"   # which jazz plays when calm: "jazz" in the streets, "dusk" on the title and in the story
 var _melody := {}       # name -> AudioStreamPlayer
+var story := false      # a cutscene: its piano plays under the panels whatever the stems are doing
 var music_want := [-80.0, -80.0, -80.0, -80.0]   # dB per stem (STEMS), set by main.gd and the cutscenes; eased to
 var rain_want := 1.0    # how hard it rains where we are: 0 none (the subway, the fire dream) .. 1.5 a storm
 var indoor := 0.0       # 1 = under a roof: the rain is heard through the walls, the city drops away
@@ -154,6 +155,8 @@ func _process(delta: float) -> void:
 	for k in _melody:
 		var jp: AudioStreamPlayer = _melody[k]
 		var jw: float = (maxf(music_want[0], music_want[1]) + 1.0 - duck) if calm and k == melody else -80.0
+		if story:   # the story's piano: always there under the panels, softer under Frank's voice
+			jw = (-7.0 - duck * 0.8) if k == melody else -80.0
 		if jw > -79.0 and not jp.playing:
 			jp.play()
 		elif jw > -79.0 and jp.stream_paused:
@@ -163,7 +166,7 @@ func _process(delta: float) -> void:
 		if jw <= -79.0 and jp.volume_db <= -79.0 and jp.playing and not jp.stream_paused:
 			jp.stream_paused = true
 	for i in STEMS.size():
-		var want: float = (-80.0 if calm and i < 2 else music_want[i]) - duck
+		var want: float = (-80.0 if (calm or story) and i < 2 else music_want[i]) - duck
 		var mp := _music[i]
 		mp.volume_db = move_toward(mp.volume_db, want, (8.0 if want < mp.volume_db else 4.0) * _delta_real)
 		mp.pitch_scale = lerpf(1.0, 0.8, slow)
@@ -281,3 +284,13 @@ func play(sound: String, volume_db := 0.0, at_x := INF, vary := 0.06) -> void:
 	p.volume_db = vol
 	p.pitch_scale = randf_range(1.0 - vary, 1.0 + vary) * lerpf(1.0, 0.62, slow)
 	p.play()
+
+
+## A cutscene starts its piece from the top, so its opening bars are heard.
+func melody_from_start(k: String) -> void:
+	melody = k
+	if _melody.has(k):
+		var jp: AudioStreamPlayer = _melody[k]
+		jp.stop()
+		jp.volume_db = -30.0
+		jp.play()

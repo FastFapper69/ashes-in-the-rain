@@ -17,12 +17,13 @@ SEGMENTS = {"alley": 3028, "bluenote": 3028, "warehouse": 3028, "laundry": 3028,
             "platform": 3034, "tunnel": 3034, "yard": 3034, "station14": 3034,
             "tenrow_a": 3043, "tenrow_b": 3043, "tenrow_c": 3043, "tenrow_d": 3043,
             "bowery": 3034, "walkway": 3034, "pump": 3034, "tunnel_lo": 3034,
-            "signal": 3034, "arches": 3034, "sheds": 3043}
+            "signal": 3034, "arches": 3034, "sheds": 3043,
+            "fire_a": 2652, "fire_b": 2652, "fire_c": 2652}
 # the subway drawings came out at twice a man's size (doors 2.5 men high, the far platform at his head):
 # shown at half, the wall above them runs on into the dark of the ceiling
 SUB = 0.52
 SEG_SIZE = {"deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": SUB, "walkway": SUB, "bowery": SUB, "tunnel_lo": SUB,
-            "signal": SUB, "arches": SUB, "sheds": 0.55}
+            "signal": SUB, "arches": SUB, "sheds": 0.55, "fire_a": 0.605, "fire_b": 0.605, "fire_c": 0.605}
 UNDER_ROOF = ["tenrow_a", "tenrow_c", "tenrow_b", "tenrow_d"]   # the facades under the rooftops: their cornice meets the roof drawings   # shown smaller: see main.gd SEGMENT_SIZE
 STREET_POOL = ["alley", "warehouse", "laundry", "subway", "church", "market"]
 DOCKS_POOL = ["pier17", "cranes", "shipping", "quay", "sheds"]   # (the harbor with its lighthouse: only the Harbor Master's own)
@@ -222,6 +223,18 @@ def chunk(name, hard):
         c = Chunk(1800).foe(300).runner(1200, 100, 2900).runner(1500, 200, 3200, kind="shotgun").runner(-200, 600, -1400)
     elif name == "breather":
         c = Chunk(700)
+    # the nightmare (2026-11-15): Pier 17's warehouse burning in 1939. The men are shadows of the ones who
+    # set it; the fire itself does the rest: beams come down out of the roof, the floor burns in strips.
+    elif name == "arsonists":
+        c = Chunk(1500).box("crate", 200).foe(800).foe(1300, kind="shotgun" if hard > 0.5 else "post")
+    elif name == "beam_fall":   # the roof creaks, dust comes down, then a burning truss across the floor
+        c = Chunk(1400).event("beam", 700).box("drum", 1150)
+    elif name == "blaze":   # a strip of burning floor: over it, not through it
+        c = Chunk(1300).event("blaze", 450, 380).foe(1100)
+    elif name == "smoke_men":   # out of the smoke, from both sides
+        c = Chunk(1600).box("crate", 600).runner(1300, 200, 2600).runner(-200, 500, -1400)
+    elif name == "loop":   # the dream starts over: the same room, worse
+        c = Chunk(600).event("loop", 300)
     elif name == "pistols_cache":   # a dead man's guns on the pavement
         c = Chunk(900).pick("pistols", 450)
     if c is None:
@@ -274,7 +287,7 @@ def _build(mp, nudge):
             ev = list(ev)
             if ev[0] == "car": ev[1] += x; ev[2] += x
             elif ev[0] == "blackout": ev[1] += x
-            elif ev[0] in ("searchlight", "train_pass"): ev[1] += x
+            elif ev[0] in ("searchlight", "train_pass", "beam", "blaze", "loop"): ev[1] += x
             out.events.append(ev)
         out.checks += [x + cx for cx in c.checks]
         for en in c.enemies:
@@ -288,7 +301,9 @@ def _build(mp, nudge):
             out.checks.append(x - 100)
         x += c.w + rng.uniform(450, 750)
     extra = mp.get("extra")
-    if mp.get("roof"):
+    if mp.get("dream"):   # the chained doors at the far end (street() puts them under the finish)
+        out.end = x + 900
+    elif mp.get("roof"):
         roofs(out, mp, x, hard)
     elif extra:
         extra(out, x)
@@ -336,6 +351,19 @@ def street(mp, m, rng):
     """The run of drawn segments under the map: the map's own feature segment early on, no segment twice
     in a row, and (in the prologue) the dead-end alley under the last stand."""
     seq, x = [], -3000.0
+    if mp.get("dream"):   # the same two rooms over and over, then the far wall with the chained doors
+        k = 0
+        while True:
+            w = SEGMENTS["fire_c"] * 1.9 * SEG_SIZE["fire_c"]
+            if x + w * 1.5 > m.end:
+                seq.append(["fire_c", x])
+                m.end = x + w * 0.42   # he stops in front of the doors
+                seq.append(["fire_a", x + w])   # (beyond them, out of reach, more of the same)
+                return seq
+            name = ["fire_a", "fire_b"][k % 2]
+            seq.append([name, x])
+            x += SEGMENTS[name] * 1.9 * SEG_SIZE[name]
+            k += 1
     pool = [s for s in mp.get("pool", STREET_POOL) if s != mp.get("feature")] or [mp["feature"]]
     last = None
     i = 0
@@ -524,6 +552,11 @@ CAMPAIGN = [
      "intro": ["Mickey 'Canvas' Teague. Forty fights, and he lost every one he was paid to lose.", "Tonight nobody was paying."],
      "diary": "Dec 17. Meeting a guy from the Blue Note tonight. Says he'll sell me the name of who paid. If I'm wrong about this, I'll buy Frank a drink and tell him everything.",
      "outro": ["Mickey went down on cue, like always. They'd told him to shoot Eddie, and he never could say no. Then: ask your boss.", "Eddie's girl came down off the stage with his diary. I didn't open it. Not then."]},
+    # between the chapters: the dream Frank has had every night for eight years (2026-11-15)
+    {"name": "THE DREAM", "seed": 106, "feature": "fire_a", "dream": True, "under": True, "rain": 0.0, "start": 0.55, "end": 0.8, "ash": 1.0, "embers": 1.0,
+     "fixed": ["arsonists", "beam_fall", "blaze", "loop", "smoke_men", "beam_fall", "arsonists", "blaze", "loop", "beam_fall", "smoke_men", "blaze", "arsonists"],
+     "intro": ["I slept an hour in the car outside the Blue Note. Long enough for the dream.", "It's always the same one. I've had it every night for eight years."],
+     "outro": ["The knocking stopped at eleven. It always stops before I reach the doors.", "I woke up in the car with smoke in my mouth that no dream had put there. Four in the morning. Eddie's diary on the seat beside me."]},
   ]},
   {"title": "CHAPTER II", "name": "THE DOCKS", "ready": True, "hero": "frank", "ambient": [0.16, 0.18, 0.25], "rain": 1.5, "maps": [
     {"name": "PIER 17", "seed": 201, "feature": "pier17", "pool": DOCKS_POOL, "start": 0.45, "end": 0.7, "ash": 1.0, "embers": 0.6,
@@ -531,7 +564,7 @@ CAMPAIGN = [
      "events": [["burn", "shipping"]],
      "intro": ["Pier 17. Eight years cold, and it still smelled of smoke.", "Somebody had lit a fresh fire to keep it company."],
      "diary": "Nov 24. Went down to Pier 17 at night. You can still see where the doors were chained. Nobody chains a door to keep a fire in by accident.",
-     "outro": ["Vail Shipping burned like a confession nobody would ever read.", "Kessler's men fell back to the cranes."]},
+     "outro": ["Vail Shipping burned like a confession nobody would ever read. Cornelius Vail owned it. The papers called him the Saint.", "Kessler's men fell back to the cranes."]},
     {"name": "THE CRANES", "seed": 202, "feature": "cranes", "pool": DOCKS_POOL, "start": 0.5, "end": 0.75, "ash": 0.8, "embers": 0.3,
      "fixed": ["crate_cover", "searchlight_yard", "high_ground", "crane_swing", "dock_crates", "rush", "catwalk", "drum_duo"],
      "intro": ["The cranes stood over the yard with their heads bowed, like men at a wake."],
@@ -626,6 +659,7 @@ def gd(campaign):
             out.append(f'\t\t\t"diary": {q(lv.get("diary", ""))}, "ash": {lv.get("ash", 0.3)}, "embers": {lv.get("embers", 0.0)},')
             if "rain" in lv: out.append(f'\t\t\t"rain": {lv["rain"]},')
             if lv.get("under"): out.append('\t\t\t"under": true,')
+            if lv.get("dream"): out.append('\t\t\t"dream": true,')
             if lv.get("moving"): out.append(f'\t\t\t"moving": {lv["moving"]},')
             if lv.get("cops"): out.append('\t\t\t"cops": true,')
             if m.roof:
