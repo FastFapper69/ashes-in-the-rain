@@ -332,6 +332,8 @@ func _make_back() -> void:
 	_back.add_child(black)
 	var ch := maxi(0, progress()[0])
 	var img: int = KEY_ART.get(ch, 78)
+	if progress() == [2, 5]:   # the memory between II and III has its own picture: the block on fire, 1931
+		img = 87
 	for a in OS.get_cmdline_user_args():   # the tests can pick a picture
 		if a.begins_with("--key="):
 			img = int(a.substr(6))

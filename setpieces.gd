@@ -312,7 +312,7 @@ func _flicker(rec: Dictionary, on: bool, wait: float) -> void:
 ## A bullet at a searchlight's lens puts it out: glass, sparks, the beam gone, the yard dark there.
 func shoot_light(pos: Vector2) -> bool:
 	for b in _beams:
-		if b.get("dead", false) or pos.distance_to(b["pivot"] + Vector2(0.0, 6.0)) > 46.0:
+		if b.get("dead", false) or pos.distance_to(b["pivot"]) > 70.0:
 			continue
 		b["dead"] = true
 		game.fx.shatter(b["pivot"] + Vector2(0.0, 10.0))
@@ -351,24 +351,24 @@ func _add_beam(pivot: Vector2, base_deg: float) -> void:
 	s.modulate = Color(0.85, 0.9, 1.0, 0.3) * Color(game._undo_night(0.35), 1.0)
 	s.z_index = 2
 	add_child(s)
-	var pole := Line2D.new()   # an iron mast down to the quay, and the lamp's drum on top of it
-	pole.points = PackedVector2Array([pivot + Vector2(0.0, 30.0), Vector2(pivot.x, 0.0)])
-	pole.width = 16.0
-	pole.default_color = Color(0.05, 0.05, 0.06)
-	pole.z_index = -4
-	add_child(pole)
-	var drum := Line2D.new()
-	drum.points = PackedVector2Array([pivot + Vector2(-34.0, -10.0), pivot + Vector2(34.0, -10.0)])
-	drum.width = 52.0
-	drum.default_color = Color(0.07, 0.07, 0.08)
-	drum.z_index = 2
-	add_child(drum)
+	# the searchlight itself (art/props/searchlight.png): its drum on a riveted mast down to the quay,
+	# the lens at the pivot of the beam
+	var lamp_tex: Texture2D = load("res://art/props/searchlight.png")
+	var lens := Vector2(75.0, 135.0)   # the lens's centre on the drawing
+	var sc: float = -pivot.y / (lamp_tex.get_height() - lens.y)   # the foot of the mast on the ground
+	var post := Sprite2D.new()
+	post.texture = lamp_tex
+	post.centered = false
+	post.scale = Vector2.ONE * sc
+	post.position = pivot - lens * sc
+	post.z_index = -4
+	add_child(post)
 	var head := Sprite2D.new()   # the lens, burning white
 	head.texture = load("res://art/light_blob.png")
-	head.position = pivot + Vector2(0.0, 10.0)
-	head.scale = Vector2.ONE * 0.3
+	head.position = pivot
+	head.scale = Vector2.ONE * 0.28
 	head.material = add
-	head.modulate = Color(1.0, 1.0, 0.95, 0.9)
+	head.modulate = Color(1.0, 1.0, 0.95, 0.8)
 	head.z_index = 2
 	add_child(head)
 	var l := PointLight2D.new()

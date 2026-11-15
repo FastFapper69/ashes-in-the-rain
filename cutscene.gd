@@ -67,6 +67,12 @@ const SCENES := {
 			"lines": ["Pier 17, August 1939. In the dream I'm twenty-six again, with a new badge and a clean conscience.", "The doors are chained. Somebody on the other side keeps knocking. I count the knocks.", "I always count them. I never get to the door."],
 			"hard": [[2, "Lately there are more hands on that door. I've been adding them all week."]]},
 	],
+	"memory": [
+		{"img": 88, "from": [0.62, 0.5, 1.2], "to": [0.45, 0.45, 1.0], "rain": 0.0, "at": ["bl", "bl"],
+			"lines": ["Rourke drove me himself. The wipers counted for both of us.", "He watched me in the mirror all the way uptown. The last time I sat behind him like that I was seventeen, and the whole block was burning."]},
+		{"img": 87, "from": [0.4, 0.5, 1.0], "to": [0.62, 0.42, 1.35], "rain": 0.0, "at": ["tl", "bl"],
+			"lines": ["March 1931. I came running from the pool hall when I heard the bells.", "Engine 54 was already there. My father went up the ladder for the Kowalczyk kids on the fourth floor."]},
+	],
 	"kessler": [
 		{"img": 64, "from": [0.35, 0.45, 1.05], "to": [0.55, 0.62, 1.4], "rain": 0.0, "hit": 1, "at": ["tl", "tl", "bl"],
 			"lines": ["Second drawer, like Eddie said. PIER 17. FIRE. CAUSE: ACCIDENTAL.", "At the bottom, in ink gone brown: Ptl. F. Malone. My hand. My two hundred dollars.", "Kessler had kept the original for eight years. Insurance against the Saint, he called it. Against men like me."]},
@@ -102,7 +108,7 @@ const SCENES := {
 ## The piano under each story: Satie's first Gnossienne for Eddie, a slow lament for the guilt,
 ## a smoky jazz for the nights on the move.
 const PIANO := {"opening": "gnossienne", "eddie": "gnossienne", "interlude": "broken_trust", "teague": "melancholia",
-	"dream": "melancholia", "kessler": "melancholia", "docks": "broken_trust", "underground": "broken_trust", "briggs": "gnossienne"}
+	"dream": "melancholia", "memory": "melancholia", "kessler": "melancholia", "docks": "broken_trust", "underground": "broken_trust", "briggs": "gnossienne"}
 
 ## What lives in each picture, so no panel is a still: [x, y, radius (fractions of the picture), kind].
 ## neon: buzzes and now and then stutters; lamp: breathes; fire: flickers fast; siren: turns on and
@@ -171,6 +177,10 @@ const AUDIO := {
 		{"bed": {"fire": -5.0}, "rain": 0.0, "music": DREAD, "cues": [[0.7, "chain", -5.0], [9.0, "creak", -7.0], [17.0, "creak", -8.0], [21.0, "wood_break", -9.0]]
 			+ [[2.4, "knock", -3.0], [4.2, "knock", -4.0], [5.6, "knock", -3.0], [7.6, "knock", -5.0], [9.6, "knock", -3.0], [11.3, "knock", -4.0],
 			[13.4, "knock", -6.0], [15.2, "knock", -4.0], [17.6, "knock", -7.0], [20.0, "knock", -8.0], [23.5, "knock", -10.0]]},
+	],
+	"memory": [
+		{"bed": {"city": -20.0}, "rain": 1.0, "in": true, "cues": [[0.4, "cuffs", -9.0]]},
+		{"bed": {"fire": -6.0, "siren": -13.0}, "rain": 0.0, "music": DREAD, "cues": [[2.5, "wood_break", -9.0], [6.0, "glass", -12.0]]},
 	],
 	"kessler": [
 		{"bed": {"lamp_hum": -22.0}, "rain": 0.5, "in": true, "cues": [[0.3, "drawer", -4.0], [1.7, "page", -8.0]]},

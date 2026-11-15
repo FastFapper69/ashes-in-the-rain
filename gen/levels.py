@@ -193,7 +193,7 @@ def chunk(name, hard):
         c = Chunk(2700).box("crate", 0).foe(700).event("car", 350, 2000, 1, 3)
     elif name == "searchlight_yard":   # a searchlight on a pole sweeps the yard: in it, they do not miss
         c = (Chunk(2300).box("crate", 200).box("crate_long", 1150).foe(750).foe(1650).foe(2150, kind="shotgun" if hard > 0.5 else "post")
-             .event("searchlight", 1150, -1350, 0))
+             .event("searchlight", 1150, -820, 28))
     elif name == "blackout":   # the power goes: only muzzle flashes, and they cannot see him either
         c = (Chunk(2100).box("dumpster", 300).box("crate", 1350).foe(950).foe(1850, kind="tommy").runner(1150, 400, 3200)
              .event("blackout", 120, 10))
@@ -590,7 +590,7 @@ CAMPAIGN = [
      "start": 0.5, "end": 0.75, "ash": 1.0, "embers": 1.0,
      "fixed": ["smoke_men", "blaze", "arsonists", "breather", "blaze", "smoke_men", "arsonists", "blaze", "smoke_men"],
      "events": [["burn", "laundry"], ["burn", "market"]],
-     "intro": ["Rourke drove me himself. He didn't say a word all the way uptown.", "The last time I sat behind him like that I was seventeen, and the whole block was burning."],
+     "intro": ["I've told this one to myself so many times I can't tell any more which parts are true.", "In the version I tell, I get past the firemen."],
      "outro": ["My father brought out three of the Kowalczyk kids. He went back up for the fourth. The roof came down at ten past two.", "Declan Rourke held me back by the collar. He smelled of smoke and of something else. Kerosene. I was seventeen. I didn't know what it meant."]},
   ]},
   {"title": "CHAPTER III", "name": "UNDERGROUND", "ready": True, "hero": "frank", "ambient": [0.17, 0.16, 0.2], "rain": 0.0, "maps": [

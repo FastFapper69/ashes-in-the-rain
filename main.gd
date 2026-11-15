@@ -78,7 +78,7 @@ const TESTIMONY := {
 	"3:4": "\"The Saint's throwing a ball Christmas Eve. Rourke's the guest of honour.\"",
 }
 const CUTS := {"0:0": "eddie", "1:2": "interlude", "1:4": "teague", "2:4": "kessler", "3:4": "briggs"}   # the cutscene after a map ("chapter:map")
-const CUTS_BEFORE := {"0:0": "opening", "1:5": "dream", "2:0": "docks", "3:0": "underground"}   # and before one, the first time it is played
+const CUTS_BEFORE := {"0:0": "opening", "1:5": "dream", "2:0": "docks", "2:5": "memory", "3:0": "underground"}   # and before one, the first time it is played
 const BOSS_HP := 16
 const BOSS_NAMES := {"teague": "MICKEY 'CANVAS' TEAGUE", "kessler": "BRUNO KESSLER", "briggs": "LT. HARLAN BRIGGS"}
 const BOSS_FACES := {"teague": "boxer", "kessler": "cap", "briggs": "briggs"}
@@ -124,6 +124,7 @@ var _stand_spawn := 0.0
 var _shake := 0.0
 static var checkpoint := -1.0   # where a death sends him back to on this map; -1 = the start
 static var checkpoint_y := 0.0   # and how high: up on the roof he comes back on the roof
+static var _ground_cp := -1.0   # the last checkpoint down in the street, kept while he is up on the roof
 # the guns: seconds between shots, rounds when picked up, pellets per shot, spread (radians), how long a
 # bullet flies, the kick of the arm, the sound
 const WEAPONS := {
@@ -145,6 +146,9 @@ const TOP_INSET := {"crate": 0.01, "crate_long": 0.07, "drum": 0.01, "dumpster":
 ## The lamps painted into each interior, as fractions of its drawing, and their colour. A room's
 ## light comes from these and only these: a soft glow on the bulb and a round, soft pool of light
 ## round it (never a hard-edged cone), on the drawing and on everyone in it.
+const ROOM_PENDANTS := {   # [x, hook y, bulb y] on the painting: enamel lamps on cords from its ceiling beam
+	"warehouse": [[0.31, 0.155, 0.36], [0.665, 0.155, 0.33]],
+}
 const ROOM_BULBS := {   # [x, y, colour, size]: measured on each painting at the glass itself
 	"tenement": [[0.499, 0.266, "warm", "big"]],
 	"laundry": [[0.263, 0.303, "warm", "big"], [0.492, 0.303, "warm", "big"], [0.791, 0.308, "warm", "big"]],
@@ -4111,6 +4115,9 @@ func _player_down() -> void:
 				_travel(true)))
 		return
 	get_tree().create_timer(1.1, true, false, true).timeout.connect(hud.banner.bind("LIGHTS OUT"))
+	if checkpoint_y < 0.0 and not roof.is_empty() and player.position.y > float(roof["y"]) + 300.0:
+		checkpoint = _ground_cp   # he went back down and died below: he comes back below, not up on the roof
+		checkpoint_y = 0.0
 	if _auto == "":
 		get_tree().create_timer(3.4, true, false, true).timeout.connect(_restart)
 
@@ -4232,9 +4239,11 @@ func _map_events(delta: float) -> void:
 		pass
 		if atmo.splashes:
 			atmo.splashes.visible = room == ""
-	if not roof.is_empty() and player.position.y < float(roof["y"]) + 60.0 and not over:
+	if not roof.is_empty() and player.position.y < float(roof["y"]) + 60.0 and not over and move_state == "ground":
 		for cx in roof["checks"]:   # along the roof he goes the other way: these are passed going left
 			if player.position.x < float(cx) and (checkpoint_y >= 0.0 or float(cx) < checkpoint):
+				if checkpoint_y >= 0.0:
+					_ground_cp = checkpoint   # where he would come back if he ends up down in the street again
 				checkpoint = float(cx)
 				checkpoint_y = float(roof["y"])
 				hud.toast("CHECKPOINT")
@@ -5193,6 +5202,19 @@ func _build_room(x0: float, x1: float, style: String) -> void:
 		add_child(wall_side)
 	# the painted lamps: a soft glow on each bulb and its light on whoever stands under it
 	var crop_x := maxf(0.0, (tex.get_width() - src_w) * 0.5)
+	for pd in ROOM_PENDANTS.get(style, []):   # lamps hung from the painting's ceiling beam: they swing
+		var px: float = x0 + (float(pd[0]) * tex.get_width() - crop_x) * ROOM_SCALE
+		if px < x0 + 200.0 or px > x1 - 200.0:
+			continue
+		var hook: float = top + float(pd[1]) * tex.get_height() * ROOM_SCALE
+		var at := Vector2(px, top + float(pd[2]) * tex.get_height() * ROOM_SCALE)
+		var pend := _pendant(at, hook)
+		lamps.append(at + Vector2(0.0, 8.0))
+		var plight := _lamp_light(at + Vector2(0.0, -8.0))
+		plight.reparent(pend["node"])
+		lamp_info.append({"nodes": [pend["bulb"]], "light": plight, "on": true, "glass": -6.0, "r": 34.0, "pend": pend})
+		pend["lamp"] = lamps.size() - 1
+		_swingers.append(pend)
 	for b in ROOM_BULBS.get(style, []):
 		var at := Vector2(x0 + (float(b[0]) * tex.get_width() - crop_x) * ROOM_SCALE, top + float(b[1]) * tex.get_height() * ROOM_SCALE)
 		if at.x < x0 + 60.0 or at.x > x1 - 60.0:
@@ -5250,40 +5272,48 @@ func _build_room(x0: float, x1: float, style: String) -> void:
 ## A lamp hanging from an interior's ceiling: cord, enamel shade, the bulb glowing under it.
 ## A shaded bulb on its cord from the ceiling, in a room big enough for a draught: it swings a little,
 ## its light swinging with it, and a shot puts the bulb out and jolts it (the swing then dies away).
-func _pendant(at: Vector2) -> Dictionary:
+func _pendant(at: Vector2, hook := NAN) -> Dictionary:
 	var ceiling := at.y - 600.0
 	for r in _room_tops:
 		if at.x >= float(r[0]) and at.x <= float(r[1]):
 			ceiling = float(r[2])
+	if not is_nan(hook):
+		ceiling = hook
 	var length: float = at.y - ceiling
 	var n := Node2D.new()   # pivots at the ceiling hook
 	n.position = Vector2(at.x, ceiling)
 	n.z_index = -3
 	add_child(n)
-	var cord := Line2D.new()
-	cord.points = PackedVector2Array([Vector2.ZERO, Vector2(0.0, length - 40.0)])
-	cord.width = 5.0
-	cord.default_color = Color(0.03, 0.03, 0.03)
-	n.add_child(cord)
-	var shade := Polygon2D.new()
-	shade.polygon = PackedVector2Array([Vector2(-14, -44), Vector2(14, -44), Vector2(46, -4), Vector2(-46, -4)])
-	shade.color = Color(0.08, 0.08, 0.075)
-	shade.position = Vector2(0.0, length)
+	# the lamp (art/props/pendant.png): an enamel shade and its bulb, and the drawing's own cord stretched
+	# up to the hook (a plain vertical line: stretching it lengthwise changes nothing in it)
+	var tex: Texture2D = load("res://art/props/pendant.png")
+	var sc := 0.28
+	var bulb_y := 840.0   # the bulb's centre on the drawing
+	var shade_top := 520.0
+	var shade := Sprite2D.new()
+	shade.texture = tex
+	shade.centered = false
+	shade.region_enabled = true
+	shade.region_rect = Rect2(0.0, shade_top, tex.get_width(), tex.get_height() - shade_top)
+	shade.scale = Vector2.ONE * sc
+	shade.position = Vector2(-tex.get_width() * 0.5 * sc, length - (bulb_y - shade_top) * sc)
 	n.add_child(shade)
-	var rim := Line2D.new()
-	rim.points = PackedVector2Array([Vector2(-48, -4), Vector2(48, -4)])
-	rim.width = 6.0
-	rim.default_color = Color(0.22, 0.2, 0.17)
-	rim.position = Vector2(0.0, length)
-	n.add_child(rim)
+	var cord := Sprite2D.new()
+	cord.texture = tex
+	cord.centered = false
+	cord.region_enabled = true
+	cord.region_rect = Rect2(264.0, 0.0, 30.0, shade_top)
+	cord.scale = Vector2(sc, maxf(0.01, (length - (bulb_y - shade_top) * sc) / shade_top))
+	cord.position = Vector2(-15.0 * sc, 0.0)
+	n.add_child(cord)
 	var bulb := Sprite2D.new()
 	bulb.texture = load("res://art/light_blob.png")
 	var add := CanvasItemMaterial.new()
 	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	add.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
 	bulb.material = add
-	bulb.position = Vector2(0.0, length + 2.0)
-	bulb.scale = Vector2(0.22, 0.12)
+	bulb.position = Vector2(0.0, length)
+	bulb.scale = Vector2(0.16, 0.16)
 	bulb.modulate = _undo_night(0.55) * LAMP_COLOR
 	n.add_child(bulb)
 	# a pendulum: the longer the cord the slower; a few degrees each way, never two in step
@@ -5744,6 +5774,17 @@ func _alarm(at: Vector2, radius: float) -> void:
 
 
 ## Fair play: nobody fires from beyond the edge of the screen.
+## A gunman can only shoot what he can see: on the screen both ways, and not from below a roof or a
+## floor at a man standing up on it (from the street the cornice hides whoever is on the roof).
+func _can_see(m) -> bool:
+	if not _on_screen(m.position):
+		return false
+	var half_h: float = get_viewport().get_visible_rect().size.y * 0.5 / cam.zoom.y
+	if absf(m.position.y - 60.0 - cam.position.y) > half_h + 40.0:
+		return false
+	return m.position.y - player.position.y < 260.0   # he is not far below Frank
+
+
 func _on_screen(p: Vector2) -> bool:
 	var half: float = get_viewport().get_visible_rect().size.x * 0.5 / cam.zoom.x
 	return absf(p.x - cam.position.x) < half - 30.0
@@ -5939,7 +5980,7 @@ func _enemies(delta: float) -> void:
 		var over_cover: bool = e["role"] == "flank" and absf(to_player.x) < 480.0   # close up he shoots down over the crate
 		var at_cover: bool = e["role"] == "suppress" and _cover_t > 1.2       # the tommy gun chews the cover itself
 		var may_fire: bool = not over and not cleared and _grace <= 0.0 and absf(to_player.x) < SIGHT * 1.3 \
-				and (not _player_covered(side) or over_cover or at_cover) and _on_screen(m.position) and _slot_free(e)
+				and (not _player_covered(side) or over_cover or at_cover) and _can_see(m) and _slot_free(e)
 		e["timer"] -= delta
 		if hiding:
 			if e["up"]:
@@ -6028,7 +6069,7 @@ func _sniper_aim(e: Dictionary, m, to_player: Vector2, delta: float) -> void:
 	line.points = PackedVector2Array([from, to])
 	line.default_color.a = clampf(1.25 - float(e["aim_t"]), 0.0, 0.85) * (0.6 + 0.4 * sin(_time * 30.0))
 	m.set_state(0.0, to_player, delta)
-	var lost: bool = over or cleared or not _on_screen(m.position) or (_player_covered(signf(m.position.x - player.position.x)) and player.duck > 0.6)
+	var lost: bool = over or cleared or not _can_see(m) or (_player_covered(signf(m.position.x - player.position.x)) and player.duck > 0.6)
 	if lost or float(e["aim_t"]) <= 0.0:
 		line.queue_free()
 		e.erase("line")
