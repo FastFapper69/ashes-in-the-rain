@@ -497,7 +497,7 @@ func _ready() -> void:
 		if arg.begins_with("--map="):
 			map = int(arg.trim_prefix("--map="))
 		if arg.begins_with("--test="):
-			in_menu = arg == "--test=menu" or arg == "--test=instincts" or arg == "--test=titleset" or arg == "--test=erase" or arg == "--test=neon" or arg == "--test=paperkit" or arg.begins_with("--test=ui")
+			in_menu = arg == "--test=menu" or arg == "--test=instincts" or arg == "--test=gunsmith" or arg == "--test=titleset" or arg == "--test=erase" or arg == "--test=neon" or arg == "--test=paperkit" or arg.begins_with("--test=ui")
 	var picked := false
 	for arg in OS.get_cmdline_user_args():
 		picked = picked or arg.begins_with("--chapter=")
@@ -2173,6 +2173,34 @@ func _process(delta: float) -> void:
 				_auto_done = 2
 				_shot("instincts")
 			if _at > 7.1:
+				get_tree().quit()
+		if _auto == "gunsmith":   # --test=gunsmith --gun=gun|shotgun|tommy --pick=N (--progress, --xp): the screen as it works
+			_at += delta
+			if _at > 6.6 and _auto_done == 0:
+				_auto_done = 1
+				var g := "gun"
+				var pk := 0
+				for arg in OS.get_cmdline_user_args():
+					if arg.begins_with("--gun="): g = arg.trim_prefix("--gun=")
+					if arg.begins_with("--pick="): pk = int(arg.trim_prefix("--pick="))
+				for b in Instincts.BRANCHES:
+					Instincts.unpin(b, 0)
+				for arg in OS.get_cmdline_user_args():
+					if arg.begins_with("--pin="):
+						for k in arg.trim_prefix("--pin=").split(","):
+							Instincts.pin(k.rstrip("0123456789"), int(k.right(1)))
+				for c in get_children():
+					if c.has_method("_gunsmith"):
+						c._gunsmith(g, pk)
+			if "--buy" in OS.get_cmdline_user_args() and _at > 7.0 and _auto_done == 2:
+				for c in get_children():
+					if c.has_method("_smith_buy"):
+						c._smith_buy()
+			for k in 4:
+				if _at > 6.6 + [0.3, 0.62, 0.9, 1.6][k] and _auto_done == k + 1:
+					_auto_done = k + 2
+					_shot("smith_%d" % k)
+			if _at > 8.4:
 				get_tree().quit()
 		if _auto == "menu":
 			_at += delta
@@ -3954,7 +3982,7 @@ func _switch_gun() -> void:
 			weapon = "revolver"   # so _equip keeps nothing of the old gun
 			mag = int(_bag.get("revolver", {}).get("mag", _mag_size("revolver")))
 			_bag.erase("revolver")
-		_bag[kind] = {"mag": int(WEAPONS[kind]["mag"]), "ammo": int(WEAPONS[kind]["ammo"]) - int(WEAPONS[kind]["mag"])}
+		_bag[kind] = {"mag": _mag_size(kind), "ammo": int(WEAPONS[kind]["ammo"]) - int(WEAPONS[kind]["mag"])}
 		_equip(kind)
 		sfx.play("pickup", 0.0)
 		return
@@ -3973,7 +4001,7 @@ func _switch_gun() -> void:
 
 func _equip(kind: String) -> void:
 	_bag[weapon] = {"mag": mag, "ammo": ammo}
-	var st: Dictionary = _bag.get(kind, {"mag": int(WEAPONS[kind]["mag"]), "ammo": 0})
+	var st: Dictionary = _bag.get(kind, {"mag": _mag_size(kind), "ammo": 0})
 	_bag.erase(kind)
 	weapon = kind
 	player.switch_to(kind)   # the arm takes the old gun down and brings the new one up
@@ -3989,7 +4017,18 @@ func _equip(kind: String) -> void:
 
 ## Rounds the gun holds: TWO GUNS doubles the revolver's.
 func _mag_size(kind: String) -> int:
-	return int(WEAPONS[kind]["mag"]) * (2 if kind == "revolver" and player != null and player.dual else 1)
+	match kind:
+		"revolver": return int(WEAPONS[kind]["mag"]) * (2 if player != null and player.dual else 1)
+		"shotgun": return int(WEAPONS[kind]["mag"]) + (2 if _perk("sg_tube") else 0)   # the gunsmith's longer tube
+		"tommy": return 50 if _perk("tg_drum") else int(WEAPONS[kind]["mag"])   # the drum
+	return int(WEAPONS[kind]["mag"])
+
+
+## Shotguns turn up from chapter II, tommy guns from III (instincts.gd GUN_FROM).
+func _gun_open(kind: String) -> bool:
+	if not kind in ["shotgun", "tommy"] or _auto in ["bag", "disarm", "fxsheet"]:
+		return true
+	return Instincts.gun_open(kind, chapter)
 
 
 func _show_ammo() -> void:
@@ -4026,8 +4065,9 @@ func _fire(shooter, from_player: bool, kind := "") -> void:
 					_bullet_hit(p, true)
 					point_blank = true
 					break
-	for k in (0 if point_blank and int(w["pellets"]) == 1 else int(w["pellets"])):
-		var spread: float = float(w["spread"]) * (0.5 if from_player and _perk("steady") else 1.0)
+	var pellets := int(w["pellets"]) + (2 if from_player and gun == "shotgun" and _perk("sg_buck") else 0)
+	for k in (0 if point_blank and pellets == 1 else pellets):
+		var spread: float = float(w["spread"]) * (0.5 if from_player and _perk("steady") else 1.0) * (0.5 if from_player and gun == "tommy" and _perk("tg_comp") else 1.0)
 		fx.shoot(at, d.rotated(randf_range(-spread, spread)) * BULLET_SPEED, from_player, w["life"])
 	if gun != "revolver":   # a revolver keeps its empties until it is reloaded
 		fx.casing(at - d * 50.0, signf(d.x))
@@ -6131,6 +6171,8 @@ func _room_at(x: float) -> String:
 
 ## Something to pick up: a gun or the flask, bobbing a little so it catches the eye.
 func _add_pickup(kind: String, at: Vector2) -> void:
+	if not _gun_open(kind):   # a gun from a later chapter: it is not lying about yet
+		return
 	if kind == "page":
 		_add_page(at)
 		return
@@ -6234,7 +6276,7 @@ func _pickups() -> void:
 				continue
 			else:
 				var total: int = int(pk.get("left", WEAPONS[kind]["ammo"]))   # a gun he put down keeps its rounds
-				_bag[kind] = {"mag": mini(total, int(WEAPONS[kind]["mag"])), "ammo": maxi(0, total - int(WEAPONS[kind]["mag"]))}
+				_bag[kind] = {"mag": mini(total, _mag_size(kind)), "ammo": maxi(0, total - _mag_size(kind))}
 				hud.toast("%s TAKEN: TAP THE GUN TO SWITCH" % String(WEAPONS[kind]["name"]))
 			_show_guns()
 		s.queue_free()
@@ -7481,7 +7523,7 @@ func _tick_flying_guns(delta: float) -> void:
 			else:
 				g.rotation = 0.0 if absf(wrapf(g.rotation, -PI, PI)) < PI * 0.5 else PI
 				_flying_guns.remove_at(i)
-				if String(f["kind"]) in ["tommy", "shotgun"]:   # a gun worth having: Frank can take it
+				if String(f["kind"]) in ["tommy", "shotgun"] and _gun_open(String(f["kind"])):   # a gun worth having: Frank can take it
 					_add_pickup(String(f["kind"]), g.position + Vector2(0.0, 10.0))
 					g.queue_free()
 				continue

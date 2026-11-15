@@ -8,8 +8,11 @@ extends RefCounted
 const MenuScript = preload("res://menu.gd")
 const Levels = preload("res://levels.gd")
 
-const BRANCHES := ["frank", "gun", "instinct"]
-const BRANCH_NAMES := {"frank": "FRANK", "gun": "GUN", "instinct": "TRICKS"}
+const BRANCHES := ["frank", "gun", "instinct", "shotgun", "tommy"]   # every row of cards; the guns' rows are shown at the gunsmith
+const BOARD := ["frank", "instinct"]   # the rows on the cork board
+const GUNS := ["gun", "shotgun", "tommy"]   # the gunsmith's: the revolver's row is "gun"
+const BRANCH_NAMES := {"frank": "FRANK", "gun": "REVOLVER", "instinct": "TRICKS", "shotgun": "SHOTGUN", "tommy": "TOMMY GUN"}
+const GUN_FROM := {"gun": 1, "shotgun": 2, "tommy": 3}   # a gun is found from this chapter on (and upgraded from then)
 const FROM_CHAPTER := [1, 1, 2, 2, 3]   # a tier opens once the story has reached this chapter
 # name, text, effect id (main.gd _perk), icon (art/ui/instincts/icon_<icon>.png)
 const CARDS := {
@@ -26,6 +29,14 @@ const CARDS := {
 		["STEADY HAND", "Tighter shots and a longer aim help.", "steady", "lead1"],
 		["LAST ROUND", "The last round always kills, in slowed time.", "lastround", "lead3"],
 		["TWO GUNS", "A second revolver in the other hand.", "twoguns", "time2"],
+	],
+	"shotgun": [
+		["SHELL TUBE", "Two more shells in the tube.", "sg_tube", "lead0"],
+		["BUCKSHOT", "Two more pellets in every shell.", "sg_buck", "lead3"],
+	],
+	"tommy": [
+		["DRUM MAG", "A fifty-round drum instead of the stick.", "tg_drum", "lead0"],
+		["COMPENSATOR", "Half the spread as it climbs.", "tg_comp", "lead1"],
 	],
 	"instinct": [
 		["OPEN HAND", "Shoot a gun out of a hand without slowed time.", "openhand", "mercy1"],
@@ -85,7 +96,7 @@ static func points() -> int:
 static func spent() -> int:
 	var n := 0
 	for b in BRANCHES:
-		for t in 5:
+		for t in tiers(b):
 			if owned(b, t):
 				n += 1
 	return n
@@ -93,6 +104,22 @@ static func spent() -> int:
 
 static func unspent() -> int:
 	return maxi(0, points() - spent())
+
+
+static func tiers(branch: String) -> int:
+	return (CARDS[branch] as Array).size()
+
+
+## The chapter a card opens in: the revolver's and Frank's by tier, a found gun's with the gun.
+static func from_chapter(branch: String, tier: int) -> int:
+	if branch in ["shotgun", "tommy"]:
+		return int(GUN_FROM[branch])
+	return FROM_CHAPTER[tier]
+
+
+## Can Frank carry this gun yet (the story has reached the chapter it turns up in)?
+static func gun_open(kind: String, chapter: int) -> bool:
+	return chapter >= int(GUN_FROM.get("gun" if kind == "revolver" else kind, 0))
 
 
 static func owned(branch: String, tier: int) -> bool:
@@ -111,7 +138,7 @@ static func has_fx(fx: String) -> bool:
 	if not _cache.has(fx):
 		var v := false
 		for b in BRANCHES:
-			for t in 5:
+			for t in tiers(b):
 				if String(CARDS[b][t][2]) == fx:
 					v = owned(b, t)
 		for a in OS.get_cmdline_user_args():
@@ -143,7 +170,7 @@ static func reached(chapter: int) -> bool:
 static func why_locked(branch: String, tier: int) -> String:
 	if owned(branch, tier):
 		return ""
-	var ch: int = FROM_CHAPTER[tier]
+	var ch: int = from_chapter(branch, tier)
 	if not reached(ch) or not Levels.CAMPAIGN[mini(ch, Levels.CAMPAIGN.size() - 1)]["ready"]:
 		return "OPENS IN " + String(Levels.CAMPAIGN[mini(ch, Levels.CAMPAIGN.size() - 1)]["title"])
 	if tier > 0 and not owned(branch, tier - 1):
@@ -163,6 +190,6 @@ static func pin(branch: String, tier: int) -> bool:
 
 ## Taking a card down takes the ones after it in its row down too.
 static func unpin(branch: String, tier: int) -> void:
-	for t in range(tier, 5):
+	for t in range(tier, tiers(branch)):
 		MenuScript.set_story("perk_%s_%d" % [branch, t], "")
 	forget()
