@@ -79,6 +79,10 @@ func _ready() -> void:
 
 ## A card over the game (pause, a diary page, a choice): the thumb controls step out of the way, so the
 ## card is the only thing on the screen to look at or touch.
+func set_portrait(path: String) -> void:
+	_portrait.texture = load(path)
+
+
 func modal(on: bool) -> void:
 	for n in [_ring, _knob, _slow, _meter, _dash, _jump, _pause]:
 		if n != null:

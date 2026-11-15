@@ -651,6 +651,8 @@ func _ready() -> void:
 	hud = HudScript.new()
 	add_child(hud)
 	hud.set_segments(max_hp)
+	if String(Levels.CAMPAIGN[chapter]["hero"]) == "eddie":   # the prologue is Eddie's: his picture in the corner
+		hud.set_portrait("res://art/ui/portrait_eddie.png")
 	hud.voice = sfx.voice
 	hud.target_at = _man_under
 	_shake_on = bool(MenuScript.setting("shake"))
