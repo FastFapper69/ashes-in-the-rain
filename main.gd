@@ -431,10 +431,9 @@ func _fetch_pack() -> void:
 			push_error("pack missing: " + src)
 		return
 	say.call("OPENING THE CASE FILE...")
-	var file := "user://pack_%s.pck" % Packs.group(chapter)   # removed again once mounted, so it is never kept
+	var file := "/tmp/ashes_pack_%s.pck" % Packs.group(chapter)   # in the page's memory only: user:// would be stored in the browser and loaded back at every start
 	var abs_url := String(JavaScriptBridge.eval("new URL(%s, location.href).href" % JSON.stringify(src), true))
 	var req := HTTPRequest.new()
-	req.download_file = file
 	req.use_threads = false
 	req.accept_gzip = false   # the browser has already unpacked what GitHub sent gzipped
 	add_child(req)
@@ -446,12 +445,20 @@ func _fetch_pack() -> void:
 		var total := req.get_body_size()
 		if total > 0:
 			say.call("OPENING THE CASE FILE... %d %%" % int(100.0 * req.get_downloaded_bytes() / total)))
-	req.request_completed.connect(func(result: int, code: int, _h: PackedStringArray, _b: PackedByteArray) -> void:
+	req.request_completed.connect(func(result: int, code: int, _h: PackedStringArray, body: PackedByteArray) -> void:
 		tick.stop()
-		var got := FileAccess.get_file_as_bytes(file).size() if FileAccess.file_exists(file) else -1
+		var got := body.size()   # the web's HTTPRequest won't write a file itself: the bytes go to one here
+		if result == HTTPRequest.RESULT_SUCCESS and code == 200 and got > 0:
+			var fa := FileAccess.open(file, FileAccess.WRITE)
+			if fa == null:   # no /tmp here: the browser's own storage then
+				file = "user://pack_%s.pck" % Packs.group(chapter)
+				fa = FileAccess.open(file, FileAccess.WRITE)
+			if fa != null:
+				fa.store_buffer(body)
+				fa.close()
+		body = PackedByteArray()
 		if result == HTTPRequest.RESULT_SUCCESS and code == 200 and Packs.mount(file, chapter):
 			crumb("pack %s mounted (%d bytes) %s" % [Packs.group(chapter), got, _mem_line()])
-			DirAccess.remove_absolute(file)   # the pack stays open in memory; the browser's storage keeps nothing
 			get_tree().reload_current_scene()
 		else:
 			crumb("pack fetch failed result=%d code=%d file=%d bytes, open err %d" % [result, code, got, FileAccess.get_open_error()])
