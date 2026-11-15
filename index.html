@@ -4,9 +4,31 @@
 // no chance to say so; so the game leaves breadcrumbs in localStorage as it runs, and the next load
 // sends the last ones home if the page did not go away cleanly. Script errors are sent as they happen.
 (function () {
+  // A phone draws the game at most at twice its CSS size: at 3x an iPhone pushes 2.25x the pixels
+  // through every full-screen pass (and the memory for them) for detail nobody sees at arm's length.
+  try {
+    var real = window.devicePixelRatio || 1;
+    Object.defineProperty(window, 'devicePixelRatio', { get: function () { return Math.min(real, 2); }, configurable: true });
+  } catch (e) {}
+  // the engine's memory (the WebAssembly heap) for the crash report's heartbeat lines
+  var wasmMem = null;
+  try {
+    var grab = function (res) {
+      try {
+        var inst = res && (res.instance || res);
+        var ex = inst && inst.exports;
+        for (var k in ex) if (ex[k] instanceof WebAssembly.Memory) wasmMem = ex[k];
+      } catch (e) {}
+      return res;
+    };
+    var oi = WebAssembly.instantiate, ois = WebAssembly.instantiateStreaming;
+    WebAssembly.instantiate = function () { return oi.apply(WebAssembly, arguments).then(grab); };
+    if (ois) WebAssembly.instantiateStreaming = function () { return ois.apply(WebAssembly, arguments).then(grab); };
+  } catch (e) {}
+  window.ashesMem = function () { return wasmMem ? Math.round(wasmMem.buffer.byteLength / 1048576) : -1; };
   var URL_ = 'https://mpxfppuigwvwlfhsnbgr.supabase.co/rest/v1/ashes_reports';
   var KEY = 'sb_publishable_X7rB8j45EHq79TnlzSxxsw_slxNAD8G';
-  var BUILD = 'ashes-d0432b2b';
+  var BUILD = 'ashes-915fd39e';
   var sent = 0;
   function now() { return new Date().toISOString().substr(11, 12); }
   function crumbs() { try { return JSON.parse(localStorage.getItem('ashes_crumbs') || '[]'); } catch (e) { return []; } }
@@ -175,9 +197,9 @@ body {
 			<div id="status-notice"></div>
 		</div>
 
-		<script src="ashes-d0432b2b.js"></script>
+		<script src="ashes-915fd39e.js"></script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"ashes-d0432b2b","experimentalVK":false,"fileSizes":{"ashes-d0432b2b.pck":46205336,"ashes-d0432b2b.wasm":39514754},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"ashes-915fd39e","experimentalVK":false,"fileSizes":{"ashes-915fd39e.pck":46206568,"ashes-915fd39e.wasm":39514754},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
 
