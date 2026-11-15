@@ -51,6 +51,18 @@ for name, f in ROOFS.items():
     Image.fromarray(np.dstack([rgb, al])).save(OUT + f'street/{name}.png')
     print(name, rgb.shape, 'sky', round(float((al < 128).mean()), 3))
 
+# the mezzanine over the platforms: an indoor drawing, nothing to cut out
+for name, f in {'mezz_a': '113.png', 'mezz_b': '114.png'}.items():
+    Image.open(SRC + f).convert('RGB').save(OUT + f'street/{name}.png')
+
+# the station stairs, drawn on green
+a = np.asarray(Image.open(SRC + '118.png').convert('RGB')).astype(float)
+gm = np.clip(((a[..., 1] - np.maximum(a[..., 0], a[..., 2])) - 60.0) / 60.0, 0, 1)
+al = ndimage.grey_erosion(1.0 - gm, size=(3, 3))
+spill = np.clip(a[..., 1] - np.maximum(a[..., 0], a[..., 2]), 0, None) * (1.0 - al)
+a[..., 1] -= spill
+Image.fromarray(np.dstack([np.clip(a, 0, 255).astype(np.uint8), (al * 255).astype(np.uint8)])).crop((0, 0, 2480, 1344)).save(OUT + 'props/station_stairs.png')
+
 # one bay of scaffolding: posts 118..1952 high, the deck walked on at row 845
 rgb, al = key_magenta(np.asarray(Image.open(SRC + '109.png').convert('RGB')))
 box = (150, 110, 1915, 1960)

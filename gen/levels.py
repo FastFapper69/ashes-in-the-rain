@@ -15,12 +15,19 @@ BOX = {"crate": (250, 248, True), "drum": (160, 246, False), "crate_long": (330,
 SEGMENTS = {"alley": 3028, "bluenote": 3028, "warehouse": 3028, "laundry": 3028, "subway": 3108, "church": 3108, "market": 3038, "deadend": 3038,
             "pier17": 3034, "cranes": 3034, "shipping": 3034, "quay": 3034, "harbor": 3034,
             "platform": 3034, "tunnel": 3034, "yard": 3034, "station14": 3034,
-            "tenrow_a": 3043, "tenrow_b": 3043}
-SEG_SIZE = {"deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675}
+            "tenrow_a": 3043, "tenrow_b": 3043,
+            "bowery": 3034, "walkway": 3034, "pump": 3034, "tunnel_lo": 3034,
+            "signal": 3034, "arches": 3034}
+# the subway drawings came out at twice a man's size (doors 2.5 men high, the far platform at his head):
+# shown at half, the wall above them runs on into the dark of the ceiling
+SUB = 0.52
+SEG_SIZE = {"deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "station14": SUB, "walkway": SUB, "bowery": SUB, "tunnel_lo": SUB,
+            "signal": SUB, "arches": SUB}
 UNDER_ROOF = ["tenrow_a", "tenrow_b"]   # the facades under the rooftops: their cornice meets the roof drawings   # shown smaller: see main.gd SEGMENT_SIZE
 STREET_POOL = ["alley", "warehouse", "laundry", "subway", "church", "market"]
 DOCKS_POOL = ["pier17", "cranes", "shipping", "quay", "harbor"]
-UNDER_POOL = ["station14", "tunnel"]
+UNDER_POOL = ["walkway", "tunnel_lo", "signal", "arches"]   # the pump room (art_src 106) is drawn at four times a man: not used
+TRACKLESS = {"pump", "arches"}   # (the arches have a handcar standing on the rails)   # no rails in the drawing: a passing train may not be in sight of it
 CRANE_CRATE = (0.3863 + 0.0783 / 2)   # where the crate hangs in the crane yard drawing (see main.gd CRANE_CUT)
 F1, F2 = -370.0, -740.0   # floor heights: first and second storey
 JUMP_REACH = 282.0
@@ -34,6 +41,18 @@ STOREY = ROOF_Y / 4.0
 SCAF_BAY = 769.0          # one bay of scaffolding (main.gd _scaffold)
 ROOF_PIC = 3168 * 0.95    # a roof drawing in the world
 ROOF_STUB = 190 * 0.95    # the firewall at its right edge, left off where the next roof joins on
+# An upper floor a map climbs to and walks back along: its drawings, their scale (world px per picture px),
+# the walked line as a share of the picture's height, the stub at the right edge left off at a join,
+# the floor's height, what stands past both ends, and where the way out is (share of the far drawing).
+KITS = {
+    "roof": {"scale": 0.95, "line": 0.828, "stub": 190, "y": ROOF_Y, "deco": None, "goal": None, "under": True},
+    # the mezzanine over the platforms: the subway drawings at their half size; its floor on their ceiling
+    "mezz": {"scale": 1.9 * 0.52, "line": 0.965, "stub": 134, "y": -1318.0, "deco": "mezz_a", "goal": 0.55, "under": False},
+}
+# the station stairs (art/props/station_stairs.png, art_src 118): treads from (168, 1258) up to the
+# landing at (2352, 255) in the picture; drawn so they rise exactly onto the mezzanine
+STAIR_FOOT = (168.0, 1258.0)
+STAIR_TOP = (2352.0, 255.0)
 TRIM = {"alley": 134, "bluenote": 134, "warehouse": 133, "laundry": 133, "subway": 53, "church": 58, "market": 58, "deadend": 58}
 _MASKS = {}
 
@@ -71,6 +90,7 @@ class Chunk:
         self.iron = []
         self.ropes = []
         self.scaf = False
+        self.up_end = None     # where the floor above starts, past the top of the way up
         self.roof = None       # [x0, x1] of the walked roof, its drawings [[name, x0]], the goal x
         self.roof_checks = []
 
@@ -144,6 +164,13 @@ def chunk(name, hard):
         c.foe(w + 250)
         c.hint(-500, "JUMP AT A LADDER TO CLIMB IT")
         c.scaf = True
+        c.up_end = w + 250.0
+    elif name == "stairs_up":   # the end of the platform: the stairs up to the mezzanine, the way out
+        k = -KITS["mezz"]["y"] / (STAIR_FOOT[1] - STAIR_TOP[1])
+        run = (STAIR_TOP[0] - STAIR_FOOT[0]) * k
+        c = Chunk(run + 900).foe(300).foe(run * 0.35, kind="shotgun" if hard > 0.5 else "post")
+        c.ramps.append([0.0, 0.0, run, KITS["mezz"]["y"], "station"])
+        c.up_end = run + 300.0
     elif name == "laundry":   # an interior: machines for cover, steam, a shotgunner in the back
         c = (Chunk(2700).room(0, 2700, "laundry").box("machine", 500).box("machine", 1300).box("machine", 2050)
              .lamp(400).lamp(1250).lamp(2150).foe(1000).foe(1750, kind="shotgun").foe(2450).pick("flask", 1180))
@@ -233,9 +260,11 @@ def _build(mp, nudge):
             out.iron.append((i, x + min(xs) - 40, x + max(p[0] + p[2] for p in c.plats) + 40, top, -150.0))
         if c.scaf:
             out.scaf_x = x
+        if c.up_end is not None:
+            out.up_end = x + c.up_end
         for b in c.boxes: out.boxes.append([b[0], x + b[1]] + b[2:])
         for px, py, pw, st in c.plats: out.plats.append([x + px, py, pw, st])
-        for a, b, cc, d in c.ramps: out.ramps.append([x + a, b, x + cc, d])
+        for rp_ in c.ramps: out.ramps.append([x + rp_[0], rp_[1], x + rp_[2], rp_[3]] + list(rp_[4:]))
         for a, b, st in c.rooms: out.rooms.append([x + a, x + b, st])
         for lx, ly in c.lamps: out.lamps.append([x + lx, ly])
         for k, px, py in c.pickups: out.pickups.append([k, x + px, py])
@@ -315,17 +344,24 @@ def street(mp, m, rng):
     k_roof = 0
     while x < m.end + 2500:
         nxt = x + SEGMENTS[UNDER_ROOF[0]] * 1.9 * SEG_SIZE[UNDER_ROOF[0]]
-        if m.roof and nxt > roof_a and x < roof_b:   # under the roofs: only the facades that reach up to them
+        if m.roof and m.kit["under"] and nxt > roof_a and x < roof_b:   # under the roofs: only the facades that reach up to them
             name = UNDER_ROOF[k_roof % 2]
             k_roof += 1
         elif i == 1 and mp.get("feature"):
             name = mp["feature"]
+        elif m.roof and not m.kit["under"] and x < m.up_end - 1800 < x + SEGMENTS[mp["feature"]] * 1.9 * SEG_SIZE.get(mp["feature"], 1.0):
+            name = mp["feature"]   # the stairs up to the mezzanine go up from a station platform
         elif m.stand and "deadend" not in [q[0] for q in seq] and x + SEGMENTS["deadend"] * 1.9 * SEG_SIZE["deadend"] > m.stand + 1000:
             name = "deadend"
         else:   # each segment once before any comes back
             used = [q[0] for q in seq]
-            fresh = [s for s in pool if s not in used]
-            name = rng.choice(fresh if fresh else ([s for s in pool if s != last] or pool))
+            trains = [e[1] for e in m.events if e[0] == "train_pass"]
+            ok = lambda s: s not in TRACKLESS or not any(x - 3500 < t < x + SEGMENTS[s] * 1.9 + 1000 for t in trains)
+            cand = [s for s in pool if ok(s)] or pool
+            cand = [s for s in cand if s != last] or cand   # never the same twice in a row
+            cand = sorted(cand, key=lambda s: used.count(s))   # and the least used first
+            least = [s for s in cand if used.count(s) == used.count(cand[0])]
+            name = rng.choice(least)
         seq.append([name, x])
         last = name
         x += SEGMENTS[name] * 1.9 * SEG_SIZE.get(name, 1.0)
@@ -336,21 +372,25 @@ def street(mp, m, rng):
 def roofs(out, mp, x, hard):
     """Up the scaffold and back the other way along the roofs: tar barrels and builders' crates for cover,
     and them coming out of the stairwell doors ahead. The map ends at the firewall at the far end."""
-    sx = out.scaf_x
-    r1 = sx + SCAF_BAY * 2 + 250.0              # the roof's near end, just past the top of the last ladder
+    kit = KITS[mp.get("kit", "roof")]
+    ROOF_Y = kit["y"]
+    pic_w = 3168 * kit["scale"]
+    stub = kit["stub"] * kit["scale"]
+    r1 = out.up_end                             # the floor's near end, just past the top of the way up
     pics = []
-    x0 = r1 + 150.0 - ROOF_PIC                 # the far right drawing's left firewall stands at the roof's near end
+    x0 = r1 + 150.0 - pic_w                     # the far right drawing's left edge post stands at the near end
     names = mp.get("roofs", ["roof_a", "roof_b"])
-    other = lambda n: "roof_a" if n == "roof_b" else "roof_b"
-    pics.append([other(names[0]), x0 + ROOF_PIC - ROOF_STUB])   # past the firewalls at both ends: more roofs, out of reach
+    other = lambda n: kit["deco"] or ("roof_a" if n == "roof_b" else "roof_b")
+    pics.append([other(names[0]), x0 + pic_w - stub])   # past both ends: more of the same, out of reach
     for k, name in enumerate(names):
         pics.insert(0, [name, x0])
         if k + 1 < len(names):
-            x0 -= ROOF_PIC - ROOF_STUB
-    pics.insert(0, [other(names[-1]), x0 - (ROOF_PIC - ROOF_STUB)])
-    r0 = x0 + ROOF_STUB
+            x0 -= pic_w - stub
+    pics.insert(0, [other(names[-1]), x0 - (pic_w - stub)])
+    r0 = x0 + stub
+    out.kit = kit
     out.plats.append([r0, ROOF_Y, r1 - r0, "roof"])
-    out.roof = [r0, r1, pics, r0 + 450.0]
+    out.roof = [r0, r1, pics, x0 + pic_w * kit["goal"] if kit["goal"] else r0 + 450.0]
     L = r1 - r0
     # cover, and a man behind each piece of it (he faces the detective coming from the right)
     for f, box, kind in ((0.14, "drum", "post"), (0.36, "crate", "tommy" if hard > 0.5 else "post"),
@@ -412,7 +452,7 @@ def check(m):
 
 def draw(m, name, path):
     W = 3000; k = W / (m.end + 600)
-    H = 300 if not m.roof else 300 + int(-ROOF_Y * k * 2.4)
+    H = 300 if not m.roof else 300 + int(-m.kit["y"] * k * 2.4)
     im = Image.new("RGB", (W, H), (30, 30, 34)); d = ImageDraw.Draw(im)
     gy = H - 50; vy = lambda y: gy + y * k * 2.4
     for a, b, st in m.rooms:
@@ -424,13 +464,13 @@ def draw(m, name, path):
         d.rectangle([bx * k, vy(base - h), (bx + w) * k, vy(base)], fill=(200, 40, 40) if kind == "barrel" else ((150, 110, 60) if wood else (110, 110, 120)))
     for px, py, pw, st in m.plats:
         d.rectangle([px * k, vy(py) - 2, (px + pw) * k, vy(py) + 1], fill=(190, 190, 210))
-    for a, b, c, e in m.ramps:
+    for a, b, c, e, *_ in m.ramps:
         d.line([(a * k, vy(b)), (c * k, vy(e))], fill=(190, 190, 210), width=2)
     for kd, x, y0, x1, y1 in m.ropes:
         if kd == "ladder":
             d.line([(x * k, vy(y0)), (x * k, vy(y1))], fill=(200, 160, 90), width=2)
     if m.roof:
-        d.line([(m.roof[3] * k, vy(ROOF_Y) - 40), (m.roof[3] * k, vy(ROOF_Y))], fill=(80, 220, 80), width=3)
+        d.line([(m.roof[3] * k, vy(m.kit["y"]) - 40), (m.roof[3] * k, vy(m.kit["y"]))], fill=(80, 220, 80), width=3)
     for kind, px, py in m.pickups:
         d.ellipse([px * k - 4, vy(py) - 14, px * k + 4, vy(py) - 6], fill=(80, 200, 255))
     for en in m.enemies:
@@ -515,11 +555,12 @@ CAMPAIGN = [
   ]},
   {"title": "CHAPTER III", "name": "UNDERGROUND", "ready": True, "hero": "frank", "ambient": [0.17, 0.16, 0.2], "rain": 0.0, "maps": [
     {"name": "14TH STREET", "seed": 301, "feature": "station14", "pool": UNDER_POOL, "under": True, "cops": True, "start": 0.5, "end": 0.75, "ash": 0.2,
-     "fixed": ["train_platform", "crate_cover", "rush", "breather", "train_platform", "drum_duo", "gauntlet"],
+     "fixed": ["train_platform", "crate_cover", "rush", "breather", "train_platform", "drum_duo", "stairs_up"],
+     "roof": True, "kit": "mezz", "roofs": ["mezz_a", "mezz_b"],
      "intro": ["The cuffs came off on the third stair. Thirty years of falling down stairs teaches a man something."],
      "diary": "Dec 13. Rourke called me into his office and asked about my 'little crusade'. He offered me a drink. He has never once offered me a drink.",
      "outro": ["Briggs's men knew the stations. I knew the tunnels. Eddie and I used to cut through them on bad nights."]},
-    {"name": "THE TUNNELS", "seed": 302, "feature": "tunnel", "pool": UNDER_POOL, "under": True, "cops": True, "start": 0.55, "end": 0.8, "ash": 0.15,
+    {"name": "THE TUNNELS", "seed": 302, "feature": "tunnel_lo", "pool": UNDER_POOL, "under": True, "cops": True, "start": 0.55, "end": 0.8, "ash": 0.15,
      "fixed": ["blackout", "drum_duo", "train_platform", "cityhall", "ambush_behind", "blackout", "rush", "gauntlet"],
      "intro": ["Down here the dark has a sound. It sounds like trains that never come."],
      "diary": "Dec 14. Found a fireman's helmet in a pawnshop on Ninth. Engine 54. Same company as Frank's old man. The pawnbroker said a cop sold it. Years ago.",
@@ -535,7 +576,7 @@ CAMPAIGN = [
      "hints": [[2400, "RED LIGHT: A GIRDER. GET DOWN."]],
      "diary": "Dec 16. The fire marshal's 1931 report has a witness: a fireman who ran out before the roof came down. Declan Rourke. He was the first man out.",
      "outro": ["The train ran out of tunnel under the old Bowery. Under that, the Catacombs."]},
-    {"name": "THE CATACOMBS", "seed": 305, "feature": "platform", "pool": UNDER_POOL, "under": True, "cops": True, "start": 0.6, "end": 0.9, "ash": 0.3,
+    {"name": "THE CATACOMBS", "seed": 305, "feature": "bowery", "pool": UNDER_POOL, "under": True, "cops": True, "start": 0.6, "end": 0.9, "ash": 0.3,
      "boss": "briggs", "boss_room": "catacombs",
      "fixed": ["crate_cover", "catacombs", "breather", "train_platform", "rush", "catacombs"],
      "intro": ["Lieutenant Harlan Briggs. Four Bronze Stars and not one bent dollar. The only honest man who ever hunted me."],
@@ -572,7 +613,7 @@ def gd(campaign):
                            f'"from": {f(e["from"] if e["from"] is not None else 0)}, "delay": {f(e["delay"])}, "run": {"true" if e["run"] else "false"}' + "}" for e in m.enemies)
             bx = ", ".join(f'["{b[0]}", {f(b[1])}, {f(BOX[b[0]][0])}, {f(BOX[b[0]][1])}, {f(b[2] if len(b) > 2 else 0.0)}]' for b in m.boxes)
             fl = ", ".join(f'[{f(p[0])}, {f(p[1])}, {f(p[2])}, "{p[3]}"]' for p in m.plats)
-            rp = ", ".join(f'[{f(r[0])}, {f(r[1])}, {f(r[2])}, {f(r[3])}]' for r in m.ramps)
+            rp = ", ".join(f'[{f(r[0])}, {f(r[1])}, {f(r[2])}, {f(r[3])}' + (f', "{r[4]}"]' if len(r) > 4 else ']') for r in m.ramps)
             rm = ", ".join(f'[{f(r[0])}, {f(r[1])}, "{r[2]}"]' for r in m.rooms)
             lp = ", ".join(f'[{f(l[0])}, {f(l[1])}]' for l in m.lamps)
             pk = ", ".join(f'["{p[0]}", {f(p[1])}, {f(p[2])}]' for p in m.pickups)
@@ -589,7 +630,8 @@ def gd(campaign):
             if lv.get("cops"): out.append('\t\t\t"cops": true,')
             if m.roof:
                 rp_ = ", ".join(f'["{g[0]}", {f(g[1])}]' for g in m.roof[2])
-                out.append(f'\t\t\t"roof": {{"x0": {f(m.roof[0])}, "x1": {f(m.roof[1])}, "y": {f(ROOF_Y)}, "goal": {f(m.roof[3])}, '
+                out.append(f'\t\t\t"roof": {{"x0": {f(m.roof[0])}, "x1": {f(m.roof[1])}, "y": {f(m.kit["y"])}, "goal": {f(m.roof[3])}, '
+                           f'"scale": {m.kit["scale"]:.4f}, "line": {m.kit["line"]:.4f}, "stub": {f(m.kit["stub"])}, '
                            f'"pics": [{rp_}], "checks": [{", ".join(f(c) for c in m.roof_checks)}]}},')
             evs = ", ".join("[" + ", ".join(q(v) if isinstance(v, str) else f(v) for v in ev) + "]" for ev in m.events)
             out.append(f'\t\t\t"events": [{evs}],')

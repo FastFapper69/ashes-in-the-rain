@@ -20,7 +20,9 @@ STREET = {
     # chapter III, underground: the subway, its tunnels, and the train yard up in the rain
     'platform': ('66.png', 134, False), 'tunnel': ('67.png', 134, False), 'yard': ('68.png', 134, False),
     # the modular kits (2026-11-14): flat side-on, both edges the same joint, nothing runs into the depth over the floor
-    'station14': ('103.png', 134, False),
+    'station14': ('103.png', 134, False), 'bowery': ('104.png', 134, False), 'walkway': ('105.png', 134, False),
+    'pump': ('106.png', 134, False), 'tunnel_lo': ('67.png', 134, False),
+    'signal': ('115.png', 134, False), 'arches': ('116.png', 134, False),
     # chapter I, under the rooftops: the facade fills the picture to a straight cornice along its top edge
     'tenrow_a': ('111.png', 125, False), 'tenrow_b': ('112.png', 125, False),
 }

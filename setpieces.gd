@@ -511,7 +511,7 @@ func _train_pass() -> void:
 	var w: float = tex.get_width() * sc
 	var root := Node2D.new()
 	root.z_index = -6
-	root.position = Vector2(game.cam.position.x + 3200.0, -tex.get_height() * sc + 10.0)
+	root.position = Vector2(game.cam.position.x + 3200.0, -tex.get_height() * sc - 170.0)   # on the rails behind the platform edge
 	add_child(root)
 	var add := CanvasItemMaterial.new()
 	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD

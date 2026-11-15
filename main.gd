@@ -161,7 +161,7 @@ const PROP_SETS := {
 	"laundry": {"crate": ["crate", "laundry_cart"]},
 	"subway": {"crate": ["paper_bundles", "crate"], "crate_long": ["bench"], "drum": ["mailbox"]},
 	"platform": {"crate": ["paper_bundles", "crate"], "crate_long": ["bench"]},
-	"tunnel": {"crate": ["cable_spool", "crate"]}, "yard": {"crate": ["cable_spool", "crate"]},
+	"tunnel": {"crate": ["cable_spool", "crate"]}, "tunnel_lo": {"crate": ["cable_spool", "crate"]}, "walkway": {"crate": ["cable_spool", "crate"]}, "signal": {"crate": ["cable_spool", "crate"]}, "arches": {"crate": ["cable_spool", "crate"]}, "yard": {"crate": ["cable_spool", "crate"]},
 	"market": {"crate": ["milk_crates", "crate", "sacks"], "drum": ["mailbox", "drum", "barrel"]},
 	"bluenote": {"crate": ["kegs", "milk_crates", "crate"]}, "alley": {"crate": ["crate", "milk_crates", "trash_can"]},
 	"church": {"crate": ["crate", "paper_bundles"], "drum": ["mailbox"]}, "deadend": {"crate": ["crate", "trash_can"], "drum": ["drum", "barrel"]},
@@ -723,7 +723,7 @@ func _build_street() -> void:
 const SEGMENT_LAMPS := {"alley": [0.08, 0.62, 0.92], "bluenote": [0.12, 0.3, 0.9], "warehouse": [0.15, 0.42, 0.82], "laundry": [0.1, 0.3, 0.72],
 	"subway": [0.1, 0.38, 0.72], "church": [0.08, 0.9], "market": [0.1, 0.45, 0.86], "deadend": [0.22, 0.86],
 	"pier17": [0.12, 0.38, 0.8], "cranes": [0.7, 0.9], "shipping": [0.12, 0.42, 0.7], "quay": [0.74, 0.86], "harbor": [0.3, 0.56],
-	"platform": [0.3, 0.62, 0.86], "tunnel": [0.22, 0.5, 0.76], "yard": [0.1, 0.62], "station14": [0.24, 0.5, 0.74]}
+	"platform": [0.3, 0.62, 0.86], "tunnel": [0.22, 0.5, 0.76], "yard": [0.1, 0.62]}
 # the signs that light up on each drawing: top-left of the glow picture (pixels of the drawing),
 # colour, and how it burns: steady, buzz (now and then a stutter) or dying (out as often as on)
 const SEGMENT_NEONS := {
@@ -750,7 +750,7 @@ const SEGMENT_DEEP := {
 	"subway": [Rect2(0.5, 0.25, 0.095, 0.63)], "church": [Rect2(0.432, 0.4, 0.125, 0.4)],
 	"market": [Rect2(0.54, 0.42, 0.13, 0.46)], "deadend": [Rect2(0.485, 0.4, 0.07, 0.46)],
 	"pier17": [Rect2(0.4699, 0.25, 0.2506, 0.63)], "cranes": [Rect2(0.4385, 0.42, 0.1984, 0.48)], "shipping": [Rect2(0.4908, 0.3, 0.0783, 0.6)], "quay": [Rect2(0.1671, 0.52, 0.1462, 0.34)], "harbor": [Rect2(0.71, 0.4, 0.2506, 0.46)],
-	"platform": [Rect2(0.1044, 0.31, 0.1357, 0.38)], "tunnel": [Rect2(0.8249, 0.33, 0.1253, 0.38)], "yard": [Rect2(0.4908, 0.45, 0.1357, 0.3)],
+	"platform": [Rect2(0.1044, 0.31, 0.1357, 0.38)], "tunnel": [Rect2(0.8249, 0.33, 0.1253, 0.38)], "tunnel_lo": [Rect2(0.8249, 0.33, 0.1253, 0.38)], "yard": [Rect2(0.4908, 0.45, 0.1357, 0.3)],
 }
 const CRANE_CUT := Rect2(0.3863, 0.2, 0.0783, 0.255)   # the hanging crate taken out of the crane yard drawing (setpieces.gd)
 const DEEP_SHADER := """
@@ -773,13 +773,16 @@ var _deep_rects: Array[Rect2] = []
 var _stain_hosts: Array = []   # [x0, x1, node]: the masks blood on each drawing is clipped to   # the same in world space, for the blood
 const SEGMENT_TRIM := {"alley": 134.0, "bluenote": 134.0, "warehouse": 133.0, "laundry": 133.0, "subway": 53.0, "church": 58.0, "market": 58.0, "deadend": 58.0,
 		"pier17": 132.0, "cranes": 132.0, "shipping": 132.0, "quay": 132.0, "harbor": 132.0,
-		"platform": 132.0, "tunnel": 132.0, "yard": 132.0, "station14": 132.0}
+		"platform": 132.0, "tunnel": 132.0, "yard": 132.0, "station14": 132.0,
+		"bowery": 132.0, "walkway": 132.0, "pump": 132.0, "tunnel_lo": 132.0, "signal": 132.0, "arches": 132.0}
 # evens out how light each drawing came out, so neighbours do not jump in brightness
 const SEGMENT_GAIN := {"alley": 0.92, "bluenote": 0.98, "warehouse": 0.9, "laundry": 1.02, "subway": 1.07, "church": 1.0, "market": 1.05, "deadend": 1.1,
 		"pier17": 0.86, "cranes": 0.91, "shipping": 0.96, "quay": 0.91, "harbor": 0.86,
-		"platform": 0.95, "tunnel": 1.12, "yard": 0.85, "station14": 0.9}
+		"platform": 0.95, "tunnel": 1.12, "yard": 0.85, "station14": 0.9,
+		"bowery": 0.92, "walkway": 1.0, "pump": 0.95, "tunnel_lo": 1.12, "signal": 1.0, "arches": 1.0}
 # A drawing whose doors and bins came out too big for a man is shown smaller (gen/levels.py SEG_SIZE).
-const SEGMENT_SIZE := {"deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675}
+const SEGMENT_SIZE := {"deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
+	"signal": 0.52, "arches": 0.52}
 var _sign_scale := WALL_SCALE
 const ROOM_BASE := 0.95     # an interior's painting under the night grade, before its lamps' pools
 const SEGMENT_MOON := 1.6   # how much brighter than the bare night the drawn streets are kept
@@ -1946,7 +1949,7 @@ func _auto_step(delta: float) -> void:
 		var fight: bool = near != null and absf(near.position.x - player.position.x) < 1500.0
 		_bot_fight = _bot_fight + delta if fight else 0.0
 		if _bot_fight > 8.0:   # a man dug in behind cover: walk up on him, as a player would
-			fight = absf(near.position.x - player.position.x) < 420.0
+			fight = absf(near.position.x - player.position.x) < (420.0 if _bot_fight < 16.0 else 120.0)   # and at last over his cover
 		hud.move = 0.0 if fight else 1.0
 		var lad = _bot_ladder()
 		if lad != null and (not fight or player.position.y < -10.0 and absf(near.position.y - player.position.y) > 60.0):
@@ -1954,8 +1957,8 @@ func _auto_step(delta: float) -> void:
 			hud.move = 0.0 if absf(lx - player.position.x) < 30.0 else signf(lx - player.position.x)
 			if absf(lx - player.position.x) < 50.0 and move_state == "ground":
 				hud.jump_tapped = true
-		elif not roof.is_empty() and player.position.y < float(roof["y"]) + 60.0 and not fight and move_state == "ground":
-			hud.move = -1.0   # along the roof the other way
+		elif not roof.is_empty() and player.position.y < float(roof["y"]) + 8.0 and not fight and move_state == "ground":
+			hud.move = -1.0   # along the roof the other way (once up on it, not on the last stair)
 		if _bot_back > 0.0:   # missed the crane rope: back off and take a run at it again
 			_bot_back -= delta
 			hud.move = -1.0
@@ -2934,6 +2937,8 @@ func _block(before_x: float) -> void:
 	for b in boxes:
 		if feet <= b.position.y + 14.0:
 			continue   # he is on top of it or above it
+		if feet > b.end.y + 40.0:
+			continue   # it stands on a floor above him (on the stairs under the mezzanine)
 		if box_info[boxes.find(b)]["kind"] == "car":
 			continue   # parked at the kerb: it never bars the way
 		var left := b.position.x - 45.0
@@ -4241,7 +4246,10 @@ func _build_level() -> void:
 			add_child(sp)
 	for rp in level["ramps"]:
 		ramps.append(rp)
-		_stairs(Vector2(float(rp[0]), float(rp[1])), Vector2(float(rp[2]), float(rp[3])))
+		if rp.size() > 4 and String(rp[4]) == "station":
+			_station_stairs(Vector2(float(rp[0]), float(rp[1])), Vector2(float(rp[2]), float(rp[3])))
+		else:
+			_stairs(Vector2(float(rp[0]), float(rp[1])), Vector2(float(rp[2]), float(rp[3])))
 	for ro in level.get("ropes", []):
 		_add_rope(ro)
 	for l in level["lamps"]:   # the rooms' lamps: a shaded bulb hanging on its cord from the ceiling, and its light
@@ -4805,10 +4813,11 @@ func _build_roofs() -> void:
 		sp.texture = tex
 		sp.centered = false
 		sp.region_enabled = true
-		var keep := tex.get_width() - (ROOF_STUB if i < pics.size() - 1 else 0.0)
+		var k := float(roof.get("scale", ROOF_SCALE))
+		var keep := tex.get_width() - (float(roof.get("stub", ROOF_STUB)) if i < pics.size() - 1 else 0.0)
 		sp.region_rect = Rect2(0.0, 0.0, keep, tex.get_height())
-		sp.scale = Vector2.ONE * ROOF_SCALE
-		sp.position = Vector2(float(pics[i][1]), float(roof["y"]) - tex.get_height() * ROOF_SCALE * ROOF_LINE)
+		sp.scale = Vector2.ONE * k
+		sp.position = Vector2(float(pics[i][1]), float(roof["y"]) - tex.get_height() * k * float(roof.get("line", ROOF_LINE)))
 		sp.z_index = -8   # over the facades' own glow (a lit sign at the top of a wall would shine through)
 		sp.material = atmo.blur_material(1.4)
 		sp.modulate = Color.WHITE * SEGMENT_MOON * 0.95
@@ -4874,6 +4883,24 @@ func _slab(r: Rect2) -> void:
 		post.z_index = -3
 		add_child(post)
 		x += 60.0
+
+
+## The stairs from the platform up to the mezzanine (art/props/station_stairs.png): the treads in the
+## drawing run from STAIR_FOOT to STAIR_TOP, scaled so they lie on the line he walks from a to b.
+const STAIR_FOOT := Vector2(168.0, 1258.0)
+const STAIR_TOP := Vector2(2352.0, 255.0)
+func _station_stairs(a: Vector2, b: Vector2) -> void:
+	var st := Sprite2D.new()
+	st.texture = load("res://art/props/station_stairs.png")
+	st.centered = false
+	var k := (a.y - b.y) / (STAIR_FOOT.y - STAIR_TOP.y)
+	st.scale = Vector2.ONE * k
+	st.position = a - STAIR_FOOT * k
+	st.z_index = -2
+	st.modulate = Color(0.84, 0.82, 0.79)
+	add_child(st)
+	if _auto != "" and absf((b.x - a.x) - (STAIR_TOP.x - STAIR_FOOT.x) * k) > 3.0:
+		print("AUDIT BAD station stairs do not match their drawing: ", a, b)
 
 
 ## A flight of iron stairs from a to b: the stringer and the treads, in ink.
