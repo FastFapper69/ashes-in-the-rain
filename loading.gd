@@ -63,7 +63,15 @@ func _card(view: Vector2) -> void:
 	var type: Font = load("res://fonts/SpecialElite.ttf")
 	var x := view.x * 0.12
 	var y := view.y * 0.32
-	var top := _text("%s, CASE %d OF %d" % [String(ch["title"]), map + 1, ch["maps"].size()], type, 26, Color(PAPER, 0.7))
+	# the dream and the memories between the cases are not cases: they are counted apart
+	var cases: Array = ch["maps"].filter(func(mp) -> bool: return not (mp.get("dream", false) or mp.get("memory", false)))
+	var lv: Dictionary = ch["maps"][map]
+	var kicker := "%s, CASE %d OF %d" % [String(ch["title"]), cases.find(lv) + 1, cases.size()]
+	if lv.get("dream", false):
+		kicker = "%s, A DREAM" % String(ch["title"])
+	elif lv.get("memory", false):
+		kicker = "%s, A MEMORY" % String(ch["title"])
+	var top := _text(kicker, type, 26, Color(PAPER, 0.7))
 	top.position = Vector2(x, y)
 	_root.add_child(top)
 	var name := _text(String(ch["maps"][map]["name"]), head, 92, PAPER)

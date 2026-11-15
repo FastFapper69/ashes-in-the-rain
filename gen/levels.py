@@ -551,7 +551,7 @@ CAMPAIGN = [
      "fixed": ["crate_cover", "fire_escape", "breather", "warehouse_arena", "rush"],
      "intro": ["Mickey 'Canvas' Teague. Forty fights, and he lost every one he was paid to lose.", "Tonight nobody was paying."],
      "diary": "Dec 17. Meeting a guy from the Blue Note tonight. Says he'll sell me the name of who paid. If I'm wrong about this, I'll buy Frank a drink and tell him everything.",
-     "outro": ["Mickey went down on cue, like always. They'd told him to shoot Eddie, and he never could say no. Then: ask your boss.", "Eddie's girl came down off the stage with his diary. I didn't open it. Not then."]},
+     "outro": ["Mickey went down on cue, like always. They'd told him to take care of Eddie, and he never could say no. Then: ask your boss.", "Eddie's girl came down off the stage with his diary. I didn't open it. Not then."]},
     # between the chapters: the dream Frank has had every night for eight years (2026-11-15)
     {"name": "THE DREAM", "seed": 106, "feature": "fire_a", "dream": True, "under": True, "rain": 0.0, "start": 0.55, "end": 0.8, "ash": 1.0, "embers": 1.0,
      "fixed": ["arsonists", "beam_fall", "blaze", "loop", "smoke_men", "beam_fall", "arsonists", "blaze", "loop", "beam_fall", "smoke_men", "blaze", "arsonists"],
