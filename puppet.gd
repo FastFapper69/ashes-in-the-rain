@@ -50,6 +50,8 @@ const SKIRT_COLS := 4
 var _gun2: Sprite2D   # the second pistol, in the far hand
 var dual := false
 var _skirt_fly: Sprite2D
+var _skirt_poses := {}   # "run" / "air": drawn coats (art_src 159) the hanging one fades into, belt middle at (W/2, 8)
+var _skirt_w := {}
 var _farm_tex: Texture2D        # the free hand as drawn (relaxed) ...
 var _farm_open_tex: Texture2D   # ... and flung open for balance in the air (art_src 156)
 const SKIRT_FLY_WAIST := Vector2(528.0, 10.0)   # the belt's middle on art/detective/skirt_fly.png (art_src 155)   # TWO GUNS: a second revolver in the far hand
@@ -257,6 +259,22 @@ func _ready() -> void:
 			_skirt_fly.visible = false
 			_body.add_child(_skirt_fly)
 			_body.move_child(_skirt_fly, _skirt_mesh.get_index())
+		for pose in ["run", "air"]:   # the coat streaming back in a run, flared open in a leap
+			var path: String = String(cfg["dir"]) + "skirt_" + pose
+			if not ResourceLoader.exists(path + ".png"):
+				continue
+			var sp := Sprite2D.new()
+			sp.texture = _tex(path)
+			sp.centered = false
+			sp.offset = -Vector2(sp.texture.get_width() * 0.5, 7.0)
+			sp.scale = _spr["skirt"].scale
+			sp.light_mask = MASK_FIGURE
+			sp.texture_filter = MIPS
+			sp.visible = false
+			_body.add_child(sp)
+			_body.move_child(sp, _skirt_mesh.get_index())
+			_skirt_poses[pose] = sp
+			_skirt_w[pose] = 0.0
 	_build_shadow()
 	_build_back_light()
 	_pose()
@@ -669,13 +687,35 @@ func _pose() -> void:
 			_bend_skirt(belt, lean, hem, leg_f, leg_b)
 		if _skirt_fly:   # flung through the air: the drawn wind-blown coat takes over from the hanging one
 			var f := 0.0 if _dead else smoothstep(0.35, 0.8, dive)
+			# the drawn run and leap coats: how much of each, eased so a change of pace blends over a few frames
+			var still := 0.0 if _dead else (1.0 - f) * (1.0 - slide) * (1.0 - duck) * (1.0 - hang)
+			var fwd: float = _vel.x * signf(scale.x)
+			var goal := {"run": clampf((fwd - 260.0) / 320.0, 0.0, 1.0) * (1.0 - air) * still,
+					"air": smoothstep(0.25, 0.7, air) * still}
+			var drawn := 0.0
+			for pose in _skirt_poses:
+				_skirt_w[pose] = lerpf(float(_skirt_w[pose]), float(goal[pose]), 0.25)
+				drawn += float(_skirt_w[pose])
+			drawn = minf(drawn, 1.0)
+			for pose in _skirt_poses:
+				var sp: Sprite2D = _skirt_poses[pose]
+				var w := float(_skirt_w[pose])
+				sp.visible = w > 0.02
+				sp.self_modulate.a = w
+				if sp.visible:   # hangs off the belt like the plain coat, the cloth working in the wind
+					sp.position = belt * PPM
+					sp.rotation = (hem - belt).angle() - PI * 0.5 + (0.08 if pose == "run" else 0.0)
+					var flap := sin(_clock * (13.0 if pose == "run" else 8.0)) * 0.035
+					sp.scale = _spr["skirt"].scale * Vector2(1.0 + flap, 1.0 - flap * 0.6)
 			_skirt_fly.visible = f > 0.01
-			_skirt_mesh.visible = f < 0.99
+			_skirt_mesh.visible = f < 0.99 and drawn < 0.98
+			# set every frame: a dive that ends in one step (a landing, a death) jumps f to 0, and a fade
+			# left at its last value kept the hanging coat see-through for good (seen on the phone)
+			_skirt_fly.self_modulate.a = f
+			_skirt_mesh.self_modulate.a = clampf(1.0 - maxf(f, drawn), 0.0, 1.0) if f > 0.01 or drawn > 0.02 else 1.0
 			if _skirt_fly.visible:
 				_skirt_fly.position = belt * PPM
 				_skirt_fly.rotation = (hem - belt).angle() - PI * 0.5 - 0.15 * dive_side
-				_skirt_fly.self_modulate.a = f
-				_skirt_mesh.self_modulate.a = 1.0 - f
 	_place("torso", "torso", hip, neck)
 	for c in _collars:
 		c.position = _spr["torso"].position

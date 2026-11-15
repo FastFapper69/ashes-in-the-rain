@@ -2844,6 +2844,28 @@ func _auto_step(delta: float) -> void:
 					_shot("fx_%s_%d" % [steps[i][1], 0 if dt < 0.1 else 1])
 		if _at > 6.1:
 			get_tree().quit()
+	elif _auto == "coatdive":   # --test=coatdive: a dive out of a run, then standing again: the coat must be back
+		hp = max_hp
+		_grace = 99.0
+		if _at < 0.05:
+			for e in enemies:
+				e["node"].position.x += 60000.0
+				e["goal"] = e["node"].position.x
+		hud.move = 1.0 if _at < 1.2 else 0.0
+		if _at > 0.6 and _auto_done & 1 == 0:
+			_auto_done |= 1
+			hud.jump_tapped = true
+		if _at > 0.75 and _auto_done & 2 == 0:
+			_auto_done |= 2
+			hud.dive_tapped = true
+		for i in 6:
+			var bit := 1 << (2 + i)
+			if _at > 0.9 + i * 0.6 and _auto_done & bit == 0:
+				_auto_done |= bit
+				print("COAT t=", snappedf(_at, 0.1), " mesh ", player._skirt_mesh.visible, " a ", snappedf(player._skirt_mesh.self_modulate.a, 0.01), " dive ", snappedf(player.dive, 0.01))
+				_shot("coat_%d" % i)
+		if _at > 4.4:
+			get_tree().quit()
 	elif _auto == "jumpseq":   # --test=jumpseq: a running jump, a picture every tenth of a second
 		hp = max_hp
 		_grace = 99.0
@@ -3345,7 +3367,7 @@ func _auto_step(delta: float) -> void:
 		end_t = maxf(end_t, float(shots[-1][0]) + 0.4)
 	if _auto == "poses":
 		end_t = 6.6
-	if _auto == "fxsheet":
+	if _auto == "fxsheet" or _auto == "coatdive":
 		end_t = 999.0   # it quits itself after the last effect
 	if _auto == "tops":
 		end_t = 999.0   # it quits itself after the last crate
