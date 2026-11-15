@@ -4,16 +4,15 @@ extends RefCounted
 ## resolution, while reporting their full size: every offset, region and polygon in the game stays as
 ## it is. On a phone this is the difference between a page that holds and one the browser kills.
 
-static var _cache := {}   # "path@factor" -> WeakRef(ImageTexture)
+static var _cache := {}   # "path@factor" -> ImageTexture, kept for the whole session: reading a drawing
+# back from the graphics card is slow on a phone, and figures and effects are needed on every map
 static var failed := 0
 
 
 static func tex(path: String, factor := 0.5) -> Texture2D:
 	var key := "%s@%s" % [path, factor]
 	if _cache.has(key):
-		var held = (_cache[key] as WeakRef).get_ref()
-		if held != null:
-			return held
+		return _cache[key]
 	var src: Texture2D = load(path)
 	if src == null or factor >= 1.0:
 		return src
@@ -27,5 +26,5 @@ static func tex(path: String, factor := 0.5) -> Texture2D:
 	img.resize(maxi(1, roundi(full.x * factor)), maxi(1, roundi(full.y * factor)), Image.INTERPOLATE_CUBIC)
 	var t := ImageTexture.create_from_image(img)
 	t.set_size_override(full)
-	_cache[key] = weakref(t)
+	_cache[key] = t
 	return t

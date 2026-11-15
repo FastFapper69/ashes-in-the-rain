@@ -1928,8 +1928,8 @@ var _stream: Array = []   # {path, sprites, x0, x1, tex}
 var _stream_t := 0.0
 var _world_off := false
 var _swingers: Array = []   # hanging lamps on their cords (see _pendant)   # the title hides the street: its drawings are let go
-const STREAM_LOAD := 2600.0   # beyond the screen's edge: load from here
-const STREAM_DROP := 4200.0   # and let go past here
+const STREAM_LOAD := 1100.0   # beyond the screen's edge: load from here (a phone holds two or three drawings, not five)
+const STREAM_DROP := 2200.0   # and let go past here
 
 func _collect_stream() -> void:
 	var by_path := {}
@@ -2001,11 +2001,21 @@ static var _dumped_play := false
 var _measure_t := 0.0
 var _beat_t := 2.0
 var _worst_dt := 0.0
+var _hitches := 0
+var _tex_was := 0
+var _nodes_was := 0
 func _process(delta: float) -> void:
 	_time += delta
 	var real_dt := delta / maxf(Engine.time_scale, 0.05)
 	_beat_t -= real_dt
 	_worst_dt = maxf(_worst_dt, real_dt)
+	var tex_now := int(Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED)) / 1048576
+	var nodes_now := int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))
+	if real_dt > 0.09 and _hitches < 12 and _time > 3.0:   # a frame long enough to feel: what changed in it
+		_hitches += 1
+		crumb("hitch %dms tex %+dMB nodes %+d cut=%s slow=%s" % [int(real_dt * 1000.0), tex_now - _tex_was, nodes_now - _nodes_was, _in_cut, slow_on])
+	_tex_was = tex_now
+	_nodes_was = nodes_now
 	if _beat_t <= 0.0:
 		_beat_t = 5.0
 		crumb("beat worst_frame=%dms %s" % [int(_worst_dt * 1000.0), _mem_line()])   # the longest frame of the last five seconds: the lag
