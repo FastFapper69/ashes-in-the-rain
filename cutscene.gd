@@ -224,6 +224,7 @@ var _typing: Label
 var _type_t := 0.0
 var _wait := 0.0     # seconds left to read the line, then the next one comes by itself
 var _voiced := 0.0   # how long Frank's recorded voice for this line runs
+var _said := 0.0     # how long this line has been on: the voice is never cut short by the next one
 var _pan_t := 0.0
 var _pan_len := 8.0
 var _font_type: Font
@@ -326,9 +327,12 @@ func _input(event: InputEvent) -> void:
 	if at.x > _view().x - 190.0 and at.y < 90.0:   # the SKIP button takes its own taps
 		return
 	get_viewport().set_input_as_handled()
+	var left := _voiced - _said   # Frank still speaking this line: a tap shows the words, he finishes the sentence
 	if _typing != null and _typing.visible_characters < _typing.text.length():
 		_typing.visible_characters = _typing.text.length()   # the whole line at once
-		_wait = 2.5
+		_wait = maxf(2.5, left + 0.3)
+	elif left > 0.15 and audio != null and audio.voice_on():
+		_wait = minf(_wait, left + 0.3)
 	else:
 		_advance()
 
@@ -340,10 +344,13 @@ func _process(delta: float) -> void:
 	_pan_t += delta
 	_place_pic()
 	# the letters of the line being typed
+	_said += delta
 	if _typing != null and _typing.visible_characters < _typing.text.length():
 		_type_t += delta
-		while _type_t > TYPE_STEP and _typing.visible_characters < _typing.text.length():
-			_type_t -= TYPE_STEP
+		# the letters keep pace with the voice: the words come up as he says them, a little ahead
+		var step := TYPE_STEP if _voiced <= 0.0 else clampf(_voiced * 0.78 / maxf(1.0, _typing.text.length()), 0.022, 0.085)
+		while _type_t > step and _typing.visible_characters < _typing.text.length():
+			_type_t -= step
 			_typing.visible_characters += 1
 			var ch := _typing.text[_typing.visible_characters - 1]
 			if ch in ".,?!":
@@ -353,14 +360,21 @@ func _process(delta: float) -> void:
 		if fast:
 			_typing.visible_characters = _typing.text.length()
 		if _typing.visible_characters >= _typing.text.length():
-			_wait = 1.0 if fast else maxf(1.8 + _typing.text.length() * 0.035, _voiced - _type_t + 0.6)
+			# time to read the line, counted from when it began, and never before the voice has finished
+			_wait = 1.0 if fast else maxf(maxf(0.9, 1.8 + _typing.text.length() * 0.035 - _said), _voiced - _said + 0.6)
 	elif _wait > 0.0:
 		if fast and not _shot_taken and shot.is_valid() and _line == _panels[_i]["lines"].size() - 1 and _wait < 0.6:   # once the last box is in
 			_shot_taken = true
 			shot.call("cut_%s_%d" % [scene_id, _i])
 		_wait -= delta
+		# on the web a voice can start a moment late: hold the page until it has really stopped (a cap,
+		# in case the audio never reports its end)
+		var talking: bool = audio != null and _voiced > 0.0 and audio.voice_on() and _said < _voiced + 2.0
 		if _wait <= 0.0:
-			_advance()
+			if talking:
+				_wait = 0.05   # check again next moment
+			else:
+				_advance()
 	_clock += delta
 	_tick_live(delta)
 	# the rain over the page
@@ -510,7 +524,10 @@ func _frame(s: Sprite2D, focus: Vector2, zoom: float) -> void:
 	s.position = pos
 
 
+var _log_voice := str(OS.get_cmdline_user_args()).contains("--test=voice")
 func _advance() -> void:
+	if _log_voice:
+		print("ADVANCE after %.2f voiced %.2f still_speaking %s" % [_said, _voiced, audio != null and audio.voice_on()])
 	var lines: Array = _panels[_i]["lines"]
 	if _line + 1 < lines.size():
 		_line += 1
@@ -614,6 +631,9 @@ func _show_line() -> void:
 	_type_t = 0.0
 	_wait = 0.0
 	_voiced = audio.voice(text) if audio != null and not speech and not fast else 0.0
+	_said = 0.0
+	if _log_voice:
+		print("VOICE line '%s' voiced %.2f" % [text.substr(0, 30), _voiced])
 
 
 ## Once the box knows how tall its wrapped text is: where it goes on the page.

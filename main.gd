@@ -840,6 +840,8 @@ func _ready() -> void:
 		get_tree().create_timer(3.0, true, false, true).timeout.connect(_shot.bind("page"))
 		get_tree().create_timer(3.6, true, false, true).timeout.connect(get_tree().quit)
 		_auto = "cut:page"   # nothing else to run
+	elif _auto.begins_with("voice:"):   # --test=voice:prologue plays it at its real pace, logging each line's voice
+		_play_cut(_auto.trim_prefix("voice:"), get_tree().quit, false)
 	elif _auto.begins_with("cut:"):   # --test=cut:eddie plays that cutscene and saves a picture of each panel
 		_play_cut(_auto.trim_prefix("cut:"), get_tree().quit, true)
 	RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
@@ -2188,7 +2190,7 @@ func _process(delta: float) -> void:
 			if _at > 7.1:
 				get_tree().quit()
 		return
-	if _auto != "" and not _auto.begins_with("cut:") and _auto != "hops":
+	if _auto != "" and not _auto.begins_with("cut:") and not _auto.begins_with("voice:") and _auto != "hops":
 		_auto_step(delta)
 	if _auto == "poses":
 		return
