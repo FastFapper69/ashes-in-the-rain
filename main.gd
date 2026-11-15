@@ -431,7 +431,7 @@ func _fetch_pack() -> void:
 			push_error("pack missing: " + src)
 		return
 	say.call("OPENING THE CASE FILE...")
-	var file := "/tmp/ashes_%s.pck" % Packs.group(chapter)
+	var file := "user://pack_%s.pck" % Packs.group(chapter)   # removed again once mounted, so it is never kept
 	var abs_url := String(JavaScriptBridge.eval("new URL(%s, location.href).href" % JSON.stringify(src), true))
 	var req := HTTPRequest.new()
 	req.download_file = file
@@ -448,11 +448,13 @@ func _fetch_pack() -> void:
 			say.call("OPENING THE CASE FILE... %d %%" % int(100.0 * req.get_downloaded_bytes() / total)))
 	req.request_completed.connect(func(result: int, code: int, _h: PackedStringArray, _b: PackedByteArray) -> void:
 		tick.stop()
+		var got := FileAccess.get_file_as_bytes(file).size() if FileAccess.file_exists(file) else -1
 		if result == HTTPRequest.RESULT_SUCCESS and code == 200 and Packs.mount(file, chapter):
-			crumb("pack %s mounted %s" % [Packs.group(chapter), _mem_line()])
+			crumb("pack %s mounted (%d bytes) %s" % [Packs.group(chapter), got, _mem_line()])
+			DirAccess.remove_absolute(file)   # the pack stays open in memory; the browser's storage keeps nothing
 			get_tree().reload_current_scene()
 		else:
-			crumb("pack fetch failed result=%d code=%d" % [result, code])
+			crumb("pack fetch failed result=%d code=%d file=%d bytes, open err %d" % [result, code, got, FileAccess.get_open_error()])
 			say.call("THE CASE FILE WOULDN'T OPEN. CHECK THE CONNECTION.")
 			get_tree().create_timer(3.0).timeout.connect(func() -> void: req.request(abs_url)))
 	req.request(abs_url)
