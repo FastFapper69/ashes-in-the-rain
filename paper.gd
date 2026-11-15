@@ -37,6 +37,13 @@ static var _src := {}
 static var _baked := {}
 
 
+## Between maps: every baked sheet and source drawing let go (they would outlive the scene otherwise).
+static func forget() -> void:
+	_src.clear()
+	_baked.clear()
+	_turns.clear()
+
+
 static func _source(kind: String, wide: bool) -> Image:
 	var key := kind + ("/w" if wide else "")
 	if _src.has(key):
@@ -94,6 +101,8 @@ static func make(kind: String, size: Vector2) -> Dictionary:
 		inner = cut
 	var r := Rect2(off + Vector2(inner[0], inner[1]) * s / BAKE, draw - Vector2(inner[0] + inner[2], inner[1] + inner[3]) * s / BAKE)
 	var out := {"tex": tex, "size": draw, "off": off, "inner": r}
+	if _baked.size() >= 40:   # captions come in every size their words need: keep only the latest few
+		_baked.clear()
 	_baked[key] = out
 	return out
 

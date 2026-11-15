@@ -581,7 +581,7 @@ func _ready() -> void:
 				OS.get_static_memory_usage() / 1048576, OS.get_static_memory_peak_usage() / 1048576,
 				int(Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED)) / 1048576,
 				int(Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED)) / 1048576])
-			if chapter == 1 and map == 0:
+			if true:
 				var seen := {}
 				for n in find_children("*", "", true, false):
 					var texs: Array = []
@@ -599,7 +599,7 @@ func _ready() -> void:
 				arr.sort_custom(func(x, y): return int(x[0]) > int(y[0]))
 				var tot := 0
 				for t in arr: tot += int(t[0])
-				print("  scene textures ", arr.size(), " total MB ", tot / 1048576)
+				print("  scene textures ", arr.size(), " total MB ", tot / 1048576, "  paper baked ", load("res://paper.gd")._baked.size())
 				for t in arr.slice(0, 30): print("   ", int(t[0]) / 1048576, " MB ", t[2], "x", t[3], " ", t[1])
 			map += 1
 			if map >= (Levels.CAMPAIGN[chapter]["maps"] as Array).size():
@@ -657,6 +657,7 @@ func _ready() -> void:
 	for n in find_children("*", "Sprite2D", true, false):
 		if n.material is ShaderMaterial:
 			n.add_to_group("blurred")
+	_collect_stream()
 
 
 func _build_street() -> void:
@@ -1684,10 +1685,80 @@ func _unhandled_input(event: InputEvent) -> void:
 			hud.fire_tapped = true
 
 
+## The big drawings (streets, rooms) are held only near the camera: a whole map of them at once was
+## over 300 MB of textures, and a phone's browser kills the page well before that. Each drawing is let
+## go once the camera is far from every sprite using it, and loaded back before it comes into view.
+var _stream: Array = []   # {path, sprites, x0, x1, tex}
+var _stream_t := 0.0
+const STREAM_LOAD := 2600.0   # beyond the screen's edge: load from here
+const STREAM_DROP := 4200.0   # and let go past here
+
+func _collect_stream() -> void:
+	var by_path := {}
+	for n in find_children("*", "", true, false):
+		if not (n is Sprite2D or n is Polygon2D):
+			continue
+		var tex: Texture2D = n.texture
+		if tex == null or tex.resource_path == "":
+			continue
+		var path := tex.resource_path
+		if not (path.begins_with("res://art/street/") or path.begins_with("res://art/rooms/")):
+			continue
+		if tex.get_width() * tex.get_height() < 600000:
+			continue
+		var r: Rect2
+		if n is Sprite2D:
+			r = (n as Sprite2D).get_global_transform() * (n as Sprite2D).get_rect()
+		else:
+			var pts: PackedVector2Array = (n as Polygon2D).get_global_transform() * (n as Polygon2D).polygon
+			if pts.is_empty():
+				continue
+			r = Rect2(pts[0], Vector2.ZERO)
+			for q in pts:
+				r = r.expand(q)
+		if not by_path.has(path):
+			by_path[path] = {"path": path, "sprites": [], "x0": INF, "x1": -INF, "tex": tex}
+		var e: Dictionary = by_path[path]
+		e["sprites"].append(n)
+		e["x0"] = minf(e["x0"], r.position.x)
+		e["x1"] = maxf(e["x1"], r.end.x)
+	_stream = by_path.values()
+	_stream_tick(true)
+
+
+func _stream_tick(first := false) -> void:
+	var half: float = get_viewport().get_visible_rect().size.x * 0.5 / maxf(0.2, cam.zoom.x)
+	var cx: float = cam.position.x
+	for e in _stream:
+		var gap: float = maxf(float(e["x0"]) - (cx + half), (cx - half) - float(e["x1"]))
+		if e["tex"] == null and gap < STREAM_LOAD:
+			var t: Texture2D = load(String(e["path"]))
+			e["tex"] = t
+			for sp in e["sprites"]:
+				if is_instance_valid(sp):
+					sp.texture = t
+		elif e["tex"] != null and gap > STREAM_DROP:
+			e["tex"] = null
+			for sp in e["sprites"]:
+				if is_instance_valid(sp):
+					sp.texture = null
+	if first and _auto == "hops":
+		var held := 0
+		for e in _stream:
+			if e["tex"] != null: held += 1
+		print("  stream: holding %d of %d drawings" % [held, _stream.size()])
+
+
 func _process(delta: float) -> void:
 	_time += delta
+	_stream_t -= delta
+	if _stream_t <= 0.0 and not _stream.is_empty():
+		_stream_t = 0.2
+		_stream_tick()
 	if not _fire_glows.is_empty():
 		_tick_fire(_time)
+	if atmo and atmo.splashes:
+		atmo.set_ground(cam, -WALL_LIFT + 18.0)
 	if in_menu:   # the title over the street: the rain, the signs, the birds, a slow drift of the camera
 		sfx.listener_x = cam.position.x
 		sfx.music_want = [-9.0, -7.0, -80.0, -80.0]
@@ -4203,6 +4274,8 @@ func _travel(card: bool) -> void:
 		set_physics_process(false)
 		for n in get_children():
 			n.queue_free()
+		_stream.clear()
+		load("res://paper.gd").forget()
 		for k in 4:
 			await get_tree().process_frame
 		if _auto == "hops":

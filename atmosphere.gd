@@ -164,10 +164,28 @@ func add_rain(cam: Camera2D, boost: Color, street_y: float) -> void:
 	cam.add_child(splashes)
 
 
+## Drops end on the pavement wherever the camera is: below the street's line on the screen they are cut
+## away (main.gd moves the line each frame), so jumping or standing on a crate never lifts the ground.
+const RAIN_CUT := "shader_type canvas_item;\nuniform float cut = 2.0;\nvoid fragment() {\n\tif (SCREEN_UV.y > cut) { discard; }\n}\n"
+var _rain_cut: Shader
+var rain_mats: Array = []
+
+
+## The street's line on the screen (world y of the pavement) for the drops and the splashes.
+func set_ground(cam: Camera2D, ground_y: float) -> void:
+	var ct := cam.get_viewport().get_canvas_transform()
+	var v: float = (ct * Vector2(0.0, ground_y)).y / cam.get_viewport().get_visible_rect().size.y
+	for i in rain_mats.size():
+		(rain_mats[i] as ShaderMaterial).set_shader_parameter("cut", v + (0.0 if i == 0 else 0.03))
+	if splashes:
+		splashes.position.y = ground_y - cam.get_screen_center_position().y + 4.0
+
+
 func _rain(extents: Vector2, amount: int, life: float, alpha: float, size: float, z: int, boost: Color) -> CPUParticles2D:
 	var p := CPUParticles2D.new()
 	p.texture = load("res://art/fx/rain_streak.png")
 	p.amount = amount
+	life *= 1.3   # long enough to reach the pavement with the camera up on a crate or a roof; the cut ends them
 	p.lifetime = life
 	p.preprocess = life
 	p.local_coords = false   # the drops fall through the street; only where new ones start follows the camera
@@ -185,6 +203,13 @@ func _rain(extents: Vector2, amount: int, life: float, alpha: float, size: float
 	p.color = Color(0.9, 0.93, 1.0, alpha)
 	p.modulate = boost
 	p.z_index = z
+	if _rain_cut == null:
+		_rain_cut = Shader.new()
+		_rain_cut.code = RAIN_CUT
+	var m := ShaderMaterial.new()
+	m.shader = _rain_cut
+	p.material = m
+	rain_mats.append(m)
 	return p
 
 

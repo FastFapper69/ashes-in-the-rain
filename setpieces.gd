@@ -6,8 +6,8 @@ extends Node2D
 
 const CAR_W := 1000.0
 # where the windows burn on a drawing that is set on fire: fractions of the (trimmed) picture
-const FIRES := {"shipping": [Vector2(0.06, 0.1), Vector2(0.17, 0.1), Vector2(0.37, 0.1), Vector2(0.06, 0.24), Vector2(0.17, 0.24),
-		Vector2(0.37, 0.24), Vector2(0.43, 0.24), Vector2(0.06, 0.46), Vector2(0.43, 0.46), Vector2(0.1, 0.62), Vector2(0.3, 0.62)],
+const FIRES := {"shipping": [Vector2(0.11, 0.193), Vector2(0.21, 0.193), Vector2(0.36, 0.193), Vector2(0.165, 0.333),
+		Vector2(0.31, 0.333), Vector2(0.11, 0.562), Vector2(0.41, 0.562)],   # window sills, measured on the drawing
 	"pier17": [Vector2(0.14, 0.34), Vector2(0.25, 0.34), Vector2(0.36, 0.34), Vector2(0.2, 0.68)]}
 
 var game   # main.gd
@@ -25,13 +25,11 @@ var _signal: Node2D
 var _cars: Node2D
 var _blackout_t := 0.0
 var _blacked: Array = []  # lamps the blackout put out, to come back
-var _fire_tex: Texture2D
 var _t := 0.0
 
 
 func setup(main) -> void:
 	game = main
-	_fire_tex = _make_flame()
 	for ev in game.level.get("events", []):
 		var kind := String(ev[0])
 		match kind:
@@ -362,8 +360,9 @@ func _burn(seg_name: String) -> void:
 		if String(seg[0]) != seg_name:
 			continue
 		var tex: Texture2D = load("res://art/street/%s.png" % seg_name)
-		var w: float = tex.get_width() * game.WALL_SCALE
-		var h: float = tex.get_height() * game.WALL_SCALE
+		var ws: float = game.WALL_SCALE * float(game.SEGMENT_SIZE.get(seg_name, 1.0))   # as the street builds it
+		var w: float = tex.get_width() * ws
+		var h: float = tex.get_height() * ws
 		var top: float = -h * game.SEGMENT_BASE - game.WALL_LIFT
 		var x0 := float(seg[1])
 		var trim: float = game.SEGMENT_TRIM.get(seg_name, 0.0)
@@ -380,92 +379,41 @@ func _burn(seg_name: String) -> void:
 		for k in 6:
 			tw.tween_property(heat, "energy", randf_range(0.8, 1.6), randf_range(0.06, 0.18))
 		for f in FIRES.get(seg_name, []):   # fractions of the drawing, to where it stands once trimmed and stretched
-			_flames(Vector2(x0 + (f.x * tex.get_width() - trim) * sx * game.WALL_SCALE, top + h * f.y))
+			_flames(Vector2(x0 + (f.x * tex.get_width() - trim) * sx * ws, top + h * f.y))
 		game.sfx.add_loop("fire", x0 + w * 0.27, -4.0, 1600.0, top + h * 0.4)
 		return
 
 
 func _flames(at: Vector2) -> void:
-	var add := CanvasItemMaterial.new()
-	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
-	add.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
-	var glow := Sprite2D.new()   # the room behind the window, burning
-	glow.texture = load("res://art/light_blob.png")
-	glow.position = at
-	glow.scale = Vector2(1.3, 1.0)
-	glow.material = add
-	glow.modulate = Color(1.0, 0.3, 0.05, 0.6) * Color(game._undo_night(0.3), 1.0)
-	glow.z_index = -8
-	add_child(glow)
-	var gt := glow.create_tween().set_loops()
-	for k in 5:
-		gt.tween_property(glow, "modulate:a", randf_range(0.3, 0.7), randf_range(0.05, 0.16))
-	var p := CPUParticles2D.new()
-	p.texture = load("res://art/fx/flame.png")
-	p.amount = 40
-	p.lifetime = 0.75
-	p.preprocess = 1.0
-	p.position = at + Vector2(0.0, 20.0)
-	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
-	p.emission_rect_extents = Vector2(55.0, 14.0)
-	p.direction = Vector2(0.0, -1.0)
-	p.spread = 10.0
-	p.gravity = Vector2(25.0, -380.0)
-	p.initial_velocity_min = 120.0
-	p.initial_velocity_max = 260.0
-	p.scale_amount_min = 0.7
-	p.scale_amount_max = 1.5
-	var sc := Curve.new()
-	sc.add_point(Vector2(0.0, 0.6))
-	sc.add_point(Vector2(0.25, 1.0))
-	sc.add_point(Vector2(1.0, 0.15))
-	p.scale_amount_curve = sc
-	var g := Gradient.new()
-	g.set_color(0, Color(1.0, 0.9, 0.5, 1.0))
-	g.add_point(0.25, Color(1.0, 0.5, 0.08, 0.9))
-	g.add_point(0.65, Color(0.75, 0.15, 0.03, 0.55))
-	g.set_color(g.get_point_count() - 1, Color(0.3, 0.05, 0.02, 0.0))
-	p.color_ramp = g
-	p.material = add
-	p.modulate = game._undo_night(0.32)   # fire makes its own light: the night does not dim it
-	p.z_index = -8
-	add_child(p)
-	var smoke := CPUParticles2D.new()   # black smoke rolling off the top of each window
-	smoke.texture = _fire_tex
-	smoke.amount = 14
+	for k in 3:   # the painted flames licking out of the window, each on its own breath
+		var hgt := randf_range(210.0, 260.0) * (1.2 if k == 1 else 0.8)
+		# the drawing's root fades out over its lowest quarter: the foot goes that much under the sill
+		var f = game._flame(at + Vector2(-26.0 + 26.0 * k + randf_range(-5.0, 5.0), hgt * 0.22), hgt, randi(), -8)
+		f.modulate = game._undo_night(0.8) * Color(1.0, 0.78, 0.55)
+	var smoke := CPUParticles2D.new()   # black smoke rolling off the top of each window: the inked puffs, darkened
+	smoke.texture = load("res://art/fx/puff3.png")
+	smoke.angle_min = 0.0
+	smoke.angle_max = 360.0
+	smoke.amount = 10
 	smoke.lifetime = 3.5
 	smoke.preprocess = 3.0
-	smoke.position = at + Vector2(0.0, -90.0)
+	smoke.position = at + Vector2(0.0, -150.0)
 	smoke.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
-	smoke.emission_rect_extents = Vector2(60.0, 10.0)
+	smoke.emission_rect_extents = Vector2(50.0, 10.0)
 	smoke.direction = Vector2(0.15, -1.0)
 	smoke.spread = 20.0
 	smoke.gravity = Vector2(40.0, -60.0)
 	smoke.initial_velocity_min = 60.0
 	smoke.initial_velocity_max = 120.0
-	smoke.scale_amount_min = 3.0
-	smoke.scale_amount_max = 5.5
+	smoke.scale_amount_min = 0.9
+	smoke.scale_amount_max = 1.6
 	var sg := Gradient.new()
-	sg.set_color(0, Color(0.08, 0.07, 0.07, 0.0))
-	sg.add_point(0.15, Color(0.08, 0.07, 0.07, 0.55))
-	sg.set_color(sg.get_point_count() - 1, Color(0.1, 0.1, 0.11, 0.0))
+	sg.set_color(0, Color(0.1, 0.09, 0.09, 0.0))
+	sg.add_point(0.15, Color(0.1, 0.09, 0.09, 0.6))
+	sg.set_color(sg.get_point_count() - 1, Color(0.14, 0.14, 0.15, 0.0))
 	smoke.color_ramp = sg
 	smoke.z_index = -8
 	add_child(smoke)
-
-
-func _make_flame() -> Texture2D:
-	var g := GradientTexture2D.new()
-	g.fill = GradientTexture2D.FILL_RADIAL
-	g.fill_from = Vector2(0.5, 0.5)
-	g.fill_to = Vector2(1.0, 0.5)
-	g.width = 64
-	g.height = 64
-	var gr := Gradient.new()
-	gr.set_color(0, Color(1, 1, 1, 1))
-	gr.set_color(1, Color(1, 1, 1, 0))
-	g.gradient = gr
-	return g
 
 
 # ---- the crate on the crane --------------------------------------------------------------------
