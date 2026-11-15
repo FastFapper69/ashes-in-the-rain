@@ -2892,12 +2892,14 @@ func _auto_step(delta: float) -> void:
 		for e in enemies:
 			e["alive"] = false
 			e["node"].visible = false
-		var steps := [[0.8, "shotgun"], [1.4, "tommy"], [2.0, "switch"], [2.6, "switch"]]
+		var steps := [[0.8, "shotgun"], [1.4, "tommy"], [2.0, "switch"], [2.6, "switch"], [3.2, "switch"]]
 		for i in steps.size():
 			var bit := 1 << (1 + i)
 			if _at > float(steps[i][0]) and _auto_done & bit == 0:
 				_auto_done |= bit
 				if steps[i][1] == "switch":
+					if i == 4:
+						_swap_offer = null   # walked off the dropped gun: a plain change between the two he carries
 					_switch_gun()
 				else:
 					_add_pickup(String(steps[i][1]), player.position)
@@ -2905,7 +2907,13 @@ func _auto_step(delta: float) -> void:
 			if _at > float(steps[i][0]) + 0.4 and _auto_done & (bit << 8) == 0:
 				_auto_done |= bit << 8
 				_shot("bag_%d" % i)
-		if _at > 3.4:
+			if steps[i][1] == "switch":   # the change itself, a picture every 0.07 s
+				for k in 5:
+					var kb := 1 << (20 + (i - 2) * 5 + k)
+					if _at > float(steps[i][0]) + 0.035 + k * 0.07 and _auto_done & kb == 0:
+						_auto_done |= kb
+						_shot("swap_%d_%d" % [i, k])
+		if _at > 4.0:
 			print("BAG weapon ", weapon, " bag ", _bag.keys())
 			get_tree().quit()
 	elif _auto == "hat":   # the nearest mobster with a hat: a bullet through the hat (found by hat_hit), pictures as it flies and lands
@@ -3369,7 +3377,7 @@ func _auto_step(delta: float) -> void:
 		end_t = maxf(end_t, float(shots[-1][0]) + 0.4)
 	if _auto == "poses":
 		end_t = 6.6
-	if _auto == "fxsheet" or _auto == "coatdive":
+	if _auto in ["fxsheet", "coatdive", "bag"]:
 		end_t = 999.0   # it quits itself after the last effect
 	if _auto == "tops":
 		end_t = 999.0   # it quits itself after the last crate
@@ -3968,7 +3976,8 @@ func _equip(kind: String) -> void:
 	var st: Dictionary = _bag.get(kind, {"mag": int(WEAPONS[kind]["mag"]), "ammo": 0})
 	_bag.erase(kind)
 	weapon = kind
-	player.set_weapon(kind)
+	player.switch_to(kind)   # the arm takes the old gun down and brings the new one up
+	fire_cool = maxf(fire_cool, player.SWITCH_TIME * 0.9)
 	mag = int(st["mag"])
 	ammo = int(st["ammo"])
 	reloading = 0.0

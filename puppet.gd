@@ -499,6 +499,16 @@ func set_state(dir: float, aim: Vector2, delta: float) -> void:
 	_hit_dip = move_toward(_hit_dip, 0.0, delta * 2.5)
 
 	_aim = Vector2.from_angle(_aim_angle - recoil)
+	if _switch_p >= 0.0:   # down to the coat pocket and back up: the new gun swaps in at the bottom
+		_switch_p += delta / SWITCH_TIME
+		if _switch_to != "" and _switch_p >= 0.5:
+			set_weapon(_switch_to)
+			_switch_to = ""
+		if _switch_p >= 1.0:
+			_switch_p = -1.0
+		else:
+			var dip := sin(PI * _switch_p)
+			_aim = Vector2.from_angle(lerp_angle(_aim.angle(), 1.45, dip * 0.92))
 	_moving = lerpf(_moving, absf(dir), 1.0 - exp(-9.0 * delta))
 	_phase = fposmod(_phase + dir * facing * delta * 2.2, 1.0)   # walking backwards runs the cycle in reverse
 
@@ -1001,6 +1011,19 @@ func _place_wound(w: Node2D) -> void:
 
 
 ## Put a gun in his hands: one of GUNS. Two pistols: one in each hand.
+## Changing guns: the arm drops the one in hand to the coat, comes back up with the other (0.3 s).
+const SWITCH_TIME := 0.3
+var _switch_p := -1.0   # 0..1 through a change of guns, -1 = not changing
+var _switch_to := ""
+
+func switch_to(name: String) -> void:
+	if _dead or name == weapon:
+		set_weapon(name)
+		return
+	_switch_to = name
+	_switch_p = 0.0
+
+
 func set_weapon(name: String) -> void:
 	var key := "pistol" if name == "pistols" else name
 	if not GUNS.has(key):

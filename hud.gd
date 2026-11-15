@@ -319,17 +319,51 @@ var _bag_label: Label
 var _gun_card: Sprite2D
 var _gun_spare: Sprite2D
 const GUN_CARD_AT := Vector2(418.0, 64.0)
+var _guns_shown := ["", ""]
 func set_guns(hand: String, other: String) -> void:
 	if _gun_card == null:
 		_gun_spare = _add("res://art/ui/gun_revolver.png", 0.12)
 		_gun_spare.rotation = deg_to_rad(6.0)
 		_gun_card = _add("res://art/ui/gun_revolver.png", 0.19)
+	var swap: bool = _guns_shown[0] == other and _guns_shown[1] == hand and other != "" and hand != other
+	_guns_shown = [hand, other]
+	var front_at := GUN_CARD_AT
+	var back_at := GUN_CARD_AT + Vector2(62.0, -18.0)
+	if swap:   # the two cards trade places: the one in hand flicks back and down, the spare jumps forward over it
+		var t := 0.28
+		var old_front := _gun_card
+		var old_back := _gun_spare
+		_gun_card = old_back
+		_gun_spare = old_front
+		move_child(_gun_card, _gun_spare.get_index() + 1)   # the new gun's card comes up on top
+		for c in [_gun_card, _gun_spare]:
+			var tw0: Tween = c.get_meta("tw") if c.has_meta("tw") else null
+			if tw0 != null and tw0.is_valid():
+				tw0.kill()
+		var tw := create_tween().set_parallel().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		_gun_card.set_meta("tw", tw)
+		tw.tween_property(_gun_card, "position", front_at, t)
+		tw.tween_property(_gun_card, "scale", Vector2.ONE * 0.19, t)
+		tw.tween_property(_gun_card, "rotation", deg_to_rad(-4.0), t * 0.5)
+		tw.chain().tween_property(_gun_card, "rotation", 0.0, t * 0.5)
+		var tw2 := create_tween().set_parallel().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		_gun_spare.set_meta("tw", tw2)
+		tw2.tween_property(_gun_spare, "position", back_at + Vector2(0.0, 26.0), t * 0.45)   # dipping under on the way
+		tw2.tween_property(_gun_spare, "scale", Vector2.ONE * 0.12, t)
+		tw2.tween_property(_gun_spare, "rotation", deg_to_rad(6.0), t)
+		tw2.chain().tween_property(_gun_spare, "position", back_at, t * 0.55)
+		_gun_card.modulate = Color(1.25, 1.25, 1.25)
+		create_tween().tween_property(_gun_card, "modulate", Color.WHITE, 0.35)
+		return
 	_gun_card.texture = load("res://art/ui/gun_%s.png" % hand)
 	_gun_spare.visible = other != ""
 	if other != "":
 		_gun_spare.texture = load("res://art/ui/gun_%s.png" % other)
-	_gun_card.position = GUN_CARD_AT
-	_gun_spare.position = GUN_CARD_AT + Vector2(62.0, -18.0)
+	_gun_card.position = front_at
+	_gun_card.rotation = 0.0
+	_gun_spare.position = back_at
+	_gun_spare.rotation = deg_to_rad(6.0)
+	_gun_spare.scale = Vector2.ONE * 0.12
 	var tw := _gun_card.create_tween()   # a little flip as the gun changes
 	_gun_card.scale = Vector2(0.02, 0.19)
 	tw.tween_property(_gun_card, "scale", Vector2.ONE * 0.19, 0.16)
