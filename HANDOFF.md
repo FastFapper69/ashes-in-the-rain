@@ -71,3 +71,11 @@ Read this first when picking the project up in a new chat. Reply to the user in 
 - Uličky do hloubky: DEEP_SPLIT (alley, warehouse, laundry, subway, market): zadní konec ujíždí, boční stěny se natahují/naklání jako ploché roviny (žádné ohýbání čar).
 - Hotové kresby nepoužité zatím: 104 Bowery stanice, 105 servisní lávka v tunelu, 106 čerpací stanice (kap. III), 103 = station14 už ve hře.
 - POZOR look test: na x s deníkem (page) se hra zastaví čtením → test visí.
+
+
+## Metro (kap. III), 15. 11. 2026
+- Kresby metra byly ve dvojnásobném měřítku (dveře 2,5 muže). Teď SEG_SIZE 0.52 (SUB) pro station14, walkway (105), bowery (104), tunnel_lo (= 67 zmenšený), signal (115), arches (116). Původní "tunnel" v plné velikosti jen v THE LAST TRAIN (střecha vlaku). Starý "platform" (66) a pump (106, 4× větší) se nepoužívají.
+- TRACKLESS = pump, arches (drezína na kolejích): vlak nesmí projet v jejich dohledu (street() je vybírá mimo train_pass). Vlak jede na kolejích (spodek -170).
+- street(): nikdy stejný segment dvakrát za sebou, jinak nejméně použitý.
+- Horní patra zobecněná: KITS v levels.py ("roof", "mezz": scale/line/stub/y/deco/goal/under). 14TH STREET: na konci "stairs_up" (rampa se stylem "station", sprite art/props/station_stairs.png z 118, schody STAIR_FOOT→STAIR_TOP), mezipatro mezz_a/mezz_b (113/114) na y -1318, cíl u schodů ven (mezz_b 0.55).
+- _block: bedny na patře nad ním (na mezipatře nad schody) ho neblokují. Bot: na horním patře doleva až když je opravdu nahoře (y < roof.y+8); u zakopaného muže po 16 s jde až k němu.
