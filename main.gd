@@ -1107,7 +1107,7 @@ const SEGMENT_GAIN := {"alley": 0.92, "bluenote": 0.98, "warehouse": 0.9, "laund
 # A drawing whose doors and bins came out too big for a man is shown smaller (gen/levels.py SEG_SIZE).
 # variants of a kit (gen/levels.py KIT, art_src 164-168): their own picture, the kit's everything else
 const SEGMENT_KIT := {"walkway_b": "walkway", "signal_b": "signal", "arches_b": "arches", "tunnel_lo_b": "tunnel_lo",
-	"yard_b": "yard", "tunnel_b": "tunnel"}
+	"yard_b": "yard", "tunnel_b": "tunnel", "sheds_b": "sheds", "pier17_b": "pier17", "shipping_b": "shipping", "quay_b": "quay"}
 const SEGMENT_SIZE := {"deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
 	"signal": 0.52, "arches": 0.52, "sheds": 0.55, "fire_a": 0.605, "fire_b": 0.605, "fire_c": 0.605}
 # A drawing whose floor runs into the depth: where on it a man's feet go, as a share of its height (the
@@ -1174,8 +1174,8 @@ func _build_segments() -> void:
 			up.material = w.material
 			up.modulate = w.modulate * Color(0.45, 0.45, 0.45)
 			add_child(up)
-		for r in SEGMENT_DEEP.get(seg_name, []):
-			_add_deep(diffuse, w, r as Rect2, trim, seg_name)
+		for r in SEGMENT_DEEP.get(art, []):   # (a variant's picture is its own: deep views, fires, signs and lamps by `art`)
+			_add_deep(diffuse, w, r as Rect2, trim, art)
 		var glow := Sprite2D.new()   # its lit windows and signs, pushed through the night at full strength
 		glow.texture = load("res://art/street/" + art + "_lit.png")
 		glow.centered = false
@@ -1201,17 +1201,17 @@ func _build_segments() -> void:
 		_stain_hosts.append([w.position.x, w.position.x + seg_w, host])
 		if floored:
 			_rect(Rect2(x0, w.position.y + diffuse.get_height() * ws - 2.0, seg_w, 900.0), Color(0.04, 0.03, 0.03))
-			if seg_name.begins_with("fire"):
-				_fire_life(w, glow, seg_name, ws)
+			if art.begins_with("fire"):
+				_fire_life(w, glow, art, ws)
 		else:
 			atmo.add_mist(self, x0, seg_w, -WALL_LIFT, _undo_night(0.8))
 			atmo.add_steam(self, Vector2(x0 + seg_w * 0.45, -20.0))
 			sfx.add_loop("steam", x0 + seg_w * 0.45, -20.0, 600.0, -20.0)
-		var signs: Array = SEGMENT_NEONS.get(seg_name, [])
+		var signs: Array = SEGMENT_NEONS.get(art, [])
 		for k in signs.size():
 			var p0: Vector2 = signs[k][0]
-			_add_sign("res://art/street/%s_neon%d.png" % [seg_name, k], w.position + Vector2((p0.x - trim) * sx, p0.y) * ws, signs[k][1], String(signs[k][2]), halo_tex, signs[k].size() > 3)
-		for f in SEGMENT_LIGHTS.get(seg_name, []):
+			_add_sign("res://art/street/%s_neon%d.png" % [art, k], w.position + Vector2((p0.x - trim) * sx, p0.y) * ws, signs[k][1], String(signs[k][2]), halo_tex, signs[k].size() > 3)
+		for f in SEGMENT_LIGHTS.get(art, []):
 			if float(f[0]) < trim:   # cut off with the drawing's trimmed edge
 				continue
 			var at: Vector2 = w.position + Vector2((float(f[0]) - trim) * sx, float(f[1])) * ws

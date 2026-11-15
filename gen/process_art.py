@@ -28,10 +28,14 @@ STREET = {
     'tenrow_c': ('119.png', 125, False), 'tenrow_d': ('120.png', 125, False),
     'sheds': ('122.png', 125, False),
     # variants of the kits (art_src 164-168): same floor, rails, edges and lamps, other details
-    'walkway_b': ('164.jpg', 134, False), 'signal_b': ('165.jpg', 134, False), 'arches_b': ('166.jpg', 134, False),
-    'yard_b': ('167.jpg', 134, False), 'tunnel_b': ('168.jpg', 134, False), 'tunnel_lo_b': ('168.jpg', 134, False),
+    # (a variant must differ from its kit over at least a quarter of the picture above the floor: 164, 166, 168
+    # were too close and were redrawn as 172, 175, 173; ch II: 174, 176, 177, 178 replaced 169-171)
+    'walkway_b': ('172.jpg', 134, False), 'signal_b': ('165.jpg', 134, False), 'arches_b': ('175.jpg', 134, False),
+    'yard_b': ('167.jpg', 134, False), 'tunnel_b': ('173.jpg', 134, False), 'tunnel_lo_b': ('173.jpg', 134, False),
+    'sheds_b': ('177.jpg', 125, False), 'pier17_b': ('176.jpg', 134, False), 'shipping_b': ('174.jpg', 134, False), 'quay_b': ('178.jpg', 134, False),
 }
-KIT = {'walkway_b': 'walkway', 'signal_b': 'signal', 'arches_b': 'arches', 'yard_b': 'yard', 'tunnel_b': 'tunnel', 'tunnel_lo_b': 'tunnel_lo'}
+KIT = {'walkway_b': 'walkway', 'signal_b': 'signal', 'arches_b': 'arches', 'yard_b': 'yard', 'tunnel_b': 'tunnel', 'tunnel_lo_b': 'tunnel_lo',
+       'sheds_b': 'sheds', 'pier17_b': 'pier17', 'shipping_b': 'shipping', 'quay_b': 'quay'}
 # measured on the whole picture, before the right frame comes off: scaled to the trimmed one below
 FULL = 3168.0
 def _sc(r, trim=134): k = FULL / (FULL - trim); return (r[0] * k, r[1], r[2] * k, r[3])
@@ -129,7 +133,9 @@ for name, (f, trim, towers) in STREET.items():
     if ONLY and name not in ONLY:
         continue
     rgb = np.asarray(Image.open(SRC + f).convert('RGB'))
-    alpha = sky_alpha(rgb, f in ('42.png', '43.png', '44.png', '45.png', '46.png', '68.png', '167.jpg')).copy()
+    if rgb.shape[:2] != (1344, 3168):   # Gemini sometimes hands back another aspect: stretched back onto the kit's frame
+        rgb = np.asarray(Image.fromarray(rgb).resize((3168, 1344), Image.LANCZOS))
+    alpha = sky_alpha(rgb, f in ('42.png', '43.png', '44.png', '45.png', '46.png', '68.png', '167.jpg', '174.jpg', '176.jpg', '178.jpg')).copy()
     roof = remove_towers(rgb, alpha) if towers else -1
     rgb, alpha = rgb[:, :rgb.shape[1] - trim], alpha[:, :alpha.shape[1] - trim]
     for (x, y, w, h) in CUT.get(name, []):
@@ -142,7 +148,7 @@ for name, (f, trim, towers) in STREET.items():
     im.save(OUT + f'street/{name}.png')
     keep = alpha.copy()
     hh, ww = keep.shape
-    for (x, y, w, h) in DEEP.get(name, DEEP.get(KIT.get(name, ''), [])):
+    for (x, y, w, h) in DEEP.get(name, []):
         keep[int(y * hh):int((y + h) * hh), int(x * ww):int((x + w) * ww)] = 0
     lit, frac = lit_layer(rgb, keep)
     lit.save(OUT + f'street/{name}_lit.png')
@@ -187,7 +193,7 @@ for name in STREET:
     for (x, y, w, h) in FENCES.get(name, FENCES.get(KIT.get(name, ''), [])):
         sl = (slice(int(y * hh), int((y + h) * hh)), slice(int(x * ww), int((x + w) * ww)))
         solid[sl] = np.where(lum[sl] < 45, 255, 0)
-    for (x, y, w, h) in DEEP.get(name, DEEP.get(KIT.get(name, ''), [])):
+    for (x, y, w, h) in DEEP.get(name, []):
         solid[int(y * hh):int((y + h) * hh), int(x * ww):int((x + w) * ww)] = 0
     m = Image.fromarray(solid).resize((ww // 2, hh // 2), Image.BILINEAR)
     Image.merge('RGBA', [Image.new('L', m.size, 255)] * 3 + [m]).save(OUT + f'street/{name}_solid.png')

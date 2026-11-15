@@ -390,9 +390,9 @@ func _add_beam(pivot: Vector2, base_deg: float) -> void:
 ## not hold still, and the roar of it.
 func _burn(seg_name: String) -> void:
 	for seg in game.level.get("street", []):
-		if String(game.SEGMENT_KIT.get(String(seg[0]), String(seg[0]))) != seg_name:
+		if String(seg[0]) != seg_name:   # its own drawing only: a variant's windows are elsewhere
 			continue
-		var tex: Texture2D = BigTex.get_tex("res://art/street/%s.png" % String(seg[0]))
+		var tex: Texture2D = BigTex.get_tex("res://art/street/%s.png" % seg_name)
 		var ws: float = game.WALL_SCALE * float(game.SEGMENT_SIZE.get(seg_name, 1.0))   # as the street builds it
 		var w: float = tex.get_width() * ws
 		var h: float = tex.get_height() * ws
