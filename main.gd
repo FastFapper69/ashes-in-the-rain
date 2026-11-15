@@ -136,6 +136,14 @@ var _room := ""
 var _hint_i := 0
 var _check_i := 0
 var _stand := false
+var _stand_opened := false
+var _gate_said := -99.0
+var _line_said := -99.0
+var _stand_prev := 0.0
+var _move_dir := 0.0   # the stick or keys this frame
+# The chained iron gate at the right of the prologue's dead end (art/street/deadend.png, its left post at
+# 2620 px of the drawing, the segment at x 8658.4, trim 58, scale 1.9 x 0.8): Eddie's back is to it.
+const STAND_GATE_X := 8658.4 + (2620.0 - 58.0) * 1.52 * 3038.0 / (3038.0 - 58.0)
 var _stand_t := 0.0
 var _stand_spawn := 0.0
 var _shake := 0.0
@@ -2235,6 +2243,7 @@ func _process(delta: float) -> void:
 	if Input.is_physical_key_pressed(KEY_A):
 		dir -= 1.0
 	dir = clampf(dir + hud.move, -1.0, 1.0)
+	_move_dir = dir
 	var chest: Vector2 = player.position + SHOULDER + Vector2(0.0, DUCK_DROP * player.duck)
 	var aim: Vector2 = get_global_mouse_position() - chest
 	var touch: bool = hud.touch_seen or DisplayServer.is_touchscreen_available()   # a phone, from the first frame
@@ -4942,16 +4951,38 @@ func _map_events(delta: float) -> void:
 			get_tree().quit()
 	if _stand and not over:
 		_stand_t += delta
-		player.position.x = clampf(player.position.x, stand_x - 400.0, level_end - 200.0)
+		# Nothing unseen holds him. Behind him is the dead end's chained gate (in the drawing); in front, the
+		# mouth of the alley fills with Vail's men, and a man cannot walk through a line of men. They only
+		# come from that side: over a chained gate nobody comes.
+		var gate := STAND_GATE_X - 30.0
+		var line := stand_x - 1100.0
+		for e in enemies:
+			if e["alive"] and e["node"].position.x < player.position.x and e["node"].position.y > -50.0:
+				line = maxf(line, float(e["node"].position.x) + 150.0)
+		var was: float = player.position.x
+		player.position.x = clampf(player.position.x, minf(line, gate - 300.0), gate)
+		_stand_prev = player.position.x
+		if _move_dir > 0.2 and was >= gate - 2.0 and _stand_t - _gate_said > 6.0:   # pushing on the gate: the chain rattles
+			_gate_said = _stand_t
+			sfx.play("chain", -2.0, player.position.x)
+			_say(player, "CHAINED.")
+		elif _move_dir < -0.2 and was <= minf(line, gate - 300.0) + 2.0 and _stand_t - _line_said > 6.0:   # he walked into them
+			_line_said = _stand_t
+			_say(player, "NOT THAT WAY.")
 		slow_left = maxf(0.0, slow_left - delta * (0.03 + _stand_t * 0.004))
 		_stand_spawn -= delta
 		var alive := 0
 		for e in enemies:
 			alive += 1 if e["alive"] else 0
+		if _stand_t < 0.1 and not _stand_opened:   # the trap shuts: a line of them walks into the alley mouth
+			_stand_opened = true
+			for k in 4:
+				_spawn_runner(player.position.x - 1900.0 - k * 160.0, player.position.x - 620.0 - k * 150.0, "post")
+			_say(player, "DEAD END.")
+			sfx.play("chain", -4.0, STAND_GATE_X)
 		if _stand_spawn <= 0.0 and alive < 7:
 			_stand_spawn = maxf(0.6, 1.8 - _stand_t * 0.04)
-			var side := -1.0 if randf() < 0.5 else 1.0
-			_spawn_runner(player.position.x + side * 1900.0, player.position.x + side * randf_range(500.0, 900.0), "tommy" if randf() < _stand_t / 60.0 else "post")
+			_spawn_runner(player.position.x - 1900.0 - randf() * 300.0, player.position.x - randf_range(500.0, 900.0), "tommy" if randf() < _stand_t / 60.0 else "post")
 		if _stand_t > 55.0 and hp > 0:   # nobody walks out of this alley
 			hp = 1
 
