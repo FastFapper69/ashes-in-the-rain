@@ -32,7 +32,7 @@ DOCKS_POOL = ["pier17", "cranes", "shipping", "quay", "sheds", "pier17_b", "ship
 # so a map does not show one drawing again and again; everything about them but the picture is the kit's
 KIT = {"walkway_b": "walkway", "signal_b": "signal", "arches_b": "arches", "tunnel_lo_b": "tunnel_lo",
        "yard_b": "yard", "tunnel_b": "tunnel", "sheds_b": "sheds", "pier17_b": "pier17", "shipping_b": "shipping", "quay_b": "quay",
-       "laundry_b": "laundry", "alley_b": "alley", "warehouse_b": "warehouse", "church_b": "church", "subway_b": "subway", "market_b": "market", "market_c": "market",
+       "laundry_b": "laundry", "alley_b": "alley", "warehouse_b": "warehouse", "church_b": "church", "subway_b": "subway", "market_b": "market", "market_c": "market", "yard_c": "yard", "tunnel_c": "tunnel",
        # the dream's rooms gone wrong (gen/process_dream.py): the burning warehouse's own cut and floor
        "fire_d": "fire_a", "fire_e": "fire_b", "fire_f": "fire_c", "fire_g": "fire_a"}
 for _v, _k in KIT.items():
@@ -653,12 +653,12 @@ CAMPAIGN = [
      "intro": ["Down here the dark has a sound. It sounds like trains that never come."],
      "diary": "Dec 14. Found a fireman's helmet in a pawnshop on Ninth. Engine 54. Same company as Frank's old man. The pawnbroker said a cop sold it. Years ago.",
      "outro": ["Briggs was counting his shells out loud somewhere behind me. A man who counts like that has never missed."]},
-    {"name": "TRAIN YARD", "seed": 303, "feature": "yard", "pool": ["yard", "yard_b"], "cops": True, "rain": 1.6, "start": 0.55, "end": 0.8, "ash": 0.4,
+    {"name": "TRAIN YARD", "seed": 303, "feature": "yard", "pool": ["yard", "yard_b", "yard_c"], "cops": True, "rain": 1.6, "start": 0.55, "end": 0.8, "ash": 0.4,
      "fixed": ["drum_duo", "car_ambush", "searchlight_yard", "crane_swing", "crate_cover", "blackout", "gauntlet"],
      "intro": ["The yard was the only way out that didn't have a badge standing in it."],
      "diary": "Dec 15. 1931. A tenement on West 47th burned with nine families inside. Engine 54 got there first. One fireman went in for the kids and didn't come out. Patrick Malone.",
      "outro": ["The last train out of the yard was an empty one. I've never been so glad of an empty thing."]},
-    {"name": "THE LAST TRAIN", "seed": 304, "feature": "tunnel", "pool": ["tunnel", "tunnel_b"], "under": True, "cops": True, "moving": 2600, "start": 0.55, "end": 0.85, "ash": 0.0,
+    {"name": "THE LAST TRAIN", "seed": 304, "feature": "tunnel", "pool": ["tunnel", "tunnel_b", "tunnel_c"], "under": True, "cops": True, "moving": 2600, "start": 0.55, "end": 0.85, "ash": 0.0,
      "fixed": ["roof_vents", "breather", "roof_rush", "roof_vents", "breather", "roof_rush", "roof_vents"],
      "intro": ["They caught up with me on the roof of the express. Fifty feet of tunnel to every second, and the girders hang low."],
      "hints": [[2400, "RED LIGHT: A GIRDER. GET DOWN."]],

@@ -58,6 +58,7 @@ const SIZES := {
 	"res://art/street/tenrow_d.png": Vector2i(3043, 1344),
 	"res://art/street/tunnel.png": Vector2i(3034, 1344),
 	"res://art/street/tunnel_b.png": Vector2i(3034, 1344),
+	"res://art/street/tunnel_c.png": Vector2i(3034, 1344),
 	"res://art/street/tunnel_lo.png": Vector2i(3034, 1344),
 	"res://art/street/tunnel_lo_b.png": Vector2i(3034, 1344),
 	"res://art/street/walkway.png": Vector2i(3034, 1344),
@@ -66,4 +67,5 @@ const SIZES := {
 	"res://art/street/warehouse_b.png": Vector2i(3028, 1344),
 	"res://art/street/yard.png": Vector2i(3034, 1344),
 	"res://art/street/yard_b.png": Vector2i(3034, 1344),
+	"res://art/street/yard_c.png": Vector2i(3034, 1344),
 }

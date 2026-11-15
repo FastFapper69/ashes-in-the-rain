@@ -548,10 +548,19 @@ func _make_moving() -> void:
 	_make_train()
 
 
+const BAND_ART := ["tunnel", "tunnel_b", "tunnel_c"]
+
+
 ## The last train: the tunnel wall pours past behind the cars, which carry the fight on their roofs.
 func _make_band() -> void:
-	var tex: Texture2D = BigTex.get_tex("res://art/street/tunnel.png")
-	var lit: Texture2D = load("res://art/street/tunnel_lit.png")
+	# the three drawings of the tunnel in turn (tunnel, tunnel_b, tunnel_c: same kit), so the wall that
+	# pours past is not one picture over and over; the band wraps over all three, so none of them pops
+	var texs: Array = []
+	var lits: Array = []
+	for nm in BAND_ART:
+		texs.append(BigTex.get_tex("res://art/street/%s.png" % nm))
+		lits.append(load("res://art/street/%s_lit.png" % nm))
+	var tex: Texture2D = texs[0]
 	var trim: float = game.SEGMENT_TRIM.get("tunnel", 0.0)
 	var sx: float = tex.get_width() / (tex.get_width() - trim)
 	_band_w = tex.get_width() * game.WALL_SCALE
@@ -562,14 +571,15 @@ func _make_band() -> void:
 	var add := CanvasItemMaterial.new()
 	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	add.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
-	for i in 5:
+	for i in BAND_ART.size() * 2 + 1:
+		var lit: Texture2D = lits[i % BAND_ART.size()]
 		var w := Sprite2D.new()
-		w.texture = tex
+		w.texture = texs[i % BAND_ART.size()]
 		w.centered = false
 		w.region_enabled = true
 		w.region_rect = Rect2(trim, 0.0, tex.get_width() - trim, tex.get_height())
 		w.scale = Vector2(game.WALL_SCALE * sx, game.WALL_SCALE)
-		w.position = Vector2((i - 2) * _band_w, 0.0)
+		w.position = Vector2((i - BAND_ART.size()) * _band_w, 0.0)
 		w.material = game.atmo.blur_material(2.6)   # going by too fast to be sharp
 		w.modulate = Color.WHITE * game.SEGMENT_MOON * float(game.SEGMENT_GAIN.get("tunnel", 1.0)) * 0.8
 		_band.add_child(w)
@@ -630,7 +640,7 @@ func _make_train() -> void:
 
 func _tick_moving(delta: float) -> void:
 	var cam_x: float = game.cam.position.x
-	_band.position = Vector2(-fposmod(cam_x + _t * _speed, _band_w), _band_top - game.cam.position.y)
+	_band.position = Vector2(-fposmod(cam_x + _t * _speed, _band_w * BAND_ART.size()), _band_top - game.cam.position.y)
 	_cars.position.y = sin(_t * 9.0) * 3.0 + sin(_t * 2.3) * 2.0   # it rocks along the rails
 	game._shake = maxf(game._shake, 0.04)
 	var lamp: Sprite2D = _signal.get_node("Lamp")

@@ -35,8 +35,10 @@ STREET = {
     'sheds_b': ('177.jpg', 125, False), 'pier17_b': ('176.jpg', 134, False), 'shipping_b': ('174.jpg', 134, False), 'quay_b': ('178.jpg', 134, False),
     'laundry_b': ('179.jpg', 140, False), 'alley_b': ('180.jpg', 140, False), 'warehouse_b': ('181.jpg', 140, False),
     'church_b': ('182.jpg', 60, False), 'subway_b': ('183.jpg', 60, False), 'market_b': ('184.jpg', 130, False), 'market_c': ('185.jpg', 130, False),
+    # a third of the two chapter III maps that had only two drawings (2026-11-15)
+    'yard_c': ('190.jpg', 134, False), 'tunnel_c': ('191.jpg', 134, False),
 }
-KIT = {'walkway_b': 'walkway', 'signal_b': 'signal', 'arches_b': 'arches', 'yard_b': 'yard', 'tunnel_b': 'tunnel', 'tunnel_lo_b': 'tunnel_lo',
+KIT = {'yard_c': 'yard', 'tunnel_c': 'tunnel', 'walkway_b': 'walkway', 'signal_b': 'signal', 'arches_b': 'arches', 'yard_b': 'yard', 'tunnel_b': 'tunnel', 'tunnel_lo_b': 'tunnel_lo',
        'sheds_b': 'sheds', 'pier17_b': 'pier17', 'shipping_b': 'shipping', 'quay_b': 'quay',
        'laundry_b': 'laundry', 'alley_b': 'alley', 'warehouse_b': 'warehouse', 'church_b': 'church', 'subway_b': 'subway', 'market_b': 'market', 'market_c': 'market'}
 # measured on the whole picture, before the right frame comes off: scaled to the trimmed one below
@@ -138,7 +140,7 @@ for name, (f, trim, towers) in STREET.items():
     rgb = np.asarray(Image.open(SRC + f).convert('RGB'))
     if rgb.shape[:2] != (1344, 3168):   # Gemini sometimes hands back another aspect: stretched back onto the kit's frame
         rgb = np.asarray(Image.fromarray(rgb).resize((3168, 1344), Image.LANCZOS))
-    alpha = sky_alpha(rgb, f in ('42.png', '43.png', '44.png', '45.png', '46.png', '68.png', '167.jpg', '174.jpg', '176.jpg', '178.jpg')).copy()
+    alpha = sky_alpha(rgb, f in ('42.png', '43.png', '44.png', '45.png', '46.png', '68.png', '167.jpg', '190.jpg', '174.jpg', '176.jpg', '178.jpg')).copy()
     roof = remove_towers(rgb, alpha) if towers else -1
     rgb, alpha = rgb[:, :rgb.shape[1] - trim], alpha[:, :alpha.shape[1] - trim]
     for (x, y, w, h) in CUT.get(name, []):
