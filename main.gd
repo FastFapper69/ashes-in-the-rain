@@ -859,6 +859,53 @@ func _ready() -> void:
 		if n.material is ShaderMaterial:
 			n.add_to_group("blurred")
 	_collect_stream()
+	_warm_text()
+
+
+## Every font size the fight is lettered in (a mobster's shout, the "!" over his hat, the combo and
+## how-to captions, the boss's name, LEVEL N, the gun line) drawn once while the map opens, at 1 %
+## opacity for two frames: the letters are rasterised now, not in the first shootout. On the phone the
+## first shout of a map cost ~100 ms and 4-5 MB of glyph textures in the middle of the fight. It has to
+## be drawn on screen (off screen the renderer skips it and nothing is rasterised). The fonts are held
+## for the whole session so their glyphs outlive the scene reload between maps.
+static var _kept_fonts := {}
+const WARM_TEXT := "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!?'.,:;-+%&()"
+func _warm_text() -> void:
+	if not _kept_fonts.has("comic"):
+		_kept_fonts["comic"] = load("res://fonts/ComicNeue-BoldItalic.woff")
+		var head := FontVariation.new()
+		head.base_font = load("res://fonts/Oswald.ttf")
+		head.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): 600}
+		_kept_fonts["oswald"] = head
+	var comic: Font = _kept_fonts["comic"]
+	var oswald: Font = _kept_fonts["oswald"]
+	# [font (null = the theme's), size, outline]: as main.gd _say/_mark and hud.gd letter them
+	var specs := [[comic, 72, 12], [comic, 110, 14], [comic, 22, 0], [comic, 24, 0], [null, 30, 10], [null, 34, 8],
+			[null, 92, 18], [null, 26, 8], [oswald, 64, 0], [oswald, 34, 10]]
+	var layer := CanvasLayer.new()
+	layer.layer = 1
+	add_child(layer)
+	var y := 0.0
+	for sp in specs:
+		var l := Label.new()
+		l.text = WARM_TEXT
+		if sp[0] != null:
+			l.add_theme_font_override("font", sp[0])
+		l.add_theme_font_size_override("font_size", sp[1])
+		if sp[2] > 0:
+			l.add_theme_constant_override("outline_size", sp[2])
+			l.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+		l.position = Vector2(8.0, y)
+		l.modulate.a = 0.01
+		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		layer.add_child(l)
+		y = fmod(y + 60.0, 600.0)
+	# the caption paper the combo and the hints are printed on, at one line's height: filtered once now
+	load("res://paper.gd").make("panel", Vector2(220.0, 47.0))
+	await get_tree().process_frame
+	await get_tree().process_frame
+	await get_tree().process_frame
+	layer.queue_free()
 
 
 func _build_street() -> void:
@@ -4914,6 +4961,21 @@ func _play_cut(id: String, then: Callable, test := false) -> void:
 	slow_on = false
 	hud.visible = false
 	_in_cut = true
+	# the street's drawings go first and the page opens a few frames later, on black (the page fades
+	# in from black anyway): the phone never holds a whole street and a comic page at once. A page
+	# killed at the start of a cutscene (crash report 9, the Teague page) had both.
+	var black := CanvasLayer.new()
+	black.layer = 90
+	var rect := ColorRect.new()
+	rect.color = Color.BLACK
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	black.add_child(rect)
+	add_child(black)
+	_stream_tick()
+	for i in 3:
+		await get_tree().process_frame
+	black.queue_free()
 	var c = CutsceneScript.new()
 	c.scene_id = id
 	c.done = then

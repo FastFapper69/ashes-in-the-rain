@@ -35,11 +35,19 @@ const KINDS := {
 
 static var _src := {}
 static var _baked := {}
+static var _scaled := {}   # "kind/w s" -> the source drawing already scaled for that stroke: a caption
+# of new words only needs its plain middle lengthened, not the whole drawing filtered again (on a phone
+# that full-size filter was a 100+ ms stall on every kill's combo caption)
 
 
 ## Between maps: every baked sheet and source drawing let go (they would outlive the scene otherwise).
 static func forget() -> void:
-	_src.clear()
+	for k in _src.keys():   # the caption panel is needed on every map (combo, barks, hints): kept
+		if not String(k).begins_with("panel"):
+			_src.erase(k)
+	for k in _scaled.keys():
+		if not String(k).begins_with("panel"):
+			_scaled.erase(k)
 	_baked.clear()
 	_turns.clear()
 
@@ -68,12 +76,11 @@ static func _turn(v: Array, wide: bool) -> Array:
 
 
 ## The texture for a box of this kind and size (layout px), and where its text may go (layout px).
-static func make(kind: String, size: Vector2) -> Dictionary:
+## How a box of this kind and size is drawn, worked out from numbers only (no pictures touched):
+## the stroke scale, the baked size, where the drawing sits and where its text may go.
+static func plan(kind: String, size: Vector2) -> Dictionary:
 	var k: Dictionary = KINDS[kind]
 	var wide: bool = kind == "panel" and size.x > size.y
-	var key := "%s %d %d" % [kind, int(size.x), int(size.y)]
-	if _baked.has(key):
-		return _baked[key]
 	var src := _source(kind, wide)
 	var t := Vector2i(int(round(size.x * BAKE)), int(round(size.y * BAKE)))
 	var s := minf(float(t.x) / src.get_width(), float(t.y) / src.get_height())
@@ -84,23 +91,39 @@ static func make(kind: String, size: Vector2) -> Dictionary:
 		s = maxf(0.22, minf(s, minf(float(t.x) / (cp[0] + cp[2]), float(t.y) / (cp[1] + cp[3]))))
 	elif k.get("fit", "") == "h":
 		s = float(t.y) / src.get_height()
-	var img := src.duplicate()
-	img.resize(maxi(2, int(round(src.get_width() * s))), maxi(2, int(round(src.get_height() * s))), Image.INTERPOLATE_LANCZOS)
+	var scaled := Vector2i(maxi(2, int(round(src.get_width() * s))), maxi(2, int(round(src.get_height() * s))))
+	var fixed: bool = k.get("fixed", false)
+	var px := scaled if fixed else t   # a fitted box is lengthened to exactly the baked size
+	var off := (Vector2(t) - Vector2(scaled)) * 0.5 / BAKE if fixed else Vector2.ZERO
+	var draw := Vector2(px) / BAKE
 	var inner: Array = _turn(k["inner"], wide)
-	var off := Vector2.ZERO
+	var r := Rect2(off + Vector2(inner[0], inner[1]) * s / BAKE, draw - Vector2(inner[0] + inner[2], inner[1] + inner[3]) * s / BAKE)
+	return {"wide": wide, "t": t, "s": s, "scaled": scaled, "off": off, "size": draw, "inner": r}
+
+
+static func make(kind: String, size: Vector2) -> Dictionary:
+	var k: Dictionary = KINDS[kind]
+	var key := "%s %d %d" % [kind, int(size.x), int(size.y)]
+	if _baked.has(key):
+		return _baked[key]
+	var p := plan(kind, size)
+	var wide: bool = p["wide"]
+	var s: float = p["s"]
+	var t: Vector2i = p["t"]
+	var skey := "%s%s %d %d" % [kind, "/w" if wide else "", (p["scaled"] as Vector2i).x, (p["scaled"] as Vector2i).y]
+	var img: Image = _scaled.get(skey)
+	if img == null:   # the whole drawing filtered down to this stroke once, then reused
+		img = _source(kind, wide).duplicate()
+		img.resize((p["scaled"] as Vector2i).x, (p["scaled"] as Vector2i).y, Image.INTERPOLATE_LANCZOS)
+		if _scaled.size() >= 24:
+			_scaled.clear()
+		_scaled[skey] = img
 	if not k.get("fixed", false):
 		var caps: Array = _turn(k["caps"], wide)
 		img = _fit(img, t.x, int(caps[0] * s), int(caps[2] * s), true)
 		img = _fit(img, t.y, int(caps[1] * s), int(caps[3] * s), false)
-	else:   # drawn as it is, centred in the box
-		off = (Vector2(t) - Vector2(img.get_size())) * 0.5 / BAKE
 	var tex := ImageTexture.create_from_image(img)
-	var draw := Vector2(img.get_size()) / BAKE
-	if not k.get("fixed", false):   # lengthened or shortened ends keep their insets
-		var cut := [inner[0], inner[1], inner[2], inner[3]]
-		inner = cut
-	var r := Rect2(off + Vector2(inner[0], inner[1]) * s / BAKE, draw - Vector2(inner[0] + inner[2], inner[1] + inner[3]) * s / BAKE)
-	var out := {"tex": tex, "size": draw, "off": off, "inner": r}
+	var out := {"tex": tex, "size": p["size"], "off": p["off"], "inner": p["inner"]}
 	if _baked.size() >= 40:   # captions come in every size their words need: keep only the latest few
 		_baked.clear()
 	_baked[key] = out
@@ -271,7 +294,7 @@ static func caption(text: String, font: Font, fs: int, max_w := 460.0) -> Contro
 	var need := ts + Vector2(air * 2.0 + 2.0, fs * 0.24 + 4.0)   # what the inner line must hold
 	var size := need + Vector2(32.0, 32.0)
 	for i in 2:   # measure the panel's inner line at this size and make the box hold the words exactly
-		var inner: Rect2 = make("panel", size)["inner"]
+		var inner: Rect2 = plan("panel", size)["inner"]   # measured, not baked: only the final box is drawn
 		size += need - inner.size
 		size = size.ceil()
 	var box := sheet("panel", size)
