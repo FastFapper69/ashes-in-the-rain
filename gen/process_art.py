@@ -25,6 +25,7 @@ STREET = {
     'signal': ('115.png', 134, False), 'arches': ('116.png', 134, False),
     # chapter I, under the rooftops: the facade fills the picture to a straight cornice along its top edge
     'tenrow_a': ('111.png', 125, False), 'tenrow_b': ('112.png', 125, False),
+    'tenrow_c': ('119.png', 125, False), 'tenrow_d': ('120.png', 125, False),
 }
 # measured on the whole picture, before the right frame comes off: scaled to the trimmed one below
 FULL = 3168.0

@@ -15,15 +15,15 @@ BOX = {"crate": (250, 248, True), "drum": (160, 246, False), "crate_long": (330,
 SEGMENTS = {"alley": 3028, "bluenote": 3028, "warehouse": 3028, "laundry": 3028, "subway": 3108, "church": 3108, "market": 3038, "deadend": 3038,
             "pier17": 3034, "cranes": 3034, "shipping": 3034, "quay": 3034, "harbor": 3034,
             "platform": 3034, "tunnel": 3034, "yard": 3034, "station14": 3034,
-            "tenrow_a": 3043, "tenrow_b": 3043,
+            "tenrow_a": 3043, "tenrow_b": 3043, "tenrow_c": 3043, "tenrow_d": 3043,
             "bowery": 3034, "walkway": 3034, "pump": 3034, "tunnel_lo": 3034,
             "signal": 3034, "arches": 3034}
 # the subway drawings came out at twice a man's size (doors 2.5 men high, the far platform at his head):
 # shown at half, the wall above them runs on into the dark of the ceiling
 SUB = 0.52
-SEG_SIZE = {"deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "station14": SUB, "walkway": SUB, "bowery": SUB, "tunnel_lo": SUB,
+SEG_SIZE = {"deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": SUB, "walkway": SUB, "bowery": SUB, "tunnel_lo": SUB,
             "signal": SUB, "arches": SUB}
-UNDER_ROOF = ["tenrow_a", "tenrow_b"]   # the facades under the rooftops: their cornice meets the roof drawings   # shown smaller: see main.gd SEGMENT_SIZE
+UNDER_ROOF = ["tenrow_a", "tenrow_c", "tenrow_b", "tenrow_d"]   # the facades under the rooftops: their cornice meets the roof drawings   # shown smaller: see main.gd SEGMENT_SIZE
 STREET_POOL = ["alley", "warehouse", "laundry", "subway", "church", "market"]
 DOCKS_POOL = ["pier17", "cranes", "shipping", "quay", "harbor"]
 UNDER_POOL = ["walkway", "tunnel_lo", "signal", "arches"]   # the pump room (art_src 106) is drawn at four times a man: not used
@@ -47,7 +47,7 @@ ROOF_STUB = 190 * 0.95    # the firewall at its right edge, left off where the n
 KITS = {
     "roof": {"scale": 0.95, "line": 0.828, "stub": 190, "y": ROOF_Y, "deco": None, "goal": None, "under": True},
     # the mezzanine over the platforms: the subway drawings at their half size; its floor on their ceiling
-    "mezz": {"scale": 1.9 * 0.52, "line": 0.965, "stub": 134, "y": -1318.0, "deco": "mezz_a", "goal": 0.55, "under": False},
+    "mezz": {"scale": 1.9 * 0.52, "line": 0.94, "stub": 134, "y": -1318.0, "deco": "mezz_a", "goal": 0.55, "under": False},
 }
 # the station stairs (art/props/station_stairs.png, art_src 118): treads from (168, 1258) up to the
 # landing at (2352, 255) in the picture; drawn so they rise exactly onto the mezzanine
@@ -345,7 +345,7 @@ def street(mp, m, rng):
     while x < m.end + 2500:
         nxt = x + SEGMENTS[UNDER_ROOF[0]] * 1.9 * SEG_SIZE[UNDER_ROOF[0]]
         if m.roof and m.kit["under"] and nxt > roof_a and x < roof_b:   # under the roofs: only the facades that reach up to them
-            name = UNDER_ROOF[k_roof % 2]
+            name = UNDER_ROOF[k_roof % len(UNDER_ROOF)]
             k_roof += 1
         elif i == 1 and mp.get("feature"):
             name = mp["feature"]

@@ -781,7 +781,7 @@ const SEGMENT_GAIN := {"alley": 0.92, "bluenote": 0.98, "warehouse": 0.9, "laund
 		"platform": 0.95, "tunnel": 1.12, "yard": 0.85, "station14": 0.9,
 		"bowery": 0.92, "walkway": 1.0, "pump": 0.95, "tunnel_lo": 1.12, "signal": 1.0, "arches": 1.0}
 # A drawing whose doors and bins came out too big for a man is shown smaller (gen/levels.py SEG_SIZE).
-const SEGMENT_SIZE := {"deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
+const SEGMENT_SIZE := {"deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
 	"signal": 0.52, "arches": 0.52}
 var _sign_scale := WALL_SCALE
 const ROOM_BASE := 0.95     # an interior's painting under the night grade, before its lamps' pools
@@ -824,6 +824,22 @@ func _build_segments() -> void:
 		w.material = atmo.blur_material(1.4)
 		w.modulate = Color.WHITE * SEGMENT_MOON * float(SEGMENT_GAIN.get(seg_name, 1.0))   # a moonlit wash, so the drawing reads between the lamps
 		add_child(w)
+		if level.get("under", false) and float(SEGMENT_SIZE.get(seg_name, 1.0)) < 0.6:
+			# a subway drawing at a man's scale is lower than the screen: its vault goes on up, the top of
+			# the drawing mirrored over it and sinking into the dark, so no edge shows when he jumps
+			var up := Sprite2D.new()
+			up.texture = diffuse
+			up.centered = false
+			up.region_enabled = true
+			var band := diffuse.get_height() * 0.3
+			up.region_rect = Rect2(trim, 0.0, diffuse.get_width() - trim, band)
+			up.flip_v = true
+			up.scale = w.scale
+			up.position = w.position - Vector2(0.0, band * ws)
+			up.z_index = -10
+			up.material = w.material
+			up.modulate = w.modulate * Color(0.45, 0.45, 0.45)
+			add_child(up)
 		for r in SEGMENT_DEEP.get(seg_name, []):
 			_add_deep(diffuse, w, r as Rect2, trim, seg_name)
 		var glow := Sprite2D.new()   # its lit windows and signs, pushed through the night at full strength
@@ -1351,6 +1367,8 @@ func _soft_glow() -> GradientTexture2D:
 ## None of them takes lamplight (light_mask 0); the night still darkens them, so each is lifted
 ## to the brightness it should keep. Copies alternate with mirrored ones so the seams match.
 func _build_depth() -> void:
+	if level.get("under", false):   # underground: no sky over the tunnel ceilings, nor a moon
+		return
 	var sky_tex: Texture2D = load("res://art/bg/sky.png")
 	var sky := Sprite2D.new()   # infinitely far: it hangs off the camera and never slides
 	sky.texture = sky_tex
