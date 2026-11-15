@@ -515,7 +515,10 @@ func combo(streak: int, points: int, how: String) -> void:
 	var cap: Control = Paper.caption(text, load("res://fonts/ComicNeue-BoldItalic.woff"), 22, 560.0)
 	_combo_box = cap
 	var under_boss := is_instance_valid(_boss_box) and _boss_box.visible   # the boss's name owns the top
-	cap.position = Vector2(view.x - 124.0 - cap.size.x, 116.0 if under_boss else 22.0)
+	var y := 116.0 if under_boss else 22.0
+	if under_boss and is_instance_valid(_hint_box):   # a how-to line up there too: below it
+		y = _hint_box.position.y + _hint_box.size.y + 10.0
+	cap.position = Vector2(view.x - 124.0 - cap.size.x, y)
 	cap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(cap)
 	cap.pivot_offset = cap.size * Vector2(1.0, 0.5)

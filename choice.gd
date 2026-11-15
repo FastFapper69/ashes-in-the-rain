@@ -27,14 +27,14 @@ func _ready() -> void:
 	create_tween().tween_property(dim, "color:a", 0.6, 0.5)
 	var Paper = load("res://paper.gd")
 	var box: Control = Paper.caption(question.to_upper(), load("res://fonts/ComicNeue-BoldItalic.woff"), 30, minf(view.x * 0.6, 860.0))
-	box.position = Vector2((view.x - box.size.x) * 0.5, view.y * 0.2)
+	box.position = Vector2((view.x - box.size.x) * 0.5, 96.0)   # up top, and the buttons low: Briggs and Frank stay in sight between them
 	add_child(box)
 	var w := 320.0
 	var gap := 48.0
 	var x0 := (view.x - (w * options.size() + gap * (options.size() - 1))) * 0.5
 	for i in options.size():
 		var b: Control = Paper.button("tape", Vector2(w, 72.0), _pick.bind(i))
-		b.position = Vector2(x0 + i * (w + gap), view.y * 0.62)
+		b.position = Vector2(x0 + i * (w + gap), view.y - 48.0 - 72.0)
 		b.rotation = deg_to_rad(-1.0 if i == 0 else 1.0)
 		add_child(b)
 		Paper.write(b, String(options[i]), head, 32, Paper.INK if i == 0 else Paper.CRIMSON)

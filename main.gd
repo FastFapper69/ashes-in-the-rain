@@ -90,6 +90,7 @@ const COP_FACES := {"post": ["patrol", "rain", "sergeant"], "tommy": ["sergeant"
 		"shield": ["rain", "patrol"], "sniper": ["sergeant"]}
 const COP_TINT := Color(0.74, 0.8, 1.0)
 const ChoiceScript = preload("res://choice.gd")
+const LowRes = preload("res://lowres.gd")
 # which chapter and map are being played, and whether the case file (menu) is open; static, so they
 # survive the scene reload that starts each map
 static var chapter := 0
@@ -115,7 +116,8 @@ var ammo := 0
 var stats := {"kills": 0, "heads": 0, "slow": 0, "hits": 0, "time": 0.0, "executed": 0, "spared": 0, "score": 0, "air": 0, "best_combo": 0}
 var _combo := 0          # kills in a row, each within COMBO_GAP of the last
 var _combo_t := 0.0      # time left to keep the streak going
-var _bounce_t := 0.0     # a ricochet is still in flight: a kill now is a trick shot
+var _bounce_t := 0.0
+var _hit_at := Vector2.INF   # the last bullet's point of impact     # a ricochet is still in flight: a kill now is a trick shot
 const COMBO_GAP := 2.5
 var _streak_told := false
 const COMBO_MAX := 5
@@ -399,8 +401,23 @@ func _add_print_sheet() -> void:
 	add_child(layer)
 
 
+## A line for the crash report (web only): what the game was doing, kept in the browser's storage so
+## the next load can send it home if this page gets killed (see web/crash.js beside the deploy script).
+static func crumb(text: String) -> void:
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval("window.ashesCrumb&&window.ashesCrumb(%s)" % JSON.stringify(text), true)
+
+
+func _mem_line() -> String:
+	return "%s %d:%d x=%d static=%dMB peak=%dMB tex=%dMB buf=%dMB fps=%d nodes=%d cut=%s lowfail=%d" % ["menu" if in_menu else "map", chapter, map,
+		int(player.position.x) if player != null else -1, OS.get_static_memory_usage() / 1048576, OS.get_static_memory_peak_usage() / 1048576,
+		int(Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED)) / 1048576, int(Performance.get_monitor(Performance.RENDER_BUFFER_MEM_USED)) / 1048576,
+		Engine.get_frames_per_second(), int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)), _in_cut, LowRes.failed]
+
+
 func _ready() -> void:
 	if _auto_arg() == "hops": print("READY ", chapter, ":", map)
+	(func() -> void: crumb("ready " + _mem_line())).call_deferred()
 	_add_print_sheet()
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--chapter="):
@@ -599,6 +616,43 @@ func _ready() -> void:
 		get_tree().create_timer(6.0, true, false, true).timeout.connect(func() -> void:
 			print("NEWGAME ALIVE ", chapter, ":", map, " in_cut ", _in_cut)
 			get_tree().quit())
+	if _auto == "probe":   # --test=probe: what the renderer's texture memory is made of, freeing one kind of node at a time
+		get_tree().create_timer(4.0, true, false, true).timeout.connect(func() -> void:
+			var mb := func() -> int: return int(Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED)) / 1048576
+			print("PROBE start ", mb.call())
+			for n in get_tree().root.find_children("*", "", true, false):
+				n.set_process(false)
+				n.set_physics_process(false)
+			set_process(false)
+			for kind in ["PointLight2D", "CanvasGroup", "GPUParticles2D", "CPUParticles2D", "Label", "TextureRect", "Polygon2D", "Line2D", "Sprite2D", "Control"]:
+				for n in get_tree().root.find_children("*", kind, true, false):
+					n.queue_free()
+				for k in 4:
+					await get_tree().process_frame
+				print("PROBE after freeing ", kind, ": ", mb.call())
+			_stream.clear()
+			for k in 4:
+				await get_tree().process_frame
+			print("PROBE after stream clear: ", mb.call())
+			var counts := {}
+			for n in get_tree().root.find_children("*", "", true, false):
+				counts[n.get_class()] = counts.get(n.get_class(), 0) + 1
+			print("PROBE left nodes ", counts)
+			for c in get_children():
+				var before: int = mb.call()
+				var nm := "%s(%s)" % [c.name, c.get_script().resource_path.get_file() if c.get_script() else c.get_class()]
+				c.free()
+				for k in 3:
+					await get_tree().process_frame
+				if before - int(mb.call()) > 0:
+					print("PROBE child ", nm, " held ", before - int(mb.call()), " MB")
+			print("PROBE after freeing all children: ", mb.call())
+			get_tree().quit())
+	if _auto == "endcut":   # --test=endcut: the map is won as a player would win it, its comic plays, the next map loads; memory every half second
+		get_tree().create_timer(4.0, true, false, true).timeout.connect(func() -> void:
+			_auto = ""
+			_measure_from = Time.get_ticks_msec()
+			_map_cleared())
 	if _auto == "hops":   # --test=hops: map after map through reloads, printing the memory each time
 		get_tree().create_timer(4.0, true, false, true).timeout.connect(func() -> void:
 			print("HOP %d:%d  static %d MB (peak %d)  textures %d MB  video %d MB" % [chapter, map,
@@ -1491,7 +1545,7 @@ func _soft_glow() -> GradientTexture2D:
 func _build_depth() -> void:
 	if level.get("under", false):   # underground: no sky over the tunnel ceilings, nor a moon
 		return
-	var sky_tex: Texture2D = load("res://art/bg/sky.png")
+	var sky_tex: Texture2D = LowRes.tex("res://art/bg/sky.png", 0.5)   # a soft sky, a quarter of the memory
 	var sky := Sprite2D.new()   # infinitely far: it hangs off the camera and never slides
 	sky.texture = sky_tex
 	sky.centered = false
@@ -1815,8 +1869,32 @@ func _stream_tick(first := false) -> void:
 		print("  stream: holding %d of %d drawings" % [held, _stream.size()])
 
 
+static var _measure_from := -1
+static var _dumped_cut := false
+static var _dumped_play := false
+var _measure_t := 0.0
+var _beat_t := 2.0
 func _process(delta: float) -> void:
 	_time += delta
+	_beat_t -= delta / maxf(Engine.time_scale, 0.05)
+	if _beat_t <= 0.0:
+		_beat_t = 5.0
+		crumb("beat " + _mem_line())
+	if _measure_from >= 0:
+		_measure_t -= delta
+		if _measure_t <= 0.0:
+			_measure_t = 0.5
+			print("MEM t=%.1f static %d MB peak %d  textures %d MB  in_cut %s card %s" % [(Time.get_ticks_msec() - _measure_from) / 1000.0, OS.get_static_memory_usage() / 1048576, OS.get_static_memory_peak_usage() / 1048576, int(Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED)) / 1048576, _in_cut, _card_up])
+		if (_in_cut and not _dumped_cut) or (not _dumped_play and Time.get_ticks_msec() - _measure_from < 1000):
+			if _in_cut and _time > 0.0:
+				_dumped_cut = true
+				print("DUMP in cut")
+			else:
+				_dumped_play = true
+				print("DUMP playing")
+			_dump_textures()
+		if Time.get_ticks_msec() - _measure_from > 30000:
+			get_tree().quit()
 	if not _flames.is_empty():
 		_tick_flames(delta)
 	if not _swingers.is_empty():
@@ -3647,6 +3725,7 @@ func _in_dark(x: float) -> bool:
 
 ## Called by fx.gd for every bullet in flight. True = the bullet stops here.
 func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
+	_hit_at = pos   # where a word goes if this bullet kills
 	for i in boxes.size():   # cover stops bullets from both sides; wood gives way, a barrel goes up
 		if boxes[i].has_point(pos):
 			# the car stands at the far kerb: a man walks past in front of it, and there it hides
@@ -3931,7 +4010,8 @@ func _kill(e: Dictionary, head: bool, quiet := false, part := "") -> void:
 		_impact(0.07 if head else 0.045, 0.05)
 	_drop(m, signf(m.position.x - player.position.x), true, how)
 	if not quiet and (head or _all_down() or slow_on):   # a headshot, the last man, or a kill in slowed time
-		_word(["crack"] if head else ["pow", "wham", "bam"], m.position + Vector2(0.0, -500.0), 0.27)
+		var at: Vector2 = _hit_at if part not in ["", "blast"] and _hit_at != Vector2.INF and _hit_at.distance_to(m.position) < 700.0 else m.position + Vector2(0.0, -420.0)
+		_word(["crack"] if head else ["pow", "wham", "bam"], at + Vector2(signf(m.position.x - player.position.x) * 60.0, -70.0), 0.27)   # at the hit, thrown the way the bullet went
 	if e["type"] in ["tommy", "shotgun"]:
 		_add_pickup(String(e["type"]), m.position)
 	elif randf() < 0.12:
@@ -4198,6 +4278,7 @@ func _bullets_clash(at: Vector2) -> void:
 
 ## The detective is shot dead: he goes down in slow motion, the screen says so, and the level restarts.
 func _player_down() -> void:
+	crumb("died " + _mem_line())
 	over = true
 	slow_on = false
 	_death_t = 0.0
@@ -4253,6 +4334,7 @@ func _auto_arg() -> String:
 ## The map is won: it is marked done, the detective's closing words come up, and the next map starts
 ## (after a chapter's last map, the case file opens again).
 func _map_cleared() -> void:
+	crumb("cleared " + _mem_line())
 	cleared = true
 	MenuScript.mark_done(chapter, map)
 	if _auto == "":
@@ -4288,6 +4370,7 @@ func _map_cleared() -> void:
 
 ## A comic-page cutscene over the game, then `then`.
 func _play_cut(id: String, then: Callable, test := false) -> void:
+	crumb("cut " + id + " " + _mem_line())
 	Engine.time_scale = 1.0
 	slow_on = false
 	hud.visible = false
@@ -4431,6 +4514,7 @@ func _pause() -> void:
 ## To the next map (or back to it, or to the title): through black, with the map's title card when
 ## `card`, so the screen is never a bare grey while it loads. The new map lifts the card.
 func _travel(card: bool) -> void:
+	crumb("travel to %d:%d menu=%s %s" % [chapter, map, in_menu, _mem_line()])
 	var l = LoadingScript.new()
 	l.chapter = chapter
 	l.map = map
@@ -4450,6 +4534,7 @@ func _travel(card: bool) -> void:
 			await get_tree().process_frame
 		if _auto == "hops":
 			print("  between maps: textures %d MB" % (int(Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED)) / 1048576))
+		crumb("reload scene " + _mem_line())
 		get_tree().reload_current_scene()
 	get_tree().root.add_child(l)
 
@@ -4644,7 +4729,7 @@ func _build_level() -> void:
 		var local: bool = kind != "barrel" and not choices.is_empty() and (spec.size() <= 4 or float(spec[4]) == 0.0)   # up on the roof: tar drums and builders' crates
 		if local:   # the same spot always gets the same thing
 			art = String(choices[absi(int(float(spec[1]) / 37.0)) % choices.size()])
-		var tex: Texture2D = load("res://art/props/" + art + ".png")
+		var tex: Texture2D = LowRes.tex("res://art/props/" + art + ".png", 0.5)
 		var s := Sprite2D.new()
 		s.texture = tex
 		s.centered = false
@@ -6927,6 +7012,30 @@ func _dump_textures() -> void:
 	var tot := 0
 	for t in arr: tot += int(t[0])
 	print("  tree textures ", arr.size(), " total MB ", tot / 1048576)
+	var extra := {}
+	for n in get_tree().root.find_children("*", "", true, false):
+		var cands: Array = []
+		for prop in ["texture", "normal_texture"]:
+			if prop in n and n.get(prop) is CanvasTexture:
+				var ct: CanvasTexture = n.get(prop)
+				cands.append_array([ct.normal_texture, ct.specular_texture])
+		if n is CanvasItem and (n as CanvasItem).material is ShaderMaterial:
+			var sm: ShaderMaterial = (n as CanvasItem).material
+			for u in sm.shader.get_shader_uniform_list():
+				var v = sm.get_shader_parameter(u["name"])
+				if v is Texture2D:
+					cands.append(v)
+		if n is Label or n is Button:
+			pass
+		for t in cands:
+			if t != null and not seen.has(t.get_rid()) and not extra.has(t.get_rid()):
+				extra[t.get_rid()] = [t.get_width() * t.get_height() * 4, t.resource_path, t.get_width(), t.get_height(), n.name]
+	var ea: Array = extra.values()
+	ea.sort_custom(func(x, y): return int(x[0]) > int(y[0]))
+	var et := 0
+	for t in ea: et += int(t[0])
+	print("  EXTRA (normals, shader params) ", ea.size(), " MB ", et / 1048576)
+	for t in ea.slice(0, 20): print("   ", int(t[0]) / 1048576, " MB ", t[2], "x", t[3], " ", t[1], " ", t[4])
 	for t in arr.slice(0, 25): print("   ", int(t[0]) / 1048576, " MB ", t[2], "x", t[3], " ", t[1], " ", t[4])
 
 

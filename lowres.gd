@@ -1,0 +1,31 @@
+extends RefCounted
+## Drawings that are painted far bigger than they are ever seen (a man's torso is 1300 px tall in its
+## file and some 300 on a phone's screen) are kept on the graphics card at a fraction of their
+## resolution, while reporting their full size: every offset, region and polygon in the game stays as
+## it is. On a phone this is the difference between a page that holds and one the browser kills.
+
+static var _cache := {}   # "path@factor" -> WeakRef(ImageTexture)
+static var failed := 0
+
+
+static func tex(path: String, factor := 0.5) -> Texture2D:
+	var key := "%s@%s" % [path, factor]
+	if _cache.has(key):
+		var held = (_cache[key] as WeakRef).get_ref()
+		if held != null:
+			return held
+	var src: Texture2D = load(path)
+	if src == null or factor >= 1.0:
+		return src
+	var img: Image = src.get_image()
+	if img == null or img.is_empty():   # this renderer can't read it back: the full drawing, then
+		failed += 1
+		return src
+	if img.is_compressed():
+		img.decompress()
+	var full := Vector2i(src.get_size())
+	img.resize(maxi(1, roundi(full.x * factor)), maxi(1, roundi(full.y * factor)), Image.INTERPOLATE_CUBIC)
+	var t := ImageTexture.create_from_image(img)
+	t.set_size_override(full)
+	_cache[key] = weakref(t)
+	return t

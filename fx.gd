@@ -35,6 +35,7 @@ const MAX_SPOTS := 50
 var hit_vel := Vector2.RIGHT     # the velocity of the bullet being tested in hit_test, for main.gd
 var _bullets: Array = []
 var _cache := {}
+const LowRes = preload("res://lowres.gd")
 var _swoosh: Array[Line2D] = []
 var _stains: Array[Sprite2D] = []
 const MAX_STAINS := 60
@@ -53,7 +54,7 @@ func _ready() -> void:
 	_additive.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	# read every drawing now: loading one in the middle of a fight makes the game stutter
 	for path in FLASHES + BLOODS + PUFFS + WORDS + STAIN_SPRAYS + STAIN_DRIPS + STAIN_MISTS + ["res://art/fx/stain_smear1.png", "res://art/fx/spark1.png", "res://art/fx/spark2.png", "res://art/fx/flash3.png", "res://art/fx/casing1.png", "res://art/light_blob.png"]:
-		_cache[path] = load(path)
+		_cache[path] = LowRes.tex(path, 0.5)   # words and splashes are drawn far bigger than they show
 
 
 func _sprite(path: String, at: Vector2, size: float) -> Sprite2D:

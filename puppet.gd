@@ -257,13 +257,20 @@ func _build_back_light() -> void:
 
 
 ## The drawing with its normal map, so lamps shade the folds and edges instead of lighting it flat.
+const LowRes = preload("res://lowres.gd")
+const PART_RES := 0.5   # the parts are drawn some four times bigger than a phone ever shows them
+static var _canvas := {}
 func _tex(path: String) -> Texture2D:
-	var diffuse: Texture2D = load(path + ".png")
+	var diffuse: Texture2D = LowRes.tex(path + ".png", PART_RES)
 	if not ResourceLoader.exists(path + "_n.png"):
 		return diffuse
+	var held = (_canvas[path] as WeakRef).get_ref() if _canvas.has(path) else null
+	if held != null:
+		return held
 	var t := CanvasTexture.new()
 	t.diffuse_texture = diffuse
-	t.normal_texture = load(path + "_n.png")
+	t.normal_texture = LowRes.tex(path + "_n.png", PART_RES)
+	_canvas[path] = weakref(t)
 	return t
 
 
