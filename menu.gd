@@ -777,7 +777,8 @@ func _instincts(back_to := Callable()) -> void:
 			if not have and why != "":
 				(card.get_node("Drawing") as TextureRect).modulate = Color(0.62, 0.6, 0.57)
 			var info: Array = Instincts.CARDS[branch][t]
-			Paper.write(card, String(info[0]), _font_head, 18, INK, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0.0, 1, 0.62), 4.0)
+			_card_icon(card, branch, t, Rect2(0.0, 0.0, 0.34, 0.66))
+			Paper.write(card, String(info[0]), _font_head, 17, INK, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0.34, 0.0, 0.66, 0.62), 4.0)
 			var foot := "PINNED" if have else ("LOCKED" if why != "" else "READY")
 			Paper.write(card, foot, _font_head, 17, CRIMSON if (have or why == "") else INK, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0.66, 1, 0.3), 4.0)
 			if have:   # the head of the card's own pin, turned with the card
@@ -843,6 +844,26 @@ func _pin_card(branch: String, tier: int) -> void:
 	_instincts()
 
 
+## A card's drawing (art/ui/instincts/icon_<branch><tier>.png, art_src 142), fitted into `part` of the
+## card's inner area, greyed when the card is locked.
+func _card_icon(card: Control, branch: String, tier: int, part: Rect2) -> void:
+	var path := "res://art/ui/instincts/icon_%s%d.png" % [branch, tier]
+	if not ResourceLoader.exists(path):
+		return
+	var inner: Rect2 = card.get_meta("inner")
+	var r := TextureRect.new()
+	r.texture = load(path)
+	r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	r.position = inner.position + inner.size * part.position
+	r.size = inner.size * part.size
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	r.set_meta("decor", true)
+	if not Instincts.owned(branch, tier) and Instincts.why_locked(branch, tier) != "":
+		r.modulate = Color(0.55, 0.53, 0.5)
+	card.add_child(r)
+
+
 ## One card picked up off the board: big enough to read on a phone, with what it does, what it
 ## costs or why it is locked, and the one thing to do with it.
 func _card_detail(branch: String, tier: int) -> void:
@@ -862,8 +883,9 @@ func _card_detail(branch: String, tier: int) -> void:
 	var card := Paper.sheet("card", Vector2(w, h))
 	card.position = Vector2((view.x - w) * 0.5, M)
 	layer.add_child(card)
-	Paper.write(card, String(info[0]), _font_head, 40, INK, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0.0, 1, 0.24), 8.0)
-	Paper.write(card, String(info[1]), _font_type, 28, INK, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0.26, 1, 0.42), 8.0)
+	Paper.write(card, String(info[0]), _font_head, 40, INK, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0.0, 1, 0.22), 8.0)
+	_card_icon(card, branch, tier, Rect2(0.02, 0.24, 0.36, 0.48))   # the evidence photo pinned on it
+	Paper.write(card, String(info[1]), _font_type, 26, INK, HORIZONTAL_ALIGNMENT_LEFT, Rect2(0.4, 0.24, 0.6, 0.48), 8.0)
 	var price := "%d %s" % [Instincts.cost(branch, tier), "STATEMENTS" if branch == "mercy" else "LEADS"]
 	var foot := "PINNED ON THE BOARD" if have else (why if why != "" else "COSTS " + price)
 	Paper.write(card, foot, _font_head, 24, CRIMSON, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0.74, 1, 0.24), 8.0)

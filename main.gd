@@ -2801,6 +2801,42 @@ func _auto_step(delta: float) -> void:
 		if _at > 15.0:
 			get_tree().quit()
 		return
+	elif _auto == "hat":   # the nearest mobster with a hat: a bullet through the hat (found by hat_hit), pictures as it flies and lands
+		hp = max_hp
+		_grace = 99.0
+		if _auto_done & 1 == 0 and _at > 1.0:
+			_auto_done |= 1
+			var first = null
+			for e in enemies:
+				if e["state"] == "post" and e["node"].position.y == 0.0 and e["node"].hat_path() != "" and (first == null or e["node"].position.x < first["node"].position.x):
+					first = e
+			player.position = Vector2(first["node"].position.x - 700.0, 0.0)
+			for e in enemies:
+				if e != first:
+					e["alive"] = false
+					e["node"].visible = false
+			var hs: Sprite2D = first["node"]._spr["head"]
+			var hit := Vector2.INF
+			for k in 200:   # walk up from the head's centre until the hat is there
+				var p: Vector2 = hs.global_position + Vector2(0.0, -2.0 * k)
+				if first["node"].hat_hit(p):
+					hit = p
+					break
+			print("HAT hit point ", hit, " head ", first["node"].cfg.get("head_tex"), " tex ", hs.texture.get_size(), " off ", hs.offset, " gp ", hs.global_position, " gs ", hs.global_scale)
+			for k in [0, 40, 80, 120, 160]:
+				var p2: Vector2 = hs.global_position + Vector2(0.0, -2.0 * k)
+				print("  k ", k, " part ", first["node"].hit_part(p2), " local ", hs.to_local(p2) - hs.offset)
+			if hit != Vector2.INF:
+				_hat_off(first, hit)
+		cam.position.x = player.position.x + 350.0
+		var htimes := [1.08, 1.3, 1.6, 2.4, 3.2]
+		for i in htimes.size():
+			var bit := 1 << (1 + i)
+			if _at > htimes[i] and _auto_done & bit == 0:
+				_auto_done |= bit
+				_shot("hat_%d" % i)
+		if _at > 3.4:
+			get_tree().quit()
 	elif _auto == "disarm":   # the nearest mobster's gun shot out of his hand: pictures as it flies and lands
 		hp = max_hp
 		_grace = 99.0
@@ -3932,6 +3968,9 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 			return true
 		for e in enemies:
 			if not e["alive"] or e["state"] == "wait":
+				continue
+			if from_player and not e["node"].hat_lost and e["node"].hat_hit(pos):
+				_hat_off(e, pos)   # through the hat and nothing else: it goes, the bullet flies on
 				continue
 			var part: String = e["node"].hit_part(pos)
 			if part == "":
@@ -7129,6 +7168,35 @@ func _disarm(e: Dictionary, at: Vector2) -> void:
 		stats["score"] += 150
 		_combo_t = maxf(_combo_t, COMBO_GAP)
 		hud.combo(_combo, 150, "DISARMED")
+
+
+## A bullet through a man's hat: the hat spins off and lands on the pavement (it stays there), he
+## flinches and holds his fire a moment. Style, not a kill.
+func _hat_off(e: Dictionary, at: Vector2) -> void:
+	var m = e["node"]
+	var info: Dictionary = m.lose_hat()
+	var g := Sprite2D.new()
+	g.texture = info["tex"]
+	g.centered = false
+	g.offset = info["offset"]
+	g.modulate = _undo_night(0.45)
+	g.z_index = 1
+	add_child(g)
+	g.global_transform = info["xform"]
+	var away := signf(m.position.x - player.position.x)
+	_flying_guns.append({"node": g, "v": Vector2(away * randf_range(260.0, 380.0), -randf_range(650.0, 820.0)),
+		"spin": away * randf_range(7.0, 11.0), "ground": m.position.y - 6.0, "bounce": 0, "kind": "hat"})
+	sfx.play("whiz", -2.0, at.x, 0.1)
+	m._flinch = 1.0
+	e["cool"] = maxf(float(e["cool"]), 1.2)   # he ducks his head and forgets to shoot for a moment
+	e["timer"] = maxf(float(e["timer"]), 1.0)
+	e["seen"] = true
+	_say(m, ["MY HAT!", "HEY!", "WHAT THE--"].pick_random())
+	_impact(0.1, 0.25)
+	if not _stand and diff_step >= 0:
+		stats["score"] += 100
+		_combo_t = maxf(_combo_t, COMBO_GAP)
+		hud.combo(_combo, 100, "HAT TRICK")
 
 
 func _tick_flying_guns(delta: float) -> void:

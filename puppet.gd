@@ -368,6 +368,52 @@ func ghost() -> CanvasGroup:
 	return g
 
 
+## The hat (mobster heads with a hat drawn in): art/mobster/hats/<head>.png is the hat alone on the
+## head's canvas, art/mobster/heads/<head>_bare.png the same head without it (art_src 143-145).
+var hat_lost := false
+static var _hat_img := {}
+
+func hat_path() -> String:
+	if not cfg.has("head_tex"):
+		return ""
+	var p := String(cfg["head_tex"]).replace("/heads/", "/hats/")
+	return p if ResourceLoader.exists(p) else ""
+
+
+## A bullet at `world` goes through his hat and nothing else: the crown above his skull or the brim.
+func hat_hit(world: Vector2) -> bool:
+	if hat_lost:
+		return false
+	var hp := hat_path()
+	var s: Sprite2D = _spr.get("head")
+	if hp == "" or s == null or not s.is_visible_in_tree() or world.distance_squared_to(s.global_position) > 40000.0:
+		return false
+	var bp := String(cfg["head_tex"]).trim_suffix(".png") + "_bare.png"
+	for path in [hp, bp]:
+		if not _hat_img.has(path):
+			var im: Image = (load(path) as Texture2D).get_image()
+			if im != null and im.is_compressed():
+				im.decompress()
+			_hat_img[path] = im
+	var hat: Image = _hat_img[hp]
+	var bare: Image = _hat_img[bp]
+	if hat == null or bare == null:
+		return false
+	var px := Vector2i(s.to_local(world) - s.offset)
+	if px.x < 0 or px.y < 0 or px.x >= hat.get_width() or px.y >= hat.get_height():
+		return false
+	return hat.get_pixelv(px).a > 0.5 and bare.get_pixelv(px).a < 0.5
+
+
+## The hat comes off: the head is drawn bare from now on. Returns what main.gd needs to throw the hat.
+func lose_hat() -> Dictionary:
+	hat_lost = true
+	var s: Sprite2D = _spr["head"]
+	var out := {"tex": load(hat_path()), "offset": s.offset, "xform": s.global_transform}
+	s.texture = _tex(String(cfg["head_tex"]).trim_suffix(".png") + "_bare")
+	return out
+
+
 ## dx: how far the shadow lands from the feet (world pixels), skew: its lean, alpha: 0 = no lamp near.
 func set_shadow(dx: float, skew_amount: float, alpha: float) -> void:
 	_shadow.self_modulate = Color(1.0, 1.0, 1.0, alpha)
