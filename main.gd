@@ -2743,6 +2743,12 @@ func _auto_step(delta: float) -> void:
 					for i in lamps.size():
 						if lamp_info[i]["on"] and absf(lamps[i].x - player.position.x) < 1500.0:
 							_lamp_out(i))
+			if k == 0 and OS.get_cmdline_user_args().has("--boom"):   # the nearest red barrel goes up
+				get_tree().create_timer(0.6, false).timeout.connect(func() -> void:
+					for bi in boxes.size():
+						if box_info[bi]["kind"] == "barrel" and absf(boxes[bi].get_center().x - player.position.x) < 1600.0:
+							_explode(boxes[bi].get_center(), bi)
+							break)
 			if k == 0 and OS.get_cmdline_user_args().has("--smoke"):   # Kessler's canister, a second before the shot
 				sets.smoke(Vector2(float(xs[0].split("@")[0]) + 700.0, 0.0))
 			var at: PackedStringArray = xs[k].split("@")   # x@y: standing on whatever floor is under that height
@@ -3967,9 +3973,12 @@ func _explode(at: Vector2, i: int) -> void:
 	if i < 0:
 		return
 	box_info[i]["sprite"].queue_free()
+	var floor_y: float = boxes[i].end.y
 	boxes.remove_at(i)
 	box_info.remove_at(i)
 	_blast(at, 380.0, 330.0, 2)
+	# the fuel spills and burns where the drum stood: a pool of fire for a while that hurts to cross
+	sets._blaze(at.x - 160.0, 320.0, 9.0, floor_y, 1.2)
 
 
 ## A blast at `at`: men within `reach` go down, Frank within `hurt_reach` takes `hits`, crates near it

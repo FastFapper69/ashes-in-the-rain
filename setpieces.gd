@@ -696,23 +696,23 @@ const LOOP_LINES := [["The same room again. It's always the same room."], ["Ever
 
 
 ## A strip of floor on fire from x0, w wide: low hand-inked flames along it, the boards glowing.
-func _blaze(x0: float, w: float, secs: float) -> void:
+func _blaze(x0: float, w: float, secs: float, ground := 0.0, tall := 1.0) -> void:
 	var flames: Array = []
 	var n := maxi(2, int(w / 110.0))
 	for k in n:
-		var f: Sprite2D = game._flame(Vector2(x0 + (k + 0.5) * w / n + randf_range(-20.0, 20.0), 8.0), randf_range(170.0, 270.0), randi() % 6, 3)
+		var f: Sprite2D = game._flame(Vector2(x0 + (k + 0.5) * w / n + randf_range(-20.0, 20.0), ground + 8.0), randf_range(170.0, 270.0) * tall, randi() % 6, 3)
 		flames.append(f)
 	var heat := PointLight2D.new()
 	heat.texture = game._soft_glow()
 	heat.texture_scale = maxf(3.0, w / 160.0)
 	heat.color = Color(1.0, 0.5, 0.2)
 	heat.energy = 1.0
-	heat.position = Vector2(x0 + w * 0.5, -60.0)
+	heat.position = Vector2(x0 + w * 0.5, ground - 60.0)
 	heat.range_item_cull_mask = game.MASK_LIT
 	add_child(heat)
 	flames.append(heat)
-	game.sfx.add_loop("fire", x0 + w * 0.5, -10.0, 700.0, -40.0)
-	_blazes.append({"x0": x0, "x1": x0 + w, "until": _t + secs, "flames": flames})
+	var loop: Dictionary = game.sfx.add_loop("fire", x0 + w * 0.5, -10.0, 700.0, ground - 40.0)
+	_blazes.append({"x0": x0, "x1": x0 + w, "until": _t + secs, "flames": flames, "y": ground, "loop": loop})
 
 
 func _tick_blazes(delta: float) -> void:
@@ -721,6 +721,8 @@ func _tick_blazes(delta: float) -> void:
 	for b in _blazes:
 		if b["until"] < INF and _t > b["until"] and not b.get("out", false):   # it burns down to embers
 			b["out"] = true
+			if b.get("loop") is Dictionary:
+				b["loop"]["on"] = false
 			for f in b["flames"]:
 				if is_instance_valid(f):
 					var tw: Tween = f.create_tween()
@@ -729,7 +731,7 @@ func _tick_blazes(delta: float) -> void:
 			continue
 		if b.get("out", false):
 			continue
-		if _burn_cool <= 0.0 and p.position.x > b["x0"] + 20.0 and p.position.x < b["x1"] - 20.0 and p.position.y > -70.0:
+		if _burn_cool <= 0.0 and p.position.x > b["x0"] + 20.0 and p.position.x < b["x1"] - 20.0 and absf(p.position.y - float(b.get("y", 0.0))) < 70.0:
 			_burn_cool = 1.1
 			game._burn_player(1)
 
