@@ -50,6 +50,8 @@ const SKIRT_COLS := 4
 var _gun2: Sprite2D   # the second pistol, in the far hand
 var dual := false
 var _skirt_fly: Sprite2D
+var _farm_tex: Texture2D        # the free hand as drawn (relaxed) ...
+var _farm_open_tex: Texture2D   # ... and flung open for balance in the air (art_src 156)
 const SKIRT_FLY_WAIST := Vector2(528.0, 10.0)   # the belt's middle on art/detective/skirt_fly.png (art_src 155)   # TWO GUNS: a second revolver in the far hand
 # The lead pipe (art/guns/pipe.png) he keeps in his coat: swing 0..1 is one blow (wind up over the
 # shoulder, down onto the man, follow through), -1 = not swinging. The gun goes back in the coat meanwhile.
@@ -240,6 +242,9 @@ func _ready() -> void:
 		_body.add_child(_skirt_mesh)
 		_body.move_child(_skirt_mesh, _spr["skirt"].get_index())
 		_spr["skirt"].visible = false
+		if ResourceLoader.exists(String(cfg["dir"]) + "farm_open.png") and _spr.has("farm_b"):
+			_farm_tex = _spr["farm_b"].texture
+			_farm_open_tex = _tex(String(cfg["dir"]) + "farm_open")
 		if ResourceLoader.exists(String(cfg["dir"]) + "skirt_fly.png"):   # the coat caught by the wind, for dives
 			_skirt_fly = Sprite2D.new()
 			_skirt_fly.texture = _tex(String(cfg["dir"]) + "skirt_fly")
@@ -633,6 +638,10 @@ func _pose() -> void:
 	var k := _ik(far_shoulder, far_target, ua, fa, 1.0)
 	_place("uarm_b", "uarm", far_shoulder, k[0])
 	_place("farm_b", "farm", k[0], k[1])
+	if _farm_open_tex != null:   # in the air with the hand free: fingers spread for balance
+		var open_hand := not _dead and maxf(air, dive) > 0.5 and not long_gun and rl <= 0.0 and hands_up <= 0.0 and hang <= 0.0 \
+				and not (weapon == "pistols" or (dual and weapon == "revolver"))
+		_spr["farm_b"].texture = _farm_open_tex if open_hand else _farm_tex
 	_gun2.position = k[1] * PPM
 	_gun2.rotation = _aim.angle() + 0.04
 
