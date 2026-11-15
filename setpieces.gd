@@ -90,6 +90,8 @@ func tick(delta: float) -> void:
 		if _blackout_t <= 0.0:
 			_lights_back()
 	for b in _beams:
+		if b.get("dead", false):
+			continue
 		var a: float = b["base"] + sin(_t * b["speed"] + b["phase"]) * b["swing"]
 		b["angle"] = a
 		b["sprite"].rotation = a
@@ -110,6 +112,8 @@ func tick(delta: float) -> void:
 ## True when a point stands in a searchlight's beam: they can see you there.
 func lit(p: Vector2) -> bool:
 	for b in _beams:
+		if b.get("dead", false):
+			continue
 		var d: Vector2 = p - b["pivot"]
 		if d.length() > b["len"]:
 			continue
@@ -303,6 +307,33 @@ func _flicker(rec: Dictionary, on: bool, wait: float) -> void:
 
 # ---- searchlights ------------------------------------------------------------------------------
 
+## A bullet at a searchlight's lens puts it out: glass, sparks, the beam gone, the yard dark there.
+func shoot_light(pos: Vector2) -> bool:
+	for b in _beams:
+		if b.get("dead", false) or pos.distance_to(b["pivot"] + Vector2(0.0, 6.0)) > 46.0:
+			continue
+		b["dead"] = true
+		game.fx.shatter(b["pivot"] + Vector2(0.0, 10.0))
+		game.fx.spark(b["pivot"] + Vector2(0.0, 10.0))
+		game.sfx.play("glass", -1.0, b["pivot"].x, 0.1)
+		game.sfx.play("zap", -4.0, b["pivot"].x, 0.1)
+		game._word(["smash"], b["pivot"] + Vector2(0.0, -110.0), 0.2)
+		var tw := create_tween()   # it stutters out
+		for k in 4:
+			var on := k % 2 == 1
+			tw.tween_callback(func() -> void:
+				b["sprite"].visible = on
+				b["head"].visible = on
+				b["light"].enabled = on)
+			tw.tween_interval(randf_range(0.04, 0.1))
+		tw.tween_callback(func() -> void:
+			b["sprite"].visible = false
+			b["head"].visible = false
+			b["light"].enabled = false)
+		return true
+	return false
+
+
 func _add_beam(pivot: Vector2, base_deg: float) -> void:
 	var ln := 2300.0
 	var s := Sprite2D.new()
@@ -346,7 +377,7 @@ func _add_beam(pivot: Vector2, base_deg: float) -> void:
 	l.range_item_cull_mask = game.MASK_LIT
 	add_child(l)
 	var half := atan2(256.0 * 1.15 * 0.45, ln)   # the bright core of the cone, not its soft edge
-	_beams.append({"sprite": s, "light": l, "pivot": pivot, "base": deg_to_rad(base_deg), "swing": deg_to_rad(32.0),
+	_beams.append({"sprite": s, "light": l, "head": head, "pivot": pivot, "base": deg_to_rad(base_deg), "swing": deg_to_rad(32.0),
 			"speed": 0.42, "phase": randf() * TAU, "len": ln, "half": half, "angle": 0.0})
 	game.sfx.add_loop("lamp_hum", pivot.x, -22.0, 600.0, pivot.y)
 

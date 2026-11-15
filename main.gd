@@ -1695,7 +1695,8 @@ func _unhandled_input(event: InputEvent) -> void:
 ## go once the camera is far from every sprite using it, and loaded back before it comes into view.
 var _stream: Array = []   # {path, sprites, x0, x1, tex}
 var _stream_t := 0.0
-var _world_off := false   # the title hides the street: its drawings are let go
+var _world_off := false
+var _swingers: Array = []   # hanging lamps on their cords (see _pendant)   # the title hides the street: its drawings are let go
 const STREAM_LOAD := 2600.0   # beyond the screen's edge: load from here
 const STREAM_DROP := 4200.0   # and let go past here
 
@@ -1767,6 +1768,8 @@ func _process(delta: float) -> void:
 	_time += delta
 	if not _flames.is_empty():
 		_tick_flames(delta)
+	if not _swingers.is_empty():
+		_tick_swingers(delta)
 	_stream_t -= delta
 	if _stream_t <= 0.0 and not _stream.is_empty():
 		_stream_t = 0.2
@@ -2733,6 +2736,13 @@ func _auto_step(delta: float) -> void:
 			_auto_done |= 1 << (k + 16)
 			if k == 0 and OS.get_cmdline_user_args().has("--inner"):   # one hit from the end: the voice in his head
 				_inner_voice()
+			if k == 0 and OS.get_cmdline_user_args().has("--shootlights"):   # every searchlight and hanging lamp in sight shot out
+				get_tree().create_timer(0.8, false).timeout.connect(func() -> void:
+					for b in sets._beams:
+						sets.shoot_light(b["pivot"] + Vector2(0.0, 6.0))
+					for i in lamps.size():
+						if lamp_info[i]["on"] and absf(lamps[i].x - player.position.x) < 1500.0:
+							_lamp_out(i))
 			if k == 0 and OS.get_cmdline_user_args().has("--smoke"):   # Kessler's canister, a second before the shot
 				sets.smoke(Vector2(float(xs[0].split("@")[0]) + 700.0, 0.0))
 			var at: PackedStringArray = xs[k].split("@")   # x@y: standing on whatever floor is under that height
@@ -3602,6 +3612,8 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 			if lamp_info[i]["on"] and not lamp_info[i].get("fixed", false) and pos.distance_to(lamps[i] + Vector2(0.0, float(lamp_info[i].get("glass", -8.0)))) < float(lamp_info[i].get("r", 38.0)):
 				_lamp_out(i)
 				return true
+		if sets != null and sets.shoot_light(pos):
+			return true
 		for e in enemies:
 			if not e["alive"] or e["state"] == "wait":
 				continue
@@ -4015,6 +4027,12 @@ func _blast(at: Vector2, reach: float, hurt_reach: float, hits: int) -> void:
 ## A lamp shot out: its glow and light go, glass rains down, and the street around it is dark.
 func _lamp_out(i: int) -> void:
 	var rec: Dictionary = lamp_info[i]
+	if rec.has("pend"):   # the shot jolts it on its cord; the swing dies away and it hangs dead still
+		var pd: Dictionary = rec["pend"]
+		pd["kick"] = deg_to_rad(14.0)
+		var dt := create_tween()
+		dt.tween_method(func(v: float) -> void: pd["damp"] = v, 1.0, 0.0, 2.5)
+		dt.parallel().tween_method(func(v: float) -> void: pd["kick"] = minf(float(pd["kick"]), v), deg_to_rad(14.0), 0.0, 3.0)
 	if rec.has("hum"):
 		rec["hum"]["on"] = false
 	rec["broken"] = true
@@ -4026,7 +4044,12 @@ func _lamp_out(i: int) -> void:
 	hole.scale = Vector2.ONE * (float(rec.get("hole", 0.26)) if rec.has("off") else 0.17)
 	hole.rotation = randf_range(-0.6, 0.6)
 	hole.z_index = -3
-	add_child(hole)
+	if rec.has("pend"):
+		hole.position = Vector2(0.0, float(rec["pend"]["len"]) + 2.0)
+		hole.scale = Vector2.ONE * 0.12
+		rec["pend"]["node"].add_child(hole)
+	else:
+		add_child(hole)
 	sfx.play("zap", -6.0, lamps[i].x, 0.1)
 	_word(["smash"], lamps[i] + Vector2(0.0, -120.0), 0.2)
 	sfx.play("glass", -2.0, lamps[i].x, 0.1)
@@ -4577,9 +4600,14 @@ func _build_level() -> void:
 		var at := Vector2(float(l[0]), float(l[1]))
 		if ROOM_BULBS.has(_room_at(at.x)):
 			continue   # that room's drawing has its own lamps (see _build_room)
-		_pendant(at)
+		var pend := _pendant(at)
 		lamps.append(at + Vector2(0.0, 8.0))
-		lamp_info.append({"nodes": [], "light": _lamp_light(at + Vector2(0.0, -8.0)), "on": true, "fixed": true})
+		var light := _lamp_light(at + Vector2(0.0, -8.0))
+		light.reparent(pend["node"])   # the pool of light swings with the lamp
+		var rec := {"nodes": [pend["bulb"]], "light": light, "on": true, "glass": -6.0, "r": 34.0, "pend": pend}
+		lamp_info.append(rec)
+		pend["lamp"] = lamps.size() - 1
+		_swingers.append(pend)
 	if in_menu:
 		return
 	for pk in level["pickups"]:
@@ -5211,28 +5239,33 @@ func _build_room(x0: float, x1: float, style: String) -> void:
 
 
 ## A lamp hanging from an interior's ceiling: cord, enamel shade, the bulb glowing under it.
-func _pendant(at: Vector2) -> void:
+## A shaded bulb on its cord from the ceiling, in a room big enough for a draught: it swings a little,
+## its light swinging with it, and a shot puts the bulb out and jolts it (the swing then dies away).
+func _pendant(at: Vector2) -> Dictionary:
 	var ceiling := at.y - 600.0
 	for r in _room_tops:
 		if at.x >= float(r[0]) and at.x <= float(r[1]):
 			ceiling = float(r[2])
-	var n := Node2D.new()
-	n.position = at
+	var length: float = at.y - ceiling
+	var n := Node2D.new()   # pivots at the ceiling hook
+	n.position = Vector2(at.x, ceiling)
 	n.z_index = -3
 	add_child(n)
 	var cord := Line2D.new()
-	cord.points = PackedVector2Array([Vector2(0.0, ceiling - at.y), Vector2(0.0, -40.0)])
+	cord.points = PackedVector2Array([Vector2.ZERO, Vector2(0.0, length - 40.0)])
 	cord.width = 5.0
 	cord.default_color = Color(0.03, 0.03, 0.03)
 	n.add_child(cord)
 	var shade := Polygon2D.new()
 	shade.polygon = PackedVector2Array([Vector2(-14, -44), Vector2(14, -44), Vector2(46, -4), Vector2(-46, -4)])
 	shade.color = Color(0.08, 0.08, 0.075)
+	shade.position = Vector2(0.0, length)
 	n.add_child(shade)
 	var rim := Line2D.new()
 	rim.points = PackedVector2Array([Vector2(-48, -4), Vector2(48, -4)])
 	rim.width = 6.0
 	rim.default_color = Color(0.22, 0.2, 0.17)
+	rim.position = Vector2(0.0, length)
 	n.add_child(rim)
 	var bulb := Sprite2D.new()
 	bulb.texture = load("res://art/light_blob.png")
@@ -5240,10 +5273,27 @@ func _pendant(at: Vector2) -> void:
 	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	add.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
 	bulb.material = add
-	bulb.position = Vector2(0.0, 2.0)
+	bulb.position = Vector2(0.0, length + 2.0)
 	bulb.scale = Vector2(0.22, 0.12)
 	bulb.modulate = _undo_night(0.55) * LAMP_COLOR
 	n.add_child(bulb)
+	# a pendulum: the longer the cord the slower; a few degrees each way, never two in step
+	return {"node": n, "bulb": bulb, "len": length, "amp": deg_to_rad(randf_range(3.0, 6.0)),
+			"w": sqrt(980.0 / maxf(length, 100.0)), "phase": randf() * TAU, "kick": 0.0, "damp": 1.0}
+
+
+## The hanging lamps swing; the bulb's hit point follows the glass.
+func _tick_swingers(delta: float) -> void:
+	for p in _swingers:
+		var n: Node2D = p["node"]
+		if not is_instance_valid(n):
+			continue
+		p["phase"] = float(p["phase"]) + float(p["w"]) * delta
+		p["kick"] = float(p["kick"]) * exp(-delta * 0.9)
+		var amp: float = float(p["amp"]) * float(p["damp"]) + float(p["kick"])
+		n.rotation = sin(float(p["phase"])) * amp
+		if p.has("lamp"):
+			lamps[int(p["lamp"])] = n.position + Vector2(0.0, float(p["len"]) + 8.0).rotated(n.rotation)
 
 
 ## A landing indoors.
