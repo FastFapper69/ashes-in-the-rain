@@ -2820,7 +2820,7 @@ func _auto_step(delta: float) -> void:
 				e["node"].position.x += 60000.0
 				e["goal"] = e["node"].position.x
 		var c: Vector2 = player.position + Vector2(300.0, -200.0)
-		var steps := [[0.6, "muzzle"], [0.9, "shotgun"], [1.2, "spark"], [1.5, "smoke"], [2.4, "dust"], [2.8, "blast"]]
+		var steps := [[0.6, "muzzle"], [0.9, "shotgun"], [1.2, "spark"], [1.5, "smoke"], [2.4, "dust"], [2.8, "blast"], [5.0, "blood"], [5.6, "bullet"]]
 		for i in steps.size():
 			var bit := 1 << (1 + i)
 			if _at > float(steps[i][0]) and _auto_done & bit == 0:
@@ -2833,12 +2833,16 @@ func _auto_step(delta: float) -> void:
 					"smoke": fx.smoke(c, Vector2(60, -90), 0.5, 1.2)
 					"dust": fx.dust(player.position + Vector2(300.0, 0.0), 0.6)
 					"blast": fx.blast(c + Vector2(500.0, 100.0))
+					"blood": fx.blood(c + Vector2(300.0, 0.0), Vector2.RIGHT, true)
+					"bullet":
+						Engine.time_scale = 0.15
+						fx.shoot(c, Vector2(2600.0, 0.0), true)
 			for dt in [0.04, 0.35]:
 				var b2 := 1 << (10 + i * 2 + (0 if dt < 0.1 else 1))
 				if _at > float(steps[i][0]) + dt and _auto_done & b2 == 0:
 					_auto_done |= b2
 					_shot("fx_%s_%d" % [steps[i][1], 0 if dt < 0.1 else 1])
-		if _at > 3.6:
+		if _at > 6.1:
 			get_tree().quit()
 	elif _auto == "jumpseq":   # --test=jumpseq: a running jump, a picture every tenth of a second
 		hp = max_hp
@@ -3341,6 +3345,8 @@ func _auto_step(delta: float) -> void:
 		end_t = maxf(end_t, float(shots[-1][0]) + 0.4)
 	if _auto == "poses":
 		end_t = 6.6
+	if _auto == "fxsheet":
+		end_t = 999.0   # it quits itself after the last effect
 	if _auto == "tops":
 		end_t = 999.0   # it quits itself after the last crate
 	if _at > end_t:

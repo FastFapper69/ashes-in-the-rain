@@ -160,7 +160,7 @@ func add_rain(cam: Camera2D, boost: Color, street_y: float) -> void:
 	cam.add_child(rain_near)
 
 	splashes = CPUParticles2D.new()   # every drop that lands throws up a small crown on the pavement
-	splashes.texture = load("res://art/fx/splash2.png")
+	splashes.texture = load("res://art/fx/ink/splash1.png")   # painted crowns (art_src 158)
 	splashes.amount = 70
 	splashes.lifetime = 0.28
 	splashes.local_coords = false   # a splash stays where the drop landed as the camera moves on
@@ -170,8 +170,8 @@ func add_rain(cam: Camera2D, boost: Color, street_y: float) -> void:
 	splashes.gravity = Vector2.ZERO
 	splashes.initial_velocity_min = 0.0
 	splashes.initial_velocity_max = 0.0
-	splashes.scale_amount_min = 0.07
-	splashes.scale_amount_max = 0.14
+	splashes.scale_amount_min = 0.05
+	splashes.scale_amount_max = 0.1
 	splashes.color_ramp = _fade(Color(1.0, 1.0, 1.0, 0.55))
 	splashes.modulate = boost
 	splashes.z_index = -4

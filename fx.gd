@@ -11,6 +11,9 @@ const SMOKE := ["res://art/fx/ink/smoke0.png", "res://art/fx/ink/smoke1.png", "r
 const INK_SPARKS := ["res://art/fx/ink/spark0.png", "res://art/fx/ink/spark1.png", "res://art/fx/ink/spark2.png", "res://art/fx/ink/spark3.png",
 		"res://art/fx/ink/spark4.png", "res://art/fx/ink/spark5.png", "res://art/fx/ink/spark6.png", "res://art/fx/ink/spark7.png"]   # art_src 152
 const SPEED := ["res://art/fx/ink/speed0.png", "res://art/fx/ink/speed1.png", "res://art/fx/ink/speed2.png", "res://art/fx/ink/speed3.png"]   # art_src 153
+const TRACERS := ["res://art/fx/ink/tracer0.png", "res://art/fx/ink/tracer1.png", "res://art/fx/ink/tracer2.png", "res://art/fx/ink/tracer3.png"]
+const INK_BLOOD := ["res://art/fx/ink/blood0.png", "res://art/fx/ink/blood1.png", "res://art/fx/ink/blood2.png", "res://art/fx/ink/blood3.png",
+		"res://art/fx/ink/blood4.png", "res://art/fx/ink/blood5.png", "res://art/fx/ink/blood6.png", "res://art/fx/ink/blood7.png"]   # art_src 157, blown to the right
 const DUST := ["res://art/fx/ink/dust0.png", "res://art/fx/ink/dust1.png", "res://art/fx/ink/dust2.png", "res://art/fx/ink/dust3.png"]
 const STAIN_SPRAYS := ["res://art/fx/stain_spray1.png", "res://art/fx/stain_spray2.png"]
 const STAIN_DRIPS := ["res://art/fx/stain_drip1.png", "res://art/fx/stain_drip2.png"]
@@ -61,7 +64,7 @@ func _ready() -> void:
 	_additive.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
 	_additive.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	# read every drawing now: loading one in the middle of a fight makes the game stutter
-	for path in FLASHES + SMOKE + INK_SPARKS + SPEED + DUST + BLOODS + PUFFS + WORDS + STAIN_SPRAYS + STAIN_DRIPS + STAIN_MISTS + ["res://art/fx/stain_smear1.png", "res://art/fx/spark1.png", "res://art/fx/spark2.png", "res://art/fx/flash3.png", "res://art/fx/casing1.png", "res://art/light_blob.png"]:
+	for path in TRACERS + INK_BLOOD + FLASHES + SMOKE + INK_SPARKS + SPEED + DUST + BLOODS + PUFFS + WORDS + STAIN_SPRAYS + STAIN_DRIPS + STAIN_MISTS + ["res://art/fx/stain_smear1.png", "res://art/fx/spark1.png", "res://art/fx/spark2.png", "res://art/fx/flash3.png", "res://art/fx/casing1.png", "res://art/light_blob.png"]:
 		_cache[path] = LowRes.tex(path, 0.5)   # words and splashes are drawn far bigger than they show
 
 
@@ -239,11 +242,13 @@ func shoot(from: Vector2, velocity: Vector2, from_player: bool, life := 1.4) -> 
 	line.end_cap_mode = Line2D.LINE_CAP_ROUND
 	line.add_point(from)
 	add_child(line)
-	var head := Sprite2D.new()
-	head.texture = load("res://art/light_blob.png")
+	var head := Sprite2D.new()   # the slug and the heat behind it, painted (art_src 158)
+	head.texture = _cache[TRACERS[randi() % TRACERS.size()]]
+	head.centered = false
+	head.offset = Vector2(-head.texture.get_width(), -head.texture.get_height() * 0.5)
 	head.material = _additive
 	head.modulate = hot
-	head.scale = Vector2(0.2, 0.06)
+	head.scale = Vector2(0.38, 0.22)
 	head.rotation = velocity.angle()
 	head.position = from
 	add_child(head)
@@ -313,20 +318,17 @@ func blood(at: Vector2, dir: Vector2, heavy := false) -> void:
 	tm.tween_property(mist, "modulate:a", 0.0, 0.4).set_ease(Tween.EASE_IN)
 	tm.chain().tween_callback(mist.queue_free)
 
-	var path: String = BLOODS.pick_random()
-	var turn := dir.angle() + randf_range(-0.8, 0.8)
-	var size := randf_range(0.22, 0.34) * (1.25 if heavy else 1.0)
-	var squash := Vector2(randf_range(1.0, 1.5), randf_range(0.7, 1.0))   # thrown out along the shot
-	for layer in 2:
-		var sp := _sprite(path, at + dir * 20.0 + (Vector2(7.0, 7.0) if layer == 0 else Vector2.ZERO), 0.08)
-		sp.rotation = turn
-		if layer == 0:
-			sp.modulate = Color(0.0, 0.0, 0.0, 0.9)
-		var tw := create_tween()
-		tw.tween_property(sp, "scale", squash * size * (1.12 if layer == 0 else 1.0), 0.07)
-		tw.tween_interval(randf_range(0.08, 0.18))
-		tw.tween_property(sp, "modulate:a", 0.0, 0.22)
-		tw.tween_callback(sp.queue_free)
+	var spray := _sprite(INK_BLOOD.pick_random(), at - dir * 10.0, 0.05)   # the painted burst, thrown out along the shot
+	spray.centered = false
+	spray.offset = Vector2(-spray.texture.get_width() * 0.08, -spray.texture.get_height() * 0.5)
+	spray.rotation = dir.angle() + randf_range(-0.25, 0.25)
+	spray.flip_v = randf() < 0.5
+	var size := randf_range(0.42, 0.55) * (1.3 if heavy else 1.0)
+	var tw := create_tween()
+	tw.tween_property(spray, "scale", Vector2.ONE * size, 0.06).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(randf_range(0.1, 0.2))
+	tw.tween_property(spray, "modulate:a", 0.0, 0.25)
+	tw.tween_callback(spray.queue_free)
 	_stain(at, dir)
 	var red := Color(0.62, 0.07, 0.05)
 	for i in int(randi_range(10, 16) * more):   # the spray out of the exit side
