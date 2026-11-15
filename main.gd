@@ -433,10 +433,19 @@ func _ready() -> void:
 		_place_flocks()
 	player = PuppetScript.new()
 	player.cfg = DETECTIVE
+	if ch["hero"] == "eddie" and not in_menu:   # Eddie (the title always shows Frank: it is his story)
+		player.cfg = _eddie_cfg()
 	player.night = _undo_night(1.0)
 	add_child(player)
-	if ch["hero"] == "eddie" and not in_menu:   # the title always shows Frank: it is his story. Stand-in until Eddie has his own drawings: a paler, younger coat
-		player.modulate = Color(0.9, 0.95, 1.1)
+	if ch["hero"] == "eddie" and not in_menu:   # his navy pea coat, short at the hip, not Frank's long tan trench
+		for part in ["torso", "skirt", "uarm_f", "uarm_b", "collar_front", "collar_back"]:
+			if player._spr.has(part):
+				player._spr[part].modulate *= Color(0.34, 0.4, 0.58)
+		for part in ["farm_f", "farm_b"]:
+			if player._spr.has(part):
+				player._spr[part].modulate *= Color(0.55, 0.6, 0.75)
+		if player._skirt_mesh:
+			player._skirt_mesh.modulate *= Color(0.34, 0.4, 0.58)
 	if checkpoint > 0.0 and not in_menu:
 		player.position = Vector2(checkpoint, _floor_at(checkpoint, checkpoint_y - 10.0 if checkpoint_y < 0.0 else -2000.0))
 		cam_start = player.position.x
@@ -4745,6 +4754,17 @@ func _partner_spot(specs: Array, i: int) -> float:
 const MOB_HEADS := {"fedora": 193.5, "homburg": 171.0, "cap": 136.0, "boxer": 144.0}
 const MOB_FACES := {"post": ["", "fedora", "cap", "homburg"], "tommy": ["fedora", "homburg"], "shotgun": ["cap", ""], "boss": ["boxer"],
 		"hook": ["cap", ""], "dynamite": ["cap"], "sniper": ["fedora", "homburg"]}
+
+## Eddie Doyle: the detective's body under his own head (art/eddie/head.png, art_src 127): a younger
+## face, the pork-pie hat with the press card, the turned-up collar of the pea coat.
+func _eddie_cfg() -> Dictionary:
+	var c: Dictionary = DETECTIVE.duplicate(true)
+	c["head_tex"] = "res://art/eddie/head.png"
+	c["parts"]["head"] = {"a": Vector2(210.0, 390.6), "b": Vector2(210.0, 84.0), "ppm": 1100}
+	var sk: Dictionary = c["parts"]["skirt"]   # a pea coat stops at the hip: only the top of the coat's drawing
+	sk["b"] = Vector2((sk["b"] as Vector2).x, lerpf((sk["a"] as Vector2).y, (sk["b"] as Vector2).y, 0.45))
+	return c
+
 
 func _mob_cfg(kind: String) -> Dictionary:
 	var c: Dictionary = MOBSTER.duplicate(true)
