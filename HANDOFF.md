@@ -81,3 +81,5 @@ Read this first when picking the project up in a new chat. Reply to the user in 
 - _block: bedny na patře nad ním (na mezipatře nad schody) ho neblokují. Bot: na horním patře doleva až když je opravdu nahoře (y < roof.y+8); u zakopaného muže po 16 s jde až k němu.
 
 - 15. 11. ráno: podzemní mapy bez oblohy (_build_depth vrací hned), nad zmenšenými kresbami metra zrcadlený tmavší pruh klenby; mezipatro line 0.94 (navazuje na strop bez mezery); pod střechami 4 fasády tenrow_a–d (119, 120), všechny římsou na stejné výšce.
+
+- 15. 11.: Útok trubkou (_tick_pipe: dosah 170, cooldown 6 s, puppet.swing + art/guns/pipe.png z 121; muž leží a pak se vzdá; test --test=pipe). Vnitřní hlas při hp==1 (INNER, 6 hlášek, voice/<md5>.mp3 Gravity, hud.caption, 40 s pauza, ne v prologu; look test --inner). Kesslerův kouř z puff3 (look --smoke). Instincts karty: písmo 16/14/14, kratší texty. Nad interiéry fasáda prosvítá (roof polygon alpha 0.6). Menu karta Santa Lucia místo PIER 21.
