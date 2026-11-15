@@ -392,7 +392,7 @@ func _burn(seg_name: String) -> void:
 	for seg in game.level.get("street", []):
 		if String(seg[0]) != seg_name:
 			continue
-		var tex: Texture2D = load("res://art/street/%s.png" % seg_name)
+		var tex: Texture2D = BigTex.get_tex("res://art/street/%s.png" % seg_name)
 		var ws: float = game.WALL_SCALE * float(game.SEGMENT_SIZE.get(seg_name, 1.0))   # as the street builds it
 		var w: float = tex.get_width() * ws
 		var h: float = tex.get_height() * ws
@@ -453,7 +453,7 @@ func _flames(at: Vector2) -> void:
 ## street, where a shot through its chains brings it down on whoever is under it.
 func _add_crate(seg_x: float) -> void:
 	var tex: Texture2D = load("res://art/props/cranes_cut.png")
-	var street: Texture2D = load("res://art/street/cranes.png")
+	var street: Texture2D = BigTex.get_tex("res://art/street/cranes.png")
 	var trim: float = game.SEGMENT_TRIM.get("cranes", 0.0)
 	var sx: float = street.get_width() / (street.get_width() - trim)
 	var cut: Rect2 = game.CRANE_CUT
@@ -550,7 +550,7 @@ func _make_moving() -> void:
 
 ## The last train: the tunnel wall pours past behind the cars, which carry the fight on their roofs.
 func _make_band() -> void:
-	var tex: Texture2D = load("res://art/street/tunnel.png")
+	var tex: Texture2D = BigTex.get_tex("res://art/street/tunnel.png")
 	var lit: Texture2D = load("res://art/street/tunnel_lit.png")
 	var trim: float = game.SEGMENT_TRIM.get("tunnel", 0.0)
 	var sx: float = tex.get_width() / (tex.get_width() - trim)

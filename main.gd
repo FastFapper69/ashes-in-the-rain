@@ -1077,7 +1077,7 @@ func _build_segments() -> void:
 		var ws: float = WALL_SCALE * float(SEGMENT_SIZE.get(seg_name, 1.0))
 		_sign_scale = ws
 		var x0 := float(seg[1])
-		var diffuse: Texture2D = load("res://art/street/" + seg_name + ".png")
+		var diffuse: Texture2D = BigTex.get_tex("res://art/street/" + seg_name + ".png")
 		var w := Sprite2D.new()   # no normal map: lamplight falls on the drawing as it is, like the moonlit wash
 		w.texture = diffuse
 		w.centered = false
@@ -1948,9 +1948,9 @@ func _collect_stream() -> void:
 		if not (n is Sprite2D or n is Polygon2D):
 			continue
 		var tex: Texture2D = n.texture
-		if tex == null or tex.resource_path == "":
+		if tex == null or (tex.resource_path == "" and not tex is BigTex):
 			continue
-		var path := tex.resource_path
+		var path := String((tex as BigTex).path) if tex is BigTex else tex.resource_path
 		if not (path.begins_with("res://art/street/") or path.begins_with("res://art/rooms/")):
 			continue
 		if tex.get_width() * tex.get_height() < 600000:
@@ -1989,7 +1989,7 @@ func _stream_tick(first := false) -> void:
 	for e in _stream:
 		var gap: float = maxf(float(e["x0"]) - (cx + half), (cx - half) - float(e["x1"]))
 		if e["tex"] == null and gap < STREAM_LOAD:
-			var t: Texture2D = load(String(e["path"]))
+			var t: Texture2D = BigTex.get_tex(String(e["path"]))
 			e["tex"] = t
 			for sp in e["sprites"]:
 				if is_instance_valid(sp):
@@ -5785,7 +5785,7 @@ func _build_room(x0: float, x1: float, style: String) -> void:
 		var pics: Array = roof["pics"]
 		if x1 > float(pics[0][1]) and x0 < float(pics[pics.size() - 1][1]) + 3200.0:
 			sky_top = float(roof["y"]) + 200.0
-	var tex: Texture2D = load("res://art/rooms/" + style + ".png")
+	var tex: Texture2D = BigTex.get_tex("res://art/rooms/" + style + ".png")
 	var wall := Sprite2D.new()
 	wall.texture = tex
 	wall.centered = false
@@ -5991,7 +5991,7 @@ func _build_roofs() -> void:
 		return
 	var pics: Array = roof["pics"]
 	for i in pics.size():
-		var tex: Texture2D = load("res://art/street/" + String(pics[i][0]) + ".png")
+		var tex: Texture2D = BigTex.get_tex("res://art/street/" + String(pics[i][0]) + ".png")
 		var sp := Sprite2D.new()
 		sp.texture = tex
 		sp.centered = false
