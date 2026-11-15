@@ -1695,6 +1695,7 @@ func _unhandled_input(event: InputEvent) -> void:
 ## go once the camera is far from every sprite using it, and loaded back before it comes into view.
 var _stream: Array = []   # {path, sprites, x0, x1, tex}
 var _stream_t := 0.0
+var _world_off := false   # the title hides the street: its drawings are let go
 const STREAM_LOAD := 2600.0   # beyond the screen's edge: load from here
 const STREAM_DROP := 4200.0   # and let go past here
 
@@ -1732,6 +1733,14 @@ func _collect_stream() -> void:
 
 
 func _stream_tick(first := false) -> void:
+	if _world_off or _in_cut:   # under the title or a story page the street is not seen: hold none of it
+		for e in _stream:
+			if e["tex"] != null:
+				e["tex"] = null
+				for sp in e["sprites"]:
+					if is_instance_valid(sp):
+						sp.texture = null
+		return
 	var half: float = get_viewport().get_visible_rect().size.x * 0.5 / maxf(0.2, cam.zoom.x)
 	var cx: float = cam.position.x
 	for e in _stream:
@@ -4155,6 +4164,8 @@ func _play_cut(id: String, then: Callable, test := false) -> void:
 
 ## Under the painted title the street is not shown or heard: only the rain and the music play.
 func _hide_world() -> void:
+	_world_off = true
+	_stream_tick()
 	for n in get_children():
 		if n is CanvasItem:
 			(n as CanvasItem).visible = false
@@ -5041,10 +5052,10 @@ func _flame(foot: Vector2, hgt: float, variant: int, z: int) -> Sprite2D:
 func _tick_flames(delta: float) -> void:
 	var i := 0
 	while i < _flames.size():
-		var f: Sprite2D = _flames[i]
-		if not is_instance_valid(f):
+		if not is_instance_valid(_flames[i]):   # a blaze burned out and took its flames with it
 			_flames.remove_at(i)
 			continue
+		var f: Sprite2D = _flames[i]
 		var t: float = float(f.get_meta("t")) + delta * float(f.get_meta("fps"))
 		if t >= 1.0:
 			t -= 1.0
@@ -6675,8 +6686,33 @@ func _cast_shadow(p) -> void:
 	p.set_shadow(dx * 0.9, clampf(dx / 600.0, -0.9, 0.9), 0.45 * k)
 
 
+func _dump_textures() -> void:
+	var seen := {}
+	for n in get_tree().root.find_children("*", "", true, false):
+		var texs: Array = []
+		for prop in ["texture", "normal_texture"]:
+			if prop in n and n.get(prop) is Texture2D:
+				texs.append(n.get(prop))
+		for t in texs:
+			if t is CanvasTexture:
+				texs.append((t as CanvasTexture).diffuse_texture)
+				continue
+			if t != null and not seen.has(t.get_rid()):
+				seen[t.get_rid()] = [t.get_width() * t.get_height() * 4, t.resource_path, t.get_width(), t.get_height(), n.get_class()]
+	var arr: Array = seen.values()
+	arr.sort_custom(func(x, y): return int(x[0]) > int(y[0]))
+	var tot := 0
+	for t in arr: tot += int(t[0])
+	print("  tree textures ", arr.size(), " total MB ", tot / 1048576)
+	for t in arr.slice(0, 25): print("   ", int(t[0]) / 1048576, " MB ", t[2], "x", t[3], " ", t[1], " ", t[4])
+
+
 func _shot(shot_name: String) -> void:
-	print("shot ", shot_name, "  fps ", Engine.get_frames_per_second())
+	if "--texdump" in OS.get_cmdline_user_args():
+		_dump_textures()
+		print("  buffers %d MB" % (int(Performance.get_monitor(Performance.RENDER_BUFFER_MEM_USED)) / 1048576))
+	print("shot ", shot_name, "  fps ", Engine.get_frames_per_second(), "  textures %d MB  static %d MB" % [
+		int(Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED)) / 1048576, OS.get_static_memory_usage() / 1048576])
 	# every screen of paper and text is checked as it is pictured: text past its box or its paper's
 	# inner line, text over text, paper over paper, anything at the screen's edge, "A · B" strings
 	var view := get_viewport().get_visible_rect().size
