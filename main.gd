@@ -167,6 +167,7 @@ const BULB_COLORS := {"warm": Color(1.0, 0.72, 0.4), "sky": Color(0.75, 0.82, 0.
 # proportions, standing on the ground in the middle of it. One of the list, picked by where it stands.
 const PROP_SETS := {
 	"laundry": {"crate": ["crate", "laundry_cart"]},
+	"room:catacombs": {"crate": ["kegs"], "crate_long": ["kegs"]},   # a speakeasy: beer kegs, not dock crates
 	"subway": {"crate": ["paper_bundles", "crate"], "crate_long": ["bench"], "drum": ["mailbox"]},
 	"platform": {"crate": ["paper_bundles", "crate"], "crate_long": ["bench"]},
 	"tunnel": {"crate": ["cable_spool", "crate"]}, "tunnel_lo": {"crate": ["cable_spool", "crate"]}, "walkway": {"crate": ["cable_spool", "crate"]}, "signal": {"crate": ["cable_spool", "crate"]}, "arches": {"crate": ["cable_spool", "crate"]}, "yard": {"crate": ["cable_spool", "crate"]},
@@ -750,7 +751,7 @@ func _build_street() -> void:
 			rec["nodes"].append(beam)
 			var halo := Sprite2D.new()   # a small warm glow right at the bulb, nothing more
 			halo.texture = halo_tex
-			halo.scale = Vector2.ONE * 2.2
+			halo.scale = Vector2.ONE * 1.0   # tight round the glass: a wide soft disc reads as a blob, not light
 			halo.position = at + Vector2(0.0, -8.0)
 			halo.material = additive
 			halo.modulate = _undo_night(0.4) * Color(1.0, 0.68, 0.32)
@@ -964,7 +965,7 @@ func _build_segments() -> void:
 			add_child(fix)
 			var halo := Sprite2D.new()
 			halo.texture = halo_tex
-			halo.scale = Vector2.ONE * 2.2
+			halo.scale = Vector2.ONE * 1.0   # tight round the glass: a wide soft disc reads as a blob, not light
 			halo.position = at + Vector2(0.0, -8.0)
 			halo.material = additive
 			halo.modulate = _undo_night(0.4) * Color(1.0, 0.68, 0.32)
