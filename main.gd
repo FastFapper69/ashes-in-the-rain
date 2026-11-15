@@ -91,6 +91,8 @@ const COP_FACES := {"post": ["patrol", "rain", "sergeant"], "tommy": ["sergeant"
 const COP_TINT := Color(0.74, 0.8, 1.0)
 const ChoiceScript = preload("res://choice.gd")
 const LowRes = preload("res://lowres.gd")
+const Packs = preload("res://packs.gd")
+static var _booted := false
 # which chapter and map are being played, and whether the case file (menu) is open; static, so they
 # survive the scene reload that starts each map
 static var chapter := 0
@@ -401,6 +403,60 @@ func _add_print_sheet() -> void:
 	add_child(layer)
 
 
+## The pack with this part of the story's drawings: fetched next to the page (or read from --packs=
+## on a desktop test), then the scene starts again with it. A paper caption says what is happening.
+func _fetch_pack() -> void:
+	set_process(false)
+	set_physics_process(false)
+	var layer := CanvasLayer.new()
+	layer.layer = 41
+	add_child(layer)
+	var view := get_viewport().get_visible_rect().size
+	var Paper = load("res://paper.gd")
+	var font: Font = load("res://fonts/ComicNeue-BoldItalic.woff")
+	var box := Control.new()
+	layer.add_child(box)
+	var say := func(text: String) -> void:
+		for c in box.get_children():
+			c.queue_free()
+		var cap: Control = Paper.caption(text, font, 26, 640.0)
+		cap.position = Vector2((view.x - cap.size.x) * 0.5, view.y - 48.0 - cap.size.y)
+		box.add_child(cap)
+	var src := Packs.url(chapter)
+	crumb("fetch pack %s from %s %s" % [Packs.group(chapter), src, _mem_line()])
+	if not OS.has_feature("web"):
+		if Packs.mount(src, chapter):
+			get_tree().reload_current_scene.call_deferred()
+		else:
+			push_error("pack missing: " + src)
+		return
+	say.call("OPENING THE CASE FILE...")
+	var file := "/tmp/ashes_%s.pck" % Packs.group(chapter)
+	var abs_url := String(JavaScriptBridge.eval("new URL(%s, location.href).href" % JSON.stringify(src), true))
+	var req := HTTPRequest.new()
+	req.download_file = file
+	req.use_threads = false
+	add_child(req)
+	var tick := Timer.new()
+	tick.wait_time = 0.3
+	tick.autostart = true
+	add_child(tick)
+	tick.timeout.connect(func() -> void:
+		var total := req.get_body_size()
+		if total > 0:
+			say.call("OPENING THE CASE FILE... %d %%" % int(100.0 * req.get_downloaded_bytes() / total)))
+	req.request_completed.connect(func(result: int, code: int, _h: PackedStringArray, _b: PackedByteArray) -> void:
+		tick.stop()
+		if result == HTTPRequest.RESULT_SUCCESS and code == 200 and Packs.mount(file, chapter):
+			crumb("pack %s mounted %s" % [Packs.group(chapter), _mem_line()])
+			get_tree().reload_current_scene()
+		else:
+			crumb("pack fetch failed result=%d code=%d" % [result, code])
+			say.call("THE CASE FILE WOULDN'T OPEN. CHECK THE CONNECTION.")
+			get_tree().create_timer(3.0).timeout.connect(func() -> void: req.request(abs_url)))
+	req.request(abs_url)
+
+
 ## A line for the crash report (web only): what the game was doing, kept in the browser's storage so
 ## the next load can send it home if this page gets killed (see web/crash.js beside the deploy script).
 static func crumb(text: String) -> void:
@@ -429,6 +485,15 @@ func _ready() -> void:
 	var picked := false
 	for arg in OS.get_cmdline_user_args():
 		picked = picked or arg.begins_with("--chapter=")
+	if not _booted:   # a fresh page asked for by the last one (another part of the story): straight back to it
+		_booted = true
+		var r := Packs.take_resume()
+		if r.x >= 0:
+			picked = true
+			chapter = r.x
+			in_menu = r.y < 0
+			if r.y >= 0:
+				map = r.y
 	if in_menu and not picked:   # the title stands in the street where the story has got to
 		var p := MenuScript.progress()
 		if p[0] >= 0 and Levels.CAMPAIGN[p[0]]["ready"]:
@@ -444,6 +509,19 @@ func _ready() -> void:
 		set_process(false)
 		set_physics_process(false)
 		get_tree().quit()
+		return
+	if not Packs.has(chapter):   # this part of the story's drawings are not on the page yet
+		if Packs.needs_fresh_page(chapter):
+			crumb("fresh page for %d:%d (pack %s held)" % [chapter, map, Packs.mounted])
+			set_process(false)
+			set_physics_process(false)
+			set_process_input(false)
+			set_process_unhandled_input(false)
+			Packs.fresh_page(chapter, -1 if in_menu else map)
+		else:
+			set_process_input(false)
+			set_process_unhandled_input(false)
+			_fetch_pack()
 		return
 	var ch: Dictionary = Levels.CAMPAIGN[chapter]
 	level = ch["maps"][map]
