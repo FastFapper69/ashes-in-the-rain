@@ -689,7 +689,8 @@ func _ready() -> void:
 	elif _auto_arg() == "" or _auto_arg() == "play":
 		hud.title("%s  ·  %d / %d" % [String(ch["title"]), map + 1, ch["maps"].size()], String(level["name"]))
 		get_tree().create_timer(3.6).timeout.connect(hud.caption.bind(level["intro"]))
-	DirAccess.make_dir_recursive_absolute("res://_shots")
+	if not OS.has_feature("web"):
+		DirAccess.make_dir_recursive_absolute("res://_shots")
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--test="):
 			_auto = arg.trim_prefix("--test=")
