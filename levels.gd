@@ -10,7 +10,7 @@ extends RefCounted
 const CAMPAIGN := [
 	{"title": "PROLOGUE", "name": "EDDIE DOYLE", "ready": true, "hero": "eddie", "ambient": Color(0.2, 0.21, 0.27), "rain": 1.2, "maps": [
 		{"name": "THE LAST NOTE", "end": 13198.8, "boss": "", "stand": 12098.8,
-			"intro": ["December 17th, 1947. Eddie Doyle had a meeting behind the Blue Note.", "He was early. He was always early."], "outro": ["His pencil found the notebook one last time. One word: FRANK.", "Eddie Doyle bled out in this alley at ten past two.", "Somebody had to call me. Somebody always does."],
+			"intro": ["They came out of the rain at both ends of the street.", "Eddie had six rounds and a long way to the Blue Note."], "outro": ["His pencil found the notebook one last time. One word: FRANK.", "Eddie Doyle bled out in this alley at ten past two.", "Somebody had to call me. Somebody always does."],
 			"diary": "", "ash": 0.3, "embers": 0.0,
 			"events": [],
 			"hints": [[200.0, "DRAG THE STICK TO MOVE"], [1500.0, "TAP ANYWHERE TO SHOOT THERE"], [2700.0, "PULL THE STICK DOWN TO HIDE BEHIND COVER"], [4300.0, "THE RUNNING MAN BUTTON DIVES OVER CRATES"], [6100.0, "SHOOT THE RED BARREL"], [7900.0, "TAP THE STOPWATCH TO SLOW TIME"], [11498.8, "NOWHERE LEFT TO RUN"]],

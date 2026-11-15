@@ -15,6 +15,17 @@ const TYPE_STEP := 0.032   # seconds per letter
 const HARD_AT := 3
 
 const SCENES := {
+	# before the prologue (2026-11-15): who Eddie was, and why he walked into that alley
+	"opening": [
+		{"img": 78, "from": [0.4, 0.45, 1.1], "to": [0.58, 0.5, 1.0], "rain": 0.6, "stamp": "NEW YORK  ·  DECEMBER 17, 1947  ·  11:40 P.M.",
+			"lines": ["Eddie Doyle wrote crime for the Evening Ledger. Nobody read past the second paragraph.", "That winter he was reading about a fire. Pier 17. Eight years cold. Eleven dead."]},
+		{"img": 79, "from": [0.5, 0.45, 1.0], "to": [0.45, 0.4, 1.2], "rain": 1.0,
+			"lines": ["Somebody called the paper and asked for him by name. Said they'd talk.", "\"Behind the Blue Note. Two o'clock. Come alone.\""]},
+		{"img": 80, "from": [0.55, 0.55, 1.2], "to": [0.5, 0.5, 1.0], "rain": 0.0, "hit": 1,
+			"lines": ["Eddie never carried a gun. He said a reporter with a gun is just a man with a gun.", "That night he carried one."]},
+		{"img": 81, "from": [0.45, 0.5, 1.0], "to": [0.6, 0.55, 1.18], "rain": 1.2,
+			"lines": ["He was early. He was always early.", "They were earlier."]},
+	],
 	"eddie": [
 		{"img": 49, "from": [0.5, 0.4, 1.12], "to": [0.62, 0.5, 1.0], "rain": 1.0, "stamp": "NEW YORK  ·  DECEMBER 18, 1947  ·  2:10 A.M.",
 			"lines": ["Eleven days of rain. The city had forgotten what dry felt like.", "Somewhere under it, a phone was about to ring."]},
@@ -112,6 +123,12 @@ const LIVE := {
 const TUNE := [-13.0, -12.0, -80.0, -80.0]
 const DREAD := [-24.0, -80.0, -12.0, -80.0]
 const AUDIO := {
+	"opening": [
+		{"bed": {"lamp_hum": -22.0}, "rain": 0.6, "in": true, "cues": [[0.8, "type", -8.0], [3.6, "type", -9.0]]},
+		{"bed": {"city": -15.0}, "rain": 1.0},
+		{"bed": {"lamp_hum": -24.0}, "rain": 0.5, "in": true, "cues": [[1.0, "cyl_open", -6.0], [2.0, "shell_in", -6.0], [2.6, "shell_in", -7.0], [3.6, "cyl_spin", -6.0]]},
+		{"bed": {"city": -17.0, "neon_hum": -18.0}, "rain": 1.1, "cues": [[1.4, "step1", -10.0], [1.95, "step2", -10.0], [2.5, "step1", -11.0]]},
+	],
 	"eddie": [
 		{"bed": {"city": -14.0, "neon_hum": -20.0}, "rain": 1.0, "cues": [[1.4, "thunder", -7.0]]},
 		{"bed": {"lamp_hum": -22.0}, "rain": 0.9, "in": true},

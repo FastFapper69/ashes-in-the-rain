@@ -492,7 +492,7 @@ PROLOGUE = {"name": "THE LAST NOTE", "seed": 1, "feature": "bluenote", "start": 
     "fixed": ["breather", "crate_cover", "drum_duo", "barrel_trap", "rush"],
     "hints": [[200, "DRAG THE STICK TO MOVE"], [1500, "TAP ANYWHERE TO SHOOT THERE"], [2700, "PULL THE STICK DOWN TO HIDE BEHIND COVER"],
               [4300, "THE RUNNING MAN BUTTON DIVES OVER CRATES"], [6100, "SHOOT THE RED BARREL"], [7900, "TAP THE STOPWATCH TO SLOW TIME"]],
-    "intro": ["December 17th, 1947. Eddie Doyle had a meeting behind the Blue Note.", "He was early. He was always early."],
+    "intro": ["They came out of the rain at both ends of the street.", "Eddie had six rounds and a long way to the Blue Note."],
     "outro": ["His pencil found the notebook one last time. One word: FRANK.", "Eddie Doyle bled out in this alley at ten past two.", "Somebody had to call me. Somebody always does."]}
 
 CAMPAIGN = [

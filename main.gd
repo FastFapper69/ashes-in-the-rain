@@ -74,7 +74,7 @@ const TESTIMONY := {
 	"3:4": "\"The Saint's throwing a ball Christmas Eve. Rourke's the guest of honour.\"",
 }
 const CUTS := {"0:0": "eddie", "1:2": "interlude", "1:4": "teague", "2:2": "dream", "2:4": "kessler", "3:4": "briggs"}   # the cutscene after a map ("chapter:map")
-const CUTS_BEFORE := {"2:0": "docks", "3:0": "underground"}   # and before one, the first time it is played
+const CUTS_BEFORE := {"2:0": "docks", "3:0": "underground"}   # "0:0": "opening" once its panels 78-81 are drawn   # and before one, the first time it is played
 const BOSS_HP := 16
 const BOSS_NAMES := {"teague": "MICKEY 'CANVAS' TEAGUE", "kessler": "BRUNO KESSLER", "briggs": "LT. HARLAN BRIGGS"}
 const BOSS_FACES := {"teague": "boxer", "kessler": "cap", "briggs": "briggs"}
@@ -4039,8 +4039,8 @@ func _map_events(delta: float) -> void:
 		_check_i += 1
 	var hints: Array = level["hints"]
 	while _hint_i < hints.size() and player.position.x > float(hints[_hint_i][0]):
-		if _auto == "" or _auto == "play":
-			hud.caption([String(hints[_hint_i][1])])
+		if _auto == "" or _auto == "play" or _auto == "hint":
+			hud.hint(String(hints[_hint_i][1]))
 		_hint_i += 1
 	var stand_x := float(level["stand"])
 	if stand_x > 0.0 and not _stand and player.position.x > stand_x:

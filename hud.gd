@@ -182,6 +182,37 @@ func caption(lines: Array) -> void:
 	tw.tween_callback(box.queue_free)
 
 
+## How to play: a tutorial line in its own box, low in the middle of the screen, apart from the narration
+## up in the corner (they used to land on top of each other). One at a time; the next waits its turn.
+var _hint_box: Control
+var _hint_queue: Array = []
+var _title_box: Control
+func hint(text: String) -> void:
+	if is_instance_valid(_hint_box):
+		_hint_queue.append(text)
+		return
+	if is_instance_valid(_title_box):   # not over the map's title: after it
+		get_tree().create_timer(0.5).timeout.connect(hint.bind(text))
+		return
+	var view := get_viewport().get_visible_rect().size
+	var Paper = load("res://paper.gd")
+	var font: Font = load("res://fonts/ComicNeue-BoldItalic.woff")
+	var cap: Control = Paper.caption(text.to_upper(), font, 24, 560.0)
+	cap.position = Vector2(view.x - 48.0 - cap.size.x, 128.0)   # up on the right, under the pause button
+	cap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cap.modulate.a = 0.0
+	add_child(cap)
+	_hint_box = cap
+	var tw := create_tween()
+	tw.tween_property(cap, "modulate:a", 1.0, 0.3)
+	tw.tween_interval(maxf(2.6, 1.4 + text.length() * 0.05))
+	tw.tween_property(cap, "modulate:a", 0.0, 0.5)
+	tw.tween_callback(func() -> void:
+		cap.queue_free()
+		if not _hint_queue.is_empty():
+			hint(String(_hint_queue.pop_front())))
+
+
 ## The boss's name and health across the top of the screen; fraction below 0 takes it away.
 func boss_bar(boss_name: String, fraction: float) -> void:
 	if _boss_box == null:
@@ -233,6 +264,7 @@ func title(small: String, big: String) -> void:
 		box.add_child(l)
 	box.modulate.a = 0.0
 	add_child(box)
+	_title_box = box
 	var tw := create_tween()
 	tw.tween_property(box, "modulate:a", 1.0, 0.6)
 	tw.tween_interval(2.2)
