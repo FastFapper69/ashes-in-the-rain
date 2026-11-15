@@ -599,7 +599,7 @@ func _title() -> void:
 	Paper.line_button(report, cf, LINE_1, _case_file, sound)
 	var st_line := LINE_2
 	if Instincts.reached(1):   # Frank's board, right on the sheet once the story is his
-		var left := Instincts.unspent()
+		var left := Instincts.unspent() + Instincts.unspent("statements")
 		var il := Paper.write(report, "INSTINCTS", _font_head, 30, CRIMSON if left > 0 else INK, HORIZONTAL_ALIGNMENT_LEFT, LINE_2, 8.0)
 		Paper.line_button(report, il, LINE_2, _instincts.bind(_title), sound)
 		if left > 0:   # how many leads wait to be spent, typed small at the end of the line
@@ -710,7 +710,7 @@ func _case_file() -> void:
 	var back := _paper("tape", Vector2(M, view.y - M - 60.0), Vector2(180.0, 60.0), TILT[5], _title)
 	Paper.write(back, "BACK", _font_head, 24, INK)
 	if Instincts.reached(1):   # Frank's board, once the story is his
-		var left := Instincts.unspent()
+		var left := Instincts.unspent() + Instincts.unspent("statements")
 		var ib := _paper("tape", Vector2(view.x - M - 300.0, view.y - M - 60.0), Vector2(300.0, 60.0), TILT[2], _instincts.bind(_case_file))
 		Paper.write(ib, "INSTINCTS" if left == 0 else "INSTINCTS (%d NEW)" % left, _font_head, 24, CRIMSON if left > 0 else INK)
 
@@ -742,9 +742,9 @@ func _instincts(back_to := Callable()) -> void:
 	_page.add_child(title)
 	var r := Instincts.rank()
 	var nr := Instincts.next_rank()
-	var line := "%d LEADS TO SPEND        TAKES %d HITS" % [Instincts.unspent(), r[0]]
+	var line := "LEADS %d        STATEMENTS %d        TAKES %d HITS" % [Instincts.unspent(), Instincts.unspent("statements"), r[0]]
 	if not nr.is_empty():
-		line += ", %d FROM %d LEADS EARNED" % [nr[1], nr[0]]
+		line += ", %d AT %d EARNED" % [nr[1], nr[0]]
 	var sub := _label(line, _font_type, 20, PAPER, 6)
 	sub.position = Vector2(0.0, 82.0)
 	sub.size = Vector2(view.x, 28.0)
@@ -772,20 +772,14 @@ func _instincts(back_to := Callable()) -> void:
 			var at := Vector2(x0 + tag_w + GAP + t * (w + gap), y)
 			var why := Instincts.why_locked(branch, t)
 			var have := Instincts.owned(branch, t)
-			var card: Control
-			if have or why == "":
-				card = _paper("card", at, Vector2(w, h), TILT[(t + bi) % TILT.size()] * 0.6, _pin_card.bind(branch, t))
-			else:
-				card = Paper.sheet("card", Vector2(w, h))
-				card.position = at
-				card.rotation = deg_to_rad(TILT[(t + bi) % TILT.size()] * 0.6)
-				_page.add_child(card)
+			# every card can be picked up and read: the board shows its name and where it stands
+			var card := _paper("card", at, Vector2(w, h), TILT[(t + bi) % TILT.size()] * 0.6, _card_detail.bind(branch, t))
+			if not have and why != "":
 				(card.get_node("Drawing") as TextureRect).modulate = Color(0.62, 0.6, 0.57)
 			var info: Array = Instincts.CARDS[branch][t]
-			Paper.write(card, String(info[0]), _font_head, 16, INK, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0, 1, 0.24), 4.0)
-			Paper.write(card, String(info[1]), _font_type, 14, INK, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0.24, 1, 0.5), 4.0)
-			var foot := "PINNED" if have else (why if why != "" else "PIN IT: %d LEADS" % Instincts.COST[t])
-			Paper.write(card, foot, _font_head, 14, CRIMSON if (have or why == "") else INK, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0.74, 1, 0.26), 4.0)
+			Paper.write(card, String(info[0]), _font_head, 18, INK, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0.0, 1, 0.62), 4.0)
+			var foot := "PINNED" if have else ("LOCKED" if why != "" else "READY")
+			Paper.write(card, foot, _font_head, 17, CRIMSON if (have or why == "") else INK, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0.66, 1, 0.3), 4.0)
 			if have:   # the head of the card's own pin, turned with the card
 				var half := Vector2(w, h) * 0.5
 				pins.append(at + half + (Vector2(w * 0.535, h * 0.06) - half).rotated(card.rotation))
@@ -847,6 +841,42 @@ func _pin_card(branch: String, tier: int) -> void:
 	else:
 		Instincts.pin(branch, tier)
 	_instincts()
+
+
+## One card picked up off the board: big enough to read on a phone, with what it does, what it
+## costs or why it is locked, and the one thing to do with it.
+func _card_detail(branch: String, tier: int) -> void:
+	var view := get_viewport().get_visible_rect().size
+	var layer := Control.new()
+	layer.size = view
+	_page.add_child(layer)
+	var dim := ColorRect.new()   # the board steps back
+	dim.color = Color(0, 0, 0, 0.62)
+	dim.size = view
+	layer.add_child(dim)
+	var info: Array = Instincts.CARDS[branch][tier]
+	var have := Instincts.owned(branch, tier)
+	var why := Instincts.why_locked(branch, tier)
+	var h := minf(view.y - 2.0 * M - 76.0, 470.0)
+	var w := roundf(h * 1496.0 / 1096.0)
+	var card := Paper.sheet("card", Vector2(w, h))
+	card.position = Vector2((view.x - w) * 0.5, M)
+	layer.add_child(card)
+	Paper.write(card, String(info[0]), _font_head, 40, INK, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0.0, 1, 0.24), 8.0)
+	Paper.write(card, String(info[1]), _font_type, 28, INK, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0.26, 1, 0.42), 8.0)
+	var price := "%d %s" % [Instincts.cost(branch, tier), "STATEMENTS" if branch == "mercy" else "LEADS"]
+	var foot := "PINNED ON THE BOARD" if have else (why if why != "" else "COSTS " + price)
+	Paper.write(card, foot, _font_head, 24, CRIMSON, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0.74, 1, 0.24), 8.0)
+	var y := M + h + 16.0
+	var close := func() -> void: layer.queue_free()
+	var lone := not (have or why == "")
+	var back := _paper("tape", Vector2(view.x * 0.5 - (110.0 if lone else 236.0), y), Vector2(220.0, 60.0), TILT[5], close)
+	back.reparent(layer)
+	Paper.write(back, "BACK", _font_head, 24, INK)
+	if have or why == "":
+		var act := _paper("tape", Vector2(view.x * 0.5 + 16.0, y), Vector2(260.0, 60.0), TILT[1], _pin_card.bind(branch, tier))
+		act.reparent(layer)
+		Paper.write(act, "TAKE IT DOWN" if have else "PIN IT", _font_head, 26, CRIMSON if not have else INK)
 
 
 func _stars(card: Control, part: Rect2, n: int) -> void:

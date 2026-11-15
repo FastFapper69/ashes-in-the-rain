@@ -234,7 +234,8 @@ func hint(text: String, queued := false) -> void:
 	tw.tween_interval(maxf(2.6, 1.4 + text.length() * 0.05))
 	tw.tween_property(cap, "modulate:a", 0.0, 0.5)
 	tw.tween_callback(func() -> void:
-		cap.queue_free()
+		if is_instance_valid(cap):   # narration may have taken it down already
+			cap.queue_free()
 		if _hint_box == cap:
 			_hint_box = null
 			_next_hint())
@@ -451,41 +452,79 @@ func flash() -> void:
 	tw.tween_callback(r.queue_free)
 
 
-## The map's score card: one to three stars and the numbers behind them.
-func rating(stars: int, lines: Array) -> void:
+## The map's tally: an index card pinned up beside the action (the closing words stay readable in
+## their corner): the score, one to three stars for it, and what it was made of.
+## rows: pairs [label, value], set out in two columns.
+var _tally: Control
+func rating(stars: int, head: String, score: int, rows: Array) -> void:
+	var Paper = load("res://paper.gd")
 	var view := get_viewport().get_visible_rect().size
-	var panel := Panel.new()
-	var style := StyleBoxFlat.new()
-	style.bg_color = PAPER
-	style.border_color = INK
-	style.set_border_width_all(5)
-	style.shadow_color = Color(0.0, 0.0, 0.0, 0.5)
-	style.shadow_offset = Vector2(8.0, 8.0)
-	panel.add_theme_stylebox_override("panel", style)
-	panel.size = Vector2(420.0, 250.0)
-	panel.position = Vector2(view.x * 0.5 - 210.0, view.y * 0.5 + 10.0)
-	panel.rotation = deg_to_rad(-1.5)
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(panel)
-	for i in 3:   # stars drawn as ink polygons, red when earned
-		var star := Polygon2D.new()
-		var pts := PackedVector2Array()
-		for k in 10:
-			var r := 34.0 if k % 2 == 0 else 14.0
-			var a := -PI * 0.5 + TAU * k / 10.0
-			pts.append(Vector2(cos(a), sin(a)) * r)
-		star.polygon = pts
-		star.color = Color(0.6, 0.1, 0.07) if i < stars else Color(0.72, 0.68, 0.6)
-		star.position = Vector2(130.0 + i * 80.0, 52.0)
-		panel.add_child(star)
-	var l := Label.new()
-	l.text = "\n".join(lines)
-	l.position = Vector2(20.0, 98.0)
-	l.size = Vector2(380.0, 140.0)
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	l.add_theme_font_size_override("font_size", 24)
-	l.add_theme_color_override("font_color", INK)
-	panel.add_child(l)
+	if is_instance_valid(_tally):
+		_tally.queue_free()
+	var w := 470.0
+	var card: Control = Paper.sheet("card", Vector2(w, roundf(w * 1096.0 / 1496.0)))
+	_tally = card
+	card.position = Vector2(maxf((view.x - w) * 0.5, 520.0), (view.y - card.size.y) * 0.5 - 20.0)
+	card.rotation = deg_to_rad(-1.2)
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(card)
+	var oswald := FontVariation.new()
+	oswald.base_font = load("res://fonts/Oswald.ttf")
+	oswald.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): 600}
+	var type: Font = load("res://fonts/SpecialElite.ttf")
+	Paper.write(card, head, oswald, 24, Paper.INK, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0.0, 1, 0.17), 8.0)
+	Paper.write(card, "SCORE %d" % score, oswald, 28, CRIMSON, HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0.17, 0.62, 0.22), 10.0)
+	var inner: Rect2 = card.get_meta("inner")
+	var st := Control.new()   # the stars, inked beside the score
+	st.position = inner.position + inner.size * Vector2(0.62, 0.17)
+	st.size = inner.size * Vector2(0.38, 0.22)
+	st.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	st.draw.connect(func() -> void:
+		var r := minf(st.size.y * 0.4, 15.0)
+		for i in 3:
+			var at := Vector2(st.size.x * 0.5 + (i - 1) * r * 2.6, st.size.y * 0.5)
+			var pts := PackedVector2Array()
+			for k in 10:
+				var a := -PI * 0.5 + k * PI / 5.0
+				pts.append(at + Vector2(cos(a), sin(a)) * (r if k % 2 == 0 else r * 0.42))
+			if i < stars:
+				st.draw_colored_polygon(pts, CRIMSON)
+			else:
+				pts.append(pts[0])
+				st.draw_polyline(pts, Color(CRIMSON, 0.7), 2.0, true))
+	card.add_child(st)
+	for i in rows.size():   # two columns, typed
+		var col := i % 2
+		var row := i / 2
+		var part := Rect2(col * 0.5, 0.42 + row * 0.19, 0.5, 0.19)
+		Paper.write(card, "%s %s" % [rows[i][0], rows[i][1]], type, 18, Paper.INK, HORIZONTAL_ALIGNMENT_LEFT, part, 10.0)
+	card.modulate.a = 0.0
+	card.create_tween().set_ignore_time_scale(true).tween_property(card, "modulate:a", 1.0, 0.3)
+
+
+## A kill's style points, up by the pause badge: what made it count and the streak it is part of.
+var _combo_box: Control
+func combo(streak: int, points: int, how: String) -> void:
+	var Paper = load("res://paper.gd")
+	var view := get_viewport().get_visible_rect().size
+	if is_instance_valid(_combo_box):
+		_combo_box.queue_free()
+	var text := ("%s  " % how if how != "" else "") + "+%d" % points
+	if streak >= 2:
+		text = "X%d COMBO  " % streak + text
+	var cap: Control = Paper.caption(text, load("res://fonts/ComicNeue-BoldItalic.woff"), 22, 560.0)
+	_combo_box = cap
+	var under_boss := is_instance_valid(_boss_box) and _boss_box.visible   # the boss's name owns the top
+	cap.position = Vector2(view.x - 124.0 - cap.size.x, 116.0 if under_boss else 22.0)
+	cap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(cap)
+	cap.pivot_offset = cap.size * Vector2(1.0, 0.5)
+	cap.scale = Vector2.ONE * (1.0 + 0.06 * streak)
+	var tw := cap.create_tween().set_ignore_time_scale(true)
+	tw.tween_property(cap, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(1.6)
+	tw.tween_property(cap, "modulate:a", 0.0, 0.5)
+	tw.tween_callback(cap.queue_free)
 
 
 ## fraction: 0 = dead, 1 = unhurt.

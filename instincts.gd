@@ -1,7 +1,9 @@
-## Frank's instincts: the skill tree. Three branches of five cards, bought with leads: one for every
-## star on Frank's closed cases and one for every man who talked after being let go. The same leads
-## are his experience: the more he has earned (spent or not), the more hits he can take and the
-## longer his slowed time holds. The cards can be taken down and pinned again for free between maps.
+## Frank's instincts: the skill tree. Three branches of five cards. LEAD and TIME are bought with leads:
+## the stars on Frank's closed cases, earned by how he shoots (style points, combos, main.gd _score).
+## MERCY is bought only with statements: men let go who talked. A gunman and a man with a conscience,
+## two ways to grow, and the game never pays for the first with the second. Everything earned
+## (spent or not) is his experience: more hits he can take, longer slowed time.
+## The cards can be taken down and pinned again for free between maps.
 extends RefCounted
 
 const MenuScript = preload("res://menu.gd")
@@ -10,7 +12,8 @@ const Levels = preload("res://levels.gd")
 const BRANCHES := ["lead", "time", "mercy"]
 const BRANCH_NAMES := {"lead": "LEAD", "time": "TIME", "mercy": "MERCY"}
 const COST := [2, 3, 4, 5, 6]
-const FROM_CHAPTER := [1, 1, 2, 3, 4]   # a tier opens once the story has reached this chapter
+const MERCY_COST := [1, 2, 2, 3, 3]   # in statements: at most one man talks on each map
+const FROM_CHAPTER := [1, 1, 2, 3, 3]   # a tier opens once the story has reached this chapter (ALLY: chapter IV)
 const SPARED_NEEDED := [3, 6, 10, 15, 20]   # the Conscience cards also want men let go
 const ASH_LOCK := 6   # this much ash and the last two Conscience cards stay down
 const CARDS := {
@@ -19,14 +22,14 @@ const CARDS := {
 		["STEADY HAND", "Tighter shots and a longer aim help."],
 		["THROUGH AND THROUGH", "Bullets go through wooden cover."],
 		["LAST ROUND", "The last round always kills, in slowed time."],
-		["DEAD EYE", "In slowed time, mark three men, then fire."],
+		["HOT STREAK", "A combo of three puts a round back in the gun."],
 	],
 	"time": [
 		["LONG WATCH", "Slowed time lasts a quarter longer."],
 		["BLOOD FOR TIME", "A kill gives back half as much time again."],
 		["LONG DIVE", "Dives fly further and land in a roll."],
 		["LAST CHANCE", "With one hit left, time slows on its own."],
-		["SHOOT THEM DOWN", "Shoot their bullets down for time."],
+		["ACROBAT", "A kill in the air gives back slowed time."],
 	],
 	"mercy": [
 		["VOICE OF THE LAW", "A shaken crew gives up sooner."],
@@ -47,8 +50,16 @@ static func _test_leads() -> int:
 	return -1
 
 
-## Every lead Frank has earned: stars on his cases (not Eddie's) and statements from men let go.
+## All Frank has earned, both kinds: his experience (rank).
 static func earned() -> int:
+	var t := _test_leads()
+	if t >= 0:
+		return t
+	return leads_earned() + statements_earned()
+
+
+## Leads: the stars on his cases (not Eddie's).
+static func leads_earned() -> int:
 	var t := _test_leads()
 	if t >= 0:
 		return t
@@ -56,23 +67,41 @@ static func earned() -> int:
 	for c in range(1, Levels.CAMPAIGN.size()):
 		for m in (Levels.CAMPAIGN[c]["maps"] as Array).size():
 			n += MenuScript.stars(c, m)
+	return n
+
+
+## Statements: men let go who talked.
+static func statements_earned() -> int:
+	var t := _test_leads()
+	if t >= 0:
+		return t / 2
+	var n := 0
 	for c in Levels.CAMPAIGN.size():
 		for m in (Levels.CAMPAIGN[c]["maps"] as Array).size():
 			n += 1 if MenuScript.story("testimony_%d-%d" % [c, m]) == "yes" else 0
 	return n
 
 
-static func spent() -> int:
+static func cost(branch: String, tier: int) -> int:
+	return MERCY_COST[tier] if branch == "mercy" else COST[tier]
+
+
+static func spent(kind := "") -> int:
 	var n := 0
 	for b in BRANCHES:
+		if kind == "leads" and b == "mercy" or kind == "statements" and b != "mercy":
+			continue
 		for t in 5:
 			if owned(b, t):
-				n += COST[t]
+				n += cost(b, t)
 	return n
 
 
-static func unspent() -> int:
-	return maxi(0, earned() - spent())
+## What is left to pin: leads (LEAD, TIME) and statements (MERCY) are kept apart.
+static func unspent(kind := "leads") -> int:
+	if kind == "statements":
+		return maxi(0, statements_earned() - spent("statements"))
+	return maxi(0, leads_earned() - spent("leads"))
 
 
 static func owned(branch: String, tier: int) -> bool:
@@ -127,7 +156,7 @@ static func reached(chapter: int) -> bool:
 static func why_locked(branch: String, tier: int) -> String:
 	if owned(branch, tier):
 		return ""
-	var ch: int = FROM_CHAPTER[tier]
+	var ch: int = 4 if branch == "mercy" and tier == 4 else FROM_CHAPTER[tier]
 	if not reached(ch) or not Levels.CAMPAIGN[mini(ch, Levels.CAMPAIGN.size() - 1)]["ready"]:
 		return "OPENS IN " + String(Levels.CAMPAIGN[mini(ch, Levels.CAMPAIGN.size() - 1)]["title"])
 	if branch == "mercy":
@@ -138,8 +167,11 @@ static func why_locked(branch: String, tier: int) -> String:
 			return "LET %d MEN GO FIRST" % need
 	if tier > 0 and not owned(branch, tier - 1):
 		return "PIN THE CARD BEFORE IT"
-	if unspent() < COST[tier]:
-		return "NEEDS %d LEADS" % COST[tier]
+	if branch == "mercy":
+		if unspent("statements") < cost(branch, tier):
+			return "NEEDS %d STATEMENTS" % cost(branch, tier)
+	elif unspent() < cost(branch, tier):
+		return "NEEDS %d LEADS" % cost(branch, tier)
 	return ""
 
 

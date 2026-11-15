@@ -112,7 +112,15 @@ var pickups: Array = []        # {kind, node}
 var weapon := "revolver"
 var ammo := 0
 
-var stats := {"kills": 0, "heads": 0, "slow": 0, "hits": 0, "time": 0.0, "executed": 0, "spared": 0}
+var stats := {"kills": 0, "heads": 0, "slow": 0, "hits": 0, "time": 0.0, "executed": 0, "spared": 0, "score": 0, "air": 0, "best_combo": 0}
+var _combo := 0          # kills in a row, each within COMBO_GAP of the last
+var _combo_t := 0.0      # time left to keep the streak going
+var _bounce_t := 0.0     # a ricochet is still in flight: a kill now is a trick shot
+const COMBO_GAP := 2.5
+var _streak_told := false
+const COMBO_MAX := 5
+const STAR_2 := 2.5   # score against par (100 a man) for the second star
+const STAR_3 := 4.5   # and the third
 var _last_kind := "ground"     # what _floor_at last stood him on: ground, box or floor
 var _drop_t := 0.0             # seconds he falls through the landing he stood on (stick pulled down)
 var _drop_y := 0.0
@@ -635,6 +643,15 @@ func _ready() -> void:
 		get_tree().create_timer(3.0, true, false, true).timeout.connect(_shot.bind("settings"))
 		get_tree().create_timer(3.2, true, false, true).timeout.connect(get_tree().quit)
 		_auto = "cut:pause"
+	elif _auto == "tally":   # --test=tally: a streak's label and the map's tally card with its outro
+		get_tree().create_timer(1.0, true, false, true).timeout.connect(func() -> void:
+			stats.merge({"kills": 9, "heads": 4, "slow": 6, "air": 3, "best_combo": 4, "score": 3150, "hits": 1, "time": 151.0}, true)
+			hud.caption(level["outro"])
+			hud.combo(4, 1600, "HEAD SHOT IN THE AIR")
+			_rate())
+		get_tree().create_timer(1.6, true, false, true).timeout.connect(_shot.bind("tally"))
+		get_tree().create_timer(2.6, true, false, true).timeout.connect(get_tree().quit)
+		_auto = "cut:tally"
 	elif _auto == "card":   # --test=card: the title card between maps
 		var l = LoadingScript.new()
 		l.chapter = chapter
@@ -1915,6 +1932,10 @@ func _process(delta: float) -> void:
 				for c in get_children():
 					if c.has_method("_instincts"):
 						c._instincts()
+						for arg in OS.get_cmdline_user_args():
+							if arg.begins_with("--detail="):   # one card picked up: --detail=lead4
+								var k := arg.trim_prefix("--detail=")
+								c._card_detail(k.rstrip("0123456789"), int(k.right(1)))
 			if _at > 6.9 and _auto_done == 1:
 				_auto_done = 2
 				_shot("instincts")
@@ -2033,6 +2054,8 @@ func _process(delta: float) -> void:
 	if hud.aim_held and fire_cool == 0.0 and not over:   # a finger held on the street keeps firing
 		hud.fire_tapped = true
 	_hurt_t = maxf(0.0, _hurt_t - delta)
+	_combo_t = maxf(0.0, _combo_t - delta)
+	_bounce_t = maxf(0.0, _bounce_t - delta)
 	if hud.fire_tapped and fire_cool > 0.0:   # tapped a moment too early: kept, not lost
 		_fire_buf = 0.2
 	_tick_reload(delta)
@@ -3734,6 +3757,8 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 		return true
 	_hurt_t = 0.3
 	stats["hits"] += 1
+	_combo = 0   # a hit breaks the streak
+	_combo_t = 0.0
 	_hits_at.append(_ai_t)
 	fx.blood(pos, fx.hit_vel)
 	player.add_wound(pos, "")   # he flinches
@@ -3893,6 +3918,7 @@ func _knocked(e: Dictionary, delta: float) -> void:
 ## A mobster goes down: counted for the score, his gun left on the pavement.
 func _kill(e: Dictionary, head: bool, quiet := false, part := "") -> void:
 	e["alive"] = false
+	_score(e, head, part)
 	var m = e["node"]
 	stats["kills"] += 1
 	stats["heads"] += 1 if head else 0
@@ -3919,6 +3945,49 @@ func _kill(e: Dictionary, head: bool, quiet := false, part := "") -> void:
 					said = true
 					_say(o["node"], ["THEY GOT SAL!", "VINNIE'S DOWN!", "WHO'S CALLING IT NOW?"].pick_random())
 	_morale(m.position, head or slow_on)
+
+
+## Style points: how a man went down, not just that he did. A base of 100, doubled for a head shot,
+## doubled again in the air, half again in slowed time, more for a trick (a ricochet, a blast), and
+## all of it times the streak. A man who had already given up is worth nothing and ends the streak:
+## the game never pays for an execution. The map's stars come from this score (see _rate).
+func _score(e: Dictionary, head: bool, part: String) -> void:
+	if e["state"] == "give" or _stand or diff_step < 0:
+		_combo = 0
+		_combo_t = 0.0
+		return
+	var pts := 100.0
+	var how: Array = []
+	if head:
+		pts *= 2.0
+		how.append("HEAD SHOT")
+	var air := move_state in ["jump", "dive", "flip", "swing", "zip"]
+	if air:
+		pts *= 2.0
+		stats["air"] += 1
+		how.append("IN THE AIR")
+	if Engine.time_scale < 1.0:
+		pts *= 1.5
+	if part == "blast":
+		pts *= 1.5
+		how.append("BOOM")
+	elif _bounce_t > 0.0:
+		pts *= 2.0
+		how.append("RICOCHET")
+	_combo = mini(_combo + 1, COMBO_MAX) if _combo_t > 0.0 else 1
+	_combo_t = COMBO_GAP
+	pts *= _combo
+	stats["score"] += int(pts)
+	stats["best_combo"] = maxi(int(stats["best_combo"]), _combo)
+	hud.combo(_combo, int(pts), " ".join(how))
+	if _combo == 2 and chapter == 1 and map == 0 and not _streak_told:   # once: what the numbers up top are
+		_streak_told = true
+		hud.hint("KILLS CLOSE TOGETHER BUILD A STREAK. IN THE AIR AND TO THE HEAD SCORE MORE. THE SCORE EARNS THE STARS.", true)
+	if _combo == 3 and _knack("lead", 4) and ammo < int(WEAPONS[weapon]["ammo"]):   # HOT STREAK: a round back
+		ammo += 1
+		_show_ammo()
+	if air and _knack("time", 4):   # ACROBAT: a kill in the air gives back slowed time
+		slow_left = minf(1.0, slow_left + 0.25)
 
 
 ## The last man of a group, seeing the others go down, may give up instead of dying for it. A
@@ -4119,6 +4188,10 @@ func _lamp_out(i: int) -> void:
 ## One of the detective's bullets met one of theirs in the air.
 func _bullets_clash(at: Vector2) -> void:
 	fx.word("res://art/fx/word_clink.png", at + Vector2(0.0, -110.0), 0.22)
+	if not _stand and diff_step >= 0:   # a bullet shot out of the air is style too, and keeps the streak alive
+		stats["score"] += 50
+		_combo_t = maxf(_combo_t, COMBO_GAP)
+		hud.combo(_combo, 50, "CLINK")
 	sfx.play("clink", -3.0, at.x)
 	slow_left = minf(1.0, slow_left + (0.225 if _knack("time", 1) else 0.15))   # a little slowed time back as a reward
 
@@ -4192,8 +4265,7 @@ func _map_cleared() -> void:
 	var next_c := chapter
 	var next_m := map + 1
 	var to_menu := false
-	if next_m >= maps.size():
-		hud.banner(String(Levels.CAMPAIGN[chapter]["title"]) + " CLOSED")
+	if next_m >= maps.size():   # the tally card says the chapter is closed
 		next_m = 0
 		next_c = mini(chapter + 1, Levels.CAMPAIGN.size() - 1)
 		to_menu = true
@@ -4314,15 +4386,21 @@ func _map_events(delta: float) -> void:
 ## Score card: one star for finishing, one for taking two hits at most, one for style (head shots and
 ## slowed-time kills). Frank's stars are his leads: his experience and what pins his instincts.
 func _rate() -> void:
-	var kills: int = stats["kills"]
-	var stars := 1
-	if stats["hits"] <= 2:
+	var kills: int = int(stats["kills"]) - int(stats["executed"])
+	var par := maxf(100.0, kills * 100.0)   # a plain shot for every man
+	var score: int = stats["score"]
+	var stars := 1   # for closing it
+	if score >= par * STAR_2:
 		stars += 1
-	if kills > 0 and (stats["heads"] + stats["slow"]) * 2 >= kills:
+	if score >= par * STAR_3:
 		stars += 1
 	MenuScript.mark_stars(chapter, map, stars)
 	var t := int(stats["time"])
-	hud.rating(stars, ["TIME %d:%02d   KILLS %d" % [t / 60, t % 60, kills], "HEAD SHOTS %d   IN SLOWED TIME %d" % [stats["heads"], stats["slow"]], "HITS TAKEN %d" % stats["hits"]])
+	var head := String(Levels.CAMPAIGN[chapter]["title"]) + " CLOSED" if map + 1 >= (Levels.CAMPAIGN[chapter]["maps"] as Array).size() else String(level["name"]).to_upper()
+	if _auto != "":
+		print("SCORE ", score, " par ", par, " ratio ", snappedf(score / par, 0.01), " stars ", stars, " combo ", stats["best_combo"])
+	hud.rating(stars, head, score, [["BEST COMBO", "X%d" % stats["best_combo"]], ["IN THE AIR", stats["air"]],
+		["HEAD SHOTS", stats["heads"]], ["SLOWED TIME", stats["slow"]], ["HITS TAKEN", stats["hits"]], ["TIME", "%d:%02d" % [t / 60, t % 60]]])
 
 
 func _restart() -> void:
@@ -6678,6 +6756,7 @@ func _ricochet(i: int, pos: Vector2) -> bool:
 	sfx.play("whiz", -3.0, pos.x, 0.15)
 	_word(["zing"], pos + Vector2(0.0, -70.0), 0.15)
 	fx.shoot(pos + n * 16.0, out, true, 0.8)
+	_bounce_t = 0.7
 	return true
 
 
