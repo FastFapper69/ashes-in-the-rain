@@ -17,15 +17,15 @@ SEGMENTS = {"alley": 3028, "bluenote": 3028, "warehouse": 3028, "laundry": 3028,
             "platform": 3034, "tunnel": 3034, "yard": 3034, "station14": 3034,
             "tenrow_a": 3043, "tenrow_b": 3043, "tenrow_c": 3043, "tenrow_d": 3043,
             "bowery": 3034, "walkway": 3034, "pump": 3034, "tunnel_lo": 3034,
-            "signal": 3034, "arches": 3034}
+            "signal": 3034, "arches": 3034, "sheds": 3043}
 # the subway drawings came out at twice a man's size (doors 2.5 men high, the far platform at his head):
 # shown at half, the wall above them runs on into the dark of the ceiling
 SUB = 0.52
 SEG_SIZE = {"deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": SUB, "walkway": SUB, "bowery": SUB, "tunnel_lo": SUB,
-            "signal": SUB, "arches": SUB}
+            "signal": SUB, "arches": SUB, "sheds": 0.55}
 UNDER_ROOF = ["tenrow_a", "tenrow_c", "tenrow_b", "tenrow_d"]   # the facades under the rooftops: their cornice meets the roof drawings   # shown smaller: see main.gd SEGMENT_SIZE
 STREET_POOL = ["alley", "warehouse", "laundry", "subway", "church", "market"]
-DOCKS_POOL = ["pier17", "cranes", "shipping", "quay", "harbor"]
+DOCKS_POOL = ["pier17", "cranes", "shipping", "quay", "sheds"]   # (the harbor with its lighthouse: only the Harbor Master's own)
 UNDER_POOL = ["walkway", "tunnel_lo", "signal", "arches"]   # the pump room (art_src 106) is drawn at four times a man: not used
 TRACKLESS = {"pump", "arches"}   # (the arches have a handcar standing on the rails)   # no rails in the drawing: a passing train may not be in sight of it
 CRANE_CRATE = (0.3863 + 0.0783 / 2)   # where the crate hangs in the crane yard drawing (see main.gd CRANE_CUT)

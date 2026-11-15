@@ -782,7 +782,7 @@ const SEGMENT_GAIN := {"alley": 0.92, "bluenote": 0.98, "warehouse": 0.9, "laund
 		"bowery": 0.92, "walkway": 1.0, "pump": 0.95, "tunnel_lo": 1.12, "signal": 1.0, "arches": 1.0}
 # A drawing whose doors and bins came out too big for a man is shown smaller (gen/levels.py SEG_SIZE).
 const SEGMENT_SIZE := {"deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
-	"signal": 0.52, "arches": 0.52}
+	"signal": 0.52, "arches": 0.52, "sheds": 0.55}
 var _sign_scale := WALL_SCALE
 const ROOM_BASE := 0.95     # an interior's painting under the night grade, before its lamps' pools
 const SEGMENT_MOON := 1.6   # how much brighter than the bare night the drawn streets are kept
