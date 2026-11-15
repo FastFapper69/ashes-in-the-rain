@@ -339,7 +339,7 @@ func shoot_light(pos: Vector2) -> bool:
 func _add_beam(pivot: Vector2, base_deg: float) -> void:
 	var ln := 2300.0
 	var s := Sprite2D.new()
-	s.texture = load("res://art/light_cone_soft.png")
+	s.texture = load("res://art/light_beam_soft.png")   # soft sides, gone before its end (no hard edge anywhere)
 	s.centered = false
 	s.offset = Vector2(-256.0, 0.0)
 	s.scale = Vector2(1.15, ln / 512.0)
@@ -372,7 +372,7 @@ func _add_beam(pivot: Vector2, base_deg: float) -> void:
 	head.z_index = 2
 	add_child(head)
 	var l := PointLight2D.new()
-	l.texture = load("res://art/light_cone.png")
+	l.texture = load("res://art/light_beam_light.png")
 	l.texture_scale = ln / 512.0
 	l.color = Color(0.8, 0.88, 1.0)
 	l.energy = 1.1

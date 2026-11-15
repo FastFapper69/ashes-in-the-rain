@@ -20,7 +20,7 @@ const CARDS := {
 	"lead": [
 		["FAST HANDS", "Reloads a third faster."],
 		["STEADY HAND", "Tighter shots and a longer aim help."],
-		["THROUGH AND THROUGH", "Bullets go through wooden cover."],
+		["SPLINTERS", "Wooden cover goes to pieces in a few shots."],
 		["LAST ROUND", "The last round always kills, in slowed time."],
 		["HOT STREAK", "A combo of three puts a round back in the gun."],
 	],

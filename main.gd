@@ -119,6 +119,7 @@ var stats := {"kills": 0, "heads": 0, "slow": 0, "hits": 0, "time": 0.0, "execut
 var _combo := 0          # kills in a row, each within COMBO_GAP of the last
 var _combo_t := 0.0      # time left to keep the streak going
 var _bounce_t := 0.0
+var _q_held := false
 var _hit_at := Vector2.INF
 var _ground_y := 0.0   # where Frank last stood: his floor   # the last bullet's point of impact     # a ricochet is still in flight: a kill now is a trick shot
 const COMBO_GAP := 2.5
@@ -2801,6 +2802,28 @@ func _auto_step(delta: float) -> void:
 		if _at > 15.0:
 			get_tree().quit()
 		return
+	elif _auto == "bag":   # --test=bag: a shotgun and a tommy picked up, then switched to: the HUD each time
+		hp = max_hp
+		_grace = 99.0
+		for e in enemies:
+			e["alive"] = false
+			e["node"].visible = false
+		var steps := [[0.8, "shotgun"], [1.4, "tommy"], [2.0, "switch"], [2.6, "switch"]]
+		for i in steps.size():
+			var bit := 1 << (1 + i)
+			if _at > float(steps[i][0]) and _auto_done & bit == 0:
+				_auto_done |= bit
+				if steps[i][1] == "switch":
+					_switch_gun()
+				else:
+					_add_pickup(String(steps[i][1]), player.position)
+					_pickups()
+			if _at > float(steps[i][0]) + 0.4 and _auto_done & (bit << 8) == 0:
+				_auto_done |= bit << 8
+				_shot("bag_%d" % i)
+		if _at > 3.4:
+			print("BAG weapon ", weapon, " bag ", _bag.keys())
+			get_tree().quit()
 	elif _auto == "hat":   # the nearest mobster with a hat: a bullet through the hat (found by hat_hit), pictures as it flies and lands
 		hp = max_hp
 		_grace = 99.0
@@ -3705,11 +3728,18 @@ func _word(names: Array, at: Vector2, size: float, along := Vector2.ZERO) -> voi
 func _dry_fire() -> void:
 	sfx.play("dry_fire", 0.0)
 	_word(["click"], player.muzzle() + Vector2(0.0, -110.0), 0.16)
-	if weapon != "revolver" and ammo <= 0:   # nothing left for this gun: he drops it
-		weapon = "revolver"
-		player.set_weapon("revolver")
-		mag = 0
+	if weapon != "revolver" and ammo <= 0:   # nothing left for this gun: he drops it, takes the next one
+		var empty := weapon
+		weapon = "revolver"   # (so _switch stores nothing for the empty gun)
+		mag = int(_bag.get("revolver", {}).get("mag", 0))
+		_bag.erase(empty)
+		_bag.erase("revolver")
+		var next := "revolver"
+		for k in _bag:
+			next = k
+		_equip(next)
 		hud.toast("EMPTY")
+		return
 	_start_reload()
 
 
@@ -3743,6 +3773,10 @@ func _start_reload() -> void:
 
 
 func _tick_reload(delta: float) -> void:
+	if hud.switch_tapped or Input.is_action_just_pressed("ui_focus_next") or (Input.is_physical_key_pressed(KEY_Q) and not _q_held):
+		hud.switch_tapped = false
+		_switch_gun()
+	_q_held = Input.is_physical_key_pressed(KEY_Q)
 	if hud.reload_tapped or Input.is_physical_key_pressed(KEY_R):
 		hud.reload_tapped = false
 		_start_reload()
@@ -3764,6 +3798,47 @@ func _tick_reload(delta: float) -> void:
 			sfx.play("reload_done", -2.0)
 			_word(["kachak"], player.position + Vector2(-player.scale.x * 40.0, -470.0), 0.13)
 	_show_ammo()
+
+
+## Guns in his coat besides the one in hand: kind -> {mag, ammo}; the revolver is kept here too when
+## another gun is in his hand (its rounds in the cylinder).
+var _bag := {}
+func _bag_names() -> Array:
+	var out: Array = []
+	for k in _bag:
+		if k != "revolver":
+			out.append(String(WEAPONS[k]["name"]))
+	return out
+
+
+## Tap on Frank's picture (or Q): the next gun out of his coat, the one in hand goes in.
+func _switch_gun() -> void:
+	var order: Array = ["revolver"]
+	for k in _bag:
+		if k != "revolver":
+			order.append(k)
+	for k in WEAPONS:
+		if k == weapon and not order.has(k):
+			order.append(k)
+	if order.size() < 2:
+		return
+	_equip(order[(order.find(weapon) + 1) % order.size()])
+	sfx.play("reload_done", -4.0)
+
+
+func _equip(kind: String) -> void:
+	_bag[weapon] = {"mag": mag, "ammo": ammo}
+	var st: Dictionary = _bag.get(kind, {"mag": int(WEAPONS[kind]["mag"]), "ammo": 0})
+	_bag.erase(kind)
+	weapon = kind
+	player.set_weapon(kind)
+	mag = int(st["mag"])
+	ammo = int(st["ammo"])
+	reloading = 0.0
+	if kind == "revolver" and mag <= 0:
+		_start_reload()
+	_show_ammo()
+	hud.set_bag(_bag_names())
 
 
 func _show_ammo() -> void:
@@ -3944,10 +4019,6 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 				continue
 			if from_player and _ricochet(i, pos):
 				return true
-			if from_player and box_info[i]["wood"] and _knack("lead", 2):   # through the planks and on
-				if randf() < 0.2:
-					fx.spark(pos)
-				continue
 			_hit_box(i, pos)
 			return true
 	if from_player and sets.bullet(pos):
@@ -4331,7 +4402,7 @@ func _hit_box(i: int, pos: Vector2) -> void:
 	sfx.play("wood_hit", -3.0, pos.x, 0.12)
 	for k in 3:   # chips fly off the boards where the bullet went in
 		fx.chip(pos)
-	info["hp"] -= 1
+	info["hp"] -= 3 if _knack("lead", 2) else 1   # SPLINTERS: wooden cover goes to pieces in a few shots
 	var s: Sprite2D = info["sprite"]
 	s.modulate = Color(1, 1, 1).darkened(0.08 * (7 - int(info["hp"])))
 	var tw := s.create_tween()
@@ -5970,15 +6041,19 @@ func _pickups() -> void:
 			hud.set_health(float(hp) / max_hp)
 			sfx.play("drink", 0.0)
 			hud.toast("A PULL FROM THE FLASK")
-		else:
-			weapon = kind
-			player.set_weapon(kind)
-			mag = int(WEAPONS[kind]["mag"])
-			ammo = int(WEAPONS[kind]["ammo"]) - mag
-			reloading = 0.0
-			_show_ammo()
+		else:   # into his coat: the gun in his hand stays there; the same gun again is rounds for it
 			sfx.play("pickup", 0.0)
-			hud.toast(String(WEAPONS[kind]["name"]))
+			if kind == weapon:
+				ammo += int(WEAPONS[kind]["ammo"])
+				_show_ammo()
+				hud.toast("+%d %s ROUNDS" % [int(WEAPONS[kind]["ammo"]), String(WEAPONS[kind]["name"])])
+			elif _bag.has(kind):
+				_bag[kind]["ammo"] = int(_bag[kind]["ammo"]) + int(WEAPONS[kind]["ammo"])
+				hud.toast("+%d %s ROUNDS" % [int(WEAPONS[kind]["ammo"]), String(WEAPONS[kind]["name"])])
+			else:
+				_bag[kind] = {"mag": int(WEAPONS[kind]["mag"]), "ammo": int(WEAPONS[kind]["ammo"]) - int(WEAPONS[kind]["mag"])}
+				hud.toast("%s TAKEN: TAP FRANK TO SWITCH" % String(WEAPONS[kind]["name"]))
+			hud.set_bag(_bag_names())
 		s.queue_free()
 		pickups.remove_at(i)
 

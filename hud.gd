@@ -18,6 +18,7 @@ var aim_at := Vector2.ZERO   # where the aiming finger is, in screen pixels
 var aim_held := false       # an aiming finger is on the screen
 var aim_left := 0.0         # seconds the aim stays where the finger last was
 var _aim_finger := -1
+var switch_tapped := false  # Frank's picture was tapped: the next gun
 var reload_tapped := false  # the rounds under the health bar were tapped
 var pause_tapped := false
 var _pause: Sprite2D
@@ -306,6 +307,22 @@ func title(small: String, big: String) -> void:
 
 
 var _weapon_label: Label
+var _bag_label: Label
+
+
+## The guns in his coat, small beside his picture: what a tap on it switches to.
+func set_bag(names: Array) -> void:
+	if _bag_label == null:
+		_bag_label = Label.new()
+		_bag_label.position = Vector2(140.0, 98.0)
+		_bag_label.add_theme_font_override("font", load("res://fonts/Oswald.ttf"))
+		_bag_label.add_theme_font_size_override("font_size", 18)
+		_bag_label.add_theme_color_override("font_color", PAPER)
+		_bag_label.add_theme_color_override("font_outline_color", INK)
+		_bag_label.add_theme_constant_override("outline_size", 6)
+		_bag_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_bag_label)
+	_bag_label.text = "" if names.is_empty() else "IN HIS COAT: " + ", ".join(names) + "   (TAP FRANK)"
 
 
 ## The gun in hand and its rounds, under the health bar; the revolver never runs dry, so it shows none.
@@ -574,6 +591,8 @@ func _input(event: InputEvent) -> void:
 			var on_man: bool = target_at.is_valid() and target_at.call(t.position)
 			if t.position.distance_to(_pause.position) < 46.0:
 				pause_tapped = true
+			elif t.position.distance_to(_portrait.position) < 60.0:
+				switch_tapped = true
 			elif on_man and _aim_finger == -1 and not _in_stick_zone(t.position):
 				_aim_finger = t.index
 				aim_at = t.position
