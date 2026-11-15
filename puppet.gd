@@ -113,6 +113,7 @@ var _have_last := false
 var _clock := 0.0
 var _tail_dir := Vector2(0.0, 0.5)   # where the coat tail hangs to, from its root
 var air := 0.0       # 0 on the ground .. 1 in a jump: the legs tuck up
+var air_v := 0.0     # in a jump: -1 going up hard .. 0 at the top .. 1 coming down: the pose follows the arc
 var dive := 0.0      # 0 upright .. 1 flying flat, head first
 var dive_side := 1.0 # 1 = he dives the way he faces, -1 = backwards
 var crouch := 0.0    # 0 standing .. 1 deep knee bend: soaks up a landing
@@ -473,7 +474,8 @@ func set_state(dir: float, aim: Vector2, delta: float) -> void:
 	var forward := _vel.x * facing
 	# kept modest: the upper coat is part of the torso drawing, and a tail that swings far breaks away from it
 	# straight down at rest and in a walk; it only streams back once he is really moving
-	var hang := Vector2(-clampf((absf(forward) - 150.0) / 400.0, 0.0, 1.3) * signf(forward) * 0.11, 0.5 - clampf(_vel.y / 1200.0, -0.5, 1.0) * 0.15)
+	var hang := Vector2(-clampf((absf(forward) - 150.0) / 400.0, 0.0, 1.3) * signf(forward) * 0.11, 0.5 - clampf(_vel.y / 1200.0, -0.5, 1.0) * (0.15 + 0.2 * maxf(air, dive)))
+	hang.x -= maxf(air, dive) * 0.09 * (signf(forward) if absf(forward) > 50.0 else 1.0)   # in a leap the coat flies out behind him
 	hang.x += sin(_clock * 9.0) * 0.025 * _moving + sin(_clock * 1.6) * 0.012   # flutter in the run, a breath of wind at rest
 	_tail_dir = _tail_dir.lerp(hang, 1.0 - exp(-7.0 * delta))
 	_pose()
@@ -506,8 +508,17 @@ func _pose() -> void:
 	foot_a = foot_a.lerp(Vector2(0.2, 0.0), duck * (1.0 - t))    # standing crouch: one foot forward, one back
 	foot_b = foot_b.lerp(Vector2(-0.22, 0.0), duck * (1.0 - t))
 	# in a jump the knees come up; in a dive the legs trail straight; in a slide they lead
-	foot_a = foot_a.lerp(Vector2(0.16, -0.36), air).lerp(Vector2(0.07, 0.0), dive).lerp(Vector2(0.74 * slide_side, -0.03), slide)
-	foot_b = foot_b.lerp(Vector2(-0.14, -0.2), air).lerp(Vector2(-0.09, -0.05), dive).lerp(Vector2(0.3 * slide_side, 0.0), slide)
+	# a jump is a leap, not a plank: going up, the lead knee drives high and the back leg trails long
+	# from the push; at the top both knees tuck; coming down the legs open again and reach for the ground
+	var up := clampf(-air_v, 0.0, 1.0)
+	var down := clampf(air_v, 0.0, 1.0)
+	var ja := Vector2(0.14, -0.36).lerp(Vector2(0.24, -0.46), up).lerp(Vector2(0.12, -0.1), down)
+	var jb := Vector2(-0.12, -0.24).lerp(Vector2(-0.26, -0.02), up).lerp(Vector2(-0.1, -0.04), down)
+	# a dive is a body flung through the air, not a plank: one knee bends up, the other leg trails a
+	# little bent, and the bend breathes as he flies
+	var flut := sin(_clock * 7.0) * 0.03
+	foot_a = foot_a.lerp(ja, air).lerp(Vector2(0.0, -0.17 + flut), dive).lerp(Vector2(0.74 * slide_side, -0.03), slide)
+	foot_b = foot_b.lerp(jb, air).lerp(Vector2(-0.12, -0.06 - flut), dive).lerp(Vector2(0.3 * slide_side, 0.0), slide)
 	if hang > 0.0:   # hanging: the legs hang; climbing, the knees come up in turn to grip the rope
 		var fa_h := Vector2(0.07, -0.05)
 		var fb_h := Vector2(-0.05, -0.02)
@@ -520,9 +531,13 @@ func _pose() -> void:
 	var drop := minf(0.62, crouch * 0.3 + slide * 0.5 + duck * 0.58 + _hit_dip * 0.16)   # how far the hips sink
 	var hip := Vector2(-0.1 * slide * slide_side, -(l1 + l2) * 0.985 - ankle + drop + lerpf(0.01, 0.04 + 0.035 * cos(th * 2.0), t))
 	var legs_lean := dive * 1.35 * dive_side + roll        # the legs follow a dive or a tumble
+	if not _dead:   # the whole body pitches into the leap and settles back for the landing
+		legs_lean += air * (0.16 * clampf(-air_v, 0.0, 1.0) - 0.05 * clampf(air_v, 0.0, 1.0)) * (1.0 - dive)
+		legs_lean += dive * dive_side * (0.18 * clampf(air_v, -1.0, 1.0) - 0.08)   # the dive follows its arc: head up leaving, down landing
 	var lean := legs_lean - slide * 0.75 * slide_side + crouch * 0.25 + duck * 0.32   # the torso also lies back in a slide, bows in a crouch
 	if not _dead:
 		lean += t * 0.13 * (1.0 - dive)                 # leaning into a run
+		lean += air * (0.1 * clampf(-air_v, 0.0, 1.0) - 0.07 * clampf(air_v, 0.0, 1.0) + 0.04)   # into the leap going up, back a little to land
 		lean -= recoil * 0.22                          # each shot knocks him back a touch
 		lean -= _flinch * (0.6 if _hit_part == "torso" else 0.35)   # and a bullet much more: rocked back
 		lean -= sin(_flinch * PI) * 0.12 * _hit_dip              # a leg hit folds him forward a moment
@@ -590,6 +605,8 @@ func _pose() -> void:
 		far_target = hand + ((tex_size * ((gd["fore"] as Vector2) - (gd["grip"] as Vector2))) * gun_scale).rotated(_aim.angle())
 	elif (weapon == "pistols" or (dual and weapon == "revolver")) and not _dead:
 		far_target = far_shoulder + _aim * reach + Vector2(0.0, 0.07)
+	elif air > 0.0 and not _dead:   # in the air the free arm swings out for balance, up on the way up
+		far_target = far_target.lerp(far_shoulder + Vector2(-0.22, -0.08 - 0.18 * clampf(-air_v, 0.0, 1.0) + 0.12 * clampf(air_v, 0.0, 1.0)), air * 0.85)
 	if _dead:   # dead weight: the arm lies almost straight along the thrown direction
 		far_target = far_shoulder + Vector2.from_angle(_aim.angle() + dead_far) * (ua + fa) * 0.96
 	if rl > 0.0:   # the other hand works the gun
@@ -620,6 +637,9 @@ func _pose() -> void:
 	if _spr.has("skirt"):   # hangs from the belt, sways with speed, tips with the body
 		# in a slide it lies along the legs; crouched it falls back behind the heels; never through the pavement
 		var skirt_lean := lean - slide * 0.8 * slide_side + duck * 0.45
+		# flying flat, the coat does not lie along him like a board: it hangs off him, pulled down by its
+		# own weight and snapping in the wind
+		skirt_lean -= dive * dive_side * (0.5 + sin(_clock * 11.0) * 0.07) * (0.0 if _dead else 1.0)
 		var hem := belt + (_tail_dir.normalized() * float(_len["skirt"])).rotated(skirt_lean)
 		_place("skirt", "skirt", belt, hem)
 		if _skirt_mesh:

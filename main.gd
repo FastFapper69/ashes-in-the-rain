@@ -2810,6 +2810,24 @@ func _auto_step(delta: float) -> void:
 		if _at > 15.0:
 			get_tree().quit()
 		return
+	elif _auto == "jumpseq":   # --test=jumpseq: a running jump, a picture every tenth of a second
+		hp = max_hp
+		_grace = 99.0
+		if _at < 0.05:
+			for e in enemies:
+				e["node"].position.x += 60000.0
+				e["goal"] = e["node"].position.x
+		hud.move = 1.0 if _at < 2.6 else 0.0
+		if _at > 0.8 and _auto_done & 1 == 0:
+			_auto_done |= 1
+			hud.jump_tapped = true
+		for i in 12:
+			var bit := 1 << (1 + i)
+			if _at > 0.8 + i * 0.09 and _auto_done & bit == 0:
+				_auto_done |= bit
+				_shot("jump_%02d" % i)
+		if _at > 2.0:
+			get_tree().quit()
 	elif _auto == "bag":   # --test=bag: a shotgun and a tommy picked up, then switched to: the HUD each time
 		hp = max_hp
 		_grace = 99.0
@@ -3354,6 +3372,8 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 		elif can_act and jump:
 			move_state = "jump"
 			fall = -JUMP_SPEED
+			player.air_v = -1.0   # the push off: straight into the rising pose
+			player.air = maxf(player.air, 0.45)
 			_jump_buf = 0.0
 			_coyote = 0.0
 		# Running at a low crate: over it without breaking stride. Only on a committed run, the stick
@@ -3401,6 +3421,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			run = move_toward(run, dir * RUN_SPEED, RUN_ACCEL * 0.5 * delta)
 		player.position.x += run * delta
 		player.air = move_toward(player.air, 1.0, delta * 8.0)
+		player.air_v = move_toward(player.air_v, clampf(fall / JUMP_SPEED, -1.0, 1.0), delta * 6.0)
 		if jump and _coyote > 0.0:
 			fall = -JUMP_SPEED
 			_coyote = 0.0
@@ -3419,6 +3440,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 		player.position.y += fall * delta
 		player.position.x += glide * delta
 		player.dive = move_toward(player.dive, 1.0, delta * 6.0)
+		player.air_v = move_toward(player.air_v, clampf(fall / 900.0, -1.0, 1.0), delta * 5.0)
 		player.air = move_toward(player.air, 0.0, delta * 8.0)
 		_try_vault()
 		if move_state != "dive":
