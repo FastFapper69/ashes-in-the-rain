@@ -45,6 +45,16 @@ func setup(main) -> void:
 				_burn(String(ev[1]))
 			"train_pass":
 				_events.append({"kind": kind, "trig": float(ev[1]), "done": false})
+			"beam":   # it starts to go a little before he gets there
+				_events.append({"kind": kind, "trig": float(ev[1]) - 650.0, "x": float(ev[1]), "done": false})
+			"blaze":
+				_blaze(float(ev[1]), float(ev[2]), INF)
+			"loop":
+				_events.append({"kind": kind, "trig": float(ev[1]), "done": false})
+	if game.level.get("dream", false):   # eleven knocks from behind the chained doors, spread down the warehouse
+		var end: float = float(game.level["end"])
+		for k in 11:
+			_events.append({"kind": "knock", "trig": end * (0.06 + 0.86 * k / 10.0), "n": k, "done": false})
 	_speed = float(game.level.get("moving", 0.0))
 	if _speed > 0.0:
 		_make_moving.call_deferred()   # after main.gd has made its camera
@@ -68,6 +78,13 @@ func tick(delta: float) -> void:
 				_blackout(ev)
 			"train_pass":
 				_train_pass()
+			"beam":
+				_beam_fall(ev)
+			"loop":
+				_loop_again(ev)
+			"knock":
+				_knock(ev)
+	_tick_blazes(delta)
 	if _speed > 0.0 and _band != null:
 		_tick_moving(delta)
 	if _blackout_t > 0.0:
@@ -690,3 +707,135 @@ func _girder() -> Node2D:
 	lip.default_color = Color(0.22, 0.22, 0.25)
 	n.add_child(lip)
 	return n
+
+
+# ---- the dream: Pier 17 burning ------------------------------------------------------------------
+
+var _blazes: Array = []   # {x0, x1, until, flames}: floor on fire; standing in it burns
+var _burn_cool := 0.0
+var _loops := 0
+const LOOP_LINES := [["The same room again. It's always the same room."], ["Every time the fire is closer, and the knocking a little quieter."]]
+
+
+## A strip of floor on fire from x0, w wide: low hand-inked flames along it, the boards glowing.
+func _blaze(x0: float, w: float, secs: float) -> void:
+	var flames: Array = []
+	var n := maxi(2, int(w / 110.0))
+	for k in n:
+		var f: Sprite2D = game._flame(Vector2(x0 + (k + 0.5) * w / n + randf_range(-20.0, 20.0), 8.0), randf_range(170.0, 270.0), randi() % 6, 3)
+		flames.append(f)
+	var heat := PointLight2D.new()
+	heat.texture = game._soft_glow()
+	heat.texture_scale = maxf(3.0, w / 160.0)
+	heat.color = Color(1.0, 0.5, 0.2)
+	heat.energy = 1.0
+	heat.position = Vector2(x0 + w * 0.5, -60.0)
+	heat.range_item_cull_mask = game.MASK_LIT
+	add_child(heat)
+	flames.append(heat)
+	game.sfx.add_loop("fire", x0 + w * 0.5, -10.0, 700.0, -40.0)
+	_blazes.append({"x0": x0, "x1": x0 + w, "until": _t + secs, "flames": flames})
+
+
+func _tick_blazes(delta: float) -> void:
+	_burn_cool -= delta
+	var p = game.player
+	for b in _blazes:
+		if b["until"] < INF and _t > b["until"] and not b.get("out", false):   # it burns down to embers
+			b["out"] = true
+			for f in b["flames"]:
+				if is_instance_valid(f):
+					var tw: Tween = f.create_tween()
+					tw.tween_property(f, "modulate:a", 0.0, 1.5)
+					tw.tween_callback(f.queue_free)
+			continue
+		if b.get("out", false):
+			continue
+		if _burn_cool <= 0.0 and p.position.x > b["x0"] + 20.0 and p.position.x < b["x1"] - 20.0 and p.position.y > -70.0:
+			_burn_cool = 1.1
+			game._burn_player(1)
+
+
+## The roof gives: a creak, dust and sparks sifting down, a beat, and a burning beam across the floor.
+func _beam_fall(ev: Dictionary) -> void:
+	if OS.get_cmdline_user_args().has("--log-sets"): print("BEAM FALL ", ev["x"], " t ", _t)
+	var x: float = ev["x"]
+	game.sfx.play("creak", 0.0, x, 0.05)
+	var dust := CPUParticles2D.new()
+	dust.texture = load("res://art/fx/puff2.png")
+	dust.amount = 26
+	dust.lifetime = 1.4
+	dust.one_shot = true
+	dust.explosiveness = 0.3
+	dust.position = Vector2(x, -1150.0)
+	dust.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	dust.emission_rect_extents = Vector2(220.0, 10.0)
+	dust.direction = Vector2(0.0, 1.0)
+	dust.gravity = Vector2(0.0, 420.0)
+	dust.initial_velocity_min = 40.0
+	dust.initial_velocity_max = 140.0
+	dust.scale_amount_min = 0.15
+	dust.scale_amount_max = 0.4
+	dust.color = Color(0.3, 0.27, 0.25, 0.7)
+	dust.z_index = 4
+	add_child(dust)
+	dust.emitting = true
+	get_tree().create_timer(1.6, false).timeout.connect(dust.queue_free)
+	get_tree().create_timer(1.1, false).timeout.connect(_beam_drop.bind(x))
+
+
+func _beam_drop(x: float) -> void:
+	if OS.get_cmdline_user_args().has("--log-sets"): print("BEAM DROP ", x, " t ", _t)
+	var tex: Texture2D = load("res://art/fx/fire/beam.png") if ResourceLoader.exists("res://art/fx/fire/beam.png") else load("res://art/props/crate_long.png")
+	var beam := Sprite2D.new()
+	beam.texture = tex
+	var sc: float = 620.0 / tex.get_width()   # a roof timber, a little longer than two men lying down
+	beam.scale = Vector2.ONE * sc
+	beam.position = Vector2(x, -1300.0)
+	beam.rotation = randf_range(-0.35, 0.35)
+	beam.modulate = game._undo_night(0.75)
+	beam.z_index = 4
+	add_child(beam)
+	var rest_y := -tex.get_height() * sc * 0.42   # its underside on the boards
+	var tw := beam.create_tween().set_parallel(true)
+	tw.tween_property(beam, "position:y", rest_y, 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_property(beam, "rotation", randf_range(-0.04, 0.04), 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.chain().tween_callback(func() -> void:
+		game._shake = 0.45
+		game.sfx.play("wood_break", 3.0, x, 0.05)
+		game.sfx.play("body_fall", 0.0, x, 0.05)
+		game._word(["crash", "crash2"], Vector2(x, -520.0), 0.3)
+		for k in 10:
+			game.fx.spark(Vector2(x + randf_range(-300.0, 300.0), randf_range(-120.0, 0.0)))
+		for e in game.enemies:   # whoever stood under it
+			if e["alive"] and absf(e["node"].position.x - x) < 300.0 and e["node"].position.y > -200.0 and e["node"].visible:
+				game._kill(e, false, true, "blast")
+		var p = game.player
+		if absf(p.position.x - x) < 290.0 and p.position.y > -260.0:
+			game._burn_player(2)
+		_blaze(x - 280.0, 560.0, 7.0))   # it burns where it lies, then smoulders out
+
+
+## The dream starts over: a white flash, the same room, worse.
+func _loop_again(_ev: Dictionary) -> void:
+	var white := ColorRect.new()
+	white.color = Color(1.0, 0.97, 0.9, 0.0)
+	white.size = Vector2(100000.0, 100000.0)
+	white.position = Vector2(-50000.0, -50000.0)
+	white.z_index = 50
+	add_child(white)
+	var tw := white.create_tween()
+	tw.tween_property(white, "color:a", 0.85, 0.12)
+	tw.tween_property(white, "color:a", 0.0, 1.2)
+	tw.tween_callback(white.queue_free)
+	game.sfx.play("sting", -4.0, INF, 0.0)
+	game.hud.caption(LOOP_LINES[mini(_loops, LOOP_LINES.size() - 1)])
+	_loops += 1
+
+
+## A knock on the chained doors at the far end: far off at first, louder the nearer he gets.
+func _knock(ev: Dictionary) -> void:
+	var n: int = ev["n"]
+	for k in (2 if n < 10 else 1):
+		get_tree().create_timer(0.45 * k, false).timeout.connect(func() -> void:
+			game.sfx.play("knock", -16.0 + n * 1.2, INF, 0.05))

@@ -571,6 +571,26 @@ func _ready() -> void:
 				OS.get_static_memory_usage() / 1048576, OS.get_static_memory_peak_usage() / 1048576,
 				int(Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED)) / 1048576,
 				int(Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED)) / 1048576])
+			if chapter == 1 and map == 0:
+				var seen := {}
+				for n in find_children("*", "", true, false):
+					var texs: Array = []
+					for prop in ["texture", "normal_texture"]:
+						if prop in n and n.get(prop) is Texture2D:
+							texs.append(n.get(prop))
+					for t in texs:
+						if t is CanvasTexture:
+							texs.append((t as CanvasTexture).diffuse_texture)
+							texs.append((t as CanvasTexture).normal_texture)
+							continue
+						if t != null and not seen.has(t.get_rid()):
+							seen[t.get_rid()] = [t.get_width() * t.get_height() * 4, t.resource_path, t.get_width(), t.get_height()]
+				var arr: Array = seen.values()
+				arr.sort_custom(func(x, y): return int(x[0]) > int(y[0]))
+				var tot := 0
+				for t in arr: tot += int(t[0])
+				print("  scene textures ", arr.size(), " total MB ", tot / 1048576)
+				for t in arr.slice(0, 30): print("   ", int(t[0]) / 1048576, " MB ", t[2], "x", t[3], " ", t[1])
 			map += 1
 			if map >= (Levels.CAMPAIGN[chapter]["maps"] as Array).size():
 				chapter += 1
@@ -4879,25 +4899,7 @@ func _fire_life(w: Sprite2D, glow: Sprite2D, seg_name: String, ws: float) -> voi
 		var wid: float = float(spot[3]) * size.x
 		var n := clampi(int(wid / 260.0) + 1, 1, 3)   # a wide fire is a few flames side by side
 		for j in n:
-			var f := Sprite2D.new()
-			f.texture = load("res://art/fx/fire/flame%d.png" % ((k * 7 + j * 3) % 6))
-			f.centered = false
-			f.offset = Vector2(-f.texture.get_width() * 0.5, -f.texture.get_height())
-			var sc: float = hgt * randf_range(0.75, 1.05) / f.texture.get_height()
-			f.scale = Vector2(sc * randf_range(0.85, 1.1) * (1.0 if randf() < 0.5 else -1.0), sc)
-			f.position = foot + Vector2((float(j) - (n - 1) * 0.5) * wid / float(n), 6.0)
-			var mat := ShaderMaterial.new()
-			mat.shader = _flame_shader
-			mat.set_shader_parameter("seed", randf() * 10.0)
-			mat.set_shader_parameter("speed", randf_range(0.8, 1.25))
-			f.material = mat
-			f.modulate = _undo_night(0.8)
-			f.z_index = -9
-			add_child(f)
-			var tw := f.create_tween().set_loops()   # it gathers and leaps, never in step with its neighbour
-			var s0 := f.scale
-			tw.tween_property(f, "scale", s0 * Vector2(0.94, 1.1), randf_range(0.35, 0.6)).set_trans(Tween.TRANS_SINE)
-			tw.tween_property(f, "scale", s0 * Vector2(1.04, 0.9), randf_range(0.3, 0.55)).set_trans(Tween.TRANS_SINE)
+			_flame(foot + Vector2((float(j) - (n - 1) * 0.5) * wid / float(n), 6.0), hgt * randf_range(0.75, 1.05), (k * 7 + j * 3) % 6, -9)
 		if k < 3 and hgt > 150.0:   # the biggest fires light whoever stands in front of them
 			var l := PointLight2D.new()
 			l.texture = _soft_glow()
@@ -4911,6 +4913,48 @@ func _fire_life(w: Sprite2D, glow: Sprite2D, seg_name: String, ws: float) -> voi
 			_fire_lights.append([l, 1.1, randf() * 10.0])
 		sfx.add_loop("fire", foot.x, -40.0, 900.0, foot.y)
 		k += 1
+
+
+## One hand-inked flame standing at `foot`, `hgt` tall, licking in the heat shimmer.
+func _flame(foot: Vector2, hgt: float, variant: int, z: int) -> Sprite2D:
+	if _flame_shader == null:
+		_flame_shader = Shader.new()
+		_flame_shader.code = FLAME_SHADER
+	var f := Sprite2D.new()
+	f.texture = load("res://art/fx/fire/flame%d.png" % (variant % 6))
+	f.centered = false
+	f.offset = Vector2(-f.texture.get_width() * 0.5, -f.texture.get_height())
+	var sc: float = hgt / f.texture.get_height()
+	f.scale = Vector2(sc * randf_range(0.85, 1.1) * (1.0 if randf() < 0.5 else -1.0), sc)
+	f.position = foot
+	var mat := ShaderMaterial.new()
+	mat.shader = _flame_shader
+	mat.set_shader_parameter("seed", randf() * 10.0)
+	mat.set_shader_parameter("speed", randf_range(0.8, 1.25))
+	f.material = mat
+	f.modulate = _undo_night(0.8)
+	f.z_index = z
+	add_child(f)
+	var tw := f.create_tween().set_loops()   # it gathers and leaps, never in step with its neighbour
+	var s0 := f.scale
+	tw.tween_property(f, "scale", s0 * Vector2(0.94, 1.1), randf_range(0.35, 0.6)).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(f, "scale", s0 * Vector2(1.04, 0.9), randf_range(0.3, 0.55)).set_trans(Tween.TRANS_SINE)
+	return f
+
+
+## The fire gets him: a hit, the screen jolts, a grunt. Not in the tests (the bot does not jump fires).
+func _burn_player(hits: int) -> void:
+	if over or _auto != "":
+		return
+	hp -= hits
+	stats["hits"] += 1
+	hud.set_health(float(hp) / max_hp)
+	_shake = maxf(_shake, 0.25)
+	sfx.play("hit_flesh", -2.0, INF, 0.1)
+	if hp == 1:
+		_inner_voice()
+	if hp <= 0:
+		_player_down()
 
 
 func _tick_fire(t: float) -> void:

@@ -51,7 +51,7 @@ func _ready() -> void:
 	load("res://menu.gd").apply_settings()
 	for n in NAMES:
 		_streams[n] = load(DIR + n + ".wav")
-	for n in LOOPS + ["rain_loop"] + MELODIES.values():
+	for n in LOOPS + ["rain_loop", MELODIES["jazz"], MELODIES["dusk"]]:
 		_streams[n] = _looped(n)
 	for i in VOICES:
 		var p := AudioStreamPlayer.new()
@@ -84,7 +84,8 @@ func _ready() -> void:
 		add_child(mp)
 		mp.play()
 		_music.append(mp)
-	for k in MELODIES:
+	for k in ["jazz", "dusk"]:   # the story's pianos are loaded only when a story page asks for one:
+		# on the web every stream is decoded whole into memory, and a phone has little to spare
 		var jp := AudioStreamPlayer.new()
 		jp.stream = _streams[MELODIES[k]]
 		jp.volume_db = -80.0
@@ -289,6 +290,13 @@ func play(sound: String, volume_db := 0.0, at_x := INF, vary := 0.06) -> void:
 ## A cutscene starts its piece from the top, so its opening bars are heard.
 func melody_from_start(k: String) -> void:
 	melody = k
+	if not _melody.has(k) and MELODIES.has(k):
+		var jp := AudioStreamPlayer.new()
+		jp.stream = _looped(MELODIES[k])
+		jp.volume_db = -80.0
+		jp.bus = "Music"
+		add_child(jp)
+		_melody[k] = jp
 	if _melody.has(k):
 		var jp: AudioStreamPlayer = _melody[k]
 		jp.stop()
