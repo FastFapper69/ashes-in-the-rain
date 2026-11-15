@@ -829,6 +829,9 @@ func _open_settings() -> void:
 func _erase() -> void:
 	erase_progress()
 	Instincts.forget()
+	# give the browser a moment to write the wiped save down before the scene goes (on the web the
+	# file reaches the phone's storage a beat after it is closed; a reload right away could lose it)
+	await get_tree().create_timer(0.8, true, false, true).timeout
 	if restart.is_valid():
 		restart.call()
 	else:

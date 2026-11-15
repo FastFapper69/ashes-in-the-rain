@@ -49,6 +49,7 @@ const PauseScript = preload("res://pause.gd")
 const SettingsScript = preload("res://settings.gd")
 var _shake_on := true
 var _assist := true
+static var _erased := false   # test: the erase went through, this is the title after it
 static var _card_up := false   # a title card is covering the screen across the reload: lift it once built
 var sets   # setpieces.gd: cars, blackouts, searchlights, fires, the crane's crate
 var _in_cut := false
@@ -185,7 +186,7 @@ const IRON_SPLIT := 236.0   # below this row: brackets and legs
 const IRON_FOOT := Vector2(49.5, 550.8)   # the lowest tread in the flight drawing
 const INDOOR_ONLY := ["washer", "wash_tub", "linen_table", "desk", "filing", "safe", "court_bench"]
 const OUTDOOR_ONLY := ["mailbox", "fruit_cart", "dumpster", "hydrant", "bench"]
-const BOX_ART := {"barrel": ["drum", Color(0.72, 0.3, 0.25)], "machine": ["dumpster", Color(0.7, 0.72, 0.78)], "bar": ["crate_long", Color(0.45, 0.32, 0.26)]}
+const BOX_ART := {"barrel": ["drum_red", Color(1.7, 1.55, 1.55)], "machine": ["dumpster", Color(0.7, 0.72, 0.78)], "bar": ["crate_long", Color(0.45, 0.32, 0.26)]}
 const ENEMY_MAG := {"post": 6, "tommy": 3, "shotgun": 4, "boss": 5, "sniper": 5, "shield": 6, "dynamite": 99, "hook": 99}   # shots (a tommy gunner's: bursts) before a reload
 const ENEMY_TINT := {"post": Color(1, 1, 1), "tommy": Color(0.82, 0.86, 1.0), "shotgun": Color(1.0, 0.9, 0.78), "boss": Color(1, 1, 1)}
 var ambient := AMBIENT
@@ -389,7 +390,7 @@ func _ready() -> void:
 		if arg.begins_with("--map="):
 			map = int(arg.trim_prefix("--map="))
 		if arg.begins_with("--test="):
-			in_menu = arg == "--test=menu" or arg == "--test=instincts" or arg == "--test=titleset" or arg == "--test=neon" or arg == "--test=paperkit" or arg.begins_with("--test=ui")
+			in_menu = arg == "--test=menu" or arg == "--test=instincts" or arg == "--test=titleset" or arg == "--test=erase" or arg == "--test=neon" or arg == "--test=paperkit" or arg.begins_with("--test=ui")
 	var picked := false
 	for arg in OS.get_cmdline_user_args():
 		picked = picked or arg.begins_with("--chapter=")
@@ -1746,6 +1747,25 @@ func _process(delta: float) -> void:
 				_shot("neon_off")
 			if _at > 5.8:
 				get_tree().quit()
+		if _auto == "erase":   # the title's settings card, ERASE ALL tapped twice, then the new title
+			_at += delta
+			if _erased and _at > 5.0 and _auto_done == 0:
+				_auto_done = 1
+				print("ERASE TITLE ALIVE in_menu ", in_menu, " ", chapter, ":", map, " card_up ", _card_up)
+				_shot("erased")
+				get_tree().quit()
+			if not _erased and _at > 3.0 and _auto_done == 0:
+				_auto_done = 1
+				print("ERASE: opening settings")
+				for c in get_children():
+					if c.has_method("_open_settings"):
+						c._open_settings()
+						for st in c.get_children():
+							if "erase" in st and st.erase is Callable and st.erase.is_valid():
+								_erased = true
+								print("ERASE: tapping erase")
+								st.queue_free()
+								st.erase.call()
 		if _auto == "titleset":   # the settings card from the title, with the erase line armed
 			_at += delta
 			if _at > 6.6 and _auto_done == 0:

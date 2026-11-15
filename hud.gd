@@ -158,6 +158,13 @@ func caption(lines: Array) -> void:
 	box.position = Vector2(28.0, 128.0)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(box)
+	_captions.append(box)
+	# one thing to read at a time: a how-to-play line on screen steps aside for the narration and comes back after it
+	if is_instance_valid(_hint_box):
+		_hint_queue.push_front(_hint_text)
+		var hb := _hint_box
+		_hint_box = null
+		hb.create_tween().tween_property(hb, "modulate:a", 0.0, 0.2).finished.connect(hb.queue_free)
 	var tw := create_tween()
 	var y := 0.0
 	for i in lines.size():
@@ -186,13 +193,21 @@ func caption(lines: Array) -> void:
 ## up in the corner (they used to land on top of each other). One at a time; the next waits its turn.
 var _hint_box: Control
 var _hint_queue: Array = []
+var _hint_text := ""
+var _captions: Array = []   # narration boxes still on screen
 var _title_box: Control
-func hint(text: String) -> void:
-	if is_instance_valid(_hint_box):
+func hint(text: String, queued := false) -> void:
+	if is_instance_valid(_hint_box) or (not queued and not _hint_queue.is_empty()):
 		_hint_queue.append(text)
 		return
+	_captions = _captions.filter(func(b) -> bool: return is_instance_valid(b))
+	if not _captions.is_empty():   # Frank is talking: the tutorial waits until he's done
+		_hint_queue.push_front(text)
+		get_tree().create_timer(0.4).timeout.connect(_next_hint)
+		return
 	if is_instance_valid(_title_box):   # not over the map's title: after it
-		get_tree().create_timer(0.5).timeout.connect(hint.bind(text))
+		_hint_queue.push_front(text)
+		get_tree().create_timer(0.5).timeout.connect(_next_hint)
 		return
 	var view := get_viewport().get_visible_rect().size
 	var Paper = load("res://paper.gd")
@@ -203,14 +218,21 @@ func hint(text: String) -> void:
 	cap.modulate.a = 0.0
 	add_child(cap)
 	_hint_box = cap
+	_hint_text = text
 	var tw := create_tween()
 	tw.tween_property(cap, "modulate:a", 1.0, 0.3)
 	tw.tween_interval(maxf(2.6, 1.4 + text.length() * 0.05))
 	tw.tween_property(cap, "modulate:a", 0.0, 0.5)
 	tw.tween_callback(func() -> void:
 		cap.queue_free()
-		if not _hint_queue.is_empty():
-			hint(String(_hint_queue.pop_front())))
+		if _hint_box == cap:
+			_hint_box = null
+			_next_hint())
+
+
+func _next_hint() -> void:
+	if not is_instance_valid(_hint_box) and not _hint_queue.is_empty():
+		hint(String(_hint_queue.pop_front()), true)
 
 
 ## The boss's name and health across the top of the screen; fraction below 0 takes it away.
