@@ -1,6 +1,16 @@
 #!/bin/bash
 # usage: gen/deploy/deploy.sh (copy to /home/claude/deploy.sh in a new container) "commit message"   (repo -> ink-and-lead main, build -> gh-pages)
 set -e
+# Another chat may deploy to the same repos: never copy this tree over work that is not in it.
+for d in /home/claude/ink-and-lead /tmp/ghp; do
+  cd $d && git fetch -q origin
+  b=$(git rev-parse --abbrev-ref HEAD)
+  if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/$b)" ]; then
+    echo "STOP: origin/$b in $d has commits this clone does not (another chat deployed). Pull them and merge their changes into /home/claude/repo first:"
+    git log --oneline HEAD..origin/$b | head -20
+    exit 1
+  fi
+done
 G=/home/claude/godot/Godot_v4.7.2-stable_linux.x86_64
 cd /home/claude/repo
 $G --headless --import >/dev/null 2>&1 || true
