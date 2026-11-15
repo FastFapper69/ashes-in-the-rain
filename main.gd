@@ -2027,6 +2027,8 @@ func _process(delta: float) -> void:
 			get_tree().quit()
 	if not _flames.is_empty():
 		_tick_flames(delta)
+	if not _flying_guns.is_empty():
+		_tick_flying_guns(delta)
 	if not _swingers.is_empty():
 		_tick_swingers(delta)
 	_stream_t -= delta
@@ -2789,6 +2791,31 @@ func _auto_step(delta: float) -> void:
 		if _at > 15.0:
 			get_tree().quit()
 		return
+	elif _auto == "disarm":   # the nearest mobster's gun shot out of his hand: pictures as it flies and lands
+		hp = max_hp
+		_grace = 99.0
+		if _auto_done & 1 == 0 and _at > 1.0:
+			_auto_done |= 1
+			var first = null
+			for e in enemies:
+				if e["state"] == "post" and e["node"].position.y == 0.0 and (first == null or e["node"].position.x < first["node"].position.x):
+					first = e
+			player.position = Vector2(first["node"].position.x - 700.0, 0.0)
+			for e in enemies:
+				if e != first:
+					e["alive"] = false
+					e["node"].visible = false
+			first["seen"] = true
+			_disarm(first, first["node"]._gun.global_position)
+		cam.position.x = player.position.x + 350.0
+		var dtimes := [1.08, 1.25, 1.5, 2.2, 3.4]
+		for i in dtimes.size():
+			var bit := 1 << (1 + i)
+			if _at > dtimes[i] and _auto_done & bit == 0:
+				_auto_done |= bit
+				_shot("disarm_%d" % i)
+		if _at > 3.6:
+			get_tree().quit()
 	elif _auto == "give":   # the nearest mobster gives up: pictures as he raises his hands and as he backs off
 		hp = max_hp
 		_grace = 99.0
@@ -3919,10 +3946,7 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 				_kill(e, part == "head", true, part)
 				return true
 			if part.begins_with("farm") and (slow_on or _knack("mercy", 1)) and not e["boss"] and chapter > 0 and e["state"] != "give":
-				fx.spark(pos)   # the gun is shot out of his hand: he has nothing left to fight with
-				sfx.play("hit_cover", -2.0, pos.x, 0.12)
-				_word(["zing"], pos + Vector2(0.0, -90.0), 0.16)
-				_give_up(e)
+				_disarm(e, pos)   # the gun is shot out of his hand: he has nothing left to fight with
 				return true
 			fx.blood(pos, fx.hit_vel, part == "head" or e["hp"] <= 1)
 			e["node"].add_wound(pos, part)
@@ -7056,6 +7080,73 @@ func _giving_up(e: Dictionary, delta: float) -> void:
 					MenuScript.set_story("testimony_" + key.replace(":", "-"), "yes")
 			return
 	m.set_state(walk, to_player.normalized() * 100.0, delta)
+
+
+## The gun shot out of a man's hand: sparks and a ring of steel where the bullet struck it, a beat of
+## slowed time, the gun spinning away from Frank and clattering down (a tommy gun or a shotgun can be
+## picked up once it lies still), the man wringing his hand before his hands go up.
+var _flying_guns: Array = []
+func _disarm(e: Dictionary, at: Vector2) -> void:
+	var m = e["node"]
+	for k in 3:
+		fx.spark(at)
+	sfx.play("clink", 2.0, at.x, 0.06)
+	sfx.play("hit_cover", -2.0, at.x, 0.1)
+	_word(["clink"], at + Vector2(0.0, -80.0), 0.2)
+	_impact(0.14, 0.18)
+	_shake = maxf(_shake, 0.06)
+	m._flinch = 1.0
+	m.disarmed = true
+	var src: Sprite2D = m._gun
+	var g := Sprite2D.new()   # his own gun, the same drawing he held, now on its own
+	g.texture = src.texture
+	g.offset = src.offset
+	g.global_scale = src.global_scale.abs()
+	g.flip_h = src.global_scale.x < 0.0
+	g.global_position = src.global_position
+	g.global_rotation = src.global_rotation
+	g.modulate = _undo_night(0.32)   # as dark as it was in his hand
+	g.z_index = 1
+	add_child(g)
+	src.visible = false
+	var away := signf(m.position.x - player.position.x)
+	_flying_guns.append({"node": g, "v": Vector2(away * randf_range(380.0, 520.0), -randf_range(760.0, 940.0)),
+		"spin": away * randf_range(13.0, 19.0), "ground": m.position.y - 10.0, "bounce": 0, "kind": String(e["type"])})
+	_say(m, ["MY HAND!", "AAGH!", "OKAY, OKAY!"].pick_random())
+	_give_up(e, 0.7)
+	e["said"] = true   # he has said it already: no second line over the first
+	if not _stand and diff_step >= 0:   # style: a man taken out of the fight without a kill
+		stats["score"] += 150
+		_combo_t = maxf(_combo_t, COMBO_GAP)
+		hud.combo(_combo, 150, "DISARMED")
+
+
+func _tick_flying_guns(delta: float) -> void:
+	for i in range(_flying_guns.size() - 1, -1, -1):
+		var f: Dictionary = _flying_guns[i]
+		var g: Sprite2D = f["node"]
+		if not is_instance_valid(g):
+			_flying_guns.remove_at(i)
+			continue
+		var v: Vector2 = f["v"]
+		v.y += 2300.0 * delta
+		g.position += v * delta
+		g.rotation += float(f["spin"]) * delta
+		if g.position.y >= float(f["ground"]) and v.y > 0.0:
+			g.position.y = float(f["ground"])
+			sfx.play("hit_cover", -8.0 - 6.0 * int(f["bounce"]), g.position.x, 0.2)
+			if int(f["bounce"]) == 0:   # one bounce off the pavement, then it lies where it stops
+				v = Vector2(v.x * 0.45, -v.y * 0.32)
+				f["spin"] = float(f["spin"]) * 0.35
+				f["bounce"] = 1
+			else:
+				g.rotation = 0.0 if absf(wrapf(g.rotation, -PI, PI)) < PI * 0.5 else PI
+				_flying_guns.remove_at(i)
+				if String(f["kind"]) in ["tommy", "shotgun"]:   # a gun worth having: Frank can take it
+					_add_pickup(String(f["kind"]), g.position + Vector2(0.0, 10.0))
+					g.queue_free()
+				continue
+		f["v"] = v
 
 
 func _drop_gun(m) -> void:
