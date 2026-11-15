@@ -402,7 +402,10 @@ func hat_hit(world: Vector2) -> bool:
 	var px := Vector2i(s.to_local(world) - s.offset)
 	if px.x < 0 or px.y < 0 or px.x >= hat.get_width() or px.y >= hat.get_height():
 		return false
-	return hat.get_pixelv(px).a > 0.5 and bare.get_pixelv(px).a < 0.5
+	if hat.get_pixelv(px).a <= 0.5:
+		return false
+	var used := hat.get_used_rect()   # the upper part of the crown counts even where a tall head of hair is under it
+	return bare.get_pixelv(px).a < 0.5 or px.y < used.position.y + used.size.y * 0.4
 
 
 ## The hat comes off: the head is drawn bare from now on. Returns what main.gd needs to throw the hat.
