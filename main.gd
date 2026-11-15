@@ -1236,8 +1236,9 @@ func _build_segments() -> void:
 
 ## Where an alley's side walls end and its far end begins, as shares of the deep view's width:
 ## [left wall's inner edge, right wall's inner edge]; 0 or 1 where that side has no wall.
-const DEEP_SPLIT := {"alley": [0.3, 0.74], "warehouse": [0.16, 1.0], "laundry": [0.42, 1.0], "subway": [0.32, 1.0],
-	"market": [0.14, 1.0]}
+# Only views whose ground ends inside the cut-out (a closed alley, a yard): where a road or tram tracks
+# run on out of it (warehouse, market), a sliding far end breaks them at the cut, so those stay put.
+const DEEP_SPLIT := {"alley": [0.3, 0.74], "laundry": [0.42, 1.0], "subway": [0.32, 1.0]}
 const DEEP_SLIDE := 0.12   # how far the far end slides per pixel the camera stands off the alley's mouth
 const DEEP_LIFT := 0.02     # and how much it rises and falls with the camera
 
