@@ -4,7 +4,7 @@ Read this first when picking the project up in a new chat. Reply to the user in 
 
 ## Where things live
 - GitHub: `FastFapper69/ink-and-lead` – `main` = sources, `gh-pages` = web build (https://fastfapper69.github.io/ink-and-lead/). The user plays on an iPhone 17.
-- PC project folder: `C:\Users\super\Documents\MobileGames\Ink and Lead` (Gemini images in `art_src`, numbered; last used **135**, next is **136**).
+- PC project folder: `C:\Users\super\Documents\MobileGames\Ink and Lead` (Gemini images in `art_src`, numbered; last used **140**, next is **141**).
 - Docs (claude.ai): GDD `aac76a8f-a825-409f-a7d5-7834fe45049d` (tab Úkoly = task list by blocks 1–7), story doc `c223d676-08b8-42df-ae12-8f2cdf9b9dc3`, Gemini briefs `855fd524-d34d-495e-a18c-22e6eefa5dee`.
 - UI rules: `.claude/skills/ui-papir/SKILL.md` (paper.gd kit, mandatory `UI BAD` audit at 1280 and 1560 wide).
 
@@ -102,3 +102,9 @@ Read this first when picking the project up in a new chat. Reply to the user in 
 - **Art still needed from Gemini** (code primitives still on screen): searchlight drum + mast (setpieces `_add_beam` uses Line2D), pendant shade (`_pendant` uses Polygon2D), falling beam for the dream (falls back to crate_long), smoke under the dream's roof. For painted hold/laundry lamps to swing: Gemini "remove the lamp" versions of the room paintings + lamp cutouts.
 - **Voices still missing**: dream panel 70 lines, dream map intro/outro, LOOP_LINES. Artlist voice settings above; quoted lines are not voiced.
 - **Next**: interlude maps after ch II (1931 tenement fire) and ch III (Rosie, Eddie memory); ch IV plan; story doc update; feedback round (self + Gemini) over scaling, continuity, transitions, story, effects, UI.
+
+- 15. 11. noon: **1931** interlude (ch II map 6, `memory: true` → `_unreal()` like the dream; laundry/market/alley streets burning, FIRES for laundry + market), cutscene `memory` (panels 87 = 1931 fire with Rourke holding young Frank, 88 = Rourke driving Frank in cuffs; art_src 136/137), title key art key_87.jpg at progress [2,5]. Map cards say "A DREAM"/"A MEMORY" and count cases without them.
+- New prop art: art/props/searchlight.png (138, lens at (75,135) of the 900 px drawing; mast foot on the ground), art/props/pendant.png (139, cord stretched from region x 264..294, bulb at y 840), art/fx/fire/beam.png (140). ROOM_PENDANTS: swinging lamps hung in the warehouse room painting.
+- AI sight: `_can_see(m)` (on screen in x and y, not far below Frank) gates enemy fire and marksman aim. Roof checkpoint: `_ground_cp` keeps the street checkpoint; dying below the roof respawns below.
+- **Voices recorded but NOT downloaded** (Artlist folder "Ashes in the Rain VO", 19 lines for the dream, 1931, LOOP_LINES, Mickey outro): the container cannot reach the artifacts host; fetch through the built-in browser on the PC (bundle script pattern, /tmp/bundle.js recipe in this session) when the PC is on. Mickey's outro text now says "take care of Eddie" (the provider refused "shoot").
+- Self-audit 15. 11.: all maps cleared by the bot, UI audit clean at 1280/1560. Seen and left: dark gaps where rooms end (designed shadow), painted glass lamp domes in tunnels. Gemini feedback round still to do (needs the PC).
