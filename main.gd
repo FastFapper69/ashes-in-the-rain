@@ -340,6 +340,10 @@ var _shots_at := {}          # enemy id -> when he last fired: at most two of th
 var _hits_at: Array = []     # when the detective was hit lately: the encounter eases off if it is going badly
 var _cover_t := 0.0          # how long the detective has sat behind cover
 var _flank_called := false
+var _behind_at := -99.0        # when a man was last sent round behind the detective (_send_round)
+var _crate_shooters := 0       # men shooting at his crate this frame (no more than two at once)
+var _crate_called := false
+var _aic := -1   # (--test=aicover: the crate he hides behind)
 var _grace := 3.0             # seconds after a start or a checkpoint before anybody may fire
 var _vault := {}              # the speed vault in progress: from, to, top, t
 var glide := 0.0               # horizontal speed of a dive
@@ -3104,6 +3108,51 @@ func _auto_step(delta: float) -> void:
 		if _at > 4.0:
 			print("BAG weapon ", weapon, " bag ", _bag.keys())
 			get_tree().quit()
+	elif _auto == "aicover":   # he crouches behind a crate in front of a group: do they shoot the crate, go round?
+		hp = max_hp
+		if _aic < 0 and _at > 0.3 and _at < 0.4:
+			var best := -1
+			for i in boxes.size():
+				if not box_info[i].get("wood", false) or boxes[i].end.y < -5.0 or boxes[i].position.x < 2500.0:
+					continue
+				var n := 0
+				for e in enemies:
+					var dx: float = e["node"].position.x - boxes[i].end.x
+					if e["state"] == "post" and dx > 150.0 and dx < 2100.0 and e["node"].position.y == 0.0:
+						n += 1
+				if n >= 3:
+					best = i
+					break
+			if best >= 0:
+				player.position.x = boxes[best].position.x - 60.0
+				_aic = best
+				var put := [450.0, 800.0, 1150.0]
+				var k := 0
+				for e in enemies:   # a group of three on the far side of his crate, and nobody else near
+					if absf(e["node"].position.x - player.position.x) > 3000.0 or e["node"].position.y != 0.0:
+						continue
+					if k < 3 and e["type"] == "post" and e["state"] == "post":
+						e["node"].position.x = boxes[best].end.x + put[k]
+						e["goal"] = e["node"].position.x
+						e["cover"] = _has_cover(e["node"].position)
+						k += 1
+					else:
+						e["node"].position.x = 99999.0 + e["id"] * 400.0
+						e["state"] = "wait"
+						e["trig"] = 999999.0
+				print("AICOVER crate at ", int(boxes[best].position.x), " hp ", box_info[best]["hp"])
+		hud.duck = _aic >= 0
+		_grace = 0.0
+		if fmod(_at, 1.0) < 0.034:
+			var states := []
+			for e in enemies:
+				if e["alive"] and absf(e["node"].position.x - player.position.x) < 2200.0:
+					states.append("%s:%s@%d" % [e["type"], e["state"], int(e["node"].position.x)])
+			var hpx: String = str(box_info[_aic]["hp"]) if _aic >= 0 and _aic < box_info.size() else "gone"
+			print("AICOVER t ", int(_at), " cover_t ", snappedf(_cover_t, 0.1), " crate ", hpx, " hp ", hp, " ", states)
+		shots = [[3.0, "aic_0"], [5.5, "aic_1"], [8.6, "aic_2"], [9.6, "aic_3"]]
+		if _at > 10.0:
+			get_tree().quit()
 	elif _auto in ["el", "fog", "oncoming", "sheets", "girder", "storm", "rock", "steam", "rats", "neon", "freight", "sea", "flood", "neondrop", "levelup", "searchlight"]:   # the map set pieces (mapfx.gd, setpieces.gd), pictured as they happen
 		hp = max_hp
 		_grace = 99.0
@@ -3638,7 +3687,7 @@ func _auto_step(delta: float) -> void:
 		end_t = maxf(end_t, float(shots[-1][0]) + 0.4)
 	if _auto == "poses":
 		end_t = 6.6
-	if _auto in ["fxsheet", "coatdive", "bag"]:
+	if _auto in ["fxsheet", "coatdive", "bag", "aicover"]:
 		end_t = 999.0   # it quits itself after the last effect
 	if _auto == "tops":
 		end_t = 999.0   # it quits itself after the last crate
@@ -6889,6 +6938,8 @@ func _squad(e: Dictionary, m, to_player: Vector2, delta: float) -> void:
 			if o != e and o["alive"] and o.get("role", "") == "lead" and absf(o["node"].position.x - m.position.x) < GROUP:
 				lead = true
 		e["role"] = "flank" if lead else "lead"
+	if e["role"] == "lead" and _cover_t > 3.5 and _ai_t - _behind_at > 22.0 and _flank_ok():
+		_send_round(e, m)
 	if e["role"] == "lead" and _cover_t > 1.8 and not _flank_called:
 		_flank_called = true
 		_say(m, ["FLANK HIM!", "GO AROUND!", "HE'S PINNED, MOVE!"].pick_random())
@@ -6909,7 +6960,8 @@ func _squad(e: Dictionary, m, to_player: Vector2, delta: float) -> void:
 					_hop(e, m, bx, far)   # over the crate in his way, hands on the lid
 					return
 				blocked = true
-		if blocked or absf(goal - m.position.x) < 12.0 or _cover_t <= 0.0:
+		if blocked or absf(goal - m.position.x) < 12.0 or (_cover_t <= 0.0 and not e.get("to_cover", false)):
+			e.erase("to_cover")
 			e["state"] = "post"
 			e["cover"] = _has_cover(m.position)
 			e["home"] = m.position.x
@@ -6938,15 +6990,151 @@ func _hop(e: Dictionary, m, bx: Rect2, far: float) -> void:
 			e["state"] = "move")
 
 
+## The wooden crate the detective is crouched behind on the side `side` (toward the man), or -1.
+func _covering_crate(side: float) -> int:
+	if player.duck < 0.6 or move_state != "ground":
+		return -1
+	for i in boxes.size():
+		var bx: Rect2 = boxes[i]
+		if absf(bx.end.y - player.position.y) > 60.0 or not box_info[i].get("wood", false) or box_info[i]["kind"] == "barrel":
+			continue
+		var near_edge: float = bx.position.x if side > 0.0 else bx.end.x
+		var gap: float = (near_edge - player.position.x) * side
+		if gap > -10.0 and gap < 260.0 * FIG and bx.size.y > 200.0 * FIG:
+			return i
+	return -1
+
+
+## Seen him, standing in the open: if there is a crate or a drum a few steps away on his side of the
+## fight, he gets behind it (2026-11-16: they used to stand and wait to be shot). True if he goes.
+func _seek_cover(e: Dictionary, m) -> bool:
+	if e["boss"] or e["cover"] or e["type"] not in ["post", "tommy", "dynamite"] or e.has("shield") or _stand or chapter == 0:
+		return false
+	if m.position.y != 0.0 or absf(m.position.y - player.position.y) > 60.0:
+		return false
+	var side: float = signf(m.position.x - player.position.x)
+	if absf(m.position.x - player.position.x) < 500.0:
+		return false   # too close to turn his back and walk
+	var best := INF
+	var goal := 0.0
+	for bx in boxes:
+		if absf(bx.end.y - m.position.y) > 1.0 or bx.size.y < 200.0:
+			continue
+		var g: float = (bx.end.x + 80.0) if side > 0.0 else (bx.position.x - 80.0)   # on his side of it
+		if (g - player.position.x) * side < 650.0:   # not right up against the detective
+			continue
+		if absf(g - m.position.x) > 650.0 or absf(g - m.position.x) < 40.0:
+			continue
+		var taken := false
+		for o in enemies:
+			if o != e and o["alive"] and absf(float(o["node"].position.x) - g) < 140.0 and o["node"].position.y == 0.0:
+				taken = true
+		if not taken and absf(g - m.position.x) < best:
+			best = absf(g - m.position.x)
+			goal = g
+	if best == INF:
+		return false
+	e["goal"] = goal
+	e["state"] = "move"
+	e["to_cover"] = true
+	if randf() < 0.4:
+		_say(m, ["COVER!", "GET DOWN!", "IT'S MALONE!"].pick_random())
+	return true
+
+
+## Going round behind him is for a fight he has dug into, not the first streets of the story, and
+## never where there is no behind: the roof of a train, a room, the dream.
+func _flank_ok() -> bool:
+	if chapter < 1 or (chapter == 1 and map < 2) or _room != "" or level.get("dream", false) or float(level.get("moving", 0.0)) > 0.0:
+		return false
+	return player.position.y > -60.0
+
+
+## The lead sends one man round the block: the one furthest back walks off out of sight, and some
+## seconds later he comes running in from behind the detective (a shout and a "!" first, so it is fair).
+func _send_round(lead: Dictionary, lm) -> void:
+	var side: float = signf(lm.position.x - player.position.x)
+	var pick: Dictionary = {}
+	var far := 0.0
+	var group := 0
+	for o in enemies:
+		if not o["alive"] or o["boss"] or o["state"] not in ["post", "move"] or o["node"].position.y != 0.0:
+			continue
+		if signf(o["node"].position.x - player.position.x) != side or absf(o["node"].position.x - lm.position.x) > GROUP:
+			continue
+		group += 1
+		if o == lead or o["type"] not in ["post", "shotgun"] or o["state"] != "post":
+			continue
+		var d: float = absf(o["node"].position.x - player.position.x)
+		if d > far:
+			far = d
+			pick = o
+	if pick.is_empty() or group < 3:   # two men hold the line; only a third goes round
+		return
+	var half: float = get_viewport().get_visible_rect().size.x * 0.5 / cam.zoom.x
+	var behind := INF
+	for k in 6:   # he comes in along the street, somewhere clear of crates, out of the picture
+		var x: float = player.position.x - side * (half + 250.0 + 150.0 * k)
+		var clear: bool = x > 400.0 and x < level_end - 200.0
+		for bx in boxes:
+			if bx.grow(120.0).has_point(Vector2(x, -50.0)):
+				clear = false
+		if clear:
+			behind = x
+			break
+	if behind == INF:
+		return
+	_behind_at = _ai_t
+	_say(lm, ["GET BEHIND HIM!", "TAKE THE ALLEY, GO ROUND!", "ROUND THE BACK, MOVE!"].pick_random())
+	pick["state"] = "around"
+	pick["around_t"] = randf_range(3.5, 5.0)
+	pick["around_x"] = behind
+	pick["around_side"] = side
+
+
+func _going_round(e: Dictionary, m, delta: float) -> void:
+	var side: float = float(e["around_side"])
+	if m.visible:   # walking off, away from the fight, until he is out of the picture
+		m.position.x += side * 330.0 * delta
+		m.set_state(side, Vector2(side, 0.0), delta)
+		if not _on_screen(m.position + Vector2(-side * 120.0, 0.0)):
+			m.visible = false
+		return
+	e["around_t"] = float(e["around_t"]) - delta
+	if float(e["around_t"]) > 0.0:
+		return
+	if _room != "" or absf(player.position.y) > 60.0:   # the detective moved on somewhere he cannot follow: he waits
+		e["around_t"] = 1.0
+		return
+	var half: float = get_viewport().get_visible_rect().size.x * 0.5 / cam.zoom.x
+	var x: float = player.position.x - side * (half + 250.0)
+	m.position = Vector2(x, 0.0)
+	m.visible = true
+	e["state"] = "run"
+	e["goal"] = player.position.x - side * 650.0
+	e["cover"] = false
+	e["sought"] = true
+	_mark(m, "!")
+	sfx.play("step1", 2.0, x, 0.1)
+	_say(m, ["BEHIND YOU, MALONE!", "GOT YOU NOW!", "OVER HERE!"].pick_random())
+
+
 ## A flanker goes in close, to just beyond the detective's crate, where he can fire down over it.
 func _go_close(o: Dictionary) -> void:
 	if o["node"].position.y != 0.0:
 		return
 	var side: float = signf(o["node"].position.x - player.position.x)
-	var goal: float = player.position.x + side * 420.0
-	for bx in boxes:   # stop on his own side of anything in the way
+	var goal: float = player.position.x + side * 470.0
+	for bx in boxes:   # stop on his own side of anything in the way, a few steps off it: he does not lean on the detective's own crate
 		if (bx.get_center().x - goal) * side < 0.0 and (bx.get_center().x - o["node"].position.x) * side < 0.0 and (bx.get_center().x - player.position.x) * side > 0.0:
 			goal = (bx.end.x + 70.0) if side > 0.0 else (bx.position.x - 70.0)
+			if absf(bx.get_center().x - player.position.x) < 400.0:
+				goal += side * 160.0
+	if (goal - player.position.x) * side > 550.0:
+		goal = player.position.x + side * 550.0   # (close enough to fire down over his crate)
+	for k in enemies:   # not onto another man's spot: a step further back
+		if k != o and k["alive"] and absf(float(k["node"].position.x) - goal) < 110.0 and k["node"].position.y == 0.0:
+			goal += side * 130.0
 	o["goal"] = goal
 	o["state"] = "move"
 
@@ -6962,6 +7150,8 @@ func _enemies(delta: float) -> void:
 	_cover_t = _cover_t + delta if crouched else 0.0
 	if not crouched:
 		_flank_called = false
+		_crate_called = false
+	_crate_shooters = 0
 	for e in enemies:
 		if not e["alive"]:
 			continue
@@ -6974,6 +7164,9 @@ func _enemies(delta: float) -> void:
 			continue
 		if e["state"] == "hop":
 			m.set_state(signf(player.position.x - m.position.x) * -0.0, player.position - m.position, delta)
+			continue
+		if e["state"] == "around":   # gone round the block: out of sight, then in from behind him
+			_going_round(e, m, delta)
 			continue
 		if e["state"] == "wait":   # a runner holds back, out of sight, until the detective passes his mark
 			var passed: bool = player.position.x > float(e["trig"])
@@ -7026,6 +7219,10 @@ func _enemies(delta: float) -> void:
 				_mark(m, "!")
 		if not e["seen"]:
 			continue
+		if not e.get("sought", false) and e["state"] == "post":
+			e["sought"] = true
+			if _seek_cover(e, m):
+				continue
 		_squad(e, m, to_player, delta)
 		if e["state"] == "move":   # on his way somewhere: he does not stop to shoot
 			continue
@@ -7038,10 +7235,22 @@ func _enemies(delta: float) -> void:
 		var hiding: bool = e["cover"] and side > 0.0   # his cover only works while the detective is on its far side
 		var want_duck: float = 0.0
 		var walk := 0.0
-		var over_cover: bool = e["role"] == "flank" and absf(to_player.x) < 480.0   # close up he shoots down over the crate
+		var over_cover: bool = e["role"] == "flank" and absf(to_player.x) < 600.0   # close up he shoots down over the crate
 		var at_cover: bool = e["role"] == "suppress" and _cover_t > 1.2       # the tommy gun chews the cover itself
+		# a wooden crate he hides behind is shot to pieces: two men at most, once he has sat there a moment
+		var crate_i: int = _covering_crate(side) if _cover_t > 1.0 and e["type"] in ["post", "tommy", "shotgun"] and not over_cover else -1
+		var at_crate: bool = crate_i >= 0 and (_crate_shooters < 2 or at_cover) and _can_see(m)
+		if at_crate:
+			_crate_shooters += 1
+			if not _crate_called and e["type"] == "post":
+				_crate_called = true
+				_say(m, ["SHOOT THROUGH IT!", "CUT THAT CRATE DOWN!", "IT'S ONLY WOOD!"].pick_random())
 		var may_fire: bool = not over and not cleared and _grace <= 0.0 and absf(to_player.x) < SIGHT * 1.3 * (1.0 - 0.6 * mapfx.fog) \
-				and (not _player_covered(side) or over_cover or at_cover) and _can_see(m) and _slot_free(e)
+				and (not _player_covered(side) or over_cover or at_cover or at_crate) and _can_see(m) and _slot_free(e)
+		var aim_vec: Vector2 = to_player
+		if at_crate and _player_covered(side):   # his gun on the boards, chest high on the crate
+			var cb: Rect2 = boxes[crate_i]
+			aim_vec = Vector2(cb.get_center().x + side * cb.size.x * 0.2, cb.position.y + cb.size.y * 0.4) - (m.position + Vector2(0.0, SHOULDER.y + DUCK_DROP * m.duck))
 		e["timer"] -= delta
 		if hiding:
 			if e["up"]:
@@ -7109,7 +7318,7 @@ func _enemies(delta: float) -> void:
 				e["aim_off"] = randf_range(-150.0, 110.0) * _aim_spread()
 				_enemy_fire(e)
 		m.duck = move_toward(m.duck, want_duck, delta * 7.0)
-		m.set_state(walk, to_player + Vector2(0.0, e["aim_off"]), delta)
+		m.set_state(walk, aim_vec + Vector2(0.0, e["aim_off"] * (0.3 if aim_vec != to_player else 1.0)), delta)
 
 
 ## The marksman: a thin line from his scope onto Frank while he sights in, then one shot that does

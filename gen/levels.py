@@ -377,6 +377,7 @@ def _build(mp, nudge):
     out.street = street(mp, out, rng)
     for e in mp.get("events", []):
         out.events.append(list(e))
+    cover_men(out, mp)
     for name, sx in out.street:   # two of them keep watch under every crane's hanging crate
         if name != "cranes":
             continue
@@ -387,6 +388,47 @@ def _build(mp, nudge):
                     and not any(abs(en["x"] - ex) < 120 for en in out.enemies):
                 out.enemies.append({"x": ex, "y": 0.0, "kind": "post", "trig": None, "from": None, "delay": 0.0, "run": False})
     return out
+
+
+def cover_men(m, mp):
+    """Men who wait for Frank in the open street would just be targets (2026-11-16): about half of them
+    get something to stand behind, a crate or a drum on their side of the fight, a step in front of
+    them (Frank comes from the left). Two men never stand shoulder to shoulder. Not in rooms (their
+    furniture is drawn), on the roofs, the moving train or in the dream."""
+    if mp.get("dream") or mp.get("moving"):
+        return
+    rng = random.Random(mp["seed"] * 7 + 3)
+    by = lambda b: b[2] if len(b) > 2 else 0.0
+    in_room = lambda x: any(a - 300 < x < b + 300 for a, b, st in m.rooms)
+    def covered(x):
+        return any(by(b) == 0.0 and 30 < x - (b[1] + BOX[b[0]][0]) < 300 and BOX[b[0]][1] > 200 for b in m.boxes)
+    foes = sorted([e for e in m.enemies if not e["run"] and e["y"] == 0.0 and e["kind"] in ("post", "tommy", "shotgun")], key=lambda e: e["x"])
+    for a, b in zip(foes, foes[1:]):   # shoulder to shoulder: the second steps back
+        if b["x"] - a["x"] < 250 and not in_room(b["x"]):
+            b["x"] = a["x"] + 260
+    for e in foes:
+        if e["kind"] == "shotgun" or covered(e["x"]) or in_room(e["x"]) or e["x"] < 1700 or e["x"] > m.end - 900:
+            continue   # (a shotgunner comes in; he does not hide)
+        if rng.random() > 0.6:
+            continue
+        kind = "crate" if rng.random() < 0.6 else "drum"
+        w = BOX[kind][0]
+        bx = e["x"] - 140 - w
+        lo, hi = bx - 140, bx + w + 140
+        if any(by(b) == 0.0 and b[1] < hi and b[1] + BOX[b[0]][0] > lo for b in m.boxes):
+            continue
+        if any(o is not e and lo - 60 < o["x"] < hi + 60 and o["y"] == 0.0 for o in m.enemies):
+            continue
+        if any(lo - 200 < x < hi + 200 for r in m.ramps for x in (r[0], r[2])):
+            continue
+        if any(lo - 100 < px < hi + 100 for k, px, py in m.pickups) or any(lo - 150 < c < hi + 150 for c in m.checks):
+            continue
+        if any(px - 100 < bx + w and bx < px + pw + 100 and py > -700 for px, py, pw, st in m.plats):
+            continue   # (nothing under a low walkway: it would block the way up)
+        if any(ev[0] == "car" and abs(ev[2] - bx) < 700 for ev in m.events):
+            continue
+        m.boxes.append([kind, bx])
+    m.boxes.sort(key=lambda b: (by(b), b[1]))
 
 
 def street(mp, m, rng):
