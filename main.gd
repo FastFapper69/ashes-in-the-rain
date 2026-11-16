@@ -1230,6 +1230,7 @@ var _sign_scale := WALL_SCALE
 const ROOM_BASE := 0.95     # an interior's painting under the night grade, before its lamps' pools
 const SEGMENT_MOON := 1.6   # how much brighter than the bare night the drawn streets are kept
 const SEGMENT_BASE := 0.92
+const GROUND_STOREY := -900.0   # above this height a street room is not where he is (a roof over it)
 const ROOM_SCALE := 0.75   # interiors: see _build_room
 const ROOM_ZOOM := 0.58    # indoors the camera comes in closer: a room is small, the people in it are not
 var _veils: Array = []   # [x0, x1, node]: the dark over each interior seen from afar
@@ -1747,7 +1748,7 @@ func _tick_music() -> void:
 		return
 	sfx.melody = "jazz"
 	sfx.rain_want = 0.0 if level.get("under", false) else _rain()
-	sfx.indoor = move_toward(sfx.indoor, 1.0 if _room_at(player.position.x) != "" else 0.0, get_process_delta_time() * 2.0)
+	sfx.indoor = move_toward(sfx.indoor, 1.0 if _room_at(player.position.x, player.position.y) != "" else 0.0, get_process_delta_time() * 2.0)
 	var near := 0
 	var lurking := false
 	var boss_on := false
@@ -5447,7 +5448,7 @@ func _map_events(delta: float) -> void:
 		dry = maxf(dry, 1.0 - clampf(gap / 450.0, 0.0, 1.0))
 	for rn in [atmo.rain_far, atmo.rain_near, atmo.splashes]:
 		rn.modulate.a = 1.0 - dry
-	var room := _room_at(player.position.x)
+	var room := _room_at(player.position.x, player.position.y)
 	if room != _room:   # through a door: a cut through black, no rain indoors
 		_room = room
 		hud.flash()
@@ -6819,10 +6820,17 @@ func _place_at(x: float) -> String:
 	return seg
 
 
-func _room_at(x: float) -> String:
+## The interior at a point. A room is [x0, x1, style] on the street's own storey, or [x0, x1, style,
+## top, bottom] for one up in a building (the cross-sections, 2026-11-16): rooms stack at the same x,
+## so where he stands decides which, and on a roof above a street room he is not indoors.
+func _room_at(x: float, y := 0.0) -> String:
 	for r in rooms:
 		if x > float(r[0]) and x < float(r[1]):
-			return String(r[2])
+			if (r as Array).size() >= 5:
+				if y >= float(r[3]) and y <= float(r[4]):
+					return String(r[2])
+			elif y > GROUND_STOREY:
+				return String(r[2])
 	return ""
 
 
@@ -7857,7 +7865,7 @@ func _place_loads() -> void:
 		var m = e["node"]
 		if e["state"] != "post" or e["boss"] or m.position.y != 0.0 or m.position.x < 2600.0 or m.position.x - last < 1600.0:
 			continue
-		if _room_at(m.position.x) != "" or _has_cover(m.position) or n >= 3:
+		if _room_at(m.position.x, m.position.y) != "" or _has_cover(m.position) or n >= 3:
 			continue
 		var x: float = m.position.x
 		var clear := true
