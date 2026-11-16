@@ -20,7 +20,9 @@ uniform vec2 registration = vec2(1.6, 1.0);
 uniform float lift = 0.0;   // 0 = Sin City blacks; 1 = the darks opened up so walls in the dark keep their lines
 uniform float fire_keep = 0.0;   // 1 in the dream: the flames are not greyed with the rest
 uniform float dream = 0.0;   // the burning dream (2026-11-15): heat shimmer, smoke under the roof, embers at the edges, the plates slipping
-uniform float jolt = 0.0;   // a start in the nightmare: the picture doubles for a moment
+uniform float jolt = 0.0;
+uniform float fog = 0.0;   // Pier 17: the river fog; clear only round him (fog_at, screen UV)
+uniform vec2 fog_at = vec2(0.5, 0.75);   // a start in the nightmare: the picture doubles for a moment
 uniform float ash = 0.0;   // 0..1, Frank's guilt: the paper greys, the amber dies, the rain goes to soot   // screen pixels between the ink and the colour plates
 
 float hash(vec2 p) {
@@ -90,6 +92,17 @@ void fragment() {
 	// paper grain, redrawn twelve times a second
 	float n = hash(floor(FRAGCOORD.xy * 0.5) + floor(TIME * 12.0) * 17.0);
 	col += (n - 0.5) * grain;
+	if (fog > 0.0) {
+		// banks of fog drifting in off the river: thick a few yards from him, thinner round him;
+		// what burns bright (lamps, muzzle flashes, fire) still glows through it
+		vec2 asp = vec2(SCREEN_PIXEL_SIZE.y / SCREEN_PIXEL_SIZE.x, 1.0);
+		float d = length((SCREEN_UV - fog_at) * asp);
+		float bank = smoke_at(vec2(SCREEN_UV.x * 1.8 - TIME * 0.05, SCREEN_UV.y * 2.4 + TIME * 0.015));
+		float f = clamp(smoothstep(0.2, 0.72, d) * (0.6 + 0.45 * bank) + smoothstep(0.55, 0.0, SCREEN_UV.y) * 0.15, 0.0, 0.86) * fog;
+		vec3 fogc = mix(paper, vec3(0.55, 0.56, 0.57), 0.55);
+		float glow = max(lc - 0.62, 0.0) * 1.6;
+		col = mix(col, fogc, f) + vec3(glow) * f * vec3(1.0, 0.92, 0.75);
+	}
 	if (dream > 0.0) {
 		// smoke rolling under the roof, thick at the top of the page, thinning down to his shoulders
 		vec2 sp = vec2(SCREEN_UV.x * 2.6 + TIME * 0.035, SCREEN_UV.y * 3.2 + TIME * 0.09);
@@ -167,6 +180,12 @@ func set_fire_keep(amount: float) -> void:
 ## The burning dream's own page (0 = none): see `dream` in POST_SHADER. It gets worse each time it starts over.
 func set_dream(amount: float) -> void:
 	_post.set_shader_parameter("dream", amount)
+
+
+## The river fog (0 = none) and where on the screen he stands, the one place it is thin.
+func set_fog(amount: float, at: Vector2) -> void:
+	_post.set_shader_parameter("fog", amount)
+	_post.set_shader_parameter("fog_at", at)
 
 
 ## A start: the picture doubles and shakes for a moment, then settles.

@@ -43,6 +43,7 @@ var _soft: GradientTexture2D
 var _bits: Array = []      # loose particles under gravity, see _bit
 var _spots: Array = []   # drops and glass lying on the pavement
 const MAX_SPOTS := 50
+var pass_test := Callable()     # func(bullet: Dictionary, from: Vector2, to: Vector2): what it flew through this frame (mapfx.gd: sheets)
 var hit_vel := Vector2.RIGHT     # the velocity of the bullet being tested in hit_test, for main.gd
 var _bullets: Array = []
 var _cache := {}
@@ -533,6 +534,8 @@ func _process(delta: float) -> void:
 		# A bullet covers 70 px or more a frame, more than a man is wide: test the whole stretch it
 		# flew this frame in short steps, or it would pass straight through people and crates.
 		var from: Vector2 = b["prev"]
+		if pass_test.is_valid():
+			pass_test.call(b, from, pos)
 		var steps := maxi(1, ceili(from.distance_to(pos) / 10.0))
 		for k in range(1, steps + 1):
 			hit_vel = b["vel"]

@@ -45,6 +45,7 @@ const Instincts = preload("res://instincts.gd")
 const CutsceneScript = preload("res://cutscene.gd")
 const DiaryScript = preload("res://diary.gd")
 const SetpiecesScript = preload("res://setpieces.gd")
+const MapFxScript = preload("res://mapfx.gd")
 const LoadingScript = preload("res://loading.gd")
 const PauseScript = preload("res://pause.gd")
 const SettingsScript = preload("res://settings.gd")
@@ -57,6 +58,7 @@ static var _erased := false   # test: the erase went through, this is the title 
 var _cones: bool = "--cones" in OS.get_cmdline_user_args()   # test comparisons: inked light cones
 static var _card_up := false   # a title card is covering the screen across the reload: lift it once built
 var sets   # setpieces.gd: cars, blackouts, searchlights, fires, the crane's crate
+var mapfx   # mapfx.gd: the El, the laundry's sheets, the fog on Pier 17
 var _in_cut := false
 var _fight_t := 0.0   # seconds the fight music holds on after the last enemy in reach
 var _was_fight := false
@@ -662,6 +664,10 @@ func _ready() -> void:
 	fx.sound = sfx
 	fx.listener = player
 	fx.wall_at = _wall_at
+	mapfx = MapFxScript.new()
+	add_child(mapfx)
+	mapfx.setup(self)
+	fx.pass_test = mapfx.bullet_pass
 	fx.stain_host = _stain_host
 	hud = HudScript.new()
 	add_child(hud)
@@ -2475,6 +2481,7 @@ func _process(delta: float) -> void:
 	_pickups()
 	_map_events(delta)
 	sets.tick(delta)
+	mapfx.tick(delta)
 	if not cleared and not over and roof.is_empty() and player.position.x > level_end and _all_down():
 		_map_cleared()
 	elif not cleared and not over and not roof.is_empty() and player.position.x < float(roof["goal"]) \
@@ -3045,6 +3052,32 @@ func _auto_step(delta: float) -> void:
 		if _at > 4.0:
 			print("BAG weapon ", weapon, " bag ", _bag.keys())
 			get_tree().quit()
+	elif _auto in ["el", "fog", "oncoming", "sheets"]:   # the map set pieces (mapfx.gd, setpieces.gd), pictured as they happen
+		hp = max_hp
+		_grace = 99.0
+		if _at < 0.05:
+			if _auto == "el":
+				mapfx._el_t = 0.3
+			elif _auto == "fog":
+				mapfx._fog_phase = 2
+				mapfx._fog_t = 99.0
+				mapfx.fog = 1.0
+			elif _auto == "oncoming":
+				sets._oncoming_t = 2.0
+				sets._beam_t = 99.0
+			elif _auto == "sheets" and not rooms.is_empty():
+				for r in rooms:
+					if String(r[2]) == "laundry":
+						player.position.x = float(r[0]) + 2250.0   # beyond the sheets, the men behind them
+						for e in enemies:
+							if absf(e["node"].position.x - (float(r[0]) + 1300.0)) > 650.0:
+								e["alive"] = false
+								e["node"].visible = false
+						break
+		if _auto == "sheets" and _at > 0.8 and _at < 1.6 and fmod(_at, 0.25) < 0.04:   # a few shots through the sheets
+			_fire(player, true)
+		shots = {"el": [[1.6, "el_0"], [2.4, "el_1"], [3.2, "el_2"]], "fog": [[1.2, "fog_0"], [2.5, "fog_1"]],
+			"oncoming": [[1.2, "onc_0"], [2.3, "onc_1"], [2.7, "onc_2"], [3.3, "onc_3"]], "sheets": [[0.6, "sheets_0"], [2.0, "sheets_1"]]}[_auto]
 	elif _auto == "hat":   # the nearest mobster with a hat: a bullet through the hat (found by hat_hit), pictures as it flies and lands
 		hp = max_hp
 		_grace = 99.0
@@ -4171,7 +4204,7 @@ func _fire(shooter, from_player: bool, kind := "") -> void:
 	_scare_birds(at, 1300.0)
 	var point_blank := false
 	if from_player:
-		_alarm(at, 1600.0)
+		_alarm(at, mapfx.hearing(1600.0))   # (under the El going over, nobody hears it)
 	if from_player:   # a man right on top of him, between his chest and the muzzle: hit at point blank
 		var chest: Vector2 = player.position + SHOULDER + Vector2(0.0, DUCK_DROP * player.duck)
 		for e in enemies:
@@ -6666,7 +6699,7 @@ func _nearest_enemy(side := 0.0):
 		if not e["alive"] or e["state"] in ["wait", "give"] or not e["node"].visible:
 			continue
 		var dx: float = e["node"].position.x - player.position.x
-		if absf(dx) > SIGHT or (side != 0.0 and signf(dx) != side):
+		if absf(dx) > SIGHT * (1.0 - 0.6 * (mapfx.fog if mapfx else 0.0)) or (side != 0.0 and signf(dx) != side):
 			continue
 		if absf(e["node"].position.y - player.position.y) > 1300.0:   # storeys below him on the street, out of the picture
 			continue
@@ -6893,6 +6926,7 @@ func _enemies(delta: float) -> void:
 		# Seeing him: in the dark only from closer; a moment of "?" before the "!" so the detective
 		# always gets a beat to act first. A boss knows he is coming.
 		var sight: float = SIGHT * (0.6 if _in_dark(player.position.x) and not sets.lit(player.position + Vector2(0.0, -150.0)) and not _in_beam(player.position) else 1.0)
+		sight *= 1.0 - 0.6 * mapfx.fog   # in the fog off the river nobody sees far
 		if absf(to_player.x) < sight and not e["seen"]:
 			if e["boss"]:
 				hud.boss_bar(BOSS_NAMES.get(String(level["boss"]), "BOSS"), 1.0)
@@ -6924,7 +6958,7 @@ func _enemies(delta: float) -> void:
 		var walk := 0.0
 		var over_cover: bool = e["role"] == "flank" and absf(to_player.x) < 480.0   # close up he shoots down over the crate
 		var at_cover: bool = e["role"] == "suppress" and _cover_t > 1.2       # the tommy gun chews the cover itself
-		var may_fire: bool = not over and not cleared and _grace <= 0.0 and absf(to_player.x) < SIGHT * 1.3 \
+		var may_fire: bool = not over and not cleared and _grace <= 0.0 and absf(to_player.x) < SIGHT * 1.3 * (1.0 - 0.6 * mapfx.fog) \
 				and (not _player_covered(side) or over_cover or at_cover) and _can_see(m) and _slot_free(e)
 		e["timer"] -= delta
 		if hiding:

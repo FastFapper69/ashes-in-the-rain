@@ -579,7 +579,7 @@ CAMPAIGN = [
      "intro": ["The shooters hadn't gone far. Rain doesn't wash a trail away that fast.", "Eddie had left a trail too: pages torn from his diary, nailed up where only I would look."],
      "diary": "Nov 3. Rosie showed me Tommy's photo again. Eleven men burned in '39 and the papers called it bad wiring. Bad wiring doesn't lock doors from the outside.",
      "outro": ["The shooters ran east. So did I."]},
-    {"name": "BACK STREETS", "seed": 102, "start": 0.2, "end": 0.5,
+    {"name": "BACK STREETS", "seed": 102, "start": 0.2, "end": 0.5, "el": True,
      "fixed": ["dumpster_alley", "crate_cover", "fire_escape", "ambush_behind", "barrel_trap", "breather", "catwalk", "car_ambush", "drum_duo"],
      "intro": ["Hell's Kitchen doesn't sleep. It just lies there with its eyes open."],
      "diary": "Nov 11. Pulled the Pier 17 file from records. Half of it is missing. The half that's left smells like money.",
@@ -607,7 +607,7 @@ CAMPAIGN = [
      "outro": ["The knocking stopped at eleven. It always stops before I reach the doors.", "I woke up in the car with smoke in my mouth that no dream had put there. Four in the morning. Eddie's diary on the seat beside me."]},
   ]},
   {"title": "CHAPTER II", "name": "THE DOCKS", "ready": True, "hero": "frank", "ambient": [0.16, 0.18, 0.25], "rain": 1.5, "maps": [
-    {"name": "PIER 17", "seed": 201, "feature": "pier17", "pool": DOCKS_POOL, "start": 0.45, "end": 0.7, "ash": 1.0, "embers": 0.6,
+    {"name": "PIER 17", "seed": 201, "feature": "pier17", "pool": DOCKS_POOL, "fog": True, "start": 0.45, "end": 0.7, "ash": 1.0, "embers": 0.6,
      "fixed": ["dock_crates", "crane_swing", "car_ambush", "breather", "barrel_trap", "searchlight_yard", "pistols_cache", "gauntlet"],
      "events": [["burn", "shipping"]],
      "intro": ["Pier 17. Eight years cold, and it still smelled of smoke.", "Somebody had lit a fresh fire to keep it company."],
@@ -716,6 +716,8 @@ def gd(campaign):
             if lv.get("under"): out.append('\t\t\t"under": true,')
             if lv.get("dream"): out.append('\t\t\t"dream": true,')
             if lv.get("memory"): out.append('\t\t\t"memory": true,')
+            if lv.get("el"): out.append('\t\t\t"el": true,')
+            if lv.get("fog"): out.append('\t\t\t"fog": true,')
             if lv.get("moving"): out.append(f'\t\t\t"moving": {lv["moving"]},')
             if lv.get("cops"): out.append('\t\t\t"cops": true,')
             if m.roof:

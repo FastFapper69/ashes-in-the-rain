@@ -6,7 +6,7 @@ const DIR := "res://sfx/"
 const NAMES := ["shot_player", "shot_enemy", "shot_tommy", "shot_shotgun", "hit_flesh", "hit_cover", "clink", "casing",
 		"slow_in", "slow_out", "dive", "land", "body_fall", "step1", "step2", "whiz", "death_sting", "explosion", "glass",
 		"pickup", "drink", "flutter", "dry_fire", "reload_revolver", "reload_mag", "reload_shells", "reload_done",
-		"thunder", "coo", "wing", "knock", "foghorn", "cuffs", "drawer", "punch", "cup", "hammer", "toast", "creak", "resolve", "drip", "wood_break", "wood_hit", "zap", "type", "page", "skid", "phone_ring", "match", "sting", "car_arrive", "door", "power_down", "chain", "train_pass", "cyl_open", "shell_in", "cyl_spin", "collapse", "beams"]
+		"thunder", "coo", "wing", "knock", "foghorn", "cuffs", "drawer", "punch", "cup", "hammer", "toast", "creak", "resolve", "drip", "wood_break", "wood_hit", "zap", "type", "page", "skid", "phone_ring", "match", "sting", "car_arrive", "door", "power_down", "chain", "train_pass", "cyl_open", "shell_in", "cyl_spin", "collapse", "beams", "el_train", "train_horn", "cloth"]
 const LOOPS := ["train_loop", "fire", "neon_hum", "lamp_hum", "steam", "city", "heartbeat", "siren", "crowd", "water", "rain_in",
 		"music_base", "music_lead", "music_tension", "music_fight"]
 const STEMS := ["music_base", "music_lead", "music_tension", "music_fight"]   # all four run in step; only their levels move
@@ -55,7 +55,7 @@ func _ready() -> void:
 	# doubled that memory at exactly the moment the next map's drawings load (the phone crashes)
 	if _streams.is_empty():
 		for n in NAMES:
-			_streams[n] = load(DIR + n + ".wav")
+			_streams[n] = load(DIR + n + (".ogg" if ResourceLoader.exists(DIR + n + ".ogg") else ".wav"))   # (a long one is Ogg)
 		for n in LOOPS + ["rain_loop", MELODIES["jazz"], MELODIES["dusk"]]:
 			_streams[n] = _looped(n)
 	for i in VOICES:

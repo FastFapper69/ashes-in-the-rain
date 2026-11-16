@@ -654,7 +654,8 @@ func _tick_moving(delta: float) -> void:
 		lamp.modulate.a = 0.95 if fmod(_beam_t, 0.3) < 0.15 else 0.15
 	else:
 		lamp.modulate.a = 0.0
-	if _beam_t <= 0.0:
+	_tick_oncoming(delta, cam_x, view)
+	if _beam_t <= 0.0 and _oncoming == null:
 		_beam_t = randf_range(6.0, 9.5)
 		var b := _girder()
 		b.position = Vector2(cam_x + view.x * 0.75, 0.0)
@@ -676,6 +677,129 @@ func _tick_moving(delta: float) -> void:
 		if b.position.x < cam_x - view.x:
 			b.queue_free()
 			_beams_live.erase(bl)
+
+
+## A train on the other track, the other way (2026-11-16): its headlamp grows in the dark ahead, the
+## horn, then it screams past just below the roofs, its windows strobing, sparks off the rails, and
+## the blast of air off it shoves a man standing in the open back along the roof. Down behind a vent
+## housing it goes over him; crouched, it only staggers him.
+var _oncoming: Node2D = null
+var _oncoming_t := 16.0
+var _oncoming_len := 0.0
+var _headlamp: Sprite2D
+var _strobe: ColorRect
+var _oncoming_told := false
+const ONCOMING_REL := 5200.0   # the two trains' speeds together
+
+
+func _tick_oncoming(delta: float, cam_x: float, view: Vector2) -> void:
+	if _headlamp == null:
+		var add := CanvasItemMaterial.new()
+		add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		add.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+		_headlamp = Sprite2D.new()
+		_headlamp.texture = load("res://art/light_blob.png")
+		_headlamp.material = add
+		_headlamp.modulate = Color(1.0, 0.92, 0.7, 0.0)
+		_headlamp.z_index = -3
+		game.cam.add_child(_headlamp)
+		_strobe = ColorRect.new()
+		_strobe.color = Color(1.0, 0.93, 0.78, 0.0)
+		_strobe.size = Vector2(8000.0, 8000.0)
+		_strobe.position = Vector2(-4000.0, -4000.0)
+		_strobe.material = add
+		_strobe.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_strobe.z_index = 7
+		game.cam.add_child(_strobe)
+	if _oncoming == null:
+		_oncoming_t -= delta
+		if game.over or game.cleared:
+			_headlamp.modulate.a = 0.0
+			return
+		if _oncoming_t < 2.6 and _oncoming_t > 0.0:   # the warning: its lamp coming up the tunnel ahead, growing
+			var k: float = 1.0 - _oncoming_t / 2.6
+			# low down at the end of the tunnel, where the other track comes out of the dark: the lamp
+			# on its cab, small and far at first, then filling the tunnel mouth
+			_headlamp.position = Vector2(view.x * 0.5 - 90.0, -game.cam.position.y + 40.0)
+			_headlamp.scale = Vector2.ONE * lerpf(0.25, 2.2, k * k)
+			_headlamp.modulate.a = 0.25 + 0.65 * k
+			if _oncoming_t + delta >= 2.6:
+				game.sfx.play("train_horn", 0.0, INF, 0.02)
+				if not _oncoming_told:
+					_oncoming_told = true
+					game.hud.hint("A TRAIN THE OTHER WAY: GET BEHIND A VENT.")
+		else:
+			_headlamp.modulate.a = 0.0
+		if _oncoming_t <= 0.0:
+			if _beam_t < 3.0:   # never with a girder coming: one thing at a time
+				_beam_t += 4.0
+			_oncoming_t = randf_range(17.0, 25.0)
+			_launch_oncoming(cam_x, view)
+		return
+	_headlamp.modulate.a = 0.0
+	_oncoming.position.x -= ONCOMING_REL * delta
+	var x0: float = _oncoming.position.x
+	var x1: float = x0 + _oncoming_len
+	var px: float = game.player.position.x
+	var passing: bool = x0 < cam_x + view.x * 0.5 and x1 > cam_x - view.x * 0.5
+	if passing:
+		game._shake = maxf(game._shake, 0.3)
+		# the lit windows going by: the light on everything flickers with them
+		var phase: float = fposmod(px - x0, 1450.0) / 1450.0
+		_strobe.color.a = 0.07 if phase > 0.18 and phase < 0.82 else 0.01
+		if randf() < delta * 5.0:
+			game.fx.speed_lines(Vector2(cam_x + randf_range(-view.x * 0.4, view.x * 0.4), randf_range(-60.0, 20.0)), -1.0, 0.6)
+		if randf() < delta * 14.0:
+			game.fx.spark(Vector2(cam_x + randf_range(-view.x * 0.4, view.x * 0.4), randf_range(60.0, 140.0)))
+		if x0 < px and x1 > px - 200.0 and game.move_state == "ground":   # the blast of air off it
+			var shelter: bool = false
+			for bx in game.boxes:
+				if absf(bx.end.y - game.player.position.y) < 60.0 and bx.position.x > px - 20.0 and bx.position.x < px + 380.0:
+					shelter = true
+			var push: float = 0.0 if shelter else (160.0 if game.player.duck > 0.6 else 620.0)
+			game.player.position.x -= push * delta
+	else:
+		_strobe.color.a = 0.0
+	if x1 < cam_x - view.x:
+		_oncoming.queue_free()
+		_oncoming = null
+		_strobe.color.a = 0.0
+
+
+func _launch_oncoming(cam_x: float, view: Vector2) -> void:
+	var tex: Texture2D = load("res://art/props/subway_car.png")
+	var lit: Texture2D = load("res://art/props/subway_car_lit.png")
+	var sc := 1.12   # the near track: a little bigger than the cars under him
+	var w: float = tex.get_width() * sc
+	var cars := 6
+	_oncoming_len = cars * (w + 24.0)
+	_oncoming = Node2D.new()
+	_oncoming.z_index = 3   # in front of his own train's flank, below the roofs he stands on
+	_oncoming.position = Vector2(cam_x + view.x * 0.6, -150.0)   # its roof slides by across his shins: right there
+	add_child(_oncoming)
+	var add := CanvasItemMaterial.new()
+	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	add.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+	for k in cars:
+		var car := Sprite2D.new()
+		car.texture = tex
+		car.centered = false
+		car.flip_h = true
+		car.scale = Vector2.ONE * sc
+		car.position = Vector2(k * (w + 24.0), 0.0)
+		car.modulate = Color(0.5, 0.5, 0.55)
+		car.material = game.atmo.blur_material(3.0)   # going by too fast to be sharp
+		_oncoming.add_child(car)
+		var glow := Sprite2D.new()
+		glow.texture = lit
+		glow.centered = false
+		glow.flip_h = true
+		glow.scale = car.scale
+		glow.position = car.position
+		glow.material = add
+		glow.modulate = game._undo_night(0.55)
+		_oncoming.add_child(glow)
+	game.sfx.play("train_pass", 6.0, INF, 0.0)
 
 
 ## A steel girder hanging low across the tunnel, its riveted face and the strut up to the roof.
