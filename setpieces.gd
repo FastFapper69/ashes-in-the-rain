@@ -96,6 +96,12 @@ func tick(delta: float) -> void:
 			continue
 		var a: float = b["base"] + sin(_t * b["speed"] + b["phase"]) * b["swing"]
 		b["angle"] = a
+		# the drum tilts with its beam, and the lens (where the beam starts) goes round the swivel with it
+		var tilt: float = a - float(b["base"])
+		b["drum"].rotation = tilt
+		b["pivot"] = (b["swivel"] as Vector2) + (b["lens_rel"] as Vector2).rotated(tilt)
+		b["sprite"].position = b["pivot"]
+		b["head"].position = b["pivot"]
 		b["sprite"].rotation = a
 		b["light"].rotation = a
 		b["light"].position = b["pivot"] + Vector2(0.0, b["len"] * 0.5).rotated(a)
@@ -367,13 +373,29 @@ func _add_beam(pivot: Vector2, base_deg: float) -> void:
 	var lamp_tex: Texture2D = load("res://art/props/searchlight.png")
 	var lens := Vector2(75.0, 135.0)   # the lens's centre on the drawing
 	var sc: float = -pivot.y / (lamp_tex.get_height() - lens.y)   # the foot of the mast on the ground
+	# the drawing in two: the mast stands still, the drum on its yoke tilts with the beam about the
+	# swivel on top of the mast (2026-11-16: the lamp used to stare one way while its beam swept)
+	var swivel := Vector2(135.0, 312.0)
+	var origin: Vector2 = pivot - lens * sc
 	var post := Sprite2D.new()
 	post.texture = lamp_tex
 	post.centered = false
+	post.region_enabled = true
+	post.region_rect = Rect2(0.0, swivel.y, lamp_tex.get_width(), lamp_tex.get_height() - swivel.y)
 	post.scale = Vector2.ONE * sc
-	post.position = pivot - lens * sc
+	post.position = origin + Vector2(0.0, swivel.y) * sc
 	post.z_index = -4
 	add_child(post)
+	var drum := Sprite2D.new()
+	drum.texture = lamp_tex
+	drum.centered = false
+	drum.region_enabled = true
+	drum.region_rect = Rect2(0.0, 0.0, lamp_tex.get_width(), swivel.y + 2.0)
+	drum.offset = -swivel
+	drum.scale = Vector2.ONE * sc
+	drum.position = origin + swivel * sc
+	drum.z_index = -4
+	add_child(drum)
 	var head := Sprite2D.new()   # the lens, burning white
 	head.texture = load("res://art/light_blob.png")
 	head.position = pivot
@@ -391,6 +413,7 @@ func _add_beam(pivot: Vector2, base_deg: float) -> void:
 	add_child(l)
 	var half := atan2(256.0 * 1.15 * 0.45, ln)   # the bright core of the cone, not its soft edge
 	_beams.append({"sprite": s, "light": l, "head": head, "pivot": pivot, "base": deg_to_rad(base_deg), "swing": deg_to_rad(32.0),
+			"drum": drum, "swivel": drum.position, "lens_rel": pivot - drum.position,
 			"speed": 0.42, "phase": randf() * TAU, "len": ln, "half": half, "angle": 0.0})
 	game.sfx.add_loop("lamp_hum", pivot.x, -22.0, 600.0, pivot.y)
 

@@ -3059,7 +3059,7 @@ func _auto_step(delta: float) -> void:
 		if _at > 4.0:
 			print("BAG weapon ", weapon, " bag ", _bag.keys())
 			get_tree().quit()
-	elif _auto in ["el", "fog", "oncoming", "sheets", "girder", "storm", "rock", "steam", "rats", "neon", "freight", "sea", "flood", "neondrop", "levelup"]:   # the map set pieces (mapfx.gd, setpieces.gd), pictured as they happen
+	elif _auto in ["el", "fog", "oncoming", "sheets", "girder", "storm", "rock", "steam", "rats", "neon", "freight", "sea", "flood", "neondrop", "levelup", "searchlight"]:   # the map set pieces (mapfx.gd, setpieces.gd), pictured as they happen
 		hp = max_hp
 		_grace = 99.0
 		if _at < 0.05:
@@ -3069,6 +3069,11 @@ func _auto_step(delta: float) -> void:
 				mapfx._fog_phase = 2
 				mapfx._fog_t = 99.0
 				mapfx.fog = 1.0
+			elif _auto == "searchlight" and not sets._beams.is_empty():
+				player.position.x = (sets._beams[0]["swivel"] as Vector2).x - 250.0
+				for e in enemies:
+					e["node"].position.x += 90000.0
+					e["goal"] = e["node"].position.x
 			elif _auto == "levelup":
 				hud.level_up(8)
 			elif _auto == "storm":
@@ -3105,7 +3110,8 @@ func _auto_step(delta: float) -> void:
 			"girder": [[0.9, "girder_0"], [1.3, "girder_1"], [1.7, "girder_2"]],
 			"storm": [[0.36, "storm_0"], [0.5, "storm_1"]], "rock": [[1.0, "rock_0"], [4.0, "rock_1"]], "steam": [[1.2, "steam_0"], [2.4, "steam_1"]],
 			"rats": [[0.5, "rats_0"], [1.0, "rats_1"]], "freight": [[3.0, "freight_0"], [5.0, "freight_1"]], "sea": [[0.95, "sea_0"], [1.3, "sea_1"]],
-			"flood": [[1.0, "flood_0"]], "neondrop": [[0.95, "neon_0"], [1.5, "neon_1"], [2.6, "neon_2"]], "levelup": [[0.6, "levelup_0"], [2.2, "levelup_1"]]}[_auto]
+			"flood": [[1.0, "flood_0"]], "neondrop": [[0.95, "neon_0"], [1.5, "neon_1"], [2.6, "neon_2"]], "levelup": [[0.6, "levelup_0"], [2.2, "levelup_1"]],
+			"searchlight": [[0.4, "sl_0"], [1.3, "sl_1"], [2.2, "sl_2"], [2.9, "sl_3"]]}[_auto]
 		if _auto == "neondrop" and _at > 1.0 and _at < 1.05 and not mapfx._neon.is_empty():
 			mapfx._neon_drop()
 	elif _auto == "hat":   # the nearest mobster with a hat: a bullet through the hat (found by hat_hit), pictures as it flies and lands
