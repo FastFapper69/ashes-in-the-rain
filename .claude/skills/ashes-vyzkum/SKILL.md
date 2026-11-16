@@ -40,7 +40,7 @@ Pick the chapter for the task. Every idea marked **[H]** is a hypothesis: measur
 | [ch06](chapters/ch06-godot-web-ios.md) | Godot web & iOS | web export facts, iOS memory, CanvasGroup, time_scale, textures, audio |
 | [ch07](chapters/ch07-code-patterns.md) | Code patterns | object pool, state, component, dirty flag – where they fit main.gd |
 | [ch08](chapters/ch08-mobile-controls.md) | Mobile controls | thumb reach, forgiveness (coyote/buffer), auto-aim |
-| [ch09](chapters/ch09-skills-and-tools.md) | Anthropic skills & tools | which of anthropics/skills help us, reader testing, web-build check, skill writing rules |
+| [ch09](chapters/ch09-skills-and-tools.md) | Anthropic skills & tools | which of anthropics/skills help us, reader testing, web-build check, craft-anything likeness check, skill writing rules |
 | [ch10](chapters/ch10-animate-cutscenes-trailer.md) | Cutscene craft & trailer | cth9191/animate: silence→loudest hit, voice as clock, word timing, contact sheets, Godot Movie Maker trailer |
 | [ch11](chapters/ch11-claude-code-on-pc.md) | Claude Code on the PC | Godot MCP (runtime screenshots/input), GdUnit4, hooks, TokenEconomizer |
 | [ch12](chapters/ch12-licences-stores.md) | Licences & stores | Artlist licence for games (Enterprise!), ElevenLabs, Gemini watermark/ownership, AI disclosure |

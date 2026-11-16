@@ -19,6 +19,13 @@
 | algorithmic-art | NO | procedural art is rejected by the user |
 | theme-factory, brand-guidelines, internal-comms, academy-guide, web-artifacts-builder | NO (for now) | web-artifacts-builder only if we ever build a level/balance viewer page |
 
+## storytold/craft-anything (MIT/Apache 2.0, early alpha, @ad0a68a 2026-11-17)
+A Rust app/CLI/MCP (320 tools) that studies a website, app or game, has Claude Code build "your own version", checks the build against the original and refines it (Study → Build → Check → Ready, up to 6 rounds). Godot is one of its game targets.
+- **Do not use it on other games** (Max Payne, Katana ZERO…): its Deep mode decompiles programs and extracts Unity/Unreal assets – EULA/IP risk, and our game must stay original (user rule). Its Clean room mode (only what a player sees) is the legal way to study a reference – we already do that by hand (ch01–ch05).
+- **Steal the check, not the tool**: its likeness score = mean of layout and perceptual detail (SSIM), measured at several widths, **ignoring regions that change by themselves, found by capturing the original three times**. [H] Our version: `gen/tools/likeness.py` – SSIM between a new screenshot and an approved one (or a Gemini mockup for a UI screen) at 1280 and 1560, masking rain/fire/flicker found from 3 captures; a drop below a threshold = visual regression to look at. Fits the hard rule "look at it yourself" and the PC Godot MCP screenshots (ch11).
+- Builder discipline worth copying: the builder tests its own work mid-turn with the same checks, records unknowns instead of guessing, and a check that could not compare something counts as not good enough.
+- Verdict: no install for Ashes.
+
 ## Lessons for writing our skills (skill-creator + spec)
 - Three loading levels: name+description always (~100 words), SKILL.md when triggered (< 500 lines), references only on demand – our index + chapters already follow it.
 - The **description decides triggering**: write *when* to use it, with concrete user-like phrasings; test with 8–10 should-trigger and 8–10 tricky near-miss queries.
