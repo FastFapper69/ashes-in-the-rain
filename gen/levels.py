@@ -778,11 +778,15 @@ def street(mp, m, rng):
             # among the least used, those whose left edge meets the last one's right edge; if none does, the
             # best-fitting of all the candidates (a little reuse beats a hard cut)
             if last is not None:
-                fit = [s for s in least if seam_score(last, s) < SEAM_OK]
-                if not fit:
+                fit = [s for s in cand if seam_score(last, s) < SEAM_OK]   # of those that join well, the least used
+                if fit:
+                    least = [s for s in fit if used.count(s) == min(used.count(q) for q in fit)]
+                    # (a drawing already in this map counts by its kit too: a variant beats the same picture again)
+                    least = [s for s in least if used.count(KIT.get(s, s)) + sum(used.count(v) for v, k in KIT.items() if k == KIT.get(s, s)) ==
+                             min(used.count(KIT.get(q, q)) + sum(used.count(v) for v, k in KIT.items() if k == KIT.get(q, q)) for q in least)] or least
+                else:
                     best = min(seam_score(last, s) for s in cand)
-                    fit = [s for s in cand if seam_score(last, s) <= best + 0.05]
-                least = fit
+                    least = [s for s in cand if seam_score(last, s) <= best + 0.05]
             name = rng.choice(least)
         seq.append([name, x])
         last = name

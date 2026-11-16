@@ -214,7 +214,7 @@ def strips():
                 os.remove(f)
             subprocess.run([G, "--path", ".", "--resolution", "1560x720", "--fixed-fps", "30", "--",
                             "--test=look:" + ",".join(f"{x:.0f}" for x in xs), f"--chapter={ci}", f"--map={mi}", "--center"],
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60 + 3 * len(xs))
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=200)
             tiles = []
             for k, x in enumerate(xs):
                 p = f"_shots/look_{k}.png"
