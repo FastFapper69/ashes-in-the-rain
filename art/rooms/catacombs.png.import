@@ -15,7 +15,7 @@ dest_files=["res://.godot/imported/catacombs.png-ab7b7bbcd1179f2ab6f999dfdfa4977
 
 [params]
 
-compress/mode=1
+compress/mode=4
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

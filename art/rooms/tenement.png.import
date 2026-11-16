@@ -15,7 +15,7 @@ dest_files=["res://.godot/imported/tenement.png-4d5f99364cf9e84cd9b124ff18b6b6e6
 
 [params]
 
-compress/mode=1
+compress/mode=4
 compress/high_quality=false
 compress/lossy_quality=0.85
 compress/uastc_level=0

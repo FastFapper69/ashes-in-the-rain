@@ -15,7 +15,7 @@ dest_files=["res://.godot/imported/station_stairs.png-14310499812910d552460c0a72
 
 [params]
 
-compress/mode=1
+compress/mode=4
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

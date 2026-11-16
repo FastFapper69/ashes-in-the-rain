@@ -1187,7 +1187,7 @@ func _build_segments() -> void:
 		for r in SEGMENT_DEEP.get(art, []):   # (a variant's picture is its own: deep views, fires, signs and lamps by `art`)
 			_add_deep(diffuse, w, r as Rect2, trim, art)
 		var glow := Sprite2D.new()   # its lit windows and signs, pushed through the night at full strength
-		glow.texture = load("res://art/street/" + art + "_lit.png")
+		glow.texture = BigTex.get_tex("res://art/street/" + art + "_lit.png")
 		glow.centered = false
 		glow.region_enabled = true   # the glow layer is stored at half size
 		glow.region_rect = Rect2(trim * 0.5, 0.0, glow.texture.get_width() - trim * 0.5, glow.texture.get_height())
@@ -1198,7 +1198,7 @@ func _build_segments() -> void:
 		glow.z_index = -9
 		add_child(glow)
 		var host := Sprite2D.new()   # blood lands only on what is solid in the drawing: see _stain_host
-		host.texture = load("res://art/street/" + art + "_solid.png")
+		host.texture = BigTex.get_tex("res://art/street/" + art + "_solid.png")
 		host.centered = false
 		host.region_enabled = true
 		host.region_rect = Rect2(trim * 0.5, 0.0, host.texture.get_width() - trim * 0.5, host.texture.get_height())
@@ -1295,7 +1295,7 @@ func _build_segments() -> void:
 			_pavement(x0, seg_w)
 		if seg != level["street"][0] and not floored:   # a firewall pier over the join with the drawing before
 			var pier := Sprite2D.new()
-			pier.texture = load("res://art/street/pier.png")
+			pier.texture = BigTex.get_tex("res://art/street/pier.png")
 			pier.centered = false
 			pier.scale = Vector2.ONE * WALL_SCALE
 			pier.position = Vector2(x0 - pier.texture.get_width() * WALL_SCALE * 0.5, -WALL_LIFT - (diffuse.get_height() * SEGMENT_BASE - (diffuse.get_height() - pier.texture.get_height())) * WALL_SCALE)

@@ -15,7 +15,7 @@ dest_files=["res://.godot/imported/quay.png-8a1c6695a68c73b6a9d7e32ee28536c1.cte
 
 [params]
 
-compress/mode=1
+compress/mode=4
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -36,5 +36,5 @@ process/premult_alpha=false
 process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
-process/size_limit=2048
+process/size_limit=2032
 detect_3d/compress_to=1

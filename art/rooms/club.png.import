@@ -15,7 +15,7 @@ dest_files=["res://.godot/imported/club.png-4c5b971ce5d5b342725159992253c133.cte
 
 [params]
 
-compress/mode=1
+compress/mode=4
 compress/high_quality=false
 compress/lossy_quality=0.85
 compress/uastc_level=0
