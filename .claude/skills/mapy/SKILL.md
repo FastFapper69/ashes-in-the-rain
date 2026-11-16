@@ -23,7 +23,11 @@ Uživatel: „ať to dává smysl a level je zajímavější“. Každé pravidl
   věci vedle sebe, nejvýš jeden velký stroj, první věc u vchodu není sud s palivem.
 - Odstup od vchodu ~430–600, od zadní stěny 380, mezi věcmi 430–680.
 - Muži stojí **za krytem** (na jeho vzdálenější straně od vchodu), ne v otevřeném prostoru.
-- Kresba místnosti se opakuje za 2376 px šířky (ROOM_SCALE 0.75) – `_room_src()` to počítá.
+- **Žádné předěly** (uživatel 16. 11., platí pro celou hru): kresba se nikdy neopakuje vedle sebe tak, aby se
+  uprostřed místnosti/chodby objevila její koncová stěna nebo okno. Místnost širší než kresba (2376 px při
+  ROOM_SCALE 0.75) má kresbu uprostřed a na koncích tmu (`_build_room`, `_room_src()`). Dlouhá chodba =
+  levý konec + opakovaný střed bez stěn (spoje na svislé trubce/sloupu) + pravý konec; střed střídá holou zeď
+  a dveře, nikdy stejné dveře dvakrát za sebou. Nové kresby (Gemini) zadávat jako konce + navazující střed.
 
 ## Červené sudy (palivo)
 - Jen tam, kde se palivo skladuje: `BARREL_OK` (dvory, sklady, doky, tunely, zadní ulička, sklep klubu)

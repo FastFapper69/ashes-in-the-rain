@@ -269,3 +269,11 @@ Read `.claude/skills/ashes-znalosti/SKILL.md` first (stable rules + topic index,
 - `gen/deploy/deploy_pc.sh` (one repo + gh-pages clone `..\ink-and-lead-pages`), `gen/tests/bots.sh` takes the Godot path from `G`. Not yet run end to end (first push needs the user's GitHub login).
 - First import 24 s; `--test=play --sandbox=0` renders at 60 fps on the RTX 5070 Ti (4 shots). The run ended after the shots without a BOT CLEARED line – check that first.
 - Seen in play_2 (1560): the roof storey stays in frame above the 3rd floor (camera does not hold the storey yet), Frank's arm reaches through the stair rail. Next: PC_SETUP "Pak práce" 1 – the cross-section at 1280/1560.
+
+## (16) Cross-section looked at on the PC; no seams anywhere, 2026-11-16
+- Looked at `--sandbox=0` at 1280/1560 (film every 1–1.5 s). Fixed: storeys other than his sink back (SEC_DIM 0.38, light follows him up the stairs), the houses either side darken (SEC_VEIL 0.72) and the bare sky behind them goes black inside; the storeys were drawn at alpha 0.95 (`Color * float` scales alpha – use `Color(v, v, v, 1)`); stale hint "THE SCORE EARNS THE STARS" → "THE SCORE IS YOUR XP".
+- Facade dissolve from the door: ink shader on the storeys (SEC_DISSOLVE 0.6 s, thin dark rim, noise edge), runs only while it moves.
+- **User rule 16. 11. (knowledge §1 rule 15): no seams in the whole game.** Hallways = left end + middle (bare wall, a door every 4th piece, joints on the drawn downpipe) + right end. Rooms wider than their drawing (13 of 15!) used to repeat the drawing's left edge at the right end: now the drawing is centred, dark ends; gen `_room_src` matches, levels.gd regenerated (a few crates/men moved 120–160 px off the painted doors).
+- gen/levels.py: map previews go to `_shots/sim` (was /home/claude/sim), street masks read repo-relative. Other gen/*.py still have `/home/claude/repo` paths – fix each when it is next used.
+- Open: sky over the roofs shows faint orange letter-glows and a moon ring (also on TENEMENTS – old, source not found yet); the section's street door is not where the stand-in street drawing paints its door (kit will fix); bots.sh tries map 3/5 which does not exist (harmless SCRIPT ERROR).
+- Next: enemies taking the stairs between storeys (+ footsteps from above, bark), then door kick / window jump once the two-state drawings exist (Gemini, QUEUE_doma §5).

@@ -37,6 +37,8 @@ nad sebe a vedle sebe; gen/section_art.py (napíšu) najde v každém kusu čár
 - Oba boční okraje končí půlkou svislého dřevěného pilastru/trubky: dva kusy vedle sebe dají celý pilastr,
   spoj není vidět. Nic jiného okrajem neprochází.
 - Bez postav. Nic nestojí na podlaze v cestě (jen u zadní stěny: koš, radiátor, noviny).
+- **Bez předělů** (uživatel 16. 11.): v kusech 211–213 žádná koncová/boční stěna ani okno u okraje – zeď budovy
+  je jen v kusu 214 na koncích chodby. Kusy se střídají, nikdy dva stejné vedle sebe.
 
 ### Společný úvod do každé zprávy (nový chat Gemini na každý kus; nahraj art/rooms/tenement.png jako vzor stylu,
 od kusu 2 i schválený kus 1 jako vzor měřítka)

@@ -1237,6 +1237,13 @@ const SEGMENT_SIZE := {"deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "te
 # street drawings stand at the back of the pavement at SEGMENT_BASE instead).
 const SEGMENT_FLOOR := {"fire_a": 0.905, "fire_b": 0.905, "fire_c": 0.905}
 var _sign_scale := WALL_SCALE
+const SEC_STAND_LEFT := 1800.0                  # stand-in hallway (art/rooms/tenement.png): the left end, up to the downpipe
+const SEC_STAND_CORE := Vector2(740.0, 1800.0)   # its middle, repeated: from past 3A to the downpipe (no end wall in it)
+const SEC_STAND_WALL := Vector2(740.0, 990.0)    # bare wallpaper between 3A and 3B
+const SEC_STAND_RIGHT := 1800.0                 # its far end from the downpipe: stairs, 3C, the window wall
+const SEC_DISSOLVE := 0.6  # s: the facade dissolving from the door when he steps in (story doc, tab "Řez domem a kamera")
+const SEC_DIM := 0.38      # a storey of a building in cross-section he is not on: sunk back, still readable
+const SEC_VEIL := 0.72     # the houses either side of a building he is inside
 const ROOM_BASE := 0.95     # an interior's painting under the night grade, before its lamps' pools
 const SEGMENT_MOON := 1.6   # how much brighter than the bare night the drawn streets are kept
 const SEGMENT_BASE := 0.92
@@ -5011,7 +5018,7 @@ func _score(e: Dictionary, head: bool, part: String) -> void:
 	hud.combo(_combo, int(pts), " ".join(how))
 	if _combo == 2 and chapter == 1 and map == 0 and not _streak_told:   # once: what the numbers up top are
 		_streak_told = true
-		hud.hint("KILLS CLOSE TOGETHER BUILD A STREAK. IN THE AIR AND TO THE HEAD SCORE MORE. THE SCORE EARNS THE STARS.", true)
+		hud.hint("KILLS CLOSE TOGETHER BUILD A STREAK. IN THE AIR AND TO THE HEAD SCORE MORE. THE SCORE IS YOUR XP.", true)
 	if _combo == 3 and _perk("hotstreak") and ammo < int(WEAPONS[weapon]["ammo"]):   # HOT STREAK: a round back
 		ammo += 1
 		_show_ammo()
@@ -5821,24 +5828,86 @@ func _build_sections() -> void:
 		var x1 := float(sec[1])
 		var holder := Node2D.new()   # all its storeys: shown from inside only
 		holder.z_index = -3
-		holder.modulate.a = 0.0
+		holder.visible = false
 		add_child(holder)
+		var ink := ShaderMaterial.new()   # the facade dissolves from the door like ink in water (runs only while it does)
+		ink.shader = _sec_ink_shader()
+		ink.set_shader_parameter("origin", Vector2(x0 + 60.0, -210.0))
+		ink.set_shader_parameter("radius", -400.0)
 		for k in int(sec[2]):
-			var floor_y := -section_h * k
+			var storey := Node2D.new()   # one hallway: its end walls only at its ends, never a wall with a window halfway along
+			storey.modulate = Color(ROOM_BASE, ROOM_BASE, ROOM_BASE, 1.0)
+			holder.add_child(storey)
 			var tex: Texture2D = BigTex.get_tex("res://art/rooms/tenement.png")   # stand-in until the kit is drawn
-			var sp := Sprite2D.new()
-			sp.texture = tex
-			sp.centered = false
-			sp.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
-			sp.region_enabled = true
 			var sc := section_h / tex.get_height()
-			sp.region_rect = Rect2(0.0, 0.0, (x1 - x0) / sc, tex.get_height())
-			sp.scale = Vector2.ONE * sc
-			sp.position = Vector2(x0, floor_y - section_h)
-			sp.light_mask = 0
-			sp.modulate = Color.WHITE * ROOM_BASE
-			holder.add_child(sp)
-		_sec_art.append(holder)
+			var top_y := -section_h * k - section_h
+			var span := (x1 - x0) / sc   # the hallway in the drawing's pixels
+			var right_w := tex.get_width() - SEC_STAND_RIGHT
+			var pieces: Array = [[0.0, SEC_STAND_LEFT, 0.0]]   # [from, to, at]: the left end wall
+			var at := SEC_STAND_LEFT
+			var n := 0
+			while at < span - right_w:   # the middle: bare wall, and a door now and then (never the same door twice running)
+				var core: Vector2 = SEC_STAND_CORE if n % 4 == 3 else SEC_STAND_WALL
+				var w := minf(core.y - core.x, span - right_w - at + 20.0)
+				pieces.append([core.x, core.x + w, at])
+				at += core.y - core.x
+				n += 1
+			pieces.append([SEC_STAND_RIGHT, float(tex.get_width()), span - right_w])   # the stairs, 3C and the window: the far end
+			for pc in pieces:
+				var sp := Sprite2D.new()
+				sp.texture = tex
+				sp.centered = false
+				sp.region_enabled = true
+				sp.region_rect = Rect2(float(pc[0]), 0.0, float(pc[1]) - float(pc[0]), tex.get_height())
+				sp.scale = Vector2.ONE * sc
+				sp.position = Vector2(x0 + float(pc[2]) * sc, top_y)
+				sp.light_mask = 0
+				storey.add_child(sp)
+		var veil := Node2D.new()   # inside, the houses either side sink into the dark: only this building is lit
+		veil.z_index = -3
+		veil.modulate.a = 0.0
+		add_child(veil)
+		var void_ := Node2D.new()   # and the sky behind them goes black: no bare sky between their tops and the roofs up here
+		void_.z_index = -20
+		void_.modulate.a = 0.0
+		add_child(void_)
+		var top := -section_h * (int(sec[2]) + 3)
+		for side in [Rect2(x0 - 6000.0, top, 6000.0, 4000.0 - top), Rect2(x1, top, 6000.0, 4000.0 - top)]:
+			for pair in [[veil, SEC_VEIL], [void_, 1.0]]:
+				var cr := ColorRect.new()
+				cr.position = (side as Rect2).position
+				cr.size = (side as Rect2).size
+				cr.color = Color(0.0, 0.0, 0.0, float(pair[1]))
+				cr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				(pair[0] as Node2D).add_child(cr)
+		var reach := Vector2(x1 - x0, section_h * int(sec[2])).length() + 500.0
+		_sec_art.append({"holder": holder, "veil": veil, "void": void_, "lit": 0.0, "ink": ink, "open": 0.0, "reach": reach})
+
+
+var _ink_shader: Shader
+func _sec_ink_shader() -> Shader:
+	if _ink_shader == null:
+		_ink_shader = Shader.new()
+		_ink_shader.code = """shader_type canvas_item;
+uniform vec2 origin;
+uniform float radius;
+varying vec2 world;
+void vertex() { world = (MODEL_MATRIX * vec4(VERTEX, 0.0, 1.0)).xy; }
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float noise(vec2 p) {
+	vec2 i = floor(p); vec2 f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+void fragment() {
+	vec4 c = texture(TEXTURE, UV) * COLOR;
+	float n = noise(world / 190.0) * 0.55 + noise(world / 47.0) * 0.3 + noise(world / 13.0) * 0.15;
+	float edge = radius - distance(world, origin) + (n - 0.5) * 380.0;
+	c.rgb *= mix(0.08, 1.0, smoothstep(0.0, 55.0, edge));   // a thin ink rim where it spreads
+	c.a *= smoothstep(-6.0, 14.0, edge);
+	COLOR = c;
+}
+"""
+	return _ink_shader
 
 
 ## The building he is in, or -1; `storey` out: which storey (0 = the street's).
@@ -5850,12 +5919,32 @@ func _section_at(p: Vector2) -> int:
 	return -1
 
 
-## Inside: the storeys show (fading in over half a second), outside they fade back to the facade.
+## Inside: the facade dissolves from the door and the storeys show; outside it closes back over them.
 func _tick_sections(real: float) -> void:
 	var inside := _section_at(player.position)
 	for i in _sec_art.size():
-		var h: Node2D = _sec_art[i]
-		h.modulate.a = move_toward(h.modulate.a, 1.0 if i == inside else 0.0, real * 2.0)
+		var art: Dictionary = _sec_art[i]
+		var h: Node2D = art["holder"]
+		var was := float(art["open"])
+		var open := move_toward(was, 1.0 if i == inside else 0.0, real / SEC_DISSOLVE)
+		art["open"] = open
+		h.visible = open > 0.0
+		var moving := open > 0.0 and open < 1.0
+		if moving or was != open:   # the dissolve: an inked edge running out from the door, eased
+			var e := open * open * (3.0 - 2.0 * open)
+			(art["ink"] as ShaderMaterial).set_shader_parameter("radius", lerpf(-400.0, float(art["reach"]), e))
+			for st in h.get_children():
+				for sp in st.get_children():
+					(sp as CanvasItem).material = art["ink"] if moving else null
+		(art["veil"] as Node2D).modulate.a = open
+		(art["void"] as Node2D).modulate.a = open
+		# the storey he is on is lit, the others sink back; on the stairs the light goes up with him
+		var want := clampf(-player.position.y / section_h, 0.0, float(h.get_child_count() - 1)) if i == inside else float(art["lit"])
+		art["lit"] = lerpf(float(art["lit"]), want, 1.0 - exp(-6.0 * real))
+		for k in h.get_child_count():
+			var near := clampf(1.0 - absf(float(k) - float(art["lit"])), 0.0, 1.0)
+			var v := ROOM_BASE * lerpf(SEC_DIM, 1.0, near)   # brightness only: the storey stays opaque over the facade
+			(h.get_child(k) as CanvasItem).modulate = Color(v, v, v, 1.0)
 	if inside < 0 or over:
 		return
 	for c in _xy_checks:   # a checkpoint on each storey, where he comes up the stairs
@@ -6610,11 +6699,16 @@ func _build_room(x0: float, x1: float, style: String) -> void:
 	wall.region_enabled = true
 	# The interiors were drawn close up: at the street's scale a door in them came out three men tall.
 	# At ROOM_SCALE a door is a head taller than him; above the drawing a dark ceiling.
-	var src_w := (x1 - x0) / ROOM_SCALE
+	# A room wider than its drawing never repeats it (that would put the drawing's end walls halfway along
+	# the room, the user's rule 16. 11.): the drawing sits in the middle and the extra at each end is the
+	# dark the hallway runs on into.
+	var src_w := minf((x1 - x0) / ROOM_SCALE, tex.get_width())
+	var pad := maxf(0.0, ((x1 - x0) - tex.get_width() * ROOM_SCALE) * 0.5)
+	wall.texture_repeat = CanvasItem.TEXTURE_REPEAT_DISABLED
 	wall.region_rect = Rect2(maxf(0.0, (tex.get_width() - src_w) * 0.5), 0.0, src_w, tex.get_height())
 	wall.scale = Vector2.ONE * ROOM_SCALE
 	var top := -tex.get_height() * ROOM_SCALE * SEGMENT_BASE
-	wall.position = Vector2(x0, top)
+	wall.position = Vector2(x0 + pad, top)
 	wall.z_index = -5
 	# The painting already has its lamps' light in it: it takes no lamplight of its own (one big
 	# drawing redrawn once per light cost the phone its frame rate). It sits dim, and each painted
@@ -6644,8 +6738,15 @@ func _build_room(x0: float, x1: float, style: String) -> void:
 	for side: float in [-1.0, 1.0]:
 		var x: float = x1 if side > 0.0 else x0
 		var dark := Polygon2D.new()
-		var inner: float = x - side * 340.0
-		dark.polygon = PackedVector2Array([Vector2(inner, top), Vector2(x, top), Vector2(x, 40.0), Vector2(inner, 40.0)])
+		var edge: float = x - side * pad   # past the drawing's end: all dark
+		if pad > 0.0:
+			var solid := Polygon2D.new()
+			solid.polygon = PackedVector2Array([Vector2(edge, top), Vector2(x, top), Vector2(x, 40.0), Vector2(edge, 40.0)])
+			solid.color = Color(0, 0, 0, 1)
+			solid.z_index = -4
+			add_child(solid)
+		var inner: float = edge - side * 340.0
+		dark.polygon = PackedVector2Array([Vector2(inner, top), Vector2(edge, top), Vector2(edge, 40.0), Vector2(inner, 40.0)])
 		dark.vertex_colors = PackedColorArray([Color(0, 0, 0, 0), Color(0, 0, 0, 1), Color(0, 0, 0, 1), Color(0, 0, 0, 0)])
 		dark.z_index = -4
 		add_child(dark)
@@ -6664,7 +6765,7 @@ func _build_room(x0: float, x1: float, style: String) -> void:
 	# the painted lamps: a soft glow on each bulb and its light on whoever stands under it
 	var crop_x := maxf(0.0, (tex.get_width() - src_w) * 0.5)
 	for pd in ROOM_PENDANTS.get(style, []):   # lamps hung from the painting's ceiling beam: they swing
-		var px: float = x0 + (float(pd[0]) * tex.get_width() - crop_x) * ROOM_SCALE
+		var px: float = x0 + pad + (float(pd[0]) * tex.get_width() - crop_x) * ROOM_SCALE
 		if px < x0 + 200.0 or px > x1 - 200.0:
 			continue
 		var hook: float = top + float(pd[1]) * tex.get_height() * ROOM_SCALE
@@ -6677,7 +6778,7 @@ func _build_room(x0: float, x1: float, style: String) -> void:
 		pend["lamp"] = lamps.size() - 1
 		_swingers.append(pend)
 	for b in ROOM_BULBS.get(style, []):
-		var at := Vector2(x0 + (float(b[0]) * tex.get_width() - crop_x) * ROOM_SCALE, top + float(b[1]) * tex.get_height() * ROOM_SCALE)
+		var at := Vector2(x0 + pad + (float(b[0]) * tex.get_width() - crop_x) * ROOM_SCALE, top + float(b[1]) * tex.get_height() * ROOM_SCALE)
 		if at.x < x0 + 60.0 or at.x > x1 - 60.0:
 			continue
 		var col: Color = BULB_COLORS.get(String(b[2]), BULB_COLORS["warm"])

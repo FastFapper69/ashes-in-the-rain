@@ -3,8 +3,10 @@
 # another by a seeded generator to a difficulty curve, then checked (nothing overlaps, every floor can be
 # reached, nobody floats) and drawn as a map for review. Output: levels.gd, a GDScript data file.
 #
-# Run:  python3 gen/levels.py [out.gd]     maps are drawn to /home/claude/sim/map_*.png
-import random, sys
+# Run:  python3 gen/levels.py [out.gd]     maps are drawn to $ASHES_SIM or _shots/sim/map_*.png
+import os, random, sys
+SIM = os.environ.get("ASHES_SIM", os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "_shots", "sim"))   # the map drawings (git-ignored)
+REPO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 from PIL import Image, ImageDraw
 
 # kind: (width, height, wood?)  wood breaks under fire, the rest holds; barrel explodes
@@ -89,7 +91,7 @@ def facade(street, xa, xb, ya, yb):
         a, b = max(xa, x0), min(xb, x1)
         if b <= a: continue
         if name not in _MASKS:
-            _MASKS[name] = np.asarray(Image.open(f"/home/claude/repo/art/street/{name}_solid.png"))[..., 3] > 128
+            _MASKS[name] = np.asarray(Image.open(os.path.join(REPO, "art", "street", f"{name}_solid.png")))[..., 3] > 128
         m = _MASKS[name]
         cx = lambda wx: int(((wx - x0) / (1.9 * sx) + trim) / 2)
         cy = lambda wy: int(((wy + 1344 * 1.9 * 0.92 + 60) / 1.9) / 2)
@@ -140,7 +142,7 @@ class Chunk:
 # ---- rooms: how they are furnished (2026-11-16) -------------------------------------------------
 # Every interior is furnished anew where it stands (no two rooms of a kind alike), by these rules:
 # - nothing in front of a door, an arch, a passage or a ladder painted in the room (ROOM_CLEAR, in the
-#   drawing's own pixels: main.gd _build_room shows it at ROOM_SCALE, centred, repeating past its width);
+#   drawing's own pixels: main.gd _build_room shows it at ROOM_SCALE, centred, never repeated: past its width the room is dark);
 # - a step clear of the way in and the far wall; a man's width at least between two things;
 # - never the same thing twice side by side, at most one of the big machines, a red barrel only where
 #   fuel is kept (BARREL_OK);
@@ -163,8 +165,11 @@ BIG = ("machine",)
 
 def _room_src(style, w, x):
     """Where room-x x falls in the room's drawing (its own pixels)."""
-    off = max(0.0, (ROOM_PIC_W - w / ROOM_SCALE) / 2)
-    return (off + x / ROOM_SCALE) % ROOM_PIC_W
+    pic = ROOM_PIC_W * ROOM_SCALE
+    if w > pic:   # wider than its drawing: the drawing in the middle, dark at both ends (never repeated)
+        return (x - (w - pic) / 2) / ROOM_SCALE
+    off = (ROOM_PIC_W - w / ROOM_SCALE) / 2
+    return off + x / ROOM_SCALE
 
 
 def _room_free(style, w, a, b):
@@ -1002,7 +1007,7 @@ if __name__ == "__main__":
             bad = bad or bool(errs)
             print(f'{ch["title"]:12} {mp["name"]:15} {int(m.end):6} px  {len(m.enemies):3} enemies  {len(m.checks)} checkpoints  ' + ("ERRORS: " + "; ".join(errs) if errs else "ok"))
             n += 1
-            draw(m, mp["name"], f"/home/claude/sim/map_{n:02d}.png")
+            draw(m, mp["name"], os.path.join(SIM, f"map_{n:02d}.png"))
             lv = dict(mp); lv["m"] = m
             maps.append(lv)
         c = dict(ch); c["maps"] = maps
