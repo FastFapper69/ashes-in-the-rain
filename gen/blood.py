@@ -1,7 +1,8 @@
 # Wall blood stains in the style of the existing blood sprites: flat crimson with a darker rim.
 import random, math
 from PIL import Image, ImageDraw, ImageFilter
-OUT = '/home/claude/repo/art/fx/'
+from paths import REPO
+OUT = REPO + 'art/fx/'
 SS = 2
 FILL = (118, 24, 19, 255)
 RIM = (62, 8, 6, 255)

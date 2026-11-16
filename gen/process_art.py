@@ -8,7 +8,7 @@ from PIL import Image, ImageFilter
 from scipy import ndimage
 
 import os
-SRC = os.path.join(os.path.expanduser('~'), 'Documents', 'MobileGames', 'Ink and Lead', 'art_src') + os.sep
+from paths import SRC   # (art_src, with a trailing slash)
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'art') + os.sep
 # segment name: (file, right pilaster to trim, has the tower pair at top left)
 STREET = {

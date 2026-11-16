@@ -4,8 +4,8 @@
 import numpy as np
 from PIL import Image
 from scipy import ndimage
-SRC = '/mnt/user-data/uploads/Ink and Lead/art_src/'
-OUT = '/home/claude/repo/art/props/'
+from paths import SRC, REPO
+OUT = REPO + 'art/props/'
 
 
 def key(f, out, max_w):

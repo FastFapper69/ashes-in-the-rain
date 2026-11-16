@@ -5,8 +5,8 @@
 import numpy as np
 from PIL import Image, ImageFilter
 from scipy import ndimage
-SRC = '/mnt/user-data/uploads/Ink and Lead/art_src/'
-OUT = '/home/claude/repo/art/'
+from paths import SRC, REPO
+OUT = REPO + 'art/'
 RIGHT_POST = 100
 for name, f in [('fire_a', '131.png'), ('fire_b', '132.png'), ('fire_c', '133.png')]:
     rgb = np.asarray(Image.open(SRC + f).convert('RGB'))[:, :-RIGHT_POST]

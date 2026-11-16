@@ -4,9 +4,10 @@ import numpy as np
 from PIL import Image, ImageFilter
 from scipy import ndimage
 import sys
+from paths import SRC, REPO
 sys.argv = ['x']
-OUT = '/home/claude/repo/art/'
-src = np.asarray(Image.open('/mnt/user-data/uploads/Ink and Lead/art_src/71.png').convert('RGB')).astype(int)
+OUT = REPO + 'art/'
+src = np.asarray(Image.open(SRC + '71.png').convert('RGB')).astype(int)
 H, W = src.shape[:2]
 paper = (src.min(2) > 200) & ((src.max(2) - src.min(2)) < 30)
 lab, n = ndimage.label(paper)

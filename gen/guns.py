@@ -2,7 +2,8 @@
 import numpy as np
 from PIL import Image, ImageFilter
 from scipy import ndimage
-src = np.asarray(Image.open('/mnt/user-data/uploads/Ink and Lead/art_src/39.png').convert('RGB')).astype(int)
+from paths import SRC, REPO
+src = np.asarray(Image.open(SRC + '39.png').convert('RGB')).astype(int)
 h, w = src.shape[:2]
 paper = (src.min(2) > 225) & ((src.max(2) - src.min(2)) < 20)
 lab, n = ndimage.label(paper)
@@ -19,5 +20,5 @@ for name, (r, c) in CELLS.items():
     im = Image.fromarray(np.dstack([src[sl], a[sl]]).astype(np.uint8), 'RGBA')
     im = im.crop(Image.fromarray(a[sl]).getbbox())
     im = im.resize((im.width // 2, im.height // 2), Image.LANCZOS)
-    im.save(f'/home/claude/repo/art/guns/{name}.png')
+    im.save(REPO + f'art/guns/{name}.png')
     print(name, im.size)

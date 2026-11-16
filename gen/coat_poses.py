@@ -4,8 +4,9 @@ import numpy as np
 from PIL import Image, ImageFilter
 from scipy import ndimage
 import sys
+from paths import SRC
 sys.path.insert(0, 'gen')
-SRC = '/mnt/user-data/uploads/Ink and Lead/art_src/159.jpg'
+SRC = SRC + '159.jpg'
 OUT = 'art/detective/'
 src = Image.open(SRC).convert('RGB')
 rgb = np.asarray(src).astype(float)

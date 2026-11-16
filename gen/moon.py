@@ -1,6 +1,7 @@
 # A full moon in ink and wash: pale disc, soft grey seas, a dark rim line.
 import numpy as np
 from PIL import Image, ImageFilter
+from paths import REPO
 N = 384
 y, x = np.mgrid[0:N, 0:N] / N * 2 - 1
 r = np.sqrt(x * x + y * y)
@@ -16,4 +17,4 @@ rim = np.clip(1 - np.abs(r - 0.955) / 0.02, 0, 1)
 col = col * (1 - rim[..., None] * 0.7)
 alpha = np.clip((0.975 - r) / 0.01, 0, 1)
 img = Image.fromarray(np.dstack([col, alpha * 255]).astype(np.uint8), 'RGBA')
-img.save('/home/claude/repo/art/bg/moon.png')
+img.save(REPO + 'art/bg/moon.png')

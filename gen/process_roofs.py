@@ -6,9 +6,9 @@
 import numpy as np
 from PIL import Image, ImageFilter
 from scipy import ndimage
+from paths import SRC, REPO
 
-SRC = '/mnt/user-data/uploads/Ink and Lead/art_src/'
-OUT = '/home/claude/repo/art/'
+OUT = REPO + 'art/'
 ROOFS = {'roof_a': '107.png', 'roof_b': '108.png'}
 
 

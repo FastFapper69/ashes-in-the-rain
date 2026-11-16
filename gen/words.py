@@ -3,7 +3,8 @@
 import numpy as np
 from PIL import Image, ImageFilter
 from scipy import ndimage
-src = np.asarray(Image.open('/mnt/user-data/uploads/Ink and Lead/art_src/37.png').convert('RGB')).astype(int)
+from paths import SRC, REPO
+src = np.asarray(Image.open(SRC + '37.png').convert('RGB')).astype(int)
 h, w = src.shape[:2]
 paper = (src.min(2) > 238) & ((src.max(2) - src.min(2)) < 18)
 lab, n = ndimage.label(paper)
@@ -44,5 +45,5 @@ for cy, cx, sl, keep, main_id in words:
     rgba = np.dstack([src[sl], np.where(keep, alpha[sl], 0)]).astype(np.uint8)
     im = Image.fromarray(rgba, 'RGBA')
     bb = Image.fromarray(rgba[..., 3]).getbbox(); im = im.crop(bb)
-    im.save(f'/home/claude/repo/art/fx/word_{name}.png')
+    im.save(REPO + f'art/fx/word_{name}.png')
     print(name, key, im.size)

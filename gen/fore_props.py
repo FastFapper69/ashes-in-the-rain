@@ -3,9 +3,10 @@
 # in game, so plain shapes are enough; its lantern gets a glow in the engine).
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
+from paths import REPO
 
-OUT = '/home/claude/repo/art/fore/'
-src = Image.open('/home/claude/repo/art/bg/fore.png')
+OUT = REPO + 'art/fore/'
+src = Image.open(REPO + 'art/bg/fore.png')
 BOXES = {'sign': (100, 448), 'car': (500, 1775), 'bollard': (1815, 1940), 'hydrant': (1990, 2206), 'railing': (2245, 2812), 'trash': (2858, 3115)}
 for name, (x0, x1) in BOXES.items():
     crop = src.crop((x0, 0, x1, 1296))

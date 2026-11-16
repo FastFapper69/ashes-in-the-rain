@@ -5,8 +5,9 @@ import json, glob, os
 import numpy as np
 from PIL import Image
 from scipy import ndimage
+from paths import REPO
 
-OUT = '/home/claude/repo/art/cut/'
+OUT = REPO + 'art/cut/'
 FIRE = {70, 77}   # panels where the warm light is flame
 res = {}
 for path in sorted(glob.glob(OUT + '*.jpg')):

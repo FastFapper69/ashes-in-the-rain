@@ -7,8 +7,8 @@ import numpy as np
 import cv2
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from scipy import ndimage
-SRC = '/mnt/user-data/uploads/Ink and Lead/art_src/'
-OUT = '/home/claude/repo/art/'
+from paths import SRC, REPO
+OUT = REPO + 'art/'
 RIGHT_POST = 100
 
 

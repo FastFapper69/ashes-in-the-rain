@@ -1,5 +1,8 @@
 import json, sys, time
 from playwright.sync_api import sync_playwright
+import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+from paths import REPO
 errs = []
 with sync_playwright() as p:
     b = p.chromium.launch(executable_path="/usr/bin/google-chrome", headless=True,
@@ -22,13 +25,13 @@ with sync_playwright() as p:
         if "ready" in crumbs:
             break
     time.sleep(8)
-    pg.screenshot(path="/home/claude/repo/_shots/web_title.png")
+    pg.screenshot(path=REPO + "_shots/web_title.png")
     pg.evaluate("localStorage.setItem('ashes_resume','1:1')")
     pg.reload()
     time.sleep(25); pg.mouse.click(426, 200)
     for k in range(4):
         time.sleep(30)
-        pg.screenshot(path="/home/claude/repo/_shots/web_map_%d.png" % k)
+        pg.screenshot(path=REPO + "_shots/web_map_%d.png" % k)
     print("CRUMBS", (pg.evaluate("localStorage.ashes_crumbs || ''"))[-1500:])
     bad = [e for e in errs if any(k in e for k in ["compressedTexImage2D", "SCRIPT ERROR", "context lost", "CONTEXT_LOST"])]
     print("ERRORS", len(errs), "BAD", len(bad))

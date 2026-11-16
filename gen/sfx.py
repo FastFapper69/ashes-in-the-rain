@@ -2,8 +2,9 @@
 import numpy as np
 from scipy import signal
 from scipy.io import wavfile
+from paths import REPO
 SR = 44100
-OUT = '/home/claude/repo/sfx/'
+OUT = REPO + 'sfx/'
 rng = np.random.default_rng(4)
 
 def t(sec): return np.arange(int(SR * sec)) / SR

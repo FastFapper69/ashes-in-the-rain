@@ -2,7 +2,8 @@
 # and the pickups. Drawn as ink: flat dark tones, hard edges, hatching.
 import random, math
 from PIL import Image, ImageDraw, ImageFilter
-R = '/home/claude/repo/art/'
+from paths import REPO
+R = REPO + 'art/'
 W, H = 1000, 1500
 random.seed(3)
 

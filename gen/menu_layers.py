@@ -8,7 +8,7 @@ import numpy as np
 from PIL import Image, ImageFilter, ImageChops
 sys.path.insert(0, 'gen')
 import cut_props, key_neon
-SRC = '/mnt/user-data/uploads/Ink and Lead/art_src/'
+from paths import SRC
 os.makedirs('art/ui/menu', exist_ok=True); os.makedirs('art/ui/paper', exist_ok=True)
 TMP = '/tmp/menu_cut'; os.makedirs(TMP, exist_ok=True)
 

@@ -5,7 +5,7 @@
 import numpy as np
 from PIL import Image
 from scipy import ndimage
-SRC = '/mnt/user-data/uploads/Ink and Lead/art_src/'
+from paths import SRC
 OUT = 'art/ui/gunsmith/'
 
 

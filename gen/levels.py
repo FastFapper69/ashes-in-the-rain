@@ -1229,6 +1229,6 @@ if __name__ == "__main__":
     box = gd([{"title": "SANDBOX", "name": "SANDBOX", "ready": False, "hero": "frank", "ambient": [0.2, 0.21, 0.27], "rain": 1.0, "maps": sand}])
     box = box[box.index("const CAMPAIGN := [") + len("const CAMPAIGN := ["):].rstrip().rstrip("]")
     open(os.path.join(REPO, "kit.gd"), "w", encoding="utf-8", newline=chr(10)).write(KIT_CAT.gd())
-    open(sys.argv[1] if len(sys.argv) > 1 else "/mnt/user-data/outputs/godot2/levels.gd", "w").write(
+    open(sys.argv[1] if len(sys.argv) > 1 else os.path.join(REPO, "levels.gd"), "w").write(
         gd(campaign) + "\n# Trial maps (--sandbox=N): a new system on its own map, never in the case file.\nconst SANDBOX := [" + box + "]\n")
     sys.exit(1 if bad else 0)

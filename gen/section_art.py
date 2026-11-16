@@ -12,7 +12,8 @@ import os, sys
 import numpy as np
 from PIL import Image
 
-SRC = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.expanduser("~"), "Documents", "MobileGames", "Ink and Lead", "art_src")
+from paths import SRC as _SRC
+SRC = sys.argv[1] if len(sys.argv) > 1 else _SRC
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "art", "section")
 SEC_ROWS = 1112          # one storey, top of the slab above to the top of its own black floor cut (a multiple of 4)
 PIECES = {               # art_src number: name (main.gd SEC_KIT)

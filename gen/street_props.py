@@ -11,7 +11,7 @@ from PIL import Image
 from scipy import ndimage
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
-SRC = os.path.join(os.path.expanduser("~"), "Documents", "MobileGames", "Ink and Lead", "art_src")
+from paths import SRC
 # where each was painted in the original (approved) drawings, in the processed 3168x1344 pixels
 BOXES = {"awning": ("hk_tailor", (975, 752, 1732, 958)), "hydrant": ("hk_grocery", (1805, 1112, 1922, 1302)),
          "kegs": ("hk_saloon", (1082, 985, 1328, 1262)), "steampipe": ("hk_laundry", (1588, 1000, 2158, 1292))}

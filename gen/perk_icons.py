@@ -3,7 +3,8 @@
 import numpy as np
 from PIL import Image
 from scipy import ndimage
-a = np.asarray(Image.open('/mnt/user-data/uploads/Ink and Lead/art_src/194.jpg').convert('RGB')).astype(float)
+from paths import SRC, REPO
+a = np.asarray(Image.open(SRC + '194.jpg').convert('RGB')).astype(float)
 r, g, b = a[..., 0], a[..., 1], a[..., 2]
 alpha = 1 - np.clip((g - np.maximum(r, b) - 40) / 50, 0, 1)
 spill = np.maximum(g - np.maximum(r, b), 0)
@@ -23,5 +24,5 @@ for name, sl in zip(names, spans):
     im = Image.fromarray(rgba, 'RGBA')
     k = 360 / max(im.size)
     im = im.resize((round(im.width * k), round(im.height * k)), Image.LANCZOS)
-    im.save(f'/home/claude/repo/art/ui/instincts/icon_{name}.png')
+    im.save(REPO + f'art/ui/instincts/icon_{name}.png')
     print(name, im.size)

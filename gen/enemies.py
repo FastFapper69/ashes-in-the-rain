@@ -3,6 +3,7 @@
 import numpy as np
 from PIL import Image, ImageFilter
 from scipy import ndimage
+from paths import SRC, REPO
 
 def cut(path):
     src = np.asarray(Image.open(path).convert('RGB')).astype(int)
@@ -24,14 +25,14 @@ def cut(path):
     parts.sort(key=lambda p: p[0])
     return [p[1] for p in parts]
 
-OUT = '/home/claude/repo/art/'
-for name, im in zip(['fedora', 'homburg', 'cap', 'boxer'], cut('/mnt/user-data/uploads/Ink and Lead/art_src/41.png')):
+OUT = REPO + 'art/'
+for name, im in zip(['fedora', 'homburg', 'cap', 'boxer'], cut(SRC + '41.png')):
     im = im.resize((im.width * 378 // im.height, 378), Image.LANCZOS)   # the height of the first mobster head
     im.save(OUT + f'mobster/heads/{name}.png')
     a = np.asarray(im)[..., 3] > 128
     cols = np.where(a[im.height - 15])[0]
     print(name, im.size, 'neck x', round(float(cols.mean()), 1))
-for name, im in zip(['mobster/leg', 'detective/leg'], cut('/mnt/user-data/uploads/Ink and Lead/art_src/40.png')):
+for name, im in zip(['mobster/leg', 'detective/leg'], cut(SRC + '40.png')):
     im = im.resize((im.width * 1000 // im.height, 1000), Image.LANCZOS)
     im.save(OUT + name + '.png'); print(name, im.size)
 
