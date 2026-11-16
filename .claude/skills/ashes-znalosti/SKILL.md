@@ -34,6 +34,7 @@ description: "Distilled project knowledge for Ashes in the Rain (Godot 4.7 web/i
 15. **No seams, anywhere** (user, 16. 11.): a room or hallway is never two copies of a drawing side by side – no end wall or window halfway along. Ends + a joining middle, or the drawing centred with dark ends. Ch05, skill `mapy`.
 16. **Stairs in a building are in the back wall** (user's choice 16. 11.): an opening with the flight going up into the dark; jump there, he climbs it, the camera takes the storey, he comes out of the opening above. Never a side-on flight through a storey's floor (a zigzag route cannot work side-on). Inside a building: floors and outer walls stop bullets, nobody inside is seen from the street until the facade opens, aim/sight only on his own storey. "It must look good and make sense – no nonsense" (user). Ch05.
 17. **Voice/dubbing is done at the very end, all at once** (user, 16. 11.): new barks and lines ship as bubbles only; collect them, do not record piecemeal.
+18. **Stunts give slowed time for free** (user, 16. 11.): door kick 1.2 s, a swing on a rope 1 s, a window 0.5 s – the slow meter is not touched (`_free_slow`).
 
 ## 2. Core mental models
 - **The phone is the target, desktop numbers lie.** iPhone uses ~100 MB more textures (full-screen buffers at pixel ratio), the web keeps every loaded pack in the wasm heap, and Web Audio decodes whole streams to PCM. Measure with crumbs/crash reports, not with desktop feel.

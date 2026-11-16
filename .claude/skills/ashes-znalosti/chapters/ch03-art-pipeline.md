@@ -10,6 +10,27 @@ All visible art is hand-drawn-looking Gemini output processed by scripts in `gen
 - Cutscene panels 1920×815 (Gemini 3168×1344 = same ratio, plain resize).
 - Black-keyed FX sheets (fire 4×2, ink fx 8 frames) are cut by script; sheets on white are keyed accordingly.
 
+## Gemini prompt lessons (what had to be redrawn, 16. 11. – read before every prompt)
+- **One chat per kit**, style reference uploaded once by the user (the extension cannot open the file picker). Every
+  later piece: "NEW drawing, same framing, scale, black slabs, floor line, pilaster edges and style as <piece>". Kept
+  11 pieces consistent (slab rows 118, walk line 1215 in all).
+- **An opening through a wall in cross-section** (street door, a passage through a partition, a window through the
+  outer wall): Gemini draws the cut wall solid and paints a door/window frame *on the back wall* instead. Say it the
+  way that worked first time on the retry: "the cut wall stays ONLY ABOVE the opening as a lintel (from the ceiling
+  slab down to N % of the storey); BELOW that NO wall at all, the floor runs straight through". For a window add
+  "a hole THROUGH the cut wall, seen from the side, sill and lintel, NO glass, NO panes" and "the back wall has NO
+  door and NO window" – otherwise it adds a frontal window and an extra door.
+- **Pieces that get mirrored**: "NO text, numbers or letters anywhere" (2A/2B would read backwards).
+- **Side view of iron work** (fire escape): give landing heights as exact percentages from the bottom – they came out
+  evenly spaced and fit the storeys (k = 1.0526).
+- **Sprite sheets**: flat #00FF00, "four separate objects in a row with plenty of green between them", state each
+  object's view ("seen exactly EDGE-ON from the side") and its two states.
+- **Downloading**: click the download icon only once the image is finished, wait for a NEW file name in Downloads
+  (`until [ newest != previous ]`), then check it (size, green fraction for a sheet). Gemini sometimes serves a
+  broken full-size file (two images blended): fall back to the page's preview via canvas → `a.download`
+  (javascript_tool), 1024 px wide – enough for thin sprites. Image tool can be "unavailable for this turn": ask again later.
+- Check corners for a visible watermark star (none on 212–223).
+
 ## Processing scripts (gen/)
 `process_art.py` (STREET / KIT), `process_dream.py`, `fix_cut_text.py` (real text on panels), `fix_posters.py` (1947 notices), `coat_poses.py`, `gunsmith_art.py`, `perk_icons.py`, `map_props.py`, `tools/align_head.py` (template match on the face for bare heads), `tools/feather_sky.py`, `basis_imports.py`, `bigtex_sizes.py` (superseded by basis_imports), `sfx_story.py`, `voice_lines.py`, `packs.py`.
 

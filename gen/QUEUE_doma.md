@@ -82,6 +82,11 @@ copies can be joined side by side. No people. Nothing standing in the middle of 
 221 ŘÍMSA: "…the top of the facade: an ornate inked cornice across the whole width at 60–75 % of the image height,
      dark night sky with rain above it, the cornice top edge is a straight line (the roof parapet)."
 
+### Šablona promptu (poučení z přegenerování 16. 11., podrobně knowledge ch03 „Gemini prompt lessons“)
+- Otvor ve zdi v řezu: „cut wall ONLY ABOVE the opening as a lintel … BELOW that NO wall, the floor runs straight through“.
+- Okno ve zdi v řezu: „hole THROUGH the cut wall, seen from the side, NO glass“ + „the back wall has NO door and NO window“.
+- Zrcadlené kusy: „NO text, numbers or letters“. Železo z boku: výšky podest v % odspodu.
+
 ### Po stažení
 - `python3 gen/section_art.py` (napíšu): srovná čáru podlahy na řádek 1230, zkontroluje spoj dvou kusů, uloží
   art/section/tenement_*.png + Basis importy. Pak testovací mapa řezu a screenshoty 1280 i 1560.

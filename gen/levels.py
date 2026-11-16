@@ -81,10 +81,16 @@ STAIR_TOP = (2352.0, 255.0)
 SEC_H = 700.0
 # The tenement kit (gen/section_art.py, main.gd SEC_KIT_*): two pieces of 3168 px at 700/1112 make a storey;
 # x0 is the street door in the facade, 510 px into the first piece. Where its pieces paint them:
-SEC_W = 3478.0           # x0 to the far end of the second piece
+SEC_W = 3370.0           # x0 to the building's outer face on the right (the end walls' and the flat's brick)
 SEC_STAIRS_A = 2592.0    # the opening in tenement_stairs_a (second piece, ground and first floor)
 SEC_STAIRS_B = 371.0     # the opening in tenement_stairs_b (first piece, first and second floor)
-SEC_LADDER = 2935.0      # the ladder to the roof hatch in tenement_ladder
+SEC_LADDER = 2935.0      # the ladder to the roof hatch in tenement_ladder (not used while the top floor ends in the flat)
+# The flat at the right end of the top storey (tenement_flat, art_src 223) and the fire escape outside it (art_src 222):
+# kick in its door under the partition's lintel, out of its window onto the escape, up the escape to the roof.
+SEC_FLAT_DOOR = 1778.0   # the doorway under the lintel (door leaf 476 high)
+SEC_WIN = (3131.0, 3364.0)   # the window through the outer wall: inner face, outer face; sill 178, lintel 501 above the floor
+ESC_K = 1.0526           # the escape drawing's pixels to the world (its landings fall on the storeys)
+def esc(px): return SEC_WIN[1] + (px - 570.0) * ESC_K   # its picture's x (570 = the wall's outer face) in the chunk
 SEC_CLEAR = [(-60.0, 300.0), (1767.0, 2000.0), (2259.0, 2692.0), (2963.0, 3200.0)]   # ground floor, from x0: the street
 #   door's open leaf, door 2A, the stairs opening, door 2B
 TRIM = {"alley": 134, "bluenote": 134, "warehouse": 133, "laundry": 133, "subway": 53, "church": 58, "market": 58, "deadend": 58}
@@ -130,6 +136,7 @@ class Chunk:
         self.sections = []     # buildings in cross-section: [x0, x1, storeys, style]
         self.xy_checks = []    # checkpoints up in a building: [x, y]
         self.stairdoors = []   # the stairs in a building's back wall: [x, storey y, the y they lead to]
+        self.flats = []        # a flat to kick into and jump out of: [door x, storey y, door h, window x0, x1, sill, lintel]
 
     def box(self, kind, x, y=0.0): self.boxes.append([kind, x, y] if y else [kind, x]); return self
     def plat(self, x, y, w, style="catwalk"): self.plats.append([x, y, w, style]); return self
@@ -281,21 +288,29 @@ def chunk(name, hard, rng=None):
         c.up_end = w + 250.0
     elif name == "section":   # a tenement cut open: three storeys, the stairs zigzag up, the hatch to the roof
         w = SEC_W
-        c = Chunk(w + 400)
+        c = Chunk(w + 1000)
         c.sections.append([0.0, w, 3, "tenement"])
         for k in (1, 2):
             c.plat(0.0, -SEC_H * k, w, "section")
         r, l = SEC_STAIRS_A, SEC_STAIRS_B
         c.stairdoors += [[r, 0.0, -SEC_H], [r, -SEC_H, 0.0],                   # ground floor: up at the right
                          [l, -SEC_H, -SEC_H * 2], [l, -SEC_H * 2, -SEC_H]]     # first floor: up at the left
-        c.rope("ladder", SEC_LADDER, -SEC_H * 3, 0, -SEC_H * 2)                        # second floor: the ladder to the hatch
+        # second floor: along to the flat, kick in its door, out of the window onto the fire escape, up it to the roof
+        c.flats.append([SEC_FLAT_DOOR, -SEC_H * 2, 476.0, SEC_WIN[0], SEC_WIN[1], 178.0, 501.0])
+        e0 = esc(570.0)
+        for k in (1, 2, 3):                                                  # the escape's three landings
+            c.plat(e0, -SEC_H * k, esc(1220.0) - e0, "fescape")
+        c.ramps.append([esc(820.0), -SEC_H, esc(1050.0), -SEC_H * 2, "fescape"])      # its flights, as drawn
+        c.ramps.append([esc(790.0), -SEC_H * 2, esc(1050.0), -SEC_H * 3, "fescape"])
         c.foe(1200).foe(2100, kind="shotgun" if hard > 0.6 else "post")
         c.foe(1800, -SEC_H).foe(1000 + 450, -SEC_H, kind="tommy" if hard > 0.5 else "post")   # never at the head of the stairs:
-        c.foe(2000, -SEC_H * 2).foe(2700, -SEC_H * 2)                                           # 750+ from where he comes out
+        c.foe(1250, -SEC_H * 2)                                                                 # 750+ from where he comes out
+        c.foe(2350, -SEC_H * 2).foe(2850, -SEC_H * 2, kind="shotgun" if hard > 0.4 else "post")  # in the flat, behind the door
+        c.xy_checks += [[esc(700.0), -SEC_H * 2]]
         c.xy_checks += [[r, -SEC_H], [l, -SEC_H * 2]]
         c.checks += [-60.0]
         c.hint(-400, "INSIDE, UP THE STAIRS")
-        c.up_end = w + 250.0
+        c.up_end = esc(1050.0)   # the roof reaches out to where the fire escape's top flight arrives
     elif name == "stairs_up":   # the end of the platform: the stairs up to the mezzanine, the way out
         k = -KITS["mezz"]["y"] / (STAIR_FOOT[1] - STAIR_TOP[1])
         run = (STAIR_TOP[0] - STAIR_FOOT[0]) * k
@@ -443,6 +458,7 @@ def _build(mp, nudge):
         for a, b, n, st in c.sections: out.sections.append([x + a, x + b, n, st])
         for cx, cy in c.xy_checks: out.xy_checks.append([x + cx, cy])
         for sx, sy, ty in c.stairdoors: out.stairdoors.append([x + sx, sy, ty])
+        for fl in c.flats: out.flats.append([x + fl[0], fl[1], fl[2], x + fl[3], x + fl[4], fl[5], fl[6]])
         for lx, ly in c.lamps: out.lamps.append([x + lx, ly])
         for k, px, py in c.pickups: out.pickups.append([k, x + px, py])
         for k, a, b, cc, d in c.ropes: out.ropes.append([k, x + a, b, x + cc if k == "zip" else cc, d])
@@ -958,6 +974,7 @@ def gd(campaign):
             sc = ", ".join(f'[{f(a)}, {f(b)}, {n}, "{st}"]' for a, b, n, st in m.sections)
             xc = ", ".join(f'[{f(cx)}, {f(cy)}]' for cx, cy in m.xy_checks)
             sd = ", ".join(f'[{f(sx)}, {f(sy)}, {f(ty)}]' for sx, sy, ty in m.stairdoors)
+            fz = ", ".join("[" + ", ".join(f(v) for v in fl) + "]" for fl in m.flats)
             lp = ", ".join(f'[{f(l[0])}, {f(l[1])}]' for l in m.lamps)
             pk = ", ".join(f'["{p[0]}", {f(p[1])}, {f(p[2])}]' for p in m.pickups)
             hn = ", ".join(f'[{f(h[0])}, {q(h[1])}]' for h in m.hints)
@@ -994,7 +1011,7 @@ def gd(campaign):
             out.append(f'\t\t\t"pickups": [{pk}],')
             out.append(f'\t\t\t"checkpoints": [{ck}],')
             if m.sections:
-                out.append(f'\t\t\t"sections": [{sc}], "section_h": {f(SEC_H)}, "xy_checks": [{xc}], "stairdoors": [{sd}],')
+                out.append(f'\t\t\t"sections": [{sc}], "section_h": {f(SEC_H)}, "xy_checks": [{xc}], "stairdoors": [{sd}], "flats": [{fz}],')
             out.append(f'\t\t\t"street": [{st}],')
             out.append(f'\t\t\t"enemies": [{en}]}},')
         out.append("\t]},")

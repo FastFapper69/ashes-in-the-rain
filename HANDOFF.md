@@ -304,3 +304,10 @@ Read `.claude/skills/ashes-znalosti/SKILL.md` first (stable rules + topic index,
 ## (20) Uživatel schválil zjištění 1, 2, 3, 4, 6 z výzkumu (2026-11-16 večer)
 - Úkoly rozepsané v `gen/QUEUE_doma.md` §6: (1) kontrola vodoznaků Gemini v artu, (2) nástroje Claude Code na PC – runtime Godot MCP, hooks, GdUnit4, TokenEconomizer, (3) kamera: cue focus, platform snapping, nájezd na začátku mapy, (4) telemetrie smrtí/dokončení/odchodu do Supabase + heatmapa, (6) haptika (Android vibrate, iPhone switch trik) s přepínačem.
 - NEschváleno zatím: přístupnost (titulky, assist mód), byznys model, nativní build, licence Artlist (zůstává jako riziko v ch12).
+
+## (21) Door kick, window jump, fire escape; free slow on stunts, 2026-11-16
+- Gemini: 220 flat (rejected: solid partition, glazed window on the back wall) → 223 fixed (lintel over the passage, window through the cut outer wall); 221 two-state sheet (door edge-on whole/kicked, sash glazed/shattered) – the full-size download was broken (two images blended) twice and Gemini could not regenerate, so the 1024 px page preview is used (`221.png`, fine for thin pieces); 222 fire escape side-on. Prompt lessons → knowledge ch03 "Gemini prompt lessons" + QUEUE §5 template (user: learn from every redraw).
+- Game: the top storey ends in the flat; kick the door (free 1.2 s slow), dive out of the window (glass bursts, 0.5 s), fire escape up to the roof; swing on a rope now also 1 s free slow (user). Knowledge rule 18.
+- Fixes found while looking: the bot walked off the escape landing (railing now stops him), steep flights need a longer step, escape decks are solid; the houses beside the building stay dark while he is on its escape (their art is not meant to be seen at storey height), veil only up to the roofline.
+- Watermark check (QUEUE §6.1) on 212-223: no visible Gemini star. Other chat's QUEUE §6 noted, not started.
+- Bot: all 18 maps + SANDBOX 0 (38 s, through the flat, window and escape).
