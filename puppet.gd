@@ -453,7 +453,9 @@ func hat_hit(world: Vector2) -> bool:
 		var q: Vector2i = px + d
 		if q.x < 0 or q.y < 0 or q.x >= hat.get_width() or q.y >= hat.get_height() or hat.get_pixelv(q).a <= 0.5:
 			continue
-		if bare.get_pixelv(px).a < 0.5 or q.y < used.position.y + used.size.y * 0.55:
+		var bq := Vector2i(Vector2(px) * Vector2(bare.get_size()) / Vector2(hat.get_size()))   # (the bare head may be imported at another size)
+		bq = bq.clamp(Vector2i.ZERO, bare.get_size() - Vector2i.ONE)
+		if bare.get_pixelv(bq).a < 0.5 or q.y < used.position.y + used.size.y * 0.55:
 			return true
 	return false
 
