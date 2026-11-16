@@ -1983,6 +1983,15 @@ void fragment() {
 	disc.z_index = -29
 	disc.material = atmo.blur_material(1.0)
 	cam.add_child(disc)
+	var lit := Sprite2D.new()   # its own light on top: over the pale haze low in the sky (seen from a roof) it must
+	lit.texture = moon_tex      # still be the brightest thing there, not a faint ring of its outline
+	lit.scale = disc.scale
+	lit.position = moon_at
+	lit.material = additive
+	lit.modulate = _undo_night(0.3)
+	lit.light_mask = 0
+	lit.z_index = -29
+	cam.add_child(lit)
 	for d in ([] if level.has("street") else DEPTH):   # the drawn streets carry their own distance
 		var layer := Node2D.new()
 		add_child(layer)
@@ -3645,6 +3654,17 @@ func _auto_step(delta: float) -> void:
 			var feet := float(at[1]) if at.size() > 1 else -2000.0
 			player.position = Vector2(float(at[0]), _floor_at(float(at[0]), feet))
 			cam.position = Vector2(player.position.x + _lead, CAM_Y + _cam_rise(player.position.y))
+		if OS.get_cmdline_user_args().has("--skydebug") and fmod(_at, 2.6) > 2.2 and _auto_done & (1 << (k + 8)) == 0:
+			_auto_done |= 1 << (k + 8)
+			var view := get_viewport().get_canvas_transform().affine_inverse() * get_viewport().get_visible_rect()
+			var sky_band := Rect2(view.position, Vector2(view.size.x, view.size.y * 0.4))
+			for n in get_tree().root.find_children("*", "Sprite2D", true, false):
+				var sp := n as Sprite2D
+				if not sp.is_visible_in_tree() or sp.texture == null:
+					continue
+				var r := sp.get_global_transform() * sp.get_rect()
+				if r.intersects(sky_band):
+					print("SKY ", sp.get_path(), " ", sp.texture.resource_path, " z ", sp.z_index, " mod ", sp.modulate, " mat ", sp.material)
 		if OS.get_cmdline_user_args().has("--high"):   # the camera as high as a jump off a stack takes it
 			cam.position.y = CAM_Y - 330.0
 		if fmod(_at, 2.6) > 2.3 and _auto_done & (1 << k) == 0:

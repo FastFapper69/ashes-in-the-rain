@@ -291,3 +291,7 @@ Read `.claude/skills/ashes-znalosti/SKILL.md` first (stable rules + topic index,
 - main.gd `_build_section_kit`: per storey two pieces (SEC_KIT_LAYOUT), end-wall caps, facade from 218/219 under the storeys; flights go straight back (`_stair_foot` 0 with the kit); the painted ladder replaces the drawn one. gen/levels.py: SEC_W 3478, stairs at 2592 / 371, ladder 2935, SEC_CLEAR keeps cover off the painted doors and stairs.
 - Looked at 1280 + 1560 film: in at the door, three storeys, men down the stairs, the ladder, the roof. Bot clears SANDBOX 0 in 29 s.
 - Next: voice the barks comedown/goup; door kick / window jump (two-state drawings); then TENEMENTS in the campaign built from the kit.
+
+## (19) Sky ghosts found, 2026-11-16
+- Cause of the orange "letter glows" over the roofs: art/bg/sky.png had blurred city lights (bokeh) and a painted moon in its low band; from a roof the camera shows that band (doubled by the mirrored sky under it). gen/tools/clean_sky.py blends the band into a wide blur of itself (run once, done). The game's own moon over the pale haze read as a faint ring: it now gets an additive copy (`lit`), on the roofs it melts into the haze (rainy night), from the street unchanged. `--skydebug` on look tests lists every sprite in the top 40 % of the screen.
+- User: dubbing at the very end, all at once (knowledge rule 17). User played the sandbox: storeys work, details to polish later.
