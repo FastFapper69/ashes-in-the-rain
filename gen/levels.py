@@ -79,8 +79,14 @@ STAIR_TOP = (2352.0, 255.0)
 # drawn side-on cannot zigzag (the next storey would walk over it). Stand-in: the stairs painted in
 # art/rooms/tenement.png; main.gd _build_sections puts them where these doors are.
 SEC_H = 700.0
-SEC_DOOR_RIGHT = 598.0   # from the right end: the stand-in drawing's own stairs (its far end piece)
-SEC_DOOR_LEFT = 1052.0   # from the left end: its stairs piece set just past the left end wall
+# The tenement kit (gen/section_art.py, main.gd SEC_KIT_*): two pieces of 3168 px at 700/1112 make a storey;
+# x0 is the street door in the facade, 510 px into the first piece. Where its pieces paint them:
+SEC_W = 3478.0           # x0 to the far end of the second piece
+SEC_STAIRS_A = 2592.0    # the opening in tenement_stairs_a (second piece, ground and first floor)
+SEC_STAIRS_B = 371.0     # the opening in tenement_stairs_b (first piece, first and second floor)
+SEC_LADDER = 2935.0      # the ladder to the roof hatch in tenement_ladder
+SEC_CLEAR = [(-60.0, 300.0), (1767.0, 2000.0), (2259.0, 2692.0), (2963.0, 3200.0)]   # ground floor, from x0: the street
+#   door's open leaf, door 2A, the stairs opening, door 2B
 TRIM = {"alley": 134, "bluenote": 134, "warehouse": 133, "laundry": 133, "subway": 53, "church": 58, "market": 58, "deadend": 58}
 _MASKS = {}
 
@@ -274,15 +280,15 @@ def chunk(name, hard, rng=None):
         c.scaf = True
         c.up_end = w + 250.0
     elif name == "section":   # a tenement cut open: three storeys, the stairs zigzag up, the hatch to the roof
-        w = 3300.0
+        w = SEC_W
         c = Chunk(w + 400)
         c.sections.append([0.0, w, 3, "tenement"])
         for k in (1, 2):
             c.plat(0.0, -SEC_H * k, w, "section")
-        r, l = w - SEC_DOOR_RIGHT, SEC_DOOR_LEFT
+        r, l = SEC_STAIRS_A, SEC_STAIRS_B
         c.stairdoors += [[r, 0.0, -SEC_H], [r, -SEC_H, 0.0],                   # ground floor: up at the right
                          [l, -SEC_H, -SEC_H * 2], [l, -SEC_H * 2, -SEC_H]]     # first floor: up at the left
-        c.rope("ladder", w - 150, -SEC_H * 3, 0, -SEC_H * 2)                        # second floor: the ladder to the hatch
+        c.rope("ladder", SEC_LADDER, -SEC_H * 3, 0, -SEC_H * 2)                        # second floor: the ladder to the hatch
         c.foe(1200).foe(2100, kind="shotgun" if hard > 0.6 else "post")
         c.foe(1800, -SEC_H).foe(1000 + 450, -SEC_H, kind="tommy" if hard > 0.5 else "post")   # never at the head of the stairs:
         c.foe(2000, -SEC_H * 2).foe(2700, -SEC_H * 2)                                           # 750+ from where he comes out
@@ -600,6 +606,9 @@ def cover_men(m, mp):
 
 def _cover_spot(m, e, bx, w, by):
     lo, hi = bx - 270, bx + w + 270   # a man's width clear of anything else on the ground
+    for a, b, n, st in m.sections:   # nothing in front of a door or the stairs painted in the building's ground floor
+        if any(a + c0 - 60 < bx + w and bx < a + c1 + 60 for c0, c1 in SEC_CLEAR):
+            return False
     if any(by(b) == 0.0 and b[1] < hi and b[1] + BOX[b[0]][0] > lo for b in m.boxes):
         return False
     if any(o is not e and bx - 120 < o["x"] < bx + w + 120 and o["y"] == 0.0 for o in m.enemies):

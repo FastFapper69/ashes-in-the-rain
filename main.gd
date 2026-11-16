@@ -4134,7 +4134,7 @@ func _block(before_x: float) -> void:
 	var si := _section_at(Vector2(before_x, player.position.y))
 	if si >= 0:   # a building's outer walls: the street door on the ground floor's left is the only way out
 		var sec: Array = sections[si]
-		player.position.x = minf(player.position.x, float(sec[1]) - 70.0)
+		player.position.x = minf(player.position.x, float(sec[1]) - (SEC_KIT_WALL.y - SEC_KIT_WALL.x) * section_h / SEC_KIT_ROWS - 40.0 if _section_kit() else float(sec[1]) - 70.0)
 		if player.position.y < -40.0:
 			player.position.x = maxf(player.position.x, float(sec[0]) + 70.0)
 	if move_state == "vault":
@@ -5849,6 +5849,55 @@ func _section_kit() -> bool:
 	return ResourceLoader.exists("res://art/section/tenement_hall_a.png")
 
 
+## The tenement kit (gen/section_art.py, art_src 212-219): each piece one storey, SEC_KIT_ROWS rows, the boards
+## walked on at SEC_KIT_WALK; two pieces side by side make a storey of the building. The layout is the
+## generator's (gen/levels.py section: the stairs openings and the ladder are where these pieces paint them).
+## A brick end wall caps each storey that has none of its own (the end piece's wall, mirrored on the right).
+const SEC_KIT_ROWS := 1112.0
+const SEC_KIT_WALK := 1097.0
+const SEC_KIT_W := 3168.0
+const SEC_KIT_X0 := 510.0      # from the first piece's left edge to the building's x0: the street door in the facade
+const SEC_KIT_WALL := Vector2(167.0, 680.0)   # the end piece's brick wall: outer face, inner face (its pixels)
+const SEC_KIT_LAYOUT := [      # per storey: the two pieces, then the end walls it needs
+	["tenement_entry", "tenement_stairs_a", "", "R"],
+	["tenement_stairs_b", "tenement_stairs_a", "L", "R"],
+	["tenement_stairs_b", "tenement_ladder", "L", ""]]
+func _build_section_kit(x0: float, x1: float, storeys: int, holder: Node2D) -> void:
+	var s := section_h / SEC_KIT_ROWS
+	var start := x0 - SEC_KIT_X0
+	var facade := Node2D.new()   # the front seen from the street: under the storeys, which open over it from the door
+	facade.z_index = -6
+	add_child(facade)
+	for k in storeys:
+		var lay: Array = SEC_KIT_LAYOUT[mini(k, SEC_KIT_LAYOUT.size() - 1)]
+		var top := -section_h * k - SEC_KIT_WALK * s
+		var storey := Node2D.new()
+		storey.modulate = Color(ROOM_BASE, ROOM_BASE, ROOM_BASE, 1.0)
+		holder.add_child(storey)
+		for i in 2:
+			storey.add_child(_kit_piece(String(lay[i]), Rect2(0.0, 0.0, SEC_KIT_W, SEC_KIT_ROWS), Vector2(start + i * SEC_KIT_W * s, top), s, false))
+			var front := "tenement_facade_ground" if k == 0 and i == 0 else "tenement_facade"
+			facade.add_child(_kit_piece(front, Rect2(0.0, 0.0, SEC_KIT_W, SEC_KIT_ROWS), Vector2(start + i * SEC_KIT_W * s, top), s, false))
+		var cap := Rect2(0.0, 0.0, SEC_KIT_WALL.y, SEC_KIT_ROWS)
+		if String(lay[2]) == "L":
+			storey.add_child(_kit_piece("tenement_end", cap, Vector2(start, top), s, false))
+		if String(lay[3]) == "R":
+			storey.add_child(_kit_piece("tenement_end", cap, Vector2(start + 2.0 * SEC_KIT_W * s - SEC_KIT_WALL.y * s, top), s, true))
+
+
+func _kit_piece(name: String, region: Rect2, at: Vector2, s: float, flip: bool) -> Sprite2D:
+	var sp := Sprite2D.new()
+	sp.texture = BigTex.get_tex("res://art/section/" + name + ".png")
+	sp.centered = false
+	sp.region_enabled = true
+	sp.region_rect = region
+	sp.scale = Vector2.ONE * s
+	sp.flip_h = flip
+	sp.position = at
+	sp.light_mask = 0
+	return sp
+
+
 func _build_sections() -> void:
 	sections = level.get("sections", [])
 	section_h = float(level.get("section_h", 700.0))
@@ -5865,7 +5914,9 @@ func _build_sections() -> void:
 		ink.shader = _sec_ink_shader()
 		ink.set_shader_parameter("origin", Vector2(x0 + 60.0, -210.0))
 		ink.set_shader_parameter("radius", -400.0)
-		for k in int(sec[2]):
+		if _section_kit():
+			_build_section_kit(x0, x1, int(sec[2]), holder)
+		for k in (0 if _section_kit() else int(sec[2])):
 			var storey := Node2D.new()   # one hallway: its end walls only at its ends, never a wall with a window halfway along
 			storey.modulate = Color(ROOM_BASE, ROOM_BASE, ROOM_BASE, 1.0)
 			holder.add_child(storey)
@@ -5959,6 +6010,10 @@ const STAIRDOOR_IN := 0.55
 const STAIRDOOR_FOOT := 60.0   # the stand-in flight: its foot this far right of the opening's middle, its top as far left
 const STAIRDOOR_HOLD := 0.5
 const STAIRDOOR_OUT := 0.45
+func _stair_foot() -> float:
+	return 0.0 if _section_kit() else STAIRDOOR_FOOT   # the kit's flights go straight back from the opening
+
+
 func _stair_door_here() -> int:
 	for i in _stairdoors.size():
 		var d: Array = _stairdoors[i]
@@ -5987,8 +6042,8 @@ func _on_stairdoor(delta: float) -> float:
 	var from: Vector2 = _sd["from"]
 	var to_y: float = _sd["to"]
 	var up := to_y < from.y
-	var foot := float(_sd["x"]) + STAIRDOOR_FOOT
-	var top := float(_sd["x"]) - STAIRDOOR_FOOT
+	var foot := float(_sd["x"]) + _stair_foot()
+	var top := float(_sd["x"]) - _stair_foot()
 	var climb := -170.0   # how much of the painted flight is seen walked before the dark takes him
 	player.duck = 0.0
 	if t < STAIRDOOR_IN:
@@ -7741,7 +7796,7 @@ func _on_stairs(e: Dictionary, m, delta: float) -> void:
 	match int(sd["phase"]):
 		0:   # along his storey to the opening
 			sd["up"] = up
-			var goal: float = x + (STAIRDOOR_FOOT if up else 0.0)
+			var goal: float = x + (_stair_foot() if up else 0.0)
 			var way := signf(goal - m.position.x)
 			m.set_state(way, aim_at, delta)
 			m.position.x = move_toward(m.position.x, goal, STAIRS_SPEED * delta * _wading(m.position.y))
@@ -7752,14 +7807,14 @@ func _on_stairs(e: Dictionary, m, delta: float) -> void:
 		1:   # in: up the painted flight into the dark, or into the opening on the level
 			var k := clampf(float(sd["t"]) / STAIRDOOR_IN, 0.0, 1.0)
 			if up:
-				m.position = Vector2(lerpf(x + STAIRDOOR_FOOT, x - STAIRDOOR_FOOT, k), float(sd["from_y"]) - 170.0 * k)
+				m.position = Vector2(lerpf(x + _stair_foot(), x - _stair_foot(), k), float(sd["from_y"]) - 170.0 * k)
 			m.set_state(-1.0 if up else 0.0, aim_at, delta)
 			var v := 1.0 - 0.85 * smoothstep(0.2, 1.0, k)
 			m.modulate = Color(tint.r * v, tint.g * v, tint.b * v, tint.a * (1.0 - smoothstep(0.7, 1.0, k)))
 			if k >= 1.0:
 				sd["phase"] = 2
 				sd["t"] = 0.0
-				m.position = Vector2(x if up else x - STAIRDOOR_FOOT, to_y - (0.0 if up else 170.0))
+				m.position = Vector2(x if up else x - _stair_foot(), to_y - (0.0 if up else 170.0))
 		2:   # unseen a moment on the stairs
 			if float(sd["t"]) > 0.7:
 				sd["phase"] = 3
@@ -7770,7 +7825,7 @@ func _on_stairs(e: Dictionary, m, delta: float) -> void:
 			if up:
 				m.position = Vector2(x + toward * 90.0 * k, to_y)
 			else:
-				m.position = Vector2(lerpf(x - STAIRDOOR_FOOT, x + STAIRDOOR_FOOT, k), to_y - 170.0 * (1.0 - k))
+				m.position = Vector2(lerpf(x - _stair_foot(), x + _stair_foot(), k), to_y - 170.0 * (1.0 - k))
 			m.set_state(toward if up else 1.0, aim_at, delta)
 			var v := 0.15 + 0.85 * smoothstep(0.2, 1.0, k)
 			m.modulate = Color(tint.r * v, tint.g * v, tint.b * v, tint.a * smoothstep(0.0, 0.4, k))
@@ -8500,6 +8555,7 @@ func _add_rope(ro: Array) -> void:
 		sp.position = Vector2(x - LADDER_W * 0.5, top - LADDER_PROUD)
 		sp.z_index = -1
 		sp.modulate = Color(0.84, 0.82, 0.79)
+		sp.visible = not (_section_kit() and _section_at(Vector2(x, bottom - 10.0)) >= 0)   # the kit paints its own
 		add_child(sp)
 		r["line"] = sp
 	elif kind == "climb":   # knotted to the landing's rail, the end coiled on the stones
