@@ -325,5 +325,5 @@ Read `.claude/skills/ashes-znalosti/SKILL.md` first (stable rules + topic index,
 
 ## (24) The swing rope hangs from the warehouse hoist, 2026-11-16
 - User: a hook on a rope mid-street is cheap; a wall piece pasted on would be a sticker. The warehouse street drawing already paints a hoist (beam, pulley) over its loading doors: art/street/warehouse_c.png = warehouse with the painted rope and hook removed (gen/tools/hoist_street.py, from Gemini's edit art_src 226; lit/solid layers copied). gen/levels.py `hoist_ropes`: a chunk asks with `c.hoists.append(x)`, the street segment there becomes warehouse_c (later segments shifted by the width difference), the swing rope is anchored at the painted pulley (rope y in its tuple; main.gd swing length from the anchor), cargo stack and a man after it. STUNTS uses it. Knowledge rule 19.
-- OPEN: the patch was made from Gemini's 1024 px preview (full size would not download through the extension) – the "S" of HUDSON STORAGE is smudged. When the user downloads the full-size edit, rerun gen/tools/hoist_street.py with it as art_src 226.
+- The patch is rebuilt from the drawing itself (S of STORAGE from HUDSON's S, the T mirrored round its stem, the wall below copied from beside) – sharp, no Gemini download needed.
 - Bot: all 18 maps + both sandboxes.
