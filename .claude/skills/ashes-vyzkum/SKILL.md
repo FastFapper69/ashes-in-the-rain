@@ -41,6 +41,7 @@ Pick the chapter for the task. Every idea marked **[H]** is a hypothesis: measur
 | [ch07](chapters/ch07-code-patterns.md) | Code patterns | object pool, state, component, dirty flag – where they fit main.gd |
 | [ch08](chapters/ch08-mobile-controls.md) | Mobile controls | thumb reach, forgiveness (coyote/buffer), auto-aim |
 | [ch09](chapters/ch09-skills-and-tools.md) | Anthropic skills & tools | which of anthropics/skills help us, reader testing, web-build check, skill writing rules |
+| [ch10](chapters/ch10-animate-cutscenes-trailer.md) | Cutscene craft & trailer | cth9191/animate: silence→loudest hit, voice as clock, word timing, contact sheets, Godot Movie Maker trailer |
 
 ## Topic index
 - **attack tokens** → ch04 · **backbuffer / CanvasGroup** → ch06 · **barks / callouts** → ch04
@@ -50,6 +51,7 @@ Pick the chapter for the task. Every idea marked **[H]** is a hypothesis: measur
 - **narration / monologue** → ch02 · **object pool** → ch07 · **Parallax2D** → ch06
 - **texture compression (Basis, ETC2)** → ch06 · **web audio samples** → ch06
 - **skills / tools / web build check / reader testing** → ch09
+- **cutscene pacing, voice timing, trailer** → ch10
 
 ## Supporting files
 - [cheatsheet.md](cheatsheet.md) – decision rules distilled from all chapters
