@@ -181,3 +181,12 @@ Read this first when picking the project up in a new chat. Reply to the user in 
 - Zbývá: zásek při streamování kresby ulice (WebP decode, ~90 ms), FPS 31–42 ve velkých přestřelkách (každá postava = CanvasGroup pass).
 - **Větev `basis-textures` (rozpracováno, NEnasazeno):** Basis Universal (compress/mode=4) pro kresby ulic/místností, _lit/_solid, panely cutscén, bg, fore, 4 velké rekvizity. WebGL odmítne komprimovanou texturu s rozměry nedělitelnými 4 (Chrome na PC: S3TC/BPTC) → `gen/basis_imports.py` sníží cap o pár px na násobek 4 a `big_sizes.gd` drží malovanou velikost, kterou hlásí BigTex (nic se neposune). _lit/_solid/pier/tunnel lity a cut panely se proto načítají přes `BigTex.get_tex`. Nikdy Basis: cokoli přes get_image (LowRes, Paper, klobouky), normal mapy. Na starší bázi: −36 až −51 MB textur na mapu, vzhled stejný, stažení základ+pack a 82 → 132 MB. Zbývá: rebase na main, `python3 gen/basis_imports.py`, import, testy (play více kapitol, cut:*, menu 1280/1560), web check v headless Chrome (`/usr/bin/google-chrome` + playwright, `--use-angle=swiftshader --enable-unsafe-swiftshader`; v konzoli nesmí být „compressedTexImage2D“ chyby), pak deploy. Domluva s uživatelem: až druhý chat dokončí vizuály kapitol.
 - Nová kresba ulice po Basis: spustit `python3 gen/basis_imports.py` (nahrazuje gen/bigtex_sizes.py).
+
+## 2026-11-16 (2) – Traverza, ikony, další prvky map
+- Traverza v THE LAST TRAIN je kresba (art/props/girder.png, art_src 195), ne Polygon2D.
+- Ikony karet: icon_tough1/2/3, icon_heavy, icon_twoguns (art_src 194, gen/perk_icons.py).
+- mapfx.gd má další prvky (příznak mapy v levels.py): neon_drop (THE ALLEY, HOTEL nad nepřáteli, střelit řetězy), storm (TENEMENTS, blesky + bílé siluety), rock (SANTA LUCIA, CARGO HOLD: cam.rotation), sea (HARBOR MASTER: vlny přes nábřeží, rozhodí míření), steam + rats (THE TUNNELS), freight (TRAIN YARD: nákladní vlak, výstřely neslyšet), flood + rats (THE CATACOMBS: voda stoupá 150 s do kolen, _wading zpomalí o 35 %). Kresby art_src 196–200 → art/props (gen/map_props.py). Zvuky wave.wav, rats.wav.
+- Nadzemka teď vede celou mapou (fore vrstva jede 0,35× kamery → délka ×1,35).
+- Nový level ve hře: hud.level_up(n) = malá páska nahoře na 1,8 s (dřív banner uprostřed zůstával).
+- POZOR pro Basis větev: sheets.png se čte přes get_image (díry od kulek) → nesmí být Basis.
+- Testy: --test=neondrop, storm, rock, sea, steam, rats, freight, flood, girder, levelup.
