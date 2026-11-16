@@ -445,10 +445,27 @@ func hat_hit(world: Vector2) -> bool:
 	var px := Vector2i((s.to_local(world) - s.offset) * Vector2(hat.get_size()) / painted)
 	if px.x < 0 or px.y < 0 or px.x >= hat.get_width() or px.y >= hat.get_height():
 		return false
-	if hat.get_pixelv(px).a <= 0.5:
-		return false
 	var used := hat.get_used_rect()   # the upper part of the crown counts even where a tall head of hair is under it
-	return bare.get_pixelv(px).a < 0.5 or px.y < used.position.y + used.size.y * 0.4
+	# a near miss of the brim or the crown counts too (2026-11-16: it almost never came off): any hat
+	# pixel within a few pixels of the bullet, on the hat's own part, not the bare face under it
+	var reach := maxi(3, hat.get_width() / 40)
+	for d in [Vector2i.ZERO, Vector2i(0, -reach), Vector2i(reach, 0), Vector2i(-reach, 0), Vector2i(0, reach)]:
+		var q: Vector2i = px + d
+		if q.x < 0 or q.y < 0 or q.x >= hat.get_width() or q.y >= hat.get_height() or hat.get_pixelv(q).a <= 0.5:
+			continue
+		if bare.get_pixelv(px).a < 0.5 or q.y < used.position.y + used.size.y * 0.55:
+			return true
+	return false
+
+
+## A bullet through his gun (2026-11-16): the gun's drawing, a little generous at the edges.
+func gun_hit(world: Vector2, generous := false) -> bool:
+	if not _gun.is_visible_in_tree() or _gun.texture == null:
+		return false
+	var lp := (_gun.to_local(world) - _gun.offset) / Vector2(_gun.texture.get_size())
+	if generous:   # (in slowed time: the edges count)
+		return lp.x > -0.08 and lp.x < 1.05 and lp.y > -0.25 and lp.y < 1.25
+	return lp.x > 0.35 and lp.x < 1.0 and lp.y > 0.0 and lp.y < 1.0   # the barrel end, not the grip in his fist
 
 
 ## The hat comes off: the head is drawn bare from now on. Returns what main.gd needs to throw the hat.

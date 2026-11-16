@@ -167,10 +167,10 @@ const WEAPONS := {
 # own feel. dmg = body damage (a man takes mob_hp; a head shot always kills). In code the side gun is
 # always the weapon "revolver"; `side` says which it is.
 const SIDE_STATS := {
-	"revolver": [{"mag": 6, "reload": 0.85, "cool": 0.3, "spread": 0.0, "dmg": 1.5, "kick": 0.24, "sound": "shot_player", "name": "REVOLVER"},
+	"revolver": [{"mag": 6, "reload": 0.7, "cool": 0.22, "spread": 0.0, "dmg": 2.0, "kick": 0.24, "sound": "shot_player", "name": "REVOLVER"},
 			{"mag": 12, "reload": 1.35, "cool": 0.14, "spread": 0.03, "dmg": 1.0, "kick": 0.2, "sound": "shot_player", "name": "TWO REVOLVERS"}],
 	"beretta": [{"mag": 8, "reload": 0.6, "cool": 0.16, "spread": 0.012, "dmg": 1.0, "kick": 0.12, "sound": "shot_enemy", "name": "BERETTA"},
-			{"mag": 16, "reload": 0.95, "cool": 0.085, "spread": 0.045, "dmg": 0.75, "kick": 0.1, "sound": "shot_enemy", "name": "TWO BERETTAS"}],
+			{"mag": 16, "reload": 1.1, "cool": 0.1, "spread": 0.07, "dmg": 0.75, "kick": 0.1, "sound": "shot_enemy", "name": "TWO BERETTAS"}],
 }
 # the side gun's cards by what they do: [the revolver's effect, the Beretta's]
 const SIDE_FX := {"fast": ["fasthands", "b_fast"], "dmg": ["heavy", "b_hot"], "steady": ["steady", "b_steady"], "last": ["lastround", ""], "mag": ["", "b_mag"]}
@@ -4613,6 +4613,12 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 			if from_player and not e["node"].hat_lost and e["node"].hat_hit(pos):
 				_hat_off(e, pos)   # through the hat and nothing else: it goes, the bullet flies on
 				continue
+			# the gun itself: shot out of his hand, any time (2026-11-16: disarming was too rare; in slowed
+			# time the forearm or the hand does it as well)
+			if from_player and not e["boss"] and chapter > 0 and e["state"] not in ["give", "down"] \
+					and e["type"] in ["post", "tommy", "shotgun"] and e["node"].gun_hit(pos, slow_on) and (slow_on or _perk("openhand") or randf() < 0.05):
+				_disarm(e, pos)
+				return true
 			var part: String = e["node"].hit_part(pos)
 			if part == "":
 				continue
@@ -4635,7 +4641,7 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 				e["hp"] = 0
 				_kill(e, part == "head", true, part)
 				return true
-			if part.begins_with("farm") and (slow_on or _perk("openhand")) and not e["boss"] and chapter > 0 and e["state"] != "give":
+			if (part.begins_with("farm") or part.begins_with("hand")) and (slow_on or _perk("openhand")) and not e["boss"] and chapter > 0 and e["state"] != "give":
 				_disarm(e, pos)   # the gun is shot out of his hand: he has nothing left to fight with
 				return true
 			fx.blood(pos, fx.hit_vel, part == "head" or e["hp"] <= 1)
@@ -4661,7 +4667,7 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 						_briggs_down(e)
 						return true
 			else:
-				e["hp"] -= mob_hp if (part == "head" or _last_round_t > 0.0) else _body_dmg()   # a head shot always kills
+				e["hp"] -= (_head_dmg() if part == "head" else mob_hp) if (part == "head" or _last_round_t > 0.0) else _body_dmg()   # a head shot kills (two Berettas: two of them)
 				if e["hp"] > 0:   # still up: knocked back a step, off his aim for a moment
 					var m2 = e["node"]
 					var back: float = signf(m2.position.x - player.position.x) * (70.0 if part == "torso" else 40.0)
@@ -5229,7 +5235,7 @@ func _map_cleared() -> void:
 		next_c = mini(chapter + 1, Levels.CAMPAIGN.size() - 1)
 		to_menu = true
 	if _auto == "play":
-		print("BOT CLEARED chapter ", chapter, " map ", map, " in ", int(_at), " s")
+		print("BOT CLEARED chapter ", chapter, " map ", map, " in ", int(_at), " s  hits taken ", stats["hits"], "  heads ", stats["heads"], "/", stats["kills"])
 		get_tree().quit()
 	elif _auto == "":
 		var go := func() -> void:
@@ -5824,6 +5830,14 @@ var diff_step := -1   # -1 in the prologue
 
 
 ## An instinct Frank has pinned (never Eddie's: the prologue is played as it is).
+## A head hit: always a kill, but for two Berettas sprayed (balance 2026-11-16: the bot's sprays hit
+## heads by chance 18 times in 19 kills; two of their head hits kill).
+func _head_dmg() -> float:
+	if weapon == "revolver" and side == "beretta" and player.dual:
+		return float(mob_hp) * 0.55
+	return float(mob_hp)
+
+
 ## A body hit with the gun in hand: the side gun's own weight (SIDE_STATS), its loads card on top.
 func _body_dmg() -> float:
 	if weapon != "revolver":
@@ -8227,6 +8241,8 @@ func _giving_up(e: Dictionary, delta: float) -> void:
 ## picked up once it lies still), the man wringing his hand before his hands go up.
 var _flying_guns: Array = []
 func _disarm(e: Dictionary, at: Vector2) -> void:
+	if _auto != "":
+		print("DISARM slow=", slow_on)
 	var m = e["node"]
 	for k in 3:
 		fx.spark(at)

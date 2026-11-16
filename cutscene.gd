@@ -52,7 +52,7 @@ const SCENES := {
 	],
 	"teague": [
 		{"img": 56, "from": [0.3, 0.6, 1.15], "to": [0.55, 0.5, 1.0], "rain": 0.0, "at": ["tl", "tl", "br"],
-			"lines": ["Mickey went down on cue, like always.", "\"They said sell the kid a name. Then they said shoot him. I never could say no, Frank.\"", "\"Feed my birds... Pier Seventeen. Ask your boss.\""],
+			"lines": ["Mickey went down on cue, like always.", "\"They said sell the kid a name. Then they said take care of him. I never could say no, Frank.\"", "\"Feed my birds... Pier Seventeen. Ask your boss.\""],
 			"hard": [[0, "Mickey went down. This time nobody had paid him to."]]},
 		{"img": 57, "from": [0.5, 0.42, 1.0], "to": [0.47, 0.38, 1.16], "rain": 0.0,
 			"lines": ["Rosie Kowalski came down off the stage like it was the last song of the night.", "Eddie's girl. She'd been holding something for him."]},
@@ -630,7 +630,7 @@ func _show_line() -> void:
 	_typing = l
 	_type_t = 0.0
 	_wait = 0.0
-	_voiced = audio.voice(text) if audio != null and not speech and not fast else 0.0
+	_voiced = audio.voice(text) if audio != null and not fast else 0.0   # (speech too, in the speaker's own voice, 2026-11-16)
 	_said = 0.0
 	if _log_voice:
 		print("VOICE line '%s' voiced %.2f" % [text.substr(0, 30), _voiced])

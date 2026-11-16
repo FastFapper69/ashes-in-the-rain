@@ -35,7 +35,7 @@ const CARDS := {
 		["HOT LOADS", "Body shots hit half as hard again.", "b_hot", "heavy"],
 		["STEADY GRIP", "Tighter shots and a longer aim help.", "b_steady", "lead1"],
 		["LONG MAG", "Two more rounds in every magazine.", "b_mag", "lead3"],
-		["TWO BERETTAS", "A second Beretta in the other hand.", "b_two", "twoguns"],
+		["TWO BERETTAS", "A second Beretta. More lead, less aim: a head takes two.", "b_two", "twoguns"],
 	],
 	"shotgun": [
 		["SHELL TUBE", "Two more shells in the tube.", "sg_tube", "lead0"],
