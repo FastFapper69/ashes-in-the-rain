@@ -804,21 +804,32 @@ func _launch_oncoming(cam_x: float, view: Vector2) -> void:
 
 ## A steel girder hanging low across the tunnel, its riveted face and the strut up to the roof.
 func _girder() -> Node2D:
+	# the drawing (art/props/girder.png, gen/map_props.py): the I of the girder seen end-on, from -480
+	# down to -330 where it catches a man standing, and its hanger strut stacked up out of sight
 	var n := Node2D.new()
 	n.z_index = 6
-	var strut := Polygon2D.new()
-	strut.polygon = PackedVector2Array([Vector2(-30, -2400), Vector2(30, -2400), Vector2(30, -470), Vector2(-30, -470)])
-	strut.color = Color(0.05, 0.05, 0.06)
-	n.add_child(strut)
-	var beam := Polygon2D.new()
-	beam.polygon = PackedVector2Array([Vector2(-70, -480), Vector2(70, -480), Vector2(70, -330), Vector2(-70, -330)])
-	beam.color = Color(0.09, 0.09, 0.1)
-	n.add_child(beam)
-	var lip := Line2D.new()
-	lip.points = PackedVector2Array([Vector2(-70, -470), Vector2(70, -470)])
-	lip.width = 8.0
-	lip.default_color = Color(0.22, 0.22, 0.25)
-	n.add_child(lip)
+	var tex: Texture2D = load("res://art/props/girder.png")
+	var s := 150.0 / (2258.0 - 1143.0)
+	var body := Sprite2D.new()
+	body.texture = tex
+	body.centered = false
+	body.scale = Vector2.ONE * s
+	body.position = Vector2(-tex.get_width() * s * 0.5, -330.0 - 2258.0 * s)
+	n.add_child(body)
+	var strut := Rect2(414.0, 120.0, 176.0, 800.0)
+	var y := body.position.y + 2.0
+	while y > -2600.0:
+		var piece := Sprite2D.new()
+		piece.texture = tex
+		piece.centered = false
+		piece.region_enabled = true
+		piece.region_rect = strut
+		piece.scale = body.scale
+		y -= strut.size.y * s - 1.0
+		piece.position = Vector2(body.position.x + strut.position.x * s, y)
+		n.add_child(piece)
+	for c in n.get_children():
+		(c as CanvasItem).modulate = Color(0.42, 0.42, 0.45)   # near and unlit: dark iron against the lit wall
 	return n
 
 

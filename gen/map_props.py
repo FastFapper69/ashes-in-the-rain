@@ -29,3 +29,7 @@ def key(f, out, max_w):
 
 key('192.jpg', 'el_span.png', 2048)
 key('193.jpg', 'sheets.png', 2048)
+
+
+# art_src 195 -> art/props/girder.png: the steel girder across the last train's tunnel, end-on, on its hanger
+key('195.jpg', 'girder.png', 1536)

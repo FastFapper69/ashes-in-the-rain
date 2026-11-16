@@ -17,18 +17,18 @@ const FROM_CHAPTER := [1, 1, 2, 2, 3]   # a tier opens once the story has reache
 # name, text, effect id (main.gd _perk), icon (art/ui/instincts/icon_<icon>.png)
 const CARDS := {
 	"frank": [
-		["TOUGH", "He takes one more hit.", "tough1", "mercy0"],
+		["TOUGH", "He takes one more hit.", "tough1", "tough1"],
 		["LONG WATCH", "Slowed time lasts a quarter longer.", "longwatch", "time0"],
-		["TOUGHER", "He takes one more hit.", "tough2", "time1"],
+		["TOUGHER", "He takes one more hit.", "tough2", "tough2"],
 		["LAST CHANCE", "With one hit left, time slows on its own.", "lastchance", "time3"],
-		["IRON", "He takes one more hit.", "tough3", "mercy4"],
+		["IRON", "He takes one more hit.", "tough3", "tough3"],
 	],
 	"gun": [
 		["FAST HANDS", "Reloads a third faster.", "fasthands", "lead0"],
-		["HEAVY LOADS", "A body shot hits twice as hard.", "heavy", "lead3"],
+		["HEAVY LOADS", "A body shot hits twice as hard.", "heavy", "heavy"],
 		["STEADY HAND", "Tighter shots and a longer aim help.", "steady", "lead1"],
 		["LAST ROUND", "The last round always kills, in slowed time.", "lastround", "lead3"],
-		["TWO GUNS", "A second revolver in the other hand.", "twoguns", "time2"],
+		["TWO GUNS", "A second revolver in the other hand.", "twoguns", "twoguns"],
 	],
 	"shotgun": [
 		["SHELL TUBE", "Two more shells in the tube.", "sg_tube", "lead0"],

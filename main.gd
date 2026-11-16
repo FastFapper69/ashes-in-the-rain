@@ -3052,7 +3052,7 @@ func _auto_step(delta: float) -> void:
 		if _at > 4.0:
 			print("BAG weapon ", weapon, " bag ", _bag.keys())
 			get_tree().quit()
-	elif _auto in ["el", "fog", "oncoming", "sheets"]:   # the map set pieces (mapfx.gd, setpieces.gd), pictured as they happen
+	elif _auto in ["el", "fog", "oncoming", "sheets", "girder"]:   # the map set pieces (mapfx.gd, setpieces.gd), pictured as they happen
 		hp = max_hp
 		_grace = 99.0
 		if _at < 0.05:
@@ -3062,6 +3062,9 @@ func _auto_step(delta: float) -> void:
 				mapfx._fog_phase = 2
 				mapfx._fog_t = 99.0
 				mapfx.fog = 1.0
+			elif _auto == "girder":
+				sets._beam_t = 0.4
+				sets._oncoming_t = 99.0
 			elif _auto == "oncoming":
 				sets._oncoming_t = 2.0
 				sets._beam_t = 99.0
@@ -3077,7 +3080,8 @@ func _auto_step(delta: float) -> void:
 		if _auto == "sheets" and _at > 0.8 and _at < 1.6 and fmod(_at, 0.25) < 0.04:   # a few shots through the sheets
 			_fire(player, true)
 		shots = {"el": [[1.6, "el_0"], [2.4, "el_1"], [3.2, "el_2"]], "fog": [[1.2, "fog_0"], [2.5, "fog_1"]],
-			"oncoming": [[1.2, "onc_0"], [2.3, "onc_1"], [2.7, "onc_2"], [3.3, "onc_3"]], "sheets": [[0.6, "sheets_0"], [2.0, "sheets_1"]]}[_auto]
+			"oncoming": [[1.2, "onc_0"], [2.3, "onc_1"], [2.7, "onc_2"], [3.3, "onc_3"]], "sheets": [[0.6, "sheets_0"], [2.0, "sheets_1"]],
+			"girder": [[0.9, "girder_0"], [1.3, "girder_1"], [1.7, "girder_2"]]}[_auto]
 	elif _auto == "hat":   # the nearest mobster with a hat: a bullet through the hat (found by hat_hit), pictures as it flies and lands
 		hp = max_hp
 		_grace = 99.0
