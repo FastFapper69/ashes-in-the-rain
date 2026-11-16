@@ -12,6 +12,7 @@ var chapter := 0
 var map := 0
 var to_menu := false
 var then := Callable()      # called once the card has covered the screen (load the next map)
+var quick := false          # a retry after death: in and out fast, no card to read (2026-11-16)
 var lifting := false        # true: made by the new map, already covering, to be faded away
 
 var _root: Control
@@ -42,14 +43,14 @@ func _ready() -> void:
 	if lifting:
 		_root.modulate.a = 1.0
 		var tw := create_tween()
-		tw.tween_interval(0.6)
-		tw.tween_property(_root, "modulate:a", 0.0, 0.8)
+		tw.tween_interval(0.1 if quick else 0.6)
+		tw.tween_property(_root, "modulate:a", 0.0, 0.35 if quick else 0.8)
 		tw.tween_callback(queue_free)
 	else:
 		_root.modulate.a = 0.0
 		var tw := create_tween()
-		tw.tween_property(_root, "modulate:a", 1.0, 0.6)
-		tw.tween_interval(1.2 if not to_menu else 0.2)   # long enough to read where we are going
+		tw.tween_property(_root, "modulate:a", 1.0, 0.3 if quick else 0.6)
+		tw.tween_interval(0.0 if quick else (1.2 if not to_menu else 0.2))   # long enough to read where we are going
 		tw.tween_callback(func() -> void:
 			if then.is_valid():
 				then.call())

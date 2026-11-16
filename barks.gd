@@ -7,14 +7,20 @@
 ## know him (MALONE, DOYLE in the prologue). A line with {n} is only used when there is a name for it.
 
 
-# New York, 1939: Italian, Irish, Jewish and Polish hoods. None of the story's own people (Frank, Eddie,
+# New York, 1939: Italian, Irish and Jewish hoods, each name recorded in every voice (two lines, gen/bark_voices.py). None of the story's own people (Frank, Eddie,
 # Mickey, Briggs, Kessler, Rourke, Vail, Rosie) so a bark never sounds like the plot.
-const NAMES := ["SAL", "VINNIE", "JOHNNY", "TOMMY", "NICKY", "JOEY", "PAULIE", "CARMINE", "SONNY", "LOU",
-	"BENNY", "MOE", "IZZY", "SAMMY", "AUGIE", "DUTCH", "RED", "LEFTY", "SHORTY", "PAT", "SEAMUS", "DINO",
-	"GUS", "ROCCO", "IKE", "HYMIE", "ABE", "MAX", "SID", "LEO", "RALPHIE", "BOBBY", "DANNY", "JIMMY",
-	"CHARLIE", "FREDDIE", "GEORGIE", "HARRY", "ARTIE", "BUSTER", "STAN", "WALT", "AL", "TONY", "ANGELO",
-	"PETEY", "MARTY", "PHIL", "ZIGGY", "WHITEY", "KNUCKLES", "FINN", "CONNOR", "MURPH", "DOMINIC", "FRANKO",
-	"NUNZIO", "SALVY", "ENZO", "MIKEY", "STOSH", "KAZ", "TEDDY", "OZZIE", "HANK", "LARRY", "CURLY", "SPATS"]
+const NAMES := ["SAL", "VINNIE", "JOHNNY", "FINN", "NICKY", "JOEY", "PAULIE", "CARMINE", "SONNY", "LOU",
+	"BENNY", "MOE", "IZZY", "AUGIE", "DUTCH", "RED", "LEFTY", "SEAMUS", "ROCCO", "MAX", "DANNY", "JIMMY",
+	"CHARLIE", "KNUCKLES"]
+
+# The voices the men shout in (Artlist, Eleven v3, gen/bark_voices.py): each man gets one. A line's file is
+# voice/barks/<voice>_<md5 of the line as shown, 10 chars>.mp3; lines without one are only a bubble.
+const VOICES := ["adam", "james", "shadow"]
+
+
+static func path(voice: String, text: String) -> String:
+	return "res://voice/barks/%s_%s.mp3" % [voice, text.md5_text().substr(0, 10)]
+
 
 const LINES := {
 	# one of them has just been shot, the nearest one saw it

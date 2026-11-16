@@ -222,6 +222,25 @@ func voice(text: String) -> float:
 	return (_voice.stream as AudioStream).get_length()
 
 
+## A mobster's shout (barks.gd), heard from where he stands; one at a time, like the speech bubbles.
+var _bark_p: AudioStreamPlayer
+func bark(path: String, at_x: float) -> void:
+	if _story or not ResourceLoader.exists(path):
+		return
+	var vol := 2.0
+	if at_x != INF:
+		var k := clampf(absf(at_x - listener_x) / HEAR, 0.0, 1.0)
+		vol += linear_to_db(maxf(0.25, 1.0 - k * k))   # (a shout from off the picture still carries)
+	if _bark_p == null:
+		_bark_p = AudioStreamPlayer.new()
+		_bark_p.bus = "SFX"
+		add_child(_bark_p)
+	_bark_p.stream = load(path)
+	_bark_p.volume_db = vol
+	_bark_p.pitch_scale = lerpf(1.0, 0.75, slow)
+	_bark_p.play()
+
+
 func voice_on() -> bool:
 	return _voice != null and _voice.playing
 

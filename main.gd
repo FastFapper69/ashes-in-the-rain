@@ -57,6 +57,7 @@ var _flames: Array = []
 var _flame_mat: CanvasItemMaterial
 static var _erased := false   # test: the erase went through, this is the title after it
 var _cones: bool = "--cones" in OS.get_cmdline_user_args()   # test comparisons: inked light cones
+static var _retry := false     # the scene reloads for a retry after death: everything fast
 static var _card_up := false   # a title card is covering the screen across the reload: lift it once built
 var sets   # setpieces.gd: cars, blackouts, searchlights, fires, the crane's crate
 var mapfx   # mapfx.gd: the El, the laundry's sheets, the fog on Pier 17
@@ -658,6 +659,8 @@ func _ready() -> void:
 		lift.map = map
 		lift.to_menu = in_menu
 		lift.lifting = true
+		lift.quick = _retry
+		_retry = false
 		add_child(lift)
 
 	fore = Node2D.new()   # foreground silhouettes, nearer than the action, so they slide past faster
@@ -5118,12 +5121,12 @@ func _player_down() -> void:
 				checkpoint_y = 0.0
 				_travel(true)))
 		return
-	get_tree().create_timer(1.1, true, false, true).timeout.connect(hud.banner.bind("LIGHTS OUT"))
+	get_tree().create_timer(0.6, true, false, true).timeout.connect(hud.banner.bind("LIGHTS OUT"))
 	if checkpoint_y < 0.0 and not roof.is_empty() and player.position.y > float(roof["y"]) + 300.0:
 		checkpoint = _ground_cp   # he went back down and died below: he comes back below, not up on the roof
 		checkpoint_y = 0.0
 	if _auto == "":
-		get_tree().create_timer(3.4, true, false, true).timeout.connect(_restart)
+		get_tree().create_timer(2.0, true, false, true).timeout.connect(_restart)
 
 
 ## A dive, a roll, a slide, or running in slowed time leaves a short string of ink silhouettes of
@@ -5349,6 +5352,7 @@ func _rate() -> void:
 
 func _restart() -> void:
 	Engine.time_scale = 1.0
+	_retry = over and not in_menu   # back from death: no lingering, Hotline-Miami quick
 	_travel(false)
 
 
@@ -5377,6 +5381,7 @@ func _pause() -> void:
 func _travel(card: bool) -> void:
 	crumb("travel to %d:%d menu=%s %s" % [chapter, map, in_menu, _mem_line()])
 	var l = LoadingScript.new()
+	l.quick = _retry
 	l.chapter = chapter
 	l.map = map
 	l.to_menu = in_menu or not card
@@ -6031,6 +6036,7 @@ func _add_enemy(at: Vector2, kind: String, state: String, goal_x: float) -> Dict
 		e["reload_t"] = 0.0
 	if kind != "boss":
 		e["name"] = _new_name()
+		e["voice"] = Barks.VOICES[randi() % Barks.VOICES.size()]
 	enemies.append(e)
 	return e
 
@@ -6808,11 +6814,22 @@ func _bark(m, kind: String, who := "", urgent := false) -> void:
 		var named: Array = lines.filter(func(l: String): return l.contains("{n}"))
 		if not named.is_empty():
 			lines = named
+	var hero := "DOYLE" if String(Levels.CAMPAIGN[chapter]["hero"]) == "eddie" else "MALONE"
+	var voice := ""
+	for o in enemies:
+		if o["node"] == m:
+			voice = String(o.get("voice", ""))
+	if voice != "":   # a line he has a recording of, if there is one
+		var heard: Array = lines.filter(func(l: String): return ResourceLoader.exists(Barks.path(voice, l.format({"n": who, "p": hero}))))
+		if not heard.is_empty():
+			lines = heard
 	var line: String = lines.pick_random()
 	_bark_last[kind] = line
 	_bark_t = _ai_t
-	var hero := "DOYLE" if String(Levels.CAMPAIGN[chapter]["hero"]) == "eddie" else "MALONE"
-	_say(m, line.format({"n": who, "p": hero}))
+	var text := line.format({"n": who, "p": hero})
+	_say(m, text)
+	if voice != "":
+		sfx.bark(Barks.path(voice, text), m.position.x)
 
 
 ## A man is shot: the nearest of his own who can see it says so, by name. He is angry: he fires sooner.
