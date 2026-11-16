@@ -13,6 +13,9 @@ Artlist sources: revolvers dfMG SW .38 (`shot_player`), DT Sound Point Blank (`s
 ## Voice
 All narration by Artlist voice "Gravity" (ElevenLabs Multilingual v2, speed 0.9, stability 0.35) → `voice/<md5[:10]>.mp3`, 64 kbps mono, −16 LUFS; `gen/voice_lines.py` lists them. **Changing a line's text needs a new recording** (key = md5 of the text). Quoted lines are not voiced. Provider refused "shoot" in Mickey's outro → "take care of Eddie". Artlist files may need fetching through the PC's browser (container can't reach the artifacts host).
 
+## Mobster voices (barks)
+3 recorded voices (Artlist Eleven v3: Adam, James, Shadow), `voice/barks/<voice>_<md5[:10]>.mp3`, made by `gen/bark_voices.py` (scripts → one generation per voice → `split` aligns lines with pocketsphinx). Every man gets a voice; `_bark` prefers recorded lines and skips the last 14 heard; dying cries sometimes (`_cry`). Never "shoot" in a script (provider safety filter). Cost ~0.2 credit per character.
+
 ## Format rules
 22050 Hz mono for every long track (ffprobe before commit); loops ≤ ~110 s (rain 50 s); wav > 1.5 s → 22 kHz mono.
 

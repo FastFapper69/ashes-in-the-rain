@@ -225,3 +225,11 @@ Read `.claude/skills/ashes-znalosti/SKILL.md` first (stable rules + topic index,
 - barks.gd (preloaded as `Barks` in main.gd): every non-boss man gets a name (`_new_name`); `_bark(m, kind, who, urgent)` picks a line, one voice at a time + per-kind gap (BARK_GAP). `_witness` on every kill: nearest of his own (≤1800 px, also off-screen → bubble clamped to screen edge) shouts the dead man's name. Last man calls a fallen name (`_morale`), lead sends men round by name, hero reloading empty → "HE'S EMPTY!", long hiding → taunt. {p} = MALONE / DOYLE (prologue).
 - gen/levels.py: `furnish()` furnishes every room per seed (ROOM_CLEAR = painted doors/arches/ladders in drawing px, ROOM_KINDS); `check_props()` errors on gaps <260, three alike in a row, barrel outside BARREL_OK, prop in front of a door, two alike side by side in a room. `street()` prefers a fuel-fitting drawing under a barrel; leftovers become drums.
 - New skill `.claude/skills/mapy` = the rules for future maps. Tools: gen/prop_audit.py, `--test=props`.
+
+## (8) Voiced mobsters, quicker retry, 2026-11-16
+- Retry after death: restart at 2.0 s (was 3.4), `_retry` → LoadingScript `quick` (fade 0.3, no card, lift 0.1+0.35). ~4 s death→play (was ~7.5).
+- Pack per map: NOT done – no crash since the memory fixes (last crash was old build, heap 242 MB); per-map packs would reload the page on every map. Do it when a crash from a current build arrives.
+- barks.gd: 3 voices (adam = Adam Dark & Tough, james = James Husky, shadow = Shadow; Eleven v3, stability 0, emotion tags). 74 lines each = generic lines + "HE GOT <name>!" for the 24 NAMES + 8 dying cries ("death", sound only, `_cry`: ~28 % of non-head kills, ≥ 6 s apart). Files `voice/barks/<voice>_<md5[:10]>.mp3` 22 kHz mono 64 k, 2.9 MB in base pck, loaded on demand (`sfx.bark`, `sfx.cry`).
+- `_bark` prefers recorded lines, then not among the last 14 heard; if all were heard recently a non-urgent bark stays silent.
+- gen/bark_voices.py: `scripts` (one text per voice, tag once per run of a feeling) and `split` (pocketsphinx grammar recognizer + DP over silences finds each line; prints lines to check by ear). Artlist ~0.2 credit/char (~365 per voice). "shoot" in a script trips the provider's safety filter → crate line is now "CHEW THROUGH IT!".
+- Next: voiced dialogue in the comic panels (quoted lines are still text only).
