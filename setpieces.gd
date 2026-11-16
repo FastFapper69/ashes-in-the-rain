@@ -97,7 +97,7 @@ func tick(delta: float) -> void:
 		var a: float = b["base"] + sin(_t * b["speed"] + b["phase"]) * b["swing"]
 		b["angle"] = a
 		# the drum tilts with its beam, and the lens (where the beam starts) goes round the swivel with it
-		var tilt: float = a - float(b["base"])
+		var tilt: float = a - float(b["rest"])
 		b["drum"].rotation = tilt
 		b["pivot"] = (b["swivel"] as Vector2) + (b["lens_rel"] as Vector2).rotated(tilt)
 		b["sprite"].position = b["pivot"]
@@ -371,31 +371,29 @@ func _add_beam(pivot: Vector2, base_deg: float) -> void:
 	# the searchlight itself (art/props/searchlight.png): its drum on a riveted mast down to the quay,
 	# the lens at the pivot of the beam
 	var lamp_tex: Texture2D = load("res://art/props/searchlight.png")
-	var lens := Vector2(75.0, 135.0)   # the lens's centre on the drawing
+	var lens := Vector2(66.0, 142.0)   # the lens's centre on the drawing
+	# the drum's axis on the drawing (axle -> lens) points this way as a beam angle (0 = straight down)
+	var rest := atan2(-(lens.x - 205.0), lens.y - 127.0)
 	var sc: float = -pivot.y / (lamp_tex.get_height() - lens.y)   # the foot of the mast on the ground
-	# the drawing in two: the mast stands still, the drum on its yoke tilts with the beam about the
-	# swivel on top of the mast (2026-11-16: the lamp used to stare one way while its beam swept)
-	var swivel := Vector2(135.0, 312.0)
+	# the searchlight in two layers (gen/searchlight_split.py): the drum turns on its axle in the yoke and
+	# the beam leaves its lens along the drum's own axis; mast, yoke and cable stand still
+	var axle := Vector2(205.0, 127.0)
 	var origin: Vector2 = pivot - lens * sc
-	var post := Sprite2D.new()
-	post.texture = lamp_tex
-	post.centered = false
-	post.region_enabled = true
-	post.region_rect = Rect2(0.0, swivel.y, lamp_tex.get_width(), lamp_tex.get_height() - swivel.y)
-	post.scale = Vector2.ONE * sc
-	post.position = origin + Vector2(0.0, swivel.y) * sc
-	post.z_index = -4
-	add_child(post)
 	var drum := Sprite2D.new()
-	drum.texture = lamp_tex
+	drum.texture = load("res://art/props/searchlight_drum.png")
 	drum.centered = false
-	drum.region_enabled = true
-	drum.region_rect = Rect2(0.0, 0.0, lamp_tex.get_width(), swivel.y + 2.0)
-	drum.offset = -swivel
+	drum.offset = -axle
 	drum.scale = Vector2.ONE * sc
-	drum.position = origin + swivel * sc
+	drum.position = origin + axle * sc
 	drum.z_index = -4
 	add_child(drum)
+	var post := Sprite2D.new()   # in front of the drum: the yoke's near arm holds it
+	post.texture = load("res://art/props/searchlight_post.png")
+	post.centered = false
+	post.scale = Vector2.ONE * sc
+	post.position = origin
+	post.z_index = -4
+	add_child(post)
 	var head := Sprite2D.new()   # the lens, burning white
 	head.texture = load("res://art/light_blob.png")
 	head.position = pivot
@@ -413,7 +411,7 @@ func _add_beam(pivot: Vector2, base_deg: float) -> void:
 	add_child(l)
 	var half := atan2(256.0 * 1.15 * 0.45, ln)   # the bright core of the cone, not its soft edge
 	_beams.append({"sprite": s, "light": l, "head": head, "pivot": pivot, "base": deg_to_rad(base_deg), "swing": deg_to_rad(32.0),
-			"drum": drum, "swivel": drum.position, "lens_rel": pivot - drum.position,
+			"drum": drum, "swivel": drum.position, "lens_rel": pivot - drum.position, "rest": rest,
 			"speed": 0.42, "phase": randf() * TAU, "len": ln, "half": half, "angle": 0.0})
 	game.sfx.add_loop("lamp_hum", pivot.x, -22.0, 600.0, pivot.y)
 
