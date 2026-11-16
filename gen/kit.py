@@ -19,10 +19,11 @@ with the same edge join seamlessly in any order (the audit checks the rest by ey
 #   floor  – stood on; "bounce" throws a falling man back up
 #   depth  – how far in front of the wall it stands (parallax share of the camera's offset)
 KINDS = {
-    "awning":    {"shot": False, "floor": "awning", "depth": 0.05},
-    "hydrant":   {"shot": True,  "floor": None,     "depth": 0.04},
-    "kegs":      {"shot": True,  "floor": None,     "depth": 0.04},
-    "steampipe": {"shot": True,  "floor": None,     "depth": 0.02},
+    # (depth: things fixed to the wall do not slide against it – the user found it odd; free-standing ones barely)
+    "awning":    {"shot": False, "floor": "awning", "depth": 0.0},
+    "hydrant":   {"shot": True,  "floor": None,     "depth": 0.012},
+    "kegs":      {"shot": True,  "floor": None,     "depth": 0.012},
+    "steampipe": {"shot": True,  "floor": None,     "depth": 0.0},
 }
 
 # The chapter I modular street (art_src 228-236): the same dark party wall down both edges.
@@ -30,7 +31,12 @@ PIECES = {
     "hk_tailor": {
         "size": 0.8, "edge": "partywall",
         "props": [{"kind": "awning", "box": (975, 752, 1732, 958), "anchor": "top", "walk_y": 770}],
-        "floors": [(1909, 2321, 693, "drawn"), (1909, 2321, 389, "drawn")],   # the fire escape's landings beside it
+        # the fire escape beside it, all painted: its landings, the stairs between them, the drop ladder (its foot
+        # hangs ~590 px over the pavement: reached with a jump). Up it, then off a landing onto the awning: it
+        # throws him up for a slowed beat in the air.
+        "floors": [(1909, 2321, 693, "drawn"), (1909, 2321, 389, "drawn")],
+        "ramps": [(2013, 693, 2239, 390)],
+        "ladders": [(2020, 693, 902)],   # x, the landing it reaches, its foot
         "clear": [(975, 1732), (1890, 2330)],
     },
     "hk_grocery": {

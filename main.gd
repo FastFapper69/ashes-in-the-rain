@@ -2878,6 +2878,21 @@ func _auto_step(delta: float) -> void:
 					print("  left: ", int(e["node"].position.x), " ", e["state"], " y ", int(e["node"].position.y))
 			get_tree().quit()
 		return
+	elif _auto.begins_with("awning"):   # --test=awning:x,y (a fire escape landing): off it to the left onto the awning
+		var at := _auto.trim_prefix("awning:").split(",")
+		if _at < 0.05:
+			player.position = Vector2(float(at[0]), float(at[1]))
+			_ground_y = player.position.y
+			_grace = 99.0
+		hud.move = -1.0 if _at > 0.6 and _at < 1.6 else 0.0
+		var kf := int((_at - 0.8) / 0.15)
+		if kf >= 0 and kf < 16 and _auto_done & (1 << kf) == 0:
+			_auto_done |= 1 << kf
+			print("AWNING t ", snappedf(_at, 0.01), " y ", int(player.position.y), " fall ", int(fall), " ", move_state, " ts ", Engine.time_scale)
+			_shot("film_%02d" % kf)
+		if _at > 4.0:
+			get_tree().quit()
+		return
 	elif _auto == "tour":   # visit the map's set pieces and take a picture of each: stairs, a landing, a room, a barrel going up
 		if _tour.is_empty():
 			if ramps.size() > 0:
@@ -4067,9 +4082,10 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			_jump_buf = 0.0
 		elif dive:   # a dive can also be thrown out of a jump
 			_start_dive(dir if dir != 0.0 else facing, facing, minf(fall, -300.0), false)
-		elif fall > AWNING_BOUNCE and player.position.y >= floor_y and _awning_under():
+		elif fall > AWNING_BOUNCE and player.position.y >= floor_y and _awning_under() and _time - _bounced_at > 2.5:
 			player.position.y = floor_y   # onto an awning: the canvas gives and throws him up (a stunt: a slowed beat)
 			fall = -JUMP_SPEED * 1.32
+			_bounced_at = _time   # (the next landing on it is taken by the canvas: no endless trampoline)
 			sfx.play("land", -2.0)
 			_word(["thud"], player.position + Vector2(0.0, -80.0), 0.14)
 			_free_slow = maxf(_free_slow, 0.6)
@@ -6399,6 +6415,7 @@ func _flat_closed_between(a: Vector2, b: Vector2) -> bool:
 	return false
 
 
+var _bounced_at := -99.0
 const AWNING_BOUNCE := 520.0   # how fast he must be falling for the awning to throw him back up
 func _awning_under() -> bool:
 	for i in catwalks.size():
@@ -7538,6 +7555,8 @@ func _scaffold(r: Rect2) -> void:
 ## so on the roof the roof sits where the pavement does.
 func _cam_rise(y: float) -> float:
 	var low := clampf(y * 0.45, -330.0, 0.0)
+	if props and props.near_climb(player.position.x):   # up a street piece's fire escape / off its awning: the camera goes up with him
+		low = clampf(y * 0.62, -880.0, 0.0)
 	if roof.is_empty() or y > -600.0:
 		return low
 	return lerpf(low, y, smoothstep(-600.0, -1500.0, y))
@@ -8967,7 +8986,7 @@ func _add_rope(ro: Array) -> void:
 		sp.position = Vector2(x - LADDER_W * 0.5, top - LADDER_PROUD)
 		sp.z_index = -1
 		sp.modulate = Color(0.84, 0.82, 0.79)
-		sp.visible = not (_section_kit() and _section_at(Vector2(x, bottom - 10.0)) >= 0)   # the kit paints its own
+		sp.visible = not (_section_kit() and _section_at(Vector2(x, bottom - 10.0)) >= 0) and not (ro.size() > 5 and String(ro[5]) == "drawn")   # the drawing paints its own
 		add_child(sp)
 		r["line"] = sp
 	elif kind == "climb":   # knotted to the landing's rail, the end coiled on the stones

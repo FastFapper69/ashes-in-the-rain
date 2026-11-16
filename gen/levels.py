@@ -473,7 +473,7 @@ def _build(mp, nudge):
         for fl in c.flats: out.flats.append([x + fl[0], fl[1], fl[2], x + fl[3], x + fl[4], fl[5], fl[6]])
         for lx, ly in c.lamps: out.lamps.append([x + lx, ly])
         for k, px, py in c.pickups: out.pickups.append([k, x + px, py])
-        for k, a, b, cc, d in c.ropes: out.ropes.append([k, x + a, b, x + cc if k == "zip" else cc, d])
+        for k, a, b, cc, d, *rest in c.ropes: out.ropes.append([k, x + a, b, x + cc if k == "zip" else cc, d] + rest)
         for hx, t in c.hints: out.hints.append([x + hx, t])
         for ev in c.events:
             ev = list(ev)
@@ -724,6 +724,10 @@ def street_props(m):
                     m.enemies.append({"x": ex, "y": 0.0, "kind": "post", "trig": None, "from": None, "delay": 0.0, "run": False})
         for a, b, y, style in piece.get("floors", []):
             m.plats.append([wx(a), top + y * k, (b - a) * k, style])
+        for xa, ya, xb, yb in piece.get("ramps", []):
+            m.ramps.append([wx(xa), top + ya * k, wx(xb), top + yb * k, "fescape"])   # (painted: not drawn by the game)
+        for lx, ly, foot in piece.get("ladders", []):
+            m.ropes.append(["ladder", wx(lx), top + ly * k, 0.0, top + foot * k, "drawn"])
 
 
 def hoist_ropes(m):
@@ -915,13 +919,13 @@ def check(m):
         # reachable: a ramp ends on it, a ladder comes up onto it, or something within jumping reach stands under its near end
         ok = any(abs(r[3] - py) < 1 and px - 20 <= r[2] <= px + pw + 20 for r in m.ramps)
         ok = ok or any(abs(r[1] - py) < 1 and px - 20 <= r[0] <= px + pw + 20 for r in m.ramps)
-        ok = ok or any(k == "ladder" and abs(y0 - py) < 1 and px <= x <= px + pw for k, x, y0, x1, y1 in m.ropes)
+        ok = ok or any(k == "ladder" and abs(y0 - py) < 1 and px <= x <= px + pw for k, x, y0, x1, y1, *_ in m.ropes)
         ok = ok or any(abs(ty - py) < 1 and px <= sx <= px + pw for sx, sy, ty in m.stairdoors)   # the stairs in the back wall come out on it
         ok = ok or any(b[1] <= px + 60 and b[1] + BOX[b[0]][0] >= px - 500 and BOX[b[0]][1] + JUMP_REACH > -py for b in bs)
         if not ok:
             errs.append(f"floor at {px:.0f},{py:.0f} cannot be reached")
-    for k, x, y0, x1, y1 in m.ropes:   # a ladder stands on something and leans on something
-        if k == "ladder" and y1 < 0 and not any(a <= x <= c and abs(y - y1) < 1 for a, c, y in floors):
+    for k, x, y0, x1, y1, *rest in m.ropes:   # a ladder stands on something and leans on something (a fire escape's drop ladder hangs)
+        if k == "ladder" and y1 < 0 and rest[:1] != ["drawn"] and not any(a <= x <= c and abs(y - y1) < 1 for a, c, y in floors):
             errs.append(f"ladder at {x:.0f} stands on air")
     for en in m.enemies:
         if en["y"] < 0 and not any(a <= en["x"] <= b and abs(y - en["y"]) < 1 for a, b, y in floors):
@@ -954,7 +958,7 @@ def draw(m, name, path):
         d.rectangle([px * k, vy(py) - 2, (px + pw) * k, vy(py) + 1], fill=(190, 190, 210))
     for a, b, c, e, *_ in m.ramps:
         d.line([(a * k, vy(b)), (c * k, vy(e))], fill=(190, 190, 210), width=2)
-    for kd, x, y0, x1, y1 in m.ropes:
+    for kd, x, y0, x1, y1, *_ in m.ropes:
         if kd == "ladder":
             d.line([(x * k, vy(y0)), (x * k, vy(y1))], fill=(200, 160, 90), width=2)
     if m.roof:
@@ -1125,7 +1129,7 @@ def gd(campaign):
             pk = ", ".join(f'["{p[0]}", {f(p[1])}, {f(p[2])}]' for p in m.pickups)
             hn = ", ".join(f'[{f(h[0])}, {q(h[1])}]' for h in m.hints)
             ck = ", ".join(f(c) for c in m.checks)
-            ro = ", ".join(f'["{r[0]}", {f(r[1])}, {f(r[2])}, {f(r[3])}, {f(r[4])}]' for r in m.ropes)
+            ro = ", ".join(f'["{r[0]}", {f(r[1])}, {f(r[2])}, {f(r[3])}, {f(r[4])}' + (f', "{r[5]}"' if len(r) > 5 else "") + "]" for r in m.ropes)
             st = ", ".join(f'["{g[0]}", {f(g[1])}]' for g in m.street)
             out.append("\t\t{" + f'"name": {q(lv["name"])}, "end": {f(m.end)}, "boss": {q(lv.get("boss", ""))}, "stand": {f(m.stand if m.stand else -1)},')
             out.append("\t\t\t\"intro\": [" + ", ".join(q(t) for t in lv["intro"]) + "], \"outro\": [" + ", ".join(q(t) for t in lv["outro"]) + "],")
