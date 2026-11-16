@@ -90,6 +90,7 @@ description: "Distilled project knowledge for Ashes in the Rain (Godot 4.7 web/i
 - [cheatsheet.md](cheatsheet.md) – decision rules, thresholds, numbers
 - [patterns.md](patterns.md) – recurring techniques that worked here
 - [glossary.md](glossary.md) – code names and project terms
+- Research (noir style, story, combat feel, AI, level design, Godot web/iOS, controls) → skill `ashes-vyzkum`
 
 ## Scope & limits
 Covers what is in HANDOFF.md up to 2026-11-16 (5). Exact current values live in code – grep before relying on a number. Design docs (GDD, story, Gemini briefs) are claude.ai docs, ids in ch01.
