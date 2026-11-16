@@ -61,7 +61,11 @@ copies can be joined side by side. No people. Nothing standing in the middle of 
      neon glow from outside on the window frame, a wall payphone."
 214 KONEC BUDOVY: "…as 211, but the left 18 % is the building's outer side wall in cross-section: a thick brick
      wall cut through, bricks visible in the cut, from the floor slab up to the ceiling slab."  (zrcadlí se pro pravý konec)
-215 SCHODIŠTĚ (čtverec 1:1, DVĚ patra): "…a square image, two storeys tall. Bottom 4 % black floor slab, a black
+215 SCHODY VE ZDI (uživatel 16. 11.: schody jsou vzadu ve zdi, ne z boku – z boku nejde cikcak trasa; art_src 211
+     = pokus z boku, zamítnut): "…as 211, but in the middle of the back wall a wide dark opening (no door) in which a
+     straight wooden flight with a banister rises from the floor line at the opening's right side up to the left into
+     darkness under the ceiling slab; the opening's floor is the hallway floor." Rameno vždy vede NAHORU z patra.
+(staré) 215 SCHODIŠTĚ (čtverec 1:1, DVĚ patra): "…a square image, two storeys tall. Bottom 4 % black floor slab, a black
      slab across the middle only on the right half (the landing of the floor above), top 4 % black slab. One straight
      flight of wooden stairs with a banister rises from the bottom floor at the left edge to the middle landing on
      the right, exactly half the image height. Dim, one sconce on the landing."  (zrcadlí se pro druhou stranu)

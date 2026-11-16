@@ -51,5 +51,7 @@ const LINES := {
 	"noquit": ["HE SHOOTS YOU ANYWAY!", "NO HANDS UP FOR {p}!", "I SEEN WHAT HE DOES!", "QUITTING WON'T SAVE ME!"],
 	# giving up to a Frank known for letting men walk
 	"quit": ["THEY SAY YOU LET MEN WALK!", "YOU LET GUYS WALK, RIGHT?", "I'M WALKING, {p}!", "OKAY! I'M OUT!"],
+	"comedown": ["COMING DOWN!", "HOLD HIM, I'M COMING!", "I GOT THE STAIRS!", "STAY PUT, {p}!"],
+	"goup": ["HE'S UPSTAIRS!", "UP THE STAIRS, GO!", "TAKE THE STAIRS!", "HE WENT UP!"],
 	"taunt": ["COME OUT, {p}!", "CAN'T HIDE ALL NIGHT!", "WE GOT ALL NIGHT, {p}!", "COME ON OUT, SHAMUS!"],
 }

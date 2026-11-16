@@ -73,9 +73,14 @@ STAIR_TOP = (2352.0, 255.0)
 # A building in cross-section ("řez domem", 2026-11-16): its front wall cut away, the storeys stacked and the
 # way up zigzags: in at the street door, right along the ground floor, the stairs up, left along the first
 # floor, the stairs up, right along the second, the ladder to the roof hatch, then the roof back left.
-# A storey is SEC_H (a man is ~420 px, a door ~520); one flight of stairs climbs a storey over SEC_RUN.
+# A storey is SEC_H (a man is ~420 px, a door ~520).
+# The stairs are in the BACK wall (user's choice 16. 11.): an opening with the flight going up into the dark;
+# he goes in, the camera follows him up a storey, he comes out of the opening above at the same x. A flight
+# drawn side-on cannot zigzag (the next storey would walk over it). Stand-in: the stairs painted in
+# art/rooms/tenement.png; main.gd _build_sections puts them where these doors are.
 SEC_H = 700.0
-SEC_RUN = 494.0   # (the stand-in iron flight is 261 run per 370 rise; the drawn kit will set the real run)
+SEC_DOOR_RIGHT = 598.0   # from the right end: the stand-in drawing's own stairs (its far end piece)
+SEC_DOOR_LEFT = 1052.0   # from the left end: its stairs piece set just past the left end wall
 TRIM = {"alley": 134, "bluenote": 134, "warehouse": 133, "laundry": 133, "subway": 53, "church": 58, "market": 58, "deadend": 58}
 _MASKS = {}
 
@@ -118,6 +123,7 @@ class Chunk:
         self.roof_checks = []
         self.sections = []     # buildings in cross-section: [x0, x1, storeys, style]
         self.xy_checks = []    # checkpoints up in a building: [x, y]
+        self.stairdoors = []   # the stairs in a building's back wall: [x, storey y, the y they lead to]
 
     def box(self, kind, x, y=0.0): self.boxes.append([kind, x, y] if y else [kind, x]); return self
     def plat(self, x, y, w, style="catwalk"): self.plats.append([x, y, w, style]); return self
@@ -273,13 +279,14 @@ def chunk(name, hard, rng=None):
         c.sections.append([0.0, w, 3, "tenement"])
         for k in (1, 2):
             c.plat(0.0, -SEC_H * k, w, "section")
-        c.ramps.append([w - 260 - SEC_RUN, 0.0, w - 260, -SEC_H, "section"])           # ground floor: up at the right
-        c.ramps.append([260 + SEC_RUN, -SEC_H, 260, -SEC_H * 2, "section"])         # first floor: up at the left
+        r, l = w - SEC_DOOR_RIGHT, SEC_DOOR_LEFT
+        c.stairdoors += [[r, 0.0, -SEC_H], [r, -SEC_H, 0.0],                   # ground floor: up at the right
+                         [l, -SEC_H, -SEC_H * 2], [l, -SEC_H * 2, -SEC_H]]     # first floor: up at the left
         c.rope("ladder", w - 150, -SEC_H * 3, 0, -SEC_H * 2)                        # second floor: the ladder to the hatch
         c.foe(1200).foe(2100, kind="shotgun" if hard > 0.6 else "post")
-        c.foe(2300, -SEC_H).foe(1100, -SEC_H, kind="tommy" if hard > 0.5 else "post")
-        c.foe(1500, -SEC_H * 2).foe(2600, -SEC_H * 2)
-        c.xy_checks += [[w - 300, -SEC_H], [300, -SEC_H * 2]]
+        c.foe(1800, -SEC_H).foe(1000 + 450, -SEC_H, kind="tommy" if hard > 0.5 else "post")   # never at the head of the stairs:
+        c.foe(2000, -SEC_H * 2).foe(2700, -SEC_H * 2)                                           # 750+ from where he comes out
+        c.xy_checks += [[r, -SEC_H], [l, -SEC_H * 2]]
         c.checks += [-60.0]
         c.hint(-400, "INSIDE, UP THE STAIRS")
         c.up_end = w + 250.0
@@ -429,6 +436,7 @@ def _build(mp, nudge):
         for a, b, st in c.rooms: out.rooms.append([x + a, x + b, st])
         for a, b, n, st in c.sections: out.sections.append([x + a, x + b, n, st])
         for cx, cy in c.xy_checks: out.xy_checks.append([x + cx, cy])
+        for sx, sy, ty in c.stairdoors: out.stairdoors.append([x + sx, sy, ty])
         for lx, ly in c.lamps: out.lamps.append([x + lx, ly])
         for k, px, py in c.pickups: out.pickups.append([k, x + px, py])
         for k, a, b, cc, d in c.ropes: out.ropes.append([k, x + a, b, x + cc if k == "zip" else cc, d])
@@ -737,6 +745,7 @@ def check(m):
         ok = any(abs(r[3] - py) < 1 and px - 20 <= r[2] <= px + pw + 20 for r in m.ramps)
         ok = ok or any(abs(r[1] - py) < 1 and px - 20 <= r[0] <= px + pw + 20 for r in m.ramps)
         ok = ok or any(k == "ladder" and abs(y0 - py) < 1 and px <= x <= px + pw for k, x, y0, x1, y1 in m.ropes)
+        ok = ok or any(abs(ty - py) < 1 and px <= sx <= px + pw for sx, sy, ty in m.stairdoors)   # the stairs in the back wall come out on it
         ok = ok or any(b[1] <= px + 60 and b[1] + BOX[b[0]][0] >= px - 500 and BOX[b[0]][1] + JUMP_REACH > -py for b in bs)
         if not ok:
             errs.append(f"floor at {px:.0f},{py:.0f} cannot be reached")
@@ -939,6 +948,7 @@ def gd(campaign):
                             for a, b, n, st in m.sections for k in range(n)])
             sc = ", ".join(f'[{f(a)}, {f(b)}, {n}, "{st}"]' for a, b, n, st in m.sections)
             xc = ", ".join(f'[{f(cx)}, {f(cy)}]' for cx, cy in m.xy_checks)
+            sd = ", ".join(f'[{f(sx)}, {f(sy)}, {f(ty)}]' for sx, sy, ty in m.stairdoors)
             lp = ", ".join(f'[{f(l[0])}, {f(l[1])}]' for l in m.lamps)
             pk = ", ".join(f'["{p[0]}", {f(p[1])}, {f(p[2])}]' for p in m.pickups)
             hn = ", ".join(f'[{f(h[0])}, {q(h[1])}]' for h in m.hints)
@@ -975,7 +985,7 @@ def gd(campaign):
             out.append(f'\t\t\t"pickups": [{pk}],')
             out.append(f'\t\t\t"checkpoints": [{ck}],')
             if m.sections:
-                out.append(f'\t\t\t"sections": [{sc}], "section_h": {f(SEC_H)}, "xy_checks": [{xc}],')
+                out.append(f'\t\t\t"sections": [{sc}], "section_h": {f(SEC_H)}, "xy_checks": [{xc}], "stairdoors": [{sd}],')
             out.append(f'\t\t\t"street": [{st}],')
             out.append(f'\t\t\t"enemies": [{en}]}},')
         out.append("\t]},")

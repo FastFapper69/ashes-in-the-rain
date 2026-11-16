@@ -387,6 +387,11 @@ var _mercy: Array = []
 var _sandbox := -1            # --sandbox=N: a trial map from levels.gd SANDBOX
 var sections: Array = []      # buildings in cross-section: [x0, x1, storeys, style] (levels.gd "sections")
 var section_h := 700.0
+var _stairdoors: Array = []   # the stairs in a building's back wall: [x, storey y, the y they lead to]
+var _sd: Dictionary = {}       # on those stairs: where from, the door, where to, how long
+var _storey_since := 0.0      # _ai_t when Frank came onto his storey of a building (the men on the stairs wait for it)
+var _storey_was := -1
+var _steps_above := 0.0       # s left of the camera looking up at steps on the storey above
 var _sec_art: Array = []      # per building: its storeys' drawings, seen only from inside
 var _xy_checks: Array = []        # --test=mercy: its two men
 var _taught_run := false      # the lesson about giving up, once per run in the tests
@@ -1240,6 +1245,7 @@ var _sign_scale := WALL_SCALE
 const SEC_STAND_LEFT := 1800.0                  # stand-in hallway (art/rooms/tenement.png): the left end, up to the downpipe
 const SEC_STAND_CORE := Vector2(740.0, 1800.0)   # its middle, repeated: from past 3A to the downpipe (no end wall in it)
 const SEC_STAND_WALL := Vector2(740.0, 990.0)    # bare wallpaper between 3A and 3B
+const SEC_STAND_STAIRS := Vector2(1800.0, 2240.0)   # its stairs in the back wall (gen/levels.py SEC_DOOR_*)
 const SEC_STAND_RIGHT := 1800.0                 # its far end from the downpipe: stairs, 3C, the window wall
 const SEC_DISSOLVE := 0.6  # s: the facade dissolving from the door when he steps in (story doc, tab "Řez domem a kamera")
 const SEC_DIM := 0.38      # a storey of a building in cross-section he is not on: sunk back, still readable
@@ -2662,7 +2668,7 @@ func _process(delta: float) -> void:
 	cam.zoom = Vector2.ONE * lerpf(cam.zoom.x, want_zoom, 1.0 - exp(-3.0 * real))
 	var near := ZOOM / cam.zoom.x   # the pavement stays four fifths down the screen at any zoom
 	fore.modulate.a = move_toward(fore.modulate.a, 0.0 if _room != "" or player.position.y < -900.0 else 1.0, real * 3.0)   # no street furniture indoors, nor up on the scaffold
-	var want_y := CAM_Y * near + (_ground_y if in_sec else _cam_rise(player.position.y)) + clampf(aim_n.y, -0.6, 0.6) * 90.0 * near
+	var want_y := CAM_Y * near + (_ground_y if in_sec else _cam_rise(player.position.y)) + clampf(aim_n.y, -0.6, 0.6) * 90.0 * near 			- (120.0 if _steps_above > 0.0 else 0.0)   # steps on the storey above: the camera looks up at them
 	cam.position = Vector2(lerpf(cam.position.x, player.position.x + _lead, 1.0 - exp(-5.5 * real)),
 			lerpf(cam.position.y, want_y, 1.0 - exp(-3.0 * real)))
 	if _auto == "tops" and not boxes.is_empty():   # the test frames each crate close up
@@ -2715,6 +2721,13 @@ func _auto_step(delta: float) -> void:
 		hud.move = 0.0 if fight else 1.0
 		if not fight and _section_dir() != 0.0:   # up through a building: each storey the other way
 			hud.move = _section_dir()
+			for d in _stairdoors:   # and up the stairs in the back wall when he gets to them
+				if absf(float(d[1]) - player.position.y) < 12.0 and float(d[2]) < float(d[1]) and move_state == "ground":
+					var dx: float = float(d[0]) - player.position.x
+					if absf(dx) < 900.0 and signf(dx) == signf(_section_dir()) or absf(dx) < 60.0:
+						hud.move = 0.0 if absf(dx) < 40.0 else signf(dx)
+						if absf(dx) < 60.0:
+							hud.jump_tapped = true
 		var lad = _bot_ladder()
 		if lad != null and (not fight or player.position.y < -10.0 and absf(near.position.y - player.position.y) > 60.0):
 			var lx: float = (lad["a"] as Vector2).x
@@ -3885,6 +3898,8 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 	var legs := 0.0
 	_rope_cool = maxf(0.0, _rope_cool - delta)
 	_fling = maxf(0.0, _fling - delta)
+	if move_state == "stairs":
+		return _on_stairdoor(delta)
 	if move_state in ["climb", "zip", "swing"]:
 		_on_rope(dir, jump, duck_held, delta)
 		if move_state in ["climb", "zip", "swing"]:
@@ -3902,6 +3917,8 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			slide_left = 0.55
 			player.slide_side = signf(run) * facing
 			run = signf(run) * RUN_SPEED * 1.4
+		elif can_act and jump and _stair_door_here() >= 0:   # the stairs in the back wall: in, up (or down) a storey, out
+			_start_stairdoor(_stair_door_here())
 		elif can_act and jump:
 			move_state = "jump"
 			fall = -JUMP_SPEED
@@ -4664,6 +4681,19 @@ func _in_dark(x: float) -> bool:
 ## Called by fx.gd for every bullet in flight. True = the bullet stops here.
 func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 	_hit_at = pos   # where a word goes if this bullet kills
+	for sec in sections:   # a building cut open: its floors stop bullets both ways (nobody shoots through a storey)
+		var x0: float = sec[0]
+		var x1: float = sec[1]
+		var top := -section_h * int(sec[2])
+		if pos.y > top and pos.y < 0.0 and (absf(pos.x - x1) < 14.0 or absf(pos.x - x0) < 14.0 and pos.y < -560.0):
+			fx.dust(pos, 0.25)   # and its outer walls (the street door on the ground floor's left is open)
+			return true
+		if pos.x > x0 and pos.x < x1:
+			for k in range(1, int(sec[2]) + 1):
+				var fy := -section_h * k
+				if pos.y > fy + 5.0 and pos.y < fy + 60.0:   # just under the boards walked on: the slab, the ceiling below
+					fx.dust(pos, 0.25)
+					return true
 	for i in boxes.size():   # cover stops bullets from both sides; wood gives way, a barrel goes up
 		if boxes[i].has_point(pos):
 			# the car stands at the far kerb: a man walks past in front of it, and there it hides
@@ -5823,6 +5853,7 @@ func _build_sections() -> void:
 	sections = level.get("sections", [])
 	section_h = float(level.get("section_h", 700.0))
 	_xy_checks = level.get("xy_checks", [])
+	_stairdoors = level.get("stairdoors", [])
 	for sec in sections:
 		var x0 := float(sec[0])
 		var x1 := float(sec[1])
@@ -5842,9 +5873,20 @@ func _build_sections() -> void:
 			var sc := section_h / tex.get_height()
 			var top_y := -section_h * k - section_h
 			var span := (x1 - x0) / sc   # the hallway in the drawing's pixels
-			var right_w := tex.get_width() - SEC_STAND_RIGHT
+			# the stairs in the back wall are the drawing's own: just past the left end wall, and in its far end piece
+			var has_left := false
+			var has_right := false
+			for d in _stairdoors:
+				if absf(float(d[1]) + section_h * k) < 1.0:
+					has_left = has_left or absf(float(d[0]) - (x0 + (SEC_STAND_STAIRS.x + SEC_STAND_STAIRS.y) * 0.5 * sc)) < 60.0
+					has_right = has_right or absf(float(d[0]) - (x1 - (tex.get_width() - (SEC_STAND_STAIRS.x + SEC_STAND_STAIRS.y) * 0.5) * sc)) < 60.0
+			var right_from: float = SEC_STAND_RIGHT if has_right else SEC_STAND_STAIRS.y   # no stairs on the top storey's far end
+			var right_w := tex.get_width() - right_from
 			var pieces: Array = [[0.0, SEC_STAND_LEFT, 0.0]]   # [from, to, at]: the left end wall
 			var at := SEC_STAND_LEFT
+			if has_left:
+				pieces.append([SEC_STAND_STAIRS.x, SEC_STAND_STAIRS.y, at])
+				at += SEC_STAND_STAIRS.y - SEC_STAND_STAIRS.x
 			var n := 0
 			while at < span - right_w:   # the middle: bare wall, and a door now and then (never the same door twice running)
 				var core: Vector2 = SEC_STAND_CORE if n % 4 == 3 else SEC_STAND_WALL
@@ -5852,7 +5894,7 @@ func _build_sections() -> void:
 				pieces.append([core.x, core.x + w, at])
 				at += core.y - core.x
 				n += 1
-			pieces.append([SEC_STAND_RIGHT, float(tex.get_width()), span - right_w])   # the stairs, 3C and the window: the far end
+			pieces.append([right_from, float(tex.get_width()), span - right_w])   # (the stairs,) 3C and the window: the far end
 			for pc in pieces:
 				var sp := Sprite2D.new()
 				sp.texture = tex
@@ -5910,6 +5952,81 @@ void fragment() {
 	return _ink_shader
 
 
+## The stairs in the back wall (user's choice 16. 11.): a flight drawn side-on cannot zigzag, so the stairs are
+## an opening in the hallway's back wall. Jump there: he goes in and up into the dark (0.55 s), the camera
+## takes the storey (it follows _ground_y), and he comes out of the opening above. Nobody fires meanwhile.
+const STAIRDOOR_IN := 0.55
+const STAIRDOOR_FOOT := 60.0   # the stand-in flight: its foot this far right of the opening's middle, its top as far left
+const STAIRDOOR_HOLD := 0.5
+const STAIRDOOR_OUT := 0.45
+func _stair_door_here() -> int:
+	for i in _stairdoors.size():
+		var d: Array = _stairdoors[i]
+		if absf(player.position.x - float(d[0])) < 110.0 and absf(player.position.y - float(d[1])) < 12.0:
+			return i
+	return -1
+
+
+func _start_stairdoor(i: int) -> void:
+	var d: Array = _stairdoors[i]
+	move_state = "stairs"
+	run = 0.0
+	glide = 0.0
+	_jump_buf = 0.0
+	_sd = {"from": player.position, "x": float(d[0]), "to": float(d[1 + 1]), "t": 0.0, "moved": false}
+	_grace = maxf(_grace, STAIRDOOR_IN + STAIRDOOR_HOLD + STAIRDOOR_OUT + 1.5)   # the way through is a calm beat
+	sfx.play("step1", -6.0, player.position.x, 0.1)
+
+
+func _on_stairdoor(delta: float) -> float:
+	# The flight painted in each storey's opening leads UP from that storey. Going up he climbs it into the
+	# dark and comes out of the opening above on the level, from behind; going down he walks into the
+	# opening on the level and comes down the flight painted below.
+	_sd["t"] = float(_sd["t"]) + delta
+	var t: float = _sd["t"]
+	var from: Vector2 = _sd["from"]
+	var to_y: float = _sd["to"]
+	var up := to_y < from.y
+	var foot := float(_sd["x"]) + STAIRDOOR_FOOT
+	var top := float(_sd["x"]) - STAIRDOOR_FOOT
+	var climb := -170.0   # how much of the painted flight is seen walked before the dark takes him
+	player.duck = 0.0
+	if t < STAIRDOOR_IN:
+		var k := t / STAIRDOOR_IN
+		if up:   # to the foot of the flight, then up it
+			var a := smoothstep(0.0, 0.35, k)
+			var b := smoothstep(0.35, 1.0, k)
+			player.position = Vector2(lerpf(lerpf(from.x, foot, a), top, b), from.y + climb * b)
+		else:    # into the opening, on the level
+			player.position = Vector2(lerpf(from.x, float(_sd["x"]), smoothstep(0.0, 1.0, k)), from.y)
+		var v := 1.0 - 0.85 * smoothstep(0.2, 1.0, k)
+		player.modulate = Color(v, v, v, 1.0 - smoothstep(0.7, 1.0, k))
+		return 0.6
+	if not _sd["moved"]:   # gone into the dark: he is on the other storey now, the camera goes after him
+		_sd["moved"] = true
+		_ground_y = to_y
+		player.position = Vector2(float(_sd["x"]) if up else top, to_y + (0.0 if up else climb))
+		sfx.play("step2", -10.0, player.position.x, 0.1)
+	if t < STAIRDOOR_IN + STAIRDOOR_HOLD:
+		player.modulate = Color(0.15, 0.15, 0.15, 0.0)
+		return 0.0
+	var k := clampf((t - STAIRDOOR_IN - STAIRDOOR_HOLD) / STAIRDOOR_OUT, 0.0, 1.0)
+	var e := smoothstep(0.0, 1.0, k)
+	if up:   # out of the opening on the level, a step toward the hallway
+		var way := 1.0 if roundi(-to_y / section_h) % 2 == 0 else -1.0   # the way on along that storey (the route zigzags)
+		player.position = Vector2(float(_sd["x"]) + way * 90.0 * e, to_y)
+	else:    # down the flight painted on this storey, from the dark at its top
+		player.position = Vector2(lerpf(top, foot, e), to_y + climb * (1.0 - e))
+	var v := 0.15 + 0.85 * smoothstep(0.2, 1.0, k)
+	player.modulate = Color(v, v, v, smoothstep(0.0, 0.4, k))
+	if k >= 1.0:
+		player.position.y = to_y
+		player.modulate = Color.WHITE
+		move_state = "ground"
+		_sd = {}
+	return 0.6
+
+
 ## The building he is in, or -1; `storey` out: which storey (0 = the street's).
 func _section_at(p: Vector2) -> int:
 	for i in sections.size():
@@ -5938,6 +6055,9 @@ func _tick_sections(real: float) -> void:
 					(sp as CanvasItem).material = art["ink"] if moving else null
 		(art["veil"] as Node2D).modulate.a = open
 		(art["void"] as Node2D).modulate.a = open
+		for e in enemies:   # whoever is inside is behind the facade until it opens: nobody floats in front of it
+			if e["state"] != "wait" and _section_at(e["node"].position) == i:
+				e["node"].visible = open > 0.3
 		# the storey he is on is lit, the others sink back; on the stairs the light goes up with him
 		var want := clampf(-player.position.y / section_h, 0.0, float(h.get_child_count() - 1)) if i == inside else float(art["lit"])
 		art["lit"] = lerpf(float(art["lit"]), want, 1.0 - exp(-6.0 * real))
@@ -5945,6 +6065,11 @@ func _tick_sections(real: float) -> void:
 			var near := clampf(1.0 - absf(float(k) - float(art["lit"])), 0.0, 1.0)
 			var v := ROOM_BASE * lerpf(SEC_DIM, 1.0, near)   # brightness only: the storey stays opaque over the facade
 			(h.get_child(k) as CanvasItem).modulate = Color(v, v, v, 1.0)
+	var st := roundi(-_ground_y / section_h) if inside >= 0 else -1
+	if st != _storey_was:
+		_storey_was = st
+		_storey_since = _ai_t
+	_steps_above = maxf(0.0, _steps_above - real)
 	if inside < 0 or over:
 		return
 	for c in _xy_checks:   # a checkpoint on each storey, where he comes up the stairs
@@ -7428,6 +7553,8 @@ func _nearest_enemy(side := 0.0):
 			continue
 		if absf(e["node"].position.y - player.position.y) > 1300.0:   # storeys below him on the street, out of the picture
 			continue
+		if e["state"] == "stairs" or (_section_at(player.position) >= 0 and absf(e["node"].position.y - _ground_y) > 300.0):
+			continue   # in a building only his own storey: the ceiling is between him and the rest
 		if best == null or absf(dx) < absf(best.position.x - player.position.x):
 			best = e["node"]
 	return best
@@ -7474,6 +7601,8 @@ func _alarm(at: Vector2, radius: float) -> void:
 ## floor at a man standing up on it (from the street the cornice hides whoever is on the roof).
 func _can_see(m) -> bool:
 	if not _on_screen(m.position):
+		return false
+	if _section_at(m.position) != _section_at(player.position):   # a building's walls between them
 		return false
 	var half_h: float = get_viewport().get_visible_rect().size.y * 0.5 / cam.zoom.y
 	if absf(m.position.y - 60.0 - cam.position.y) > half_h + 40.0:
@@ -7567,6 +7696,93 @@ func _squad(e: Dictionary, m, to_player: Vector2, delta: float) -> void:
 		m.position.x += step
 		m.duck = move_toward(m.duck, 0.0, delta * 7.0)
 		m.set_state(way, to_player, delta)
+
+
+## In a building in cross-section a man on the storey next to Frank's comes to him through the stairs in the
+## back wall (story doc: the men on other storeys come by the stairs), once Frank has stood on his storey a
+## while, one man at a time. From above he is heard first: a step, the camera looks up, a shout.
+const STAIRS_SPEED := 300.0
+const STAIRS_WAIT := 2.0      # s Frank has been on his storey before anyone comes for him
+func _take_stairs(e: Dictionary, m) -> bool:
+	if _stairdoors.is_empty() or e["boss"] or e["state"] != "post" or e["type"] not in ["post", "tommy", "shotgun"] or e.has("shield"):
+		return false
+	var si := _section_at(player.position)
+	if si < 0 or _section_at(m.position) != si or move_state != "ground" or _ai_t - _storey_since < STAIRS_WAIT:
+		return false
+	if _ai_t - float(e.get("stairs_t", -99.0)) < 10.0:
+		return false
+	for o in enemies:
+		if o["alive"] and o["state"] == "stairs":
+			return false
+	for d in _stairdoors:
+		if absf(float(d[1]) - m.position.y) < 12.0 and absf(float(d[2]) - _ground_y) < 12.0:
+			e["sd"] = {"x": float(d[0]), "to": float(d[2]), "phase": 0, "t": 0.0, "tint": m.modulate}
+			e["state"] = "stairs"
+			e["stairs_t"] = _ai_t
+			if float(d[2]) > float(d[1]):   # coming down to him: heard before he is seen
+				_steps_above = 0.5
+				sfx.play("step1", -4.0, m.position.x, 0.1)
+				_bark(m, "comedown", "", true)
+			else:
+				_bark(m, "goup", "", true)
+			return true
+	return false
+
+
+func _on_stairs(e: Dictionary, m, delta: float) -> void:
+	var sd: Dictionary = e["sd"]
+	var x: float = sd["x"]
+	var to_y: float = sd["to"]
+	var up: bool = to_y < m.position.y if int(sd["phase"]) == 0 else bool(sd.get("up", false))
+	var tint: Color = sd["tint"]
+	var aim_at: Vector2 = player.position + Vector2(0.0, SHOULDER.y) - (m.position + Vector2(0.0, SHOULDER.y))
+	m.duck = move_toward(m.duck, 0.0, delta * 7.0)
+	sd["t"] = float(sd["t"]) + delta
+	match int(sd["phase"]):
+		0:   # along his storey to the opening
+			sd["up"] = up
+			var goal: float = x + (STAIRDOOR_FOOT if up else 0.0)
+			var way := signf(goal - m.position.x)
+			m.set_state(way, aim_at, delta)
+			m.position.x = move_toward(m.position.x, goal, STAIRS_SPEED * delta * _wading(m.position.y))
+			if absf(goal - m.position.x) < 2.0:
+				sd["phase"] = 1
+				sd["t"] = 0.0
+				sd["from_y"] = m.position.y
+		1:   # in: up the painted flight into the dark, or into the opening on the level
+			var k := clampf(float(sd["t"]) / STAIRDOOR_IN, 0.0, 1.0)
+			if up:
+				m.position = Vector2(lerpf(x + STAIRDOOR_FOOT, x - STAIRDOOR_FOOT, k), float(sd["from_y"]) - 170.0 * k)
+			m.set_state(-1.0 if up else 0.0, aim_at, delta)
+			var v := 1.0 - 0.85 * smoothstep(0.2, 1.0, k)
+			m.modulate = Color(tint.r * v, tint.g * v, tint.b * v, tint.a * (1.0 - smoothstep(0.7, 1.0, k)))
+			if k >= 1.0:
+				sd["phase"] = 2
+				sd["t"] = 0.0
+				m.position = Vector2(x if up else x - STAIRDOOR_FOOT, to_y - (0.0 if up else 170.0))
+		2:   # unseen a moment on the stairs
+			if float(sd["t"]) > 0.7:
+				sd["phase"] = 3
+				sd["t"] = 0.0
+		3:   # out: on the level from the opening above, or down the flight painted below
+			var k := clampf(float(sd["t"]) / STAIRDOOR_OUT, 0.0, 1.0)
+			var toward := signf(player.position.x - x)
+			if up:
+				m.position = Vector2(x + toward * 90.0 * k, to_y)
+			else:
+				m.position = Vector2(lerpf(x - STAIRDOOR_FOOT, x + STAIRDOOR_FOOT, k), to_y - 170.0 * (1.0 - k))
+			m.set_state(toward if up else 1.0, aim_at, delta)
+			var v := 0.15 + 0.85 * smoothstep(0.2, 1.0, k)
+			m.modulate = Color(tint.r * v, tint.g * v, tint.b * v, tint.a * smoothstep(0.0, 0.4, k))
+			if k >= 1.0:   # on Frank's storey: he stands and fights, a beat before his first shot
+				m.position.y = to_y
+				m.modulate = tint
+				e.erase("sd")
+				e["state"] = "post"
+				e["cover"] = _has_cover(m.position)
+				e["home"] = m.position.x
+				e["wander"] = m.position.x
+				e["cool"] = maxf(float(e["cool"]), 1.0)
 
 
 func _hop(e: Dictionary, m, bx: Rect2, far: float) -> void:
@@ -7782,6 +7998,9 @@ func _enemies(delta: float) -> void:
 				e["seen"] = true
 				m.visible = true
 			continue
+		if e["state"] == "stairs":   # through the stairs in the back wall to Frank's storey
+			_on_stairs(e, m, delta)
+			continue
 		if e["state"] == "run":   # running in to his spot, gun already on the detective; then he stands and fights
 			var way: float = signf(float(e["goal"]) - m.position.x)
 			m.position.x += way * RUNNER_SPEED * delta * _wading(m.position.y)
@@ -7828,6 +8047,8 @@ func _enemies(delta: float) -> void:
 			e["sought"] = true
 			if _seek_cover(e, m):
 				continue
+		if _take_stairs(e, m):
+			continue
 		_squad(e, m, to_player, delta)
 		if e["state"] == "move":   # on his way somewhere: he does not stop to shoot
 			continue
