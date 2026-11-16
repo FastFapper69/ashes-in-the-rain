@@ -42,6 +42,10 @@ Pick the chapter for the task. Every idea marked **[H]** is a hypothesis: measur
 | [ch08](chapters/ch08-mobile-controls.md) | Mobile controls | thumb reach, forgiveness (coyote/buffer), auto-aim |
 | [ch09](chapters/ch09-skills-and-tools.md) | Anthropic skills & tools | which of anthropics/skills help us, reader testing, web-build check, skill writing rules |
 | [ch10](chapters/ch10-animate-cutscenes-trailer.md) | Cutscene craft & trailer | cth9191/animate: silence→loudest hit, voice as clock, word timing, contact sheets, Godot Movie Maker trailer |
+| [ch11](chapters/ch11-claude-code-on-pc.md) | Claude Code on the PC | Godot MCP (runtime screenshots/input), GdUnit4, hooks, TokenEconomizer |
+| [ch12](chapters/ch12-licences-stores.md) | Licences & stores | Artlist licence for games (Enterprise!), ElevenLabs, Gemini watermark/ownership, AI disclosure |
+| [ch13](chapters/ch13-business-release.md) | Business & release | premium vs free-to-start, subscriptions, native iOS needs Mac+Xcode, haptics |
+| [ch14](chapters/ch14-camera-telemetry-accessibility.md) | Camera, telemetry, accessibility | Keren camera techniques, death heatmaps/funnels, subtitles, assist mode |
 
 ## Topic index
 - **attack tokens** → ch04 · **backbuffer / CanvasGroup** → ch06 · **barks / callouts** → ch04
@@ -52,6 +56,7 @@ Pick the chapter for the task. Every idea marked **[H]** is a hypothesis: measur
 - **texture compression (Basis, ETC2)** → ch06 · **web audio samples** → ch06
 - **skills / tools / web build check / reader testing** → ch09
 - **cutscene pacing, voice timing, trailer** → ch10
+- **Godot MCP / hooks / unit tests** → ch11 · **licences, Artlist, AI disclosure** → ch12 · **business model, native export, haptics** → ch13 · **camera, heatmaps, accessibility** → ch14
 
 ## Supporting files
 - [cheatsheet.md](cheatsheet.md) – decision rules distilled from all chapters
