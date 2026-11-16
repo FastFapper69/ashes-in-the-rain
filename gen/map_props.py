@@ -56,3 +56,8 @@ neon_glow()
 _w = Image.open(OUT + 'sewer_water.png')
 _w = _w.crop((0, 0, _w.width, 327))
 _w.crop(_w.getbbox()).save(OUT + 'sewer_water.png')
+
+# every set piece cut to a size in multiples of 4, so gen/basis_imports.py can make it Basis (not sheets.png)
+for _n in ['el_span', 'girder', 'neon_hotel', 'neon_hotel_glow', 'boxcars', 'wave', 'sewer_water', 'rat']:
+    _im = Image.open(OUT + _n + '.png')
+    _im.crop((0, 0, _im.width - _im.width % 4, _im.height - _im.height % 4)).save(OUT + _n + '.png')

@@ -15,7 +15,7 @@ dest_files=["res://.godot/imported/beam.png-aa12e21072f1d28f1b3221efc733d223.cte
 
 [params]
 
-compress/mode=0
+compress/mode=1
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

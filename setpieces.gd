@@ -593,7 +593,7 @@ func _make_band() -> void:
 	var lits: Array = []
 	for nm in BAND_ART:
 		texs.append(BigTex.get_tex("res://art/street/%s.png" % nm))
-		lits.append(load("res://art/street/%s_lit.png" % nm))
+		lits.append(BigTex.get_tex("res://art/street/%s_lit.png" % nm))
 	var tex: Texture2D = texs[0]
 	var trim: float = game.SEGMENT_TRIM.get("tunnel", 0.0)
 	var sx: float = tex.get_width() / (tex.get_width() - trim)

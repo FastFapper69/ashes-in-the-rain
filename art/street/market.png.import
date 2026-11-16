@@ -15,7 +15,7 @@ dest_files=["res://.godot/imported/market.png-78d26a2762fa572e61b8089837f061f1.c
 
 [params]
 
-compress/mode=1
+compress/mode=4
 compress/high_quality=false
 compress/lossy_quality=0.85
 compress/uastc_level=0
@@ -36,5 +36,5 @@ process/premult_alpha=false
 process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
-process/size_limit=2048
+process/size_limit=2044
 detect_3d/compress_to=1

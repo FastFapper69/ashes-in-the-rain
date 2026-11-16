@@ -15,7 +15,7 @@ dest_files=["res://.godot/imported/rat.png-ae4833b54ac8515c11ca236a6dd28e72.ctex
 
 [params]
 
-compress/mode=0
+compress/mode=4
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

@@ -15,7 +15,7 @@ dest_files=["res://.godot/imported/burst.jpg-9c473508a31a30a18f3aeb103610d7e7.ct
 
 [params]
 
-compress/mode=0
+compress/mode=1
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

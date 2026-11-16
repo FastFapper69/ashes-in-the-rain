@@ -15,7 +15,7 @@ dest_files=["res://.godot/imported/warehouse.png-7a06ce10cbc5c31ca9677e5624b0f5b
 
 [params]
 
-compress/mode=1
+compress/mode=4
 compress/high_quality=false
 compress/lossy_quality=0.85
 compress/uastc_level=0

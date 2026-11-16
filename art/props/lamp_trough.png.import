@@ -15,7 +15,7 @@ dest_files=["res://.godot/imported/lamp_trough.png-26d15b1c2bed3f9c8593dc07cb46b
 
 [params]
 
-compress/mode=0
+compress/mode=1
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

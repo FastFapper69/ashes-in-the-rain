@@ -19,20 +19,22 @@ static func get_tex(p: String) -> Texture2D:
 		if held != null:
 			return held
 	var t: Texture2D = load(p)
-	if t == null or t.get_width() < LIMIT - 1.0:   # not capped: nothing to wrap
+	if t == null:
 		return t
 	var b := BigTex.new()
 	b.path = p
 	b.inner = t
 	b.full = BigTex.painted_size(p, t)
-	if b.full.x <= t.get_width():
+	if b.full == Vector2i(t.get_width(), t.get_height()):   # imported at its painted size: nothing to wrap
 		return t
 	RenderingServer.texture_set_size_override(t.get_rid(), b.full.x, b.full.y)
 	_cache[p] = weakref(b)
 	return b
 
 
-## The drawing's painted size, measured by gen/bigtex_sizes.py.
+## The drawing's painted size (gen/basis_imports.py): drawings capped at 2048 px, and the light/blood
+## layers and comic panels imported a few pixels smaller so their size is a multiple of 4 (a GPU-compressed
+## texture must be, or WebGL refuses it).
 static func painted_size(p: String, t: Texture2D) -> Vector2i:
 	var sizes: Dictionary = preload("res://big_sizes.gd").SIZES
 	return sizes.get(p, Vector2i(t.get_width(), t.get_height()))

@@ -438,7 +438,9 @@ func hat_hit(world: Vector2) -> bool:
 	var bare: Image = _hat_img[bp]
 	if hat == null or bare == null:
 		return false
-	var px := Vector2i(s.to_local(world) - s.offset)
+	# (the head drawings are imported at half size: gen/lowres_paths.txt; the image is read at its own size)
+	var painted: Vector2 = Vector2(BigTex.painted_size(hp, load(hp)))
+	var px := Vector2i((s.to_local(world) - s.offset) * Vector2(hat.get_size()) / painted)
 	if px.x < 0 or px.y < 0 or px.x >= hat.get_width() or px.y >= hat.get_height():
 		return false
 	if hat.get_pixelv(px).a <= 0.5:

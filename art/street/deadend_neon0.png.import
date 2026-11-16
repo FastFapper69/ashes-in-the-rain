@@ -15,7 +15,7 @@ dest_files=["res://.godot/imported/deadend_neon0.png-756e5243dae696c7b2dd45198c8
 
 [params]
 
-compress/mode=1
+compress/mode=4
 compress/high_quality=false
 compress/lossy_quality=0.85
 compress/uastc_level=0

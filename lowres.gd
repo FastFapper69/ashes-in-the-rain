@@ -7,12 +7,21 @@ extends RefCounted
 static var _cache := {}   # "path@factor" -> ImageTexture, kept for the whole session: reading a drawing
 # back from the graphics card is slow on a phone, and figures and effects are needed on every map
 static var failed := 0
+static var _log := "--lowres-log" in OS.get_cmdline_user_args()
 
 
 static func tex(path: String, factor := 0.5) -> Texture2D:
 	var key := "%s@%s" % [path, factor]
 	if _cache.has(key):
 		return _cache[key]
+	if _log:
+		print("LOWRES ", path, " ", factor)
+	# imported at its reduced size already (gen/basis_imports.py, gen/lowres_paths.txt): just told its
+	# painted size, nothing decoded or shrunk here
+	if preload("res://big_sizes.gd").SIZES.has(path):
+		var b := BigTex.get_tex(path)
+		_cache[key] = b
+		return b
 	var src: Texture2D = load(path)
 	if src == null or factor >= 1.0:
 		return src

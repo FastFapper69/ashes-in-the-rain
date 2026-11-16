@@ -28,6 +28,16 @@ body = body[:body.index('\n}\n')]
 for m in re.finditer(r'\n\t"(\w+)": \[(.*?)\n\t\]', body, re.S):
     for img in re.findall(r'"img": (\d+)', m.group(2)):
         files['art/cut/%s.jpg' % img].add(CUTS[m.group(1)])
+# set pieces of single maps (mapfx.gd / setpieces.gd, 2026-11-16): into the pack of the chapter they play in
+EXTRA = {'a': ['art/props/el_span.png', 'art/props/sheets.png', 'art/props/neon_hotel.png', 'art/props/neon_hotel_glow.png'],
+         'b': ['art/props/wave.png'],
+         'c': ['art/props/girder.png', 'art/props/boxcars.png', 'art/props/sewer_water.png', 'art/props/rat.png']}
+for g, lst in EXTRA.items():
+    for f in lst:
+        files[f] = {g}
+# never needed in the build: the old painted-wall street (main.gd _build_street's fallback when a map has
+# no drawn street; every map has one) and a foreground layer nothing loads
+NEVER = ['art/bg/far.png', 'art/bg/mid.png', 'art/bg/fore.png', 'art/bg/wall2.png', 'art/bg/wall2_n.png', 'art/bg/wall2_lit.png']
 groups = collections.defaultdict(list)
 for f, g in sorted(files.items()):
     if len(g) == 1:
@@ -46,7 +56,7 @@ cfg = open('export_presets.cfg').read()
 cfg = cfg[:cfg.index('[preset.1]')] if '[preset.1]' in cfg else cfg
 base_ex = 'art_src/*,art/_src/*,_shots/*,gen/*,build/*'
 allg = [f for g in sorted(groups) for f in groups[g]]
-cfg = re.sub(r'exclude_filter="[^"]*"', 'exclude_filter="%s"' % ','.join([base_ex] + allg), cfg, count=1)
+cfg = re.sub(r'exclude_filter="[^"]*"', 'exclude_filter="%s"' % ','.join([base_ex] + allg + NEVER), cfg, count=1)
 cfg = cfg.rstrip('\n') + '\n'
 for k, g in enumerate(sorted(groups)):
     lst = ', '.join('"res://%s"' % f for f in groups[g])

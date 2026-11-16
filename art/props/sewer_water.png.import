@@ -15,7 +15,7 @@ dest_files=["res://.godot/imported/sewer_water.png-8288383037b56532afd7a3bf8ae78
 
 [params]
 
-compress/mode=0
+compress/mode=4
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

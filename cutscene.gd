@@ -556,7 +556,7 @@ func _next_panel() -> void:
 		_old.queue_free()
 	_old = _pic
 	_pic = Sprite2D.new()
-	_pic.texture = load("res://art/cut/%d.jpg" % int(p["img"]))
+	_pic.texture = BigTex.get_tex("res://art/cut/%d.jpg" % int(p["img"]))
 	_pic.modulate.a = 0.0
 	_stage.add_child(_pic)
 	_lives.clear()

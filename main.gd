@@ -482,6 +482,15 @@ func _fetch_pack() -> void:
 
 ## A line for the crash report (web only): what the game was doing, kept in the browser's storage so
 ## the next load can send it home if this page gets killed (see web/crash.js beside the deploy script).
+## Startup timing (--timing): how long each part of building the page took.
+static var _tm_last := 0
+func _tm(what: String) -> void:
+	if "--timing" in OS.get_cmdline_user_args():
+		var now := Time.get_ticks_msec()
+		print("TIMING %-14s %5d ms  (at %d)" % [what, now - _tm_last, now])
+		_tm_last = now
+
+
 static func crumb(text: String) -> void:
 	if OS.has_feature("web"):
 		JavaScriptBridge.eval("window.ashesCrumb&&window.ashesCrumb(%s)" % JSON.stringify(text), true)
@@ -536,7 +545,18 @@ func _ready() -> void:
 		set_physics_process(false)
 		get_tree().quit()
 		return
-	if not Packs.has(chapter):   # this part of the story's drawings are not on the page yet
+	# The title must not wait on a chapter's drawings (2026-11-16: a cold start fetched up to 68 MB more
+	# before the menu showed). When they are not on the page yet, it stands in a street made only of
+	# drawings the base pack holds (the 1931 tenement row, without its fire); the chapter's pack comes
+	# when a map is picked.
+	var stand_in := false
+	if in_menu and not Packs.has(chapter):
+		stand_in = true
+		chapter = 2
+		for k in Levels.CAMPAIGN[2]["maps"].size():
+			if String(Levels.CAMPAIGN[2]["maps"][k]["name"]) == "1931":
+				map = k
+	if not stand_in and not Packs.has(chapter):   # this part of the story's drawings are not on the page yet
 		if Packs.needs_fresh_page(chapter):
 			crumb("fresh page for %d:%d (pack %s held)" % [chapter, map, Packs.mounted])
 			set_process(false)
@@ -551,6 +571,18 @@ func _ready() -> void:
 		return
 	var ch: Dictionary = Levels.CAMPAIGN[chapter]
 	level = ch["maps"][map]
+	if stand_in:
+		level = level.duplicate()
+		level["events"] = []
+		level["memory"] = false
+		level["embers"] = 0.0
+	if in_menu:   # the title covers the street (_hide_world): build only its first stretch, nobody in it
+		level = level.duplicate()
+		level["street"] = (level["street"] as Array).slice(0, 2)
+		level["enemies"] = []
+		level["pickups"] = []
+		level["rooms"] = []
+		level["events"] = []
 	level_end = level["end"]
 	_set_difficulty(String(ch["hero"]))
 	rooms = level["rooms"]
@@ -560,17 +592,22 @@ func _ready() -> void:
 	ambient = ch["ambient"]
 	atmo = AtmosphereScript.new()
 	add_child(atmo)
+	_tm("atmo")
 	sfx = SfxScript.new()
 	sfx.process_mode = Node.PROCESS_MODE_ALWAYS   # before the street: its signs, lamps and steam put their sounds in it
 	add_child(sfx)
+	_tm("sfx")
 	_build_street()
+	_tm("street")
 	roof = level.get("roof", {})
 	_build_roofs()
 	_build_light()
-
+	_tm("roofs+light")
 	_build_level()
+	_tm("level")
 	if not level.get("under", false):   # no pigeons down in the subway
 		_place_flocks()
+	_tm("flocks")
 	player = PuppetScript.new()
 	player.cfg = DETECTIVE
 	player.dual = String(Levels.CAMPAIGN[chapter]["hero"]) != "eddie" and _perk_early("twoguns")
@@ -578,6 +615,7 @@ func _ready() -> void:
 		player.cfg = _eddie_cfg()
 	player.night = _undo_night(1.0)
 	add_child(player)
+	_tm("player")
 	mag = _mag_size("revolver")
 	if player.dual:
 		player.set_weapon("revolver")   # the second revolver into the far hand
@@ -596,6 +634,7 @@ func _ready() -> void:
 	sets = SetpiecesScript.new()
 	add_child(sets)
 	sets.setup(self)
+	_tm("sets")
 	if _card_up:   # the card that covered the load comes off now the street is built
 		_card_up = false
 		for n in get_tree().root.get_children():
@@ -612,6 +651,7 @@ func _ready() -> void:
 	fore.z_index = 10
 	add_child(fore)
 	_scatter_fore()
+	_tm("fore")
 	# telephone wires sagging across the top of the frame, nearest of all: only in the streets of
 	# Hell's Kitchen (the docks and the subway have no poles to hang them from); every span meets the
 	# next at the same height, only the sag differs
@@ -641,6 +681,7 @@ func _ready() -> void:
 	if rain <= 0.0:   # underground: no rain, only the drip
 		atmo.rain_far.emitting = false
 		atmo.rain_near.emitting = false
+	_tm("cam+depth+rain")
 	atmo.add_post(self)
 	atmo.set_ash(MenuScript.guilt() / 10.0)
 	atmo.set_lift(0.2)   # the darkest darks opened a little: walls in the dark keep their lines (the user: a fifth of the trial)
@@ -664,6 +705,7 @@ func _ready() -> void:
 	fx.sound = sfx
 	fx.listener = player
 	fx.wall_at = _wall_at
+	_tm("cam+atmo")
 	mapfx = MapFxScript.new()
 	add_child(mapfx)
 	mapfx.setup(self)
@@ -693,6 +735,7 @@ func _ready() -> void:
 			_travel(false)   # through black, the old title let go first (a straight reload held both: the phone killed the page)
 		menu.sound = func(n: String) -> void: sfx.play(n, -8.0 if n == "type" else -4.0, INF, 0.15)
 		add_child(menu)
+		_tm("menu")
 		_hide_world.call_deferred()
 		player.set_state(0.0, Vector2(1.0, 0.0), 0.0)
 		# the camera rests on the map's main street, the hero standing under the lights on the right
@@ -1187,7 +1230,7 @@ func _build_segments() -> void:
 		for r in SEGMENT_DEEP.get(art, []):   # (a variant's picture is its own: deep views, fires, signs and lamps by `art`)
 			_add_deep(diffuse, w, r as Rect2, trim, art)
 		var glow := Sprite2D.new()   # its lit windows and signs, pushed through the night at full strength
-		glow.texture = load("res://art/street/" + art + "_lit.png")
+		glow.texture = BigTex.get_tex("res://art/street/" + art + "_lit.png")
 		glow.centered = false
 		glow.region_enabled = true   # the glow layer is stored at half size
 		glow.region_rect = Rect2(trim * 0.5, 0.0, glow.texture.get_width() - trim * 0.5, glow.texture.get_height())
@@ -1198,7 +1241,7 @@ func _build_segments() -> void:
 		glow.z_index = -9
 		add_child(glow)
 		var host := Sprite2D.new()   # blood lands only on what is solid in the drawing: see _stain_host
-		host.texture = load("res://art/street/" + art + "_solid.png")
+		host.texture = BigTex.get_tex("res://art/street/" + art + "_solid.png")
 		host.centered = false
 		host.region_enabled = true
 		host.region_rect = Rect2(trim * 0.5, 0.0, host.texture.get_width() - trim * 0.5, host.texture.get_height())
@@ -1295,7 +1338,7 @@ func _build_segments() -> void:
 			_pavement(x0, seg_w)
 		if seg != level["street"][0] and not floored:   # a firewall pier over the join with the drawing before
 			var pier := Sprite2D.new()
-			pier.texture = load("res://art/street/pier.png")
+			pier.texture = BigTex.get_tex("res://art/street/pier.png")
 			pier.centered = false
 			pier.scale = Vector2.ONE * WALL_SCALE
 			pier.position = Vector2(x0 - pier.texture.get_width() * WALL_SCALE * 0.5, -WALL_LIFT - (diffuse.get_height() * SEGMENT_BASE - (diffuse.get_height() - pier.texture.get_height())) * WALL_SCALE)
@@ -7984,4 +8027,6 @@ func _shot(shot_name: String) -> void:
 	if not is_inside_tree():   # the scene was restarted while waiting for the frame
 		return
 	var img := get_viewport().get_texture().get_image()
-	img.save_png("res://_shots/" + shot_name + ".png")
+	if img.save_png("res://_shots/" + shot_name + ".png") != OK:   # (an exported pack: res:// is read-only)
+		DirAccess.make_dir_recursive_absolute("user://_shots")
+		img.save_png("user://_shots/" + shot_name + ".png")
