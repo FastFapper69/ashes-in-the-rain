@@ -58,6 +58,8 @@ ROOF_STUB = 190 * 0.95    # the firewall at its right edge, left off where the n
 # the walked line as a share of the picture's height, the stub at the right edge left off at a join,
 # the floor's height, what stands past both ends, and where the way out is (share of the far drawing).
 KITS = {
+    # the roof over a building seen in cross-section (2026-11-16): three storeys of SEC_H, the roof on the third
+    "troof": {"scale": 0.95, "line": 0.828, "stub": 190, "y": -2100.0, "deco": None, "goal": None, "under": True},
     "roof": {"scale": 0.95, "line": 0.828, "stub": 190, "y": ROOF_Y, "deco": None, "goal": None, "under": True},
     # the mezzanine over the platforms: the subway drawings at their half size; its floor on their ceiling
     "mezz": {"scale": 1.9 * 0.52, "line": 0.94, "stub": 134, "y": -1318.0, "deco": "mezz_a", "goal": 0.55, "under": False},
@@ -66,6 +68,12 @@ KITS = {
 # landing at (2352, 255) in the picture; drawn so they rise exactly onto the mezzanine
 STAIR_FOOT = (168.0, 1258.0)
 STAIR_TOP = (2352.0, 255.0)
+# A building in cross-section ("řez domem", 2026-11-16): its front wall cut away, the storeys stacked and the
+# way up zigzags: in at the street door, right along the ground floor, the stairs up, left along the first
+# floor, the stairs up, right along the second, the ladder to the roof hatch, then the roof back left.
+# A storey is SEC_H (a man is ~420 px, a door ~520); one flight of stairs climbs a storey over SEC_RUN.
+SEC_H = 700.0
+SEC_RUN = 494.0   # (the stand-in iron flight is 261 run per 370 rise; the drawn kit will set the real run)
 TRIM = {"alley": 134, "bluenote": 134, "warehouse": 133, "laundry": 133, "subway": 53, "church": 58, "market": 58, "deadend": 58}
 _MASKS = {}
 
@@ -106,6 +114,8 @@ class Chunk:
         self.up_end = None     # where the floor above starts, past the top of the way up
         self.roof = None       # [x0, x1] of the walked roof, its drawings [[name, x0]], the goal x
         self.roof_checks = []
+        self.sections = []     # buildings in cross-section: [x0, x1, storeys, style]
+        self.xy_checks = []    # checkpoints up in a building: [x, y]
 
     def box(self, kind, x, y=0.0): self.boxes.append([kind, x, y] if y else [kind, x]); return self
     def plat(self, x, y, w, style="catwalk"): self.plats.append([x, y, w, style]); return self
@@ -252,6 +262,22 @@ def chunk(name, hard, rng=None):
         c.hint(-500, "JUMP AT A LADDER TO CLIMB IT")
         c.scaf = True
         c.up_end = w + 250.0
+    elif name == "section":   # a tenement cut open: three storeys, the stairs zigzag up, the hatch to the roof
+        w = 3300.0
+        c = Chunk(w + 400)
+        c.sections.append([0.0, w, 3, "tenement"])
+        for k in (1, 2):
+            c.plat(0.0, -SEC_H * k, w, "section")
+        c.ramps.append([w - 260 - SEC_RUN, 0.0, w - 260, -SEC_H, "section"])           # ground floor: up at the right
+        c.ramps.append([260 + SEC_RUN, -SEC_H, 260, -SEC_H * 2, "section"])         # first floor: up at the left
+        c.rope("ladder", w - 150, -SEC_H * 3, 0, -SEC_H * 2)                        # second floor: the ladder to the hatch
+        c.foe(1200).foe(2100, kind="shotgun" if hard > 0.6 else "post")
+        c.foe(2300, -SEC_H).foe(1100, -SEC_H, kind="tommy" if hard > 0.5 else "post")
+        c.foe(1500, -SEC_H * 2).foe(2600, -SEC_H * 2)
+        c.xy_checks += [[w - 300, -SEC_H], [300, -SEC_H * 2]]
+        c.checks += [-60.0]
+        c.hint(-400, "INSIDE, UP THE STAIRS")
+        c.up_end = w + 250.0
     elif name == "stairs_up":   # the end of the platform: the stairs up to the mezzanine, the way out
         k = -KITS["mezz"]["y"] / (STAIR_FOOT[1] - STAIR_TOP[1])
         run = (STAIR_TOP[0] - STAIR_FOOT[0]) * k
@@ -396,6 +422,8 @@ def _build(mp, nudge):
         for px, py, pw, st in c.plats: out.plats.append([x + px, py, pw, st])
         for rp_ in c.ramps: out.ramps.append([x + rp_[0], rp_[1], x + rp_[2], rp_[3]] + list(rp_[4:]))
         for a, b, st in c.rooms: out.rooms.append([x + a, x + b, st])
+        for a, b, n, st in c.sections: out.sections.append([x + a, x + b, n, st])
+        for cx, cy in c.xy_checks: out.xy_checks.append([x + cx, cy])
         for lx, ly in c.lamps: out.lamps.append([x + lx, ly])
         for k, px, py in c.pickups: out.pickups.append([k, x + px, py])
         for k, a, b, cc, d in c.ropes: out.ropes.append([k, x + a, b, x + cc if k == "zip" else cc, d])
@@ -901,7 +929,11 @@ def gd(campaign):
             bx = ", ".join(f'["{b[0]}", {f(b[1])}, {f(BOX[b[0]][0])}, {f(BOX[b[0]][1])}, {f(b[2] if len(b) > 2 else 0.0)}]' for b in m.boxes)
             fl = ", ".join(f'[{f(p[0])}, {f(p[1])}, {f(p[2])}, "{p[3]}"]' for p in m.plats)
             rp = ", ".join(f'[{f(r[0])}, {f(r[1])}, {f(r[2])}, {f(r[3])}' + (f', "{r[4]}"]' if len(r) > 4 else ']') for r in m.ramps)
-            rm = ", ".join(f'[{f(r[0])}, {f(r[1])}, "{r[2]}"]' for r in m.rooms)
+            rm = ", ".join([f'[{f(r[0])}, {f(r[1])}, "{r[2]}"]' for r in m.rooms] +
+                           [f'[{f(a)}, {f(b)}, "section_{st}", {f(-SEC_H * (k + 1))}, {f(-SEC_H * k + 40)}]'   # a room per storey
+                            for a, b, n, st in m.sections for k in range(n)])
+            sc = ", ".join(f'[{f(a)}, {f(b)}, {n}, "{st}"]' for a, b, n, st in m.sections)
+            xc = ", ".join(f'[{f(cx)}, {f(cy)}]' for cx, cy in m.xy_checks)
             lp = ", ".join(f'[{f(l[0])}, {f(l[1])}]' for l in m.lamps)
             pk = ", ".join(f'["{p[0]}", {f(p[1])}, {f(p[2])}]' for p in m.pickups)
             hn = ", ".join(f'[{f(h[0])}, {q(h[1])}]' for h in m.hints)
@@ -937,12 +969,20 @@ def gd(campaign):
             out.append(f'\t\t\t"lamps": [{lp}],')
             out.append(f'\t\t\t"pickups": [{pk}],')
             out.append(f'\t\t\t"checkpoints": [{ck}],')
+            if m.sections:
+                out.append(f'\t\t\t"sections": [{sc}], "section_h": {f(SEC_H)}, "xy_checks": [{xc}],')
             out.append(f'\t\t\t"street": [{st}],')
             out.append(f'\t\t\t"enemies": [{en}]}},')
         out.append("\t]},")
     out.append("]")
     return "\n".join(out) + "\n"
 
+
+SANDBOX = [
+    # the building in cross-section (stand-in drawings until the tenement kit is drawn, gen/QUEUE_doma.md §5)
+    {"name": "SECTION", "seed": 901, "start": 0.45, "end": 0.6, "fixed": ["breather", "section"],
+     "roof": True, "kit": "troof", "roofs": ["roof_b", "roof_a"], "intro": [], "outro": []},
+]
 
 SEEN = set()   # a rope hint is shown once in the whole story, on the first map that has that rope
 
@@ -967,5 +1007,16 @@ if __name__ == "__main__":
             maps.append(lv)
         c = dict(ch); c["maps"] = maps
         campaign.append(c)
-    open(sys.argv[1] if len(sys.argv) > 1 else "/mnt/user-data/outputs/godot2/levels.gd", "w").write(gd(campaign))
+    # Maps for trying a new system before any chapter has it (--sandbox=N): never in the case file
+    sand = []
+    for mp in SANDBOX:
+        m = build(mp)
+        errs = check(m)
+        print(f'SANDBOX      {mp["name"]:15} {int(m.end):6} px  {len(m.enemies):3} enemies  ' + ("ERRORS: " + "; ".join(errs) if errs else "ok"))
+        lv = dict(mp); lv["m"] = m
+        sand.append(lv)
+    box = gd([{"title": "SANDBOX", "name": "SANDBOX", "ready": False, "hero": "frank", "ambient": [0.2, 0.21, 0.27], "rain": 1.0, "maps": sand}])
+    box = box[box.index("const CAMPAIGN := [") + len("const CAMPAIGN := ["):].rstrip().rstrip("]")
+    open(sys.argv[1] if len(sys.argv) > 1 else "/mnt/user-data/outputs/godot2/levels.gd", "w").write(
+        gd(campaign) + "\n# Trial maps (--sandbox=N): a new system on its own map, never in the case file.\nconst SANDBOX := [" + box + "]\n")
     sys.exit(1 if bad else 0)

@@ -383,7 +383,12 @@ var _bark_recent := []       # the last lines heard: not again soon
 var _cry_t := -9.0           # the last dying man's cry
 const BARK_GAP := {"empty": 18.0, "spot": 5.0, "reload": 7.0, "cover": 6.0, "taunt": 14.0, "crate": 10.0, "flank": 8.0}         # the last line used of each kind, so none comes twice running
 var _names := []             # the names given out on this map
-var _mercy: Array = []        # --test=mercy: its two men
+var _mercy: Array = []
+var _sandbox := -1            # --sandbox=N: a trial map from levels.gd SANDBOX
+var sections: Array = []      # buildings in cross-section: [x0, x1, storeys, style] (levels.gd "sections")
+var section_h := 700.0
+var _sec_art: Array = []      # per building: its storeys' drawings, seen only from inside
+var _xy_checks: Array = []        # --test=mercy: its two men
 var _taught_run := false      # the lesson about giving up, once per run in the tests
 var _fallen := []            # [name, x, time] of the men shot on this map, for the last one to call for
 var _taunt_t := 0.0
@@ -563,6 +568,9 @@ func _ready() -> void:
 			chapter = int(arg.trim_prefix("--chapter="))
 		if arg.begins_with("--map="):
 			map = int(arg.trim_prefix("--map="))
+		if arg.begins_with("--sandbox="):   # a trial map (levels.gd SANDBOX): played as chapter I
+			_sandbox = int(arg.trim_prefix("--sandbox="))
+			chapter = 1
 		if arg.begins_with("--test="):
 			in_menu = arg == "--test=menu" or arg == "--test=instincts" or arg == "--test=gunsmith" or arg == "--test=titleset" or arg == "--test=erase" or arg == "--test=neon" or arg == "--test=paperkit" or arg.begins_with("--test=ui")
 	var picked := false
@@ -619,6 +627,8 @@ func _ready() -> void:
 		return
 	var ch: Dictionary = Levels.CAMPAIGN[chapter]
 	level = ch["maps"][map]
+	if _sandbox >= 0:
+		level = Levels.SANDBOX[0]["maps"][_sandbox]
 	if stand_in:
 		level = level.duplicate()
 		level["events"] = []
@@ -2607,6 +2617,7 @@ func _process(delta: float) -> void:
 	_tick_hat_rain()
 	_tick_aim_line()
 	_tick_deep()
+	_tick_sections(real)
 	moonlight.energy = lerpf(0.35, 0.62, clampf(-player.position.y / 650.0, 0.0, 1.0))
 	_tick_sky(delta)
 	_tick_music()
@@ -2638,10 +2649,13 @@ func _process(delta: float) -> void:
 	if not roof.is_empty() and player.position.x > float(roof["x0"]) - 1600.0 and player.position.x < float(roof["x1"]) + 1600.0:
 		# where there is a floor above the street, closer in: only the floor he is on fills the picture
 		want_zoom = maxf(want_zoom, get_viewport().get_visible_rect().size.y / (absf(float(roof["y"])) * 0.92))
+	var in_sec := _section_at(player.position) >= 0
+	if in_sec:   # in a building: the street's zoom, the storey he stands on held where the pavement is
+		want_zoom = ZOOM
 	cam.zoom = Vector2.ONE * lerpf(cam.zoom.x, want_zoom, 1.0 - exp(-3.0 * real))
 	var near := ZOOM / cam.zoom.x   # the pavement stays four fifths down the screen at any zoom
 	fore.modulate.a = move_toward(fore.modulate.a, 0.0 if _room != "" or player.position.y < -900.0 else 1.0, real * 3.0)   # no street furniture indoors, nor up on the scaffold
-	var want_y := CAM_Y * near + _cam_rise(player.position.y) + clampf(aim_n.y, -0.6, 0.6) * 90.0 * near
+	var want_y := CAM_Y * near + (_ground_y if in_sec else _cam_rise(player.position.y)) + clampf(aim_n.y, -0.6, 0.6) * 90.0 * near
 	cam.position = Vector2(lerpf(cam.position.x, player.position.x + _lead, 1.0 - exp(-5.5 * real)),
 			lerpf(cam.position.y, want_y, 1.0 - exp(-3.0 * real)))
 	if _auto == "tops" and not boxes.is_empty():   # the test frames each crate close up
@@ -2685,11 +2699,15 @@ func _auto_step(delta: float) -> void:
 		shots = [[1.06, "dive_1"], [1.14, "dive_2"], [1.22, "dive_3"], [1.32, "dive_4"], [1.5, "dive_5"], [2.0, "dive_6"]]
 	elif _auto == "play":   # a bot plays the chapter: walks right, stops to fight, jumps what blocks it
 		var near = _nearest_enemy()
+		if near != null and _section_at(player.position) >= 0 and absf(near.position.y - player.position.y) > 200.0:
+			near = null   # in a building: a man on another storey is not this storey's fight
 		var fight: bool = near != null and absf(near.position.x - player.position.x) < 1500.0
 		_bot_fight = _bot_fight + delta if fight else 0.0
 		if _bot_fight > 8.0:   # a man dug in behind cover: walk up on him, as a player would
 			fight = absf(near.position.x - player.position.x) < (420.0 if _bot_fight < 16.0 else 120.0)   # and at last over his cover
 		hud.move = 0.0 if fight else 1.0
+		if not fight and _section_dir() != 0.0:   # up through a building: each storey the other way
+			hud.move = _section_dir()
 		var lad = _bot_ladder()
 		if lad != null and (not fight or player.position.y < -10.0 and absf(near.position.y - player.position.y) > 60.0):
 			var lx: float = (lad["a"] as Vector2).x
@@ -2720,13 +2738,15 @@ func _auto_step(delta: float) -> void:
 				print("BOT jump at ", int(player.position.x))
 				_bot_stuck = 0.0
 		_bot_x = player.position.x
+		if OS.get_cmdline_user_args().has("--trace") and fmod(_at, 0.25) < delta:
+			print("TRACE t %.2f x %d y %d st %s move %.0f ground %d" % [_at, int(player.position.x), int(player.position.y), move_state, hud.move, int(_ground_y)])
 		_bot_log += delta
 		if _bot_log > 10.0:
 			_bot_log = 0.0
 			var left := 0
 			for e in enemies:
 				left += 1 if e["alive"] else 0
-			print("BOT t ", int(_at), " x ", int(player.position.x), " / ", int(level_end), " mobsters left ", left, " move ", move_state, " hp ", hp, " in_cut ", _in_cut, " over ", over)
+			print("BOT t ", int(_at), " x ", int(player.position.x), " y ", int(player.position.y), " / ", int(level_end), " mobsters left ", left, " move ", move_state, " hp ", hp, " in_cut ", _in_cut, " over ", over)
 			var near_e := []
 			for e in enemies:
 				if e["alive"] and absf(e["node"].position.x - player.position.x) < 1600.0:
@@ -4065,7 +4085,8 @@ func _floor_at(x: float, feet: float) -> float:
 			_last_kind = "box"
 	for ci in catwalks.size():
 		var c: Rect2 = catwalks[ci]
-		if x > c.position.x and x < c.end.x and feet <= c.position.y + 14.0 and c.position.y < best:
+		var reach := 34.0 if catwalk_solid[ci] else 14.0   # a storey's floor is stepped onto off the top stair, like a stair
+		if x > c.position.x and x < c.end.x and feet <= c.position.y + reach and c.position.y < best:
 			if _drop_t > 0.0 and c.position.y <= _drop_y + 10.0:
 				continue
 			best = c.position.y
@@ -4086,6 +4107,12 @@ func _floor_at(x: float, feet: float) -> float:
 
 ## Crates and the like stop him when he runs, slides or dives into their side.
 func _block(before_x: float) -> void:
+	var si := _section_at(Vector2(before_x, player.position.y))
+	if si >= 0:   # a building's outer walls: the street door on the ground floor's left is the only way out
+		var sec: Array = sections[si]
+		player.position.x = minf(player.position.x, float(sec[1]) - 70.0)
+		if player.position.y < -40.0:
+			player.position.x = maxf(player.position.x, float(sec[0]) + 70.0)
 	if move_state == "vault":
 		return
 	var feet: float = player.position.y - DIVE_LAND * player.dive
@@ -5441,7 +5468,7 @@ func _start_map(c: int, m: int) -> void:
 ## Doors, checkpoints, the tutorial's hints, and the prologue's last stand.
 func _map_events(delta: float) -> void:
 	stats["time"] += delta
-	var dry := 0.0   # 1 indoors, falling off over the last steps to a door: the rain thins under the eaves, never cuts
+	var dry := 1.0 if _section_at(player.position) >= 0 else 0.0   # 1 indoors, falling off over the last steps to a door: the rain thins under the eaves, never cuts
 	for v in _veils:
 		var gap: float = maxf(maxf(float(v[0]) - player.position.x, player.position.x - float(v[1])), 0.0)
 		(v[2] as Polygon2D).color.a = clampf((gap - 700.0) / 800.0, 0.0, 1.0)
@@ -5450,8 +5477,10 @@ func _map_events(delta: float) -> void:
 		rn.modulate.a = 1.0 - dry
 	var room := _room_at(player.position.x, player.position.y)
 	if room != _room:   # through a door: a cut through black, no rain indoors
+		var sec_door := room.begins_with("section_") or _room.begins_with("section_")
 		_room = room
-		hud.flash()
+		if not sec_door:   # into a building in cross-section there is no cut: its storeys open up round him
+			hud.flash()
 		pass
 		if atmo.splashes:
 			atmo.splashes.visible = room == ""
@@ -5774,10 +5803,85 @@ func _pool(at: Vector2, side: float) -> void:
 	tw.tween_callback(s.queue_free)
 
 
+## Buildings in cross-section (2026-11-16, plan in the story doc, tab "Řez domem a kamera"): the front
+## wall cut away, the storeys stacked. From the street the facade is all there is; through the door
+## the storeys open up (they fade in round him) and stay open while he is inside, and the camera holds
+## the storey he stands on. The storeys' drawings are the kit in art/section/<style>_*.png (gen/QUEUE_doma.md
+## §5); until it exists the tenement room drawing stands in, so the system can be played.
+func _section_kit() -> bool:
+	return ResourceLoader.exists("res://art/section/tenement_hall_a.png")
+
+
+func _build_sections() -> void:
+	sections = level.get("sections", [])
+	section_h = float(level.get("section_h", 700.0))
+	_xy_checks = level.get("xy_checks", [])
+	for sec in sections:
+		var x0 := float(sec[0])
+		var x1 := float(sec[1])
+		var holder := Node2D.new()   # all its storeys: shown from inside only
+		holder.z_index = -3
+		holder.modulate.a = 0.0
+		add_child(holder)
+		for k in int(sec[2]):
+			var floor_y := -section_h * k
+			var tex: Texture2D = BigTex.get_tex("res://art/rooms/tenement.png")   # stand-in until the kit is drawn
+			var sp := Sprite2D.new()
+			sp.texture = tex
+			sp.centered = false
+			sp.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+			sp.region_enabled = true
+			var sc := section_h / tex.get_height()
+			sp.region_rect = Rect2(0.0, 0.0, (x1 - x0) / sc, tex.get_height())
+			sp.scale = Vector2.ONE * sc
+			sp.position = Vector2(x0, floor_y - section_h)
+			sp.light_mask = 0
+			sp.modulate = Color.WHITE * ROOM_BASE
+			holder.add_child(sp)
+		_sec_art.append(holder)
+
+
+## The building he is in, or -1; `storey` out: which storey (0 = the street's).
+func _section_at(p: Vector2) -> int:
+	for i in sections.size():
+		var sec: Array = sections[i]
+		if p.x > float(sec[0]) and p.x < float(sec[1]) and p.y > -section_h * int(sec[2]) + 20.0:
+			return i
+	return -1
+
+
+## Inside: the storeys show (fading in over half a second), outside they fade back to the facade.
+func _tick_sections(real: float) -> void:
+	var inside := _section_at(player.position)
+	for i in _sec_art.size():
+		var h: Node2D = _sec_art[i]
+		h.modulate.a = move_toward(h.modulate.a, 1.0 if i == inside else 0.0, real * 2.0)
+	if inside < 0 or over:
+		return
+	for c in _xy_checks:   # a checkpoint on each storey, where he comes up the stairs
+		if absf(player.position.y - float(c[1])) < 60.0 and absf(player.position.x - float(c[0])) < 160.0 \
+				and (absf(float(c[0]) - checkpoint) > 1.0 or absf(float(c[1]) - checkpoint_y) > 1.0) and move_state == "ground":
+			checkpoint = float(c[0])
+			checkpoint_y = float(c[1])
+			hud.toast("CHECKPOINT")
+
+
+## The way on along the storey he is on: the ground floor and the second go right, the first left.
+func _section_dir() -> float:
+	var i := _section_at(player.position)
+	if i < 0:
+		return 0.0
+	var storey := int(floor((-_ground_y + 2.0) / section_h))   # on the stairs: still the storey he climbs from, to the top step
+	return 1.0 if storey % 2 == 0 else -1.0
+
+
 ## The rooms, crates, floors, stairs, lamps, pickups and mobsters of the map being played.
 func _build_level() -> void:
 	for r in rooms:
+		if String(r[2]).begins_with("section_"):
+			continue   # a storey of a building in cross-section: drawn by _build_sections
 		_build_room(float(r[0]), float(r[1]), String(r[2]))
+	_build_sections()
 	for spec in level["boxes"]:
 		var kind := String(spec[0])
 		var art: String = BOX_ART[kind][0] if BOX_ART.has(kind) else kind
@@ -5834,7 +5938,9 @@ func _build_level() -> void:
 	for c in level["floors"]:
 		var r := Rect2(float(c[0]), float(c[1]), float(c[2]), 0.0)
 		catwalks.append(r)
-		catwalk_solid.append(String(c[3]) == "roof")
+		catwalk_solid.append(String(c[3]) in ["roof", "section"])   # a storey's floor: no dropping through it
+		if String(c[3]) == "section":
+			continue   # the storey's drawing is the floor
 		if String(c[3]) == "floor":
 			_slab(r)
 			continue
@@ -5865,6 +5971,8 @@ func _build_level() -> void:
 			add_child(sp)
 	for rp in level["ramps"]:
 		ramps.append(rp)
+		if rp.size() > 4 and String(rp[4]) == "section" and _section_kit():
+			continue   # the stairs are in the storey's drawing (until it is drawn: the street's stairs stand in)
 		if rp.size() > 4 and String(rp[4]) == "station":
 			_station_stairs(Vector2(float(rp[0]), float(rp[1])), Vector2(float(rp[2]), float(rp[3])))
 		else:
@@ -6797,14 +6905,16 @@ func _station_stairs(a: Vector2, b: Vector2) -> void:
 
 ## A flight of iron stairs from a to b: the stringer and the treads, in ink.
 func _stairs(a: Vector2, b: Vector2) -> void:
+	var k := absf(b.y - a.y) / 370.0   # a taller storey (a building in cross-section): the same flight, bigger
 	var st := Sprite2D.new()   # one storey of iron stairs, its treads along the line he walks
 	st.texture = load("res://art/props/iron_flight.png")
 	st.centered = false
+	st.scale = Vector2.ONE * k
 	st.flip_h = b.x < a.x
-	st.position = a - IRON_FOOT if b.x > a.x else Vector2(a.x - (st.texture.get_width() - IRON_FOOT.x), a.y - IRON_FOOT.y)
+	st.position = a - IRON_FOOT * k if b.x > a.x else Vector2(a.x - (st.texture.get_width() - IRON_FOOT.x) * k, a.y - IRON_FOOT.y * k)
 	st.z_index = -2
 	add_child(st)
-	if _auto != "" and (absf(absf(b.x - a.x) - 261.0) > 3.0 or absf(absf(b.y - a.y) - 370.0) > 3.0):
+	if _auto != "" and (absf(absf(b.x - a.x) - 261.0 * k) > 3.0 or absf(absf(b.y - a.y) - 370.0 * k) > 3.0):
 		print("AUDIT BAD stairs do not match their drawing: ", a, b)
 
 

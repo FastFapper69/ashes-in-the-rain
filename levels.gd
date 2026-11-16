@@ -324,3 +324,26 @@ const CAMPAIGN := [
 		{"name": "THE SPIRE"},
 	]},
 ]
+
+# Trial maps (--sandbox=N): a new system on its own map, never in the case file.
+const SANDBOX := [
+	{"title": "SANDBOX", "name": "SANDBOX", "ready": false, "hero": "frank", "ambient": Color(0.2, 0.21, 0.27), "rain": 1.0, "maps": [
+		{"name": "SECTION", "end": 7129.4, "boss": "", "stand": -1.0,
+			"intro": [], "outro": [],
+			"diary": "", "ash": 0.3, "embers": 0.0,
+			"roof": {"x0": 1221.2, "x1": 6729.4, "y": -2100.0, "goal": 1671.2, "scale": 0.9500, "line": 0.8280, "stub": 190.0, "pics": [["roof_b", -1788.4], ["roof_a", 1040.7], ["roof_b", 3869.8], ["roof_a", 6698.9]], "checks": [3975.3]},
+			"events": [],
+			"hints": [[2779.4, "INSIDE, UP THE STAIRS"]],
+			"boxes": [["crate_long", 2322.8, 330.0, 176.0, -2100.0], ["drum", 3589.7, 160.0, 246.0, -2100.0], ["crate", 4746.4, 250.0, 248.0, -2100.0], ["drum", 5958.2, 160.0, 246.0, -2100.0], ["crate", 4889.4, 250.0, 248.0, 0.0]],
+			"floors": [[3179.4, -700.0, 3300.0, "section"], [3179.4, -1400.0, 3300.0, "section"], [1221.2, -2100.0, 5508.2, "roof"]],
+			"ramps": [[5725.4, 0.0, 6219.4, -700.0, "section"], [3933.4, -700.0, 3439.4, -1400.0, "section"]],
+			"ropes": [["ladder", 6329.4, -2100.0, 0.0, -1400.0]],
+			"rooms": [[3179.4, 6479.4, "section_tenement", -700.0, 40.0], [3179.4, 6479.4, "section_tenement", -1400.0, -660.0], [3179.4, 6479.4, "section_tenement", -2100.0, -1360.0]],
+			"lamps": [],
+			"pickups": [],
+			"checkpoints": [3119.0],
+			"sections": [[3179.4, 6479.4, 3, "tenement"]], "section_h": 700.0, "xy_checks": [[6179.4, -700.0], [3479.4, -1400.0]],
+			"street": [["tenrow_a", -3000.0], ["tenrow_c", 902.6], ["tenrow_b", 4805.3], ["tenrow_d", 8707.9]],
+			"enemies": [{"x": 4379.4, "y": 0.0, "kind": "post", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 5279.4, "y": 0.0, "kind": "post", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 5479.4, "y": -700.0, "kind": "post", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 4279.4, "y": -700.0, "kind": "tommy", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 4679.4, "y": -1400.0, "kind": "post", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 5779.4, "y": -1400.0, "kind": "post", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 5788.2, "y": -2100.0, "kind": "post", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 4576.4, "y": -2100.0, "kind": "tommy", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 3419.7, "y": -2100.0, "kind": "post", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 2152.8, "y": -2100.0, "kind": "shotgun", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 2873.6, "y": -2100.0, "kind": "post", "trig": 4526.1, "from": 1521.2, "delay": 0.0, "run": true}]},
+	]},
+]

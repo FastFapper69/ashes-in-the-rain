@@ -14,6 +14,7 @@ CUTS = {'opening': 'a', 'eddie': 'a', 'interlude': 'a', 'teague': 'a', 'dream': 
         'docks': 'b', 'kessler': 'b', 'memory': 'b', 'underground': 'c', 'briggs': 'c'}
 
 src = open('levels.gd').read()
+src = src.split('const SANDBOX')[0]   # trial maps use chapter I drawings: they add nothing to the packs
 chapters = re.split(r'\n\t\{"title": ', src)[1:]
 files = collections.defaultdict(set)   # path -> groups
 for f in sorted(set(glob.glob('art/street/*.png') + glob.glob('art/rooms/**/*.png', recursive=True))):

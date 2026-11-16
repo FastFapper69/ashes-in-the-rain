@@ -74,6 +74,7 @@ description: "Distilled project knowledge for Ashes in the Rain (Godot 4.7 web/i
 - **cover, crates, SPLINTERS** → ch07, ch08
 - **barks / enemy names** → ch07
 - **room furnishing, red barrels, prop rules** → ch05, skill `mapy`
+- **cross-section buildings, sandbox maps** → ch05
 - **crash reports / crumbs** → ch04
 - **cutscene panels / narration** → ch10, ch09
 - **deep views (DEEP_SPLIT)** → ch05
