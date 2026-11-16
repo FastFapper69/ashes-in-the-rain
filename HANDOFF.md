@@ -199,3 +199,10 @@ Read this first when picking the project up in a new chat. Reply to the user in 
 - Zvuky: všechny wav > 1,5 s na 22 kHz mono (14 → 8,7 MB PCM), fire.ogg 22 kHz.
 - --timing vypíše časy stavby stránky; _shot ukládá do user://_shots, když je res:// jen pro čtení (test s --main-pack).
 - Web (Chrome, vestavěný prohlížeč): žádné chyby komprimovaných textur; v konzoli jsou WebGL varování „bufferSubData: no buffer / element array buffers“ (Godot 2D meshe), nejsou nová z této změny ověřena.
+
+## 2026-11-16 (4) – crash report 14, Eddieho kabát
+- Report 14 (build 9c3370d0, iPhone): page zabita na mapě 1:0 při heap=242 MB + textury ~150 MB. Pack se po stažení drží CELÝ ve wasm heapu (MEMFS): pack a s Basis měl 68 MB (dřív 35) → heap +33 MB. Panely komiksu proto zpět na WebP (gen/basis_imports.py: art/cut nikdy Basis) → pack a 48 MB, b 19, c 36. Ulice zůstávají Basis.
+- Report 13: „Out of bounds memory access (func(type,touches.length))“ v Godot JS touch handleru (podruhé, viz #6) – chyba enginu, hra po ní běžela dál.
+- Zkoušeno: rdo_quality_loss / zstd supercompression na Basis velikost .ctex skoro nemění (~2 MB na 2032×1177).
+- Eddie: cfg "short_coat" → puppet nevytváří skirt_fly ani skirt_run/air (Frankův dlouhý kabát se mu už neobjevuje).
+- Další krok proti pádům, pokud budou pokračovat: menší packy (pack na mapu místo na kapitolu), protože heap = base pck + pack + hra.
