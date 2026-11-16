@@ -273,11 +273,16 @@ static func evidence() -> int:
 
 ## The ending the player has earned so far: "snow" (low ash, Briggs alive, at least half the
 ## evidence) or "ash". Chapter IV reads this when it is built.
-static func ending() -> String:
+static func evidence_total() -> int:
 	var total := 0
 	for c in Levels.CAMPAIGN.size():
 		for mp in Levels.CAMPAIGN[c]["maps"]:
 			total += 0 if mp.get("dream", false) or mp.get("memory", false) else 2
+	return total
+
+
+static func ending() -> String:
+	var total := evidence_total()
 	if guilt() < 4 and story("briggs") == "spared" and evidence() * 2 >= total:
 		return "snow"
 	return "ash"

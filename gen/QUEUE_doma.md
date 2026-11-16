@@ -17,3 +17,16 @@ Pak v cutscene.gd přepsat Rourkův řádek: "Up in the Saint's tower, two old m
 - 205/206 brokovnice nová / ošoupaná (edit 205 → 206): vstup art/ui/gunsmith/shotgun.png
 - 207/208 tommy nový / ošoupaný: vstup art/ui/gunsmith/tommy.png
 Pak gen/gun_parts.py rozšířit (díly: brokovnice pažba/předpažbí/hlaveň/pouzdro, tommy pažba/buben/hlaveň/tělo).
+
+## 3. Doma rovnou přepnout na Claude Code na PC (rendrované testy tam běží v reálném čase)
+
+## 4. Hlášky ke svědomí (Artlist audio, 3 hlasy adam/james/shadow, gen/bark_voices.py)
+Nové druhy v barks.gd: shotup ("{n} HAD HIS HANDS UP!"…), noquit ("HE SHOOTS YOU ANYWAY!"…), quit ("THEY SAY YOU LET MEN WALK!"…).
+`python3 gen/bark_voices.py scripts` je přidá do scénářů; nahrát, pak `split`.
+
+## 5. Gemini: řez domem, činžák (kapitola I) – stavebnice, vše ve stejném měřítku, bez postav
+Patro ~700 px ve hře (muž ~420 px), podlaha vždy na stejném řádku obrázku. Styl jako art/rooms/tenement.png.
+- pruh patra: chodba činžáku se dveřmi bytů (3 varianty: oprýskaná, s čísly bytů 1A–4C, tmavá se zhasnutou žárovkou)
+- sloupec schodiště vlevo a vpravo (schody v kresbě = schody ve hře)
+- pruh fasády na jedno patro (okna padnou na chodbu), přízemí se vchodem, římsa se střechou
+- byt jako malá místnost (2 varianty), poklop na střechu

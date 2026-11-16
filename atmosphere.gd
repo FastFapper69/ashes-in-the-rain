@@ -202,6 +202,13 @@ func set_ash(amount: float) -> void:
 			r.color = r.color.lerp(Color(0.62, 0.6, 0.58, r.color.a), clampf(amount, 0.0, 1.0) * 0.8)
 
 
+## A breath of grey: the picture goes to ash and back to where Frank's guilt holds it.
+func pulse_ash(base: float, peak: float) -> void:
+	var tw := create_tween().set_ignore_time_scale(true)
+	tw.tween_method(func(v: float) -> void: _post.set_shader_parameter("ash", v), base, peak, 0.15)
+	tw.tween_method(func(v: float) -> void: _post.set_shader_parameter("ash", v), peak, clampf(base, 0.0, 1.0), 1.6)
+
+
 ## 0 = normal, 1 = slowed time: a black panel border closes in, heavier dots and darker edges.
 func set_slow(amount: float) -> void:
 	_post.set_shader_parameter("slow", amount)

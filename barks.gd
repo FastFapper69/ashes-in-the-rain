@@ -45,5 +45,11 @@ const LINES := {
 	# his own last breath, only sometimes (a sound, no bubble)
 	"death": ["Agh!", "Ugh...", "No, no, no...", "Ma...", "Not like this...", "Aaargh!", "Oh God...", "Damn you..."],
 	# he has hidden a long time
+	# a man shot with his hands up, by the one who saw it
+	"shotup": ["{n} HAD HIS HANDS UP!", "HE SHOT {n} QUITTING!", "{n} WAS GIVING UP!", "NO MERCY FROM {p}!"],
+	# the last of a group who will not give up, because of what Frank does to men who do
+	"noquit": ["HE SHOOTS YOU ANYWAY!", "NO HANDS UP FOR {p}!", "I SEEN WHAT HE DOES!", "QUITTING WON'T SAVE ME!"],
+	# giving up to a Frank known for letting men walk
+	"quit": ["THEY SAY YOU LET MEN WALK!", "YOU LET GUYS WALK, RIGHT?", "I'M WALKING, {p}!", "OKAY! I'M OUT!"],
 	"taunt": ["COME OUT, {p}!", "CAN'T HIDE ALL NIGHT!", "WE GOT ALL NIGHT, {p}!", "COME ON OUT, SHAMUS!"],
 }

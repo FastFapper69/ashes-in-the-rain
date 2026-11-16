@@ -43,6 +43,10 @@ var _stick_at := Vector2.ZERO
 func _ready() -> void:
 	layer = 6
 	_portrait = _add("res://art/ui/portrait.png", 0.2)
+	_soot = ShaderMaterial.new()   # the ash on Frank's face: his conscience, without a number
+	_soot.shader = Shader.new()
+	_soot.shader.code = SOOT_SHADER
+	_portrait.material = _soot
 	_bar = _add("res://art/ui/bar_empty.png", 0.25)
 	_bar.centered = false
 	_fill = Polygon2D.new()
@@ -79,6 +83,114 @@ func _ready() -> void:
 
 ## A card over the game (pause, a diary page, a choice): the thumb controls step out of the way, so the
 ## card is the only thing on the screen to look at or touch.
+## Frank's conscience on his portrait (2026-11-16): the ash settles on it as soot, every man let go
+## lets the rain wash a little off, and the pages of testimony he holds are tucked in behind it. The
+## player never sees a number, but always sees that it moved.
+const SOOT_SHADER := "shader_type canvas_item;\nuniform float soot = 0.0;\n" + \
+	"float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\n" + \
+	"float n(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);\n" + \
+	"\treturn mix(mix(h(i), h(i + vec2(1.0, 0.0)), f.x), mix(h(i + vec2(0.0, 1.0)), h(i + vec2(1.0, 1.0)), f.x), f.y); }\n" + \
+	"void fragment() {\n\tvec4 c = texture(TEXTURE, UV);\n\tfloat g = dot(c.rgb, vec3(0.3, 0.59, 0.11));\n" + \
+	"\tvec3 grey = mix(c.rgb, vec3(g) * 0.9, clamp(soot * 1.4, 0.0, 1.0));\n" + \
+	"\tfloat e = min(min(UV.x, 1.0 - UV.x), min(UV.y, 1.0 - UV.y));\n" + \
+	"\tfloat k = n(UV * 5.0) * 0.3 + n(UV * 14.0) * 0.15 + n(UV * 37.0) * 0.08 + (0.5 - e) * 1.1;\n" + \
+	"\tfloat edge = 1.05 - soot * 0.85;\n\tfloat m = smoothstep(edge, edge + 0.1, k);\n" + \
+	"\tc.rgb = mix(grey, grey * 0.22, m * 0.9);\n\tCOLOR = c;\n}\n"
+var _soot: ShaderMaterial
+var _soot_now := 0.0
+var _pages: Array = []
+const PAGE_SPOTS := [[Vector2(-30, 40), -14.0], [Vector2(28, 44), 9.0], [Vector2(-8, 47), -4.0],
+	[Vector2(34, 36), 17.0], [Vector2(-38, 30), -22.0], [Vector2(10, 49), 3.0]]
+
+
+## soot 0..1 (the ash), pages 0..6 (how much of what Rosie needs he holds). `wash`: the rain takes
+## some soot off in front of the player's eyes instead of it just changing.
+func set_conscience(soot: float, pages: int, wash := false) -> void:
+	soot = clampf(soot, 0.0, 1.0)
+	if wash and soot < _soot_now:
+		var tw := create_tween()
+		tw.tween_method(func(v: float) -> void: _soot.set_shader_parameter("soot", v), _soot_now + 0.06, soot, 1.6).set_trans(Tween.TRANS_SINE)
+		var sp := _portrait.scale
+		tw.parallel().tween_property(_portrait, "scale", sp * 1.12, 0.25)
+		tw.parallel().tween_property(_portrait, "scale", sp, 0.5).set_delay(0.25)
+	else:
+		_soot.set_shader_parameter("soot", soot)
+	_soot_now = soot
+	pages = clampi(pages, 0, PAGE_SPOTS.size())
+	while _pages.size() < pages:
+		var spot: Array = PAGE_SPOTS[_pages.size()]
+		var pg := Sprite2D.new()
+		pg.texture = load("res://art/items/page.png")
+		pg.scale = Vector2.ONE * 0.24
+		pg.rotation = deg_to_rad(float(spot[1]))
+		add_child(pg)
+		move_child(pg, _portrait.get_index())   # tucked in behind the portrait
+		_pages.append(pg)
+	_layout_pages()
+
+
+## Darker at once: a man shot with his hands up. The portrait jolts and the soot spreads over it.
+func soot_up(soot: float) -> void:
+	soot = clampf(soot, 0.0, 1.0)
+	var tw := create_tween()
+	tw.tween_method(func(v: float) -> void: _soot.set_shader_parameter("soot", v), _soot_now, soot + 0.08, 0.35)
+	tw.tween_method(func(v: float) -> void: _soot.set_shader_parameter("soot", v), soot + 0.08, soot, 0.8)
+	var p0 := _portrait.position
+	for k in 4:
+		tw.parallel().tween_property(_portrait, "position", p0 + Vector2(randf_range(-4, 4), randf_range(-3, 3)), 0.05).set_delay(k * 0.05)
+	tw.tween_property(_portrait, "position", p0, 0.05)
+	_soot_now = soot
+
+
+## A page of testimony flies from where the man stood (screen pixels) into the stack behind the portrait.
+func page_in(from: Vector2, soot: float, pages: int) -> void:
+	var pg := Sprite2D.new()
+	pg.texture = load("res://art/items/page.png")
+	pg.scale = Vector2.ONE * 0.5
+	pg.position = from
+	add_child(pg)
+	var tw := create_tween().set_ignore_time_scale(true)
+	tw.tween_property(pg, "position", _portrait.position + Vector2(0, 40), 0.9).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+	tw.parallel().tween_property(pg, "rotation", TAU * 1.5, 0.9)
+	tw.parallel().tween_property(pg, "scale", Vector2.ONE * 0.24, 0.9)
+	tw.tween_callback(func() -> void:
+		pg.queue_free()
+		set_conscience(soot, pages, true))
+
+
+func _layout_pages() -> void:
+	for i in _pages.size():
+		_pages[i].position = _portrait.position + (PAGE_SPOTS[i][0] as Vector2)
+
+
+## Under the score card after a map: who he let go and who he shot with their hands up, by name.
+func conscience(let_go: Array, shot: Array) -> void:
+	if not is_instance_valid(_tally) or (let_go.is_empty() and shot.is_empty()):
+		return
+	var Paper = load("res://paper.gd")
+	var font: Font = load("res://fonts/ComicNeue-BoldItalic.woff")
+	var lines: Array = []
+	if not let_go.is_empty():
+		lines.append("LET GO: " + _names_line(let_go))
+	if not shot.is_empty():
+		lines.append("SHOT WITH HIS HANDS UP: " + _names_line(shot))
+	var y := _tally.size.y + 10.0
+	for l in lines:
+		var cap: Control = Paper.caption(l, font, 18, _tally.size.x - 40.0)
+		cap.position = Vector2(20.0, y)
+		cap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_tally.add_child(cap)
+		y += cap.size.y + 6.0
+
+
+func _names_line(names: Array) -> String:
+	var shown: Array = names.slice(0, 4).map(func(n): return String(n) if String(n) != "" else "A MAN")
+	var s := ", ".join(shown)
+	if names.size() > 4:
+		s += " AND %d MORE" % (names.size() - 4)
+	return s
+
+
 func set_portrait(path: String) -> void:
 	_portrait.texture = load(path)
 
@@ -118,6 +230,7 @@ func _layout() -> void:
 	_upright.size = size
 	_upright.visible = size.x < size.y
 	_portrait.position = Vector2(72.0, 62.0)
+	_layout_pages()
 	_bar.position = Vector2(128.0, 30.0)
 	_stick_at = Vector2(180.0, size.y - 175.0)
 	_pause.position = Vector2(size.x - 64.0, 56.0)
@@ -195,6 +308,10 @@ func caption(lines: Array) -> void:
 	var box := Control.new()
 	box.position = Vector2(28.0, 128.0)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for old in _captions:   # the new narration takes the corner: the last one steps aside, never under it
+		if is_instance_valid(old):
+			old.create_tween().tween_property(old, "modulate:a", 0.0, 0.15).finished.connect(old.queue_free)
+	_captions = []
 	add_child(box)
 	_captions.append(box)
 	# one thing to read at a time: a how-to-play line on screen steps aside for the narration and comes back after it

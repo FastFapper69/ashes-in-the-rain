@@ -119,7 +119,7 @@ var pickups: Array = []        # {kind, node}
 var weapon := "revolver"
 var ammo := 0
 
-var stats := {"kills": 0, "heads": 0, "slow": 0, "hits": 0, "time": 0.0, "executed": 0, "spared": 0, "score": 0, "air": 0, "best_combo": 0}
+var stats := {"kills": 0, "heads": 0, "slow": 0, "hits": 0, "time": 0.0, "executed": 0, "spared": 0, "score": 0, "air": 0, "best_combo": 0, "let_go": [], "shot_up": []}
 var _combo := 0          # kills in a row, each within COMBO_GAP of the last
 var _combo_t := 0.0      # time left to keep the streak going
 var _bounce_t := 0.0
@@ -383,6 +383,8 @@ var _bark_recent := []       # the last lines heard: not again soon
 var _cry_t := -9.0           # the last dying man's cry
 const BARK_GAP := {"empty": 18.0, "spot": 5.0, "reload": 7.0, "cover": 6.0, "taunt": 14.0, "crate": 10.0, "flank": 8.0}         # the last line used of each kind, so none comes twice running
 var _names := []             # the names given out on this map
+var _mercy: Array = []        # --test=mercy: its two men
+var _taught_run := false      # the lesson about giving up, once per run in the tests
 var _fallen := []            # [name, x, time] of the men shot on this map, for the last one to call for
 var _taunt_t := 0.0
 var _prop_groups := []   # (--test=props)   # (--test=aicover: the crate he hides behind)
@@ -767,6 +769,8 @@ func _ready() -> void:
 	if String(Levels.CAMPAIGN[chapter]["hero"]) == "eddie":   # the prologue is Eddie's: his picture in the corner
 		hud.set_portrait("res://art/ui/portrait_eddie.png")
 	hud.voice = sfx.voice
+	if not in_menu and chapter > 0:   # Frank's conscience on his portrait (not Eddie's in the prologue)
+		hud.set_conscience(_guilt_now() / 10.0, _pages_held())
 	var big := Instincts.big()
 	if not in_menu and map == 0 and checkpoint < 0.0 and big != "" and String(Levels.CAMPAIGN[chapter]["hero"]) != "eddie" \
 			and Instincts.gun_open(big, chapter) and _auto in ["", "play"]:   # the big gun he took along: in the coat, few rounds
@@ -3349,6 +3353,49 @@ func _auto_step(delta: float) -> void:
 			print("GIVE spared ", stats["spared"], " all down ", _all_down())
 			get_tree().quit()
 		return
+	elif _auto == "mercy":   # --test=mercy: one man shot with his hands up while another sees it, the other let go, the card
+		hp = max_hp
+		_grace = 99.0
+		if _auto_done & 1 == 0:
+			_auto_done |= 1
+			var posts: Array = enemies.filter(func(e): return e["state"] == "post" and e["node"].position.y == 0.0)
+			posts.sort_custom(func(a, b): return a["node"].position.x < b["node"].position.x)
+			_mercy = [posts[0], posts[1]]
+			player.position = Vector2(posts[0]["node"].position.x - 700.0, 0.0)
+			posts[1]["node"].position.x = posts[0]["node"].position.x + 520.0
+			for e in enemies:
+				if e != posts[0] and e != posts[1]:
+					e["alive"] = false
+					e["node"].visible = false
+			for e in _mercy:
+				e["seen"] = true
+				e["hp"] = 1
+			_give_up(_mercy[0], 0.2)
+		cam.position.x = player.position.x + 450.0
+		var a: Dictionary = _mercy[0]
+		if _at > 2.0 and _auto_done & 2 == 0:
+			_auto_done |= 2
+			var pos: Vector2 = a["node"].position + Vector2(0.0, -300.0)
+			stats["executed"] += 1
+			_executed(a, pos)
+			a["hp"] = 0
+			_kill(a, false, true, "chest")
+		if _at > 3.6 and _auto_done & 4 == 0:
+			_auto_done |= 4
+			_give_up(_mercy[1], 0.2)
+		var times := [2.25, 2.9, 4.6, 7.9, 9.4]
+		for i in times.size():
+			var bit := 1 << (4 + i)
+			if _at > times[i] and _auto_done & bit == 0:
+				_auto_done |= bit
+				_shot("mercy_%d" % i)
+		if _at > 8.6 and _auto_done & (1 << 12) == 0:
+			_auto_done |= 1 << 12
+			_rate()
+		if _at > 10.0:
+			print("MERCY spared ", stats["spared"], " executed ", stats["executed"], " ", stats["let_go"], stats["shot_up"])
+			get_tree().quit()
+		return
 	elif _auto.begins_with("men:"):   # --test=men:hook / dynamite / sniper / shield / load: one of the chapter's men at work
 		var what := _auto.trim_prefix("men:")
 		if _auto_done & 1 == 0:
@@ -4634,6 +4681,7 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 				fx.blood(pos, fx.hit_vel, true)
 				e["node"].add_wound(pos, part)
 				stats["executed"] += 1
+				_executed(e, pos)
 				slow_left = 1.0
 				if weapon != "revolver":
 					ammo = int(WEAPONS[weapon]["ammo"])
@@ -4971,8 +5019,82 @@ func _morale(at: Vector2, ugly: bool) -> void:
 				if e2["alive"] and e2["state"] != "give":
 					_bark(e2["node"], "alone", gone, true))
 		var chance := 1.0 if int(e2["hp"]) < mob_hp else (0.65 if ugly else 0.4) + (0.25 if e2.get("shaken", false) else 0.0) + (0.25 if _perk("voice") else 0.0)
+		chance *= _quit_odds()   # word gets round: a man who shoots men with their hands up gets fewer hands up
 		if randf() < chance:
 			_give_up(e2, 0.55)
+		elif _guilt_now() >= 6 and not e2.get("noquit_said", false):
+			e2["noquit_said"] = true
+			var e4: Dictionary = e2
+			get_tree().create_timer(1.6, false).timeout.connect(func() -> void:
+				if e4["alive"] and e4["state"] != "give":
+					_bark(e4["node"], "noquit", "", true))
+
+
+## The ash as it stands right now: what is saved, plus this map so far (saved only when it is closed).
+func _guilt_now() -> int:
+	return maxi(0, MenuScript.guilt() + int(stats["executed"]) * 2 - int(stats["spared"]))
+
+
+## How many of the six pages tucked behind the portrait he holds: his share of what Rosie needs.
+func _pages_held() -> int:
+	var total := maxi(1, MenuScript.evidence_total())
+	return clampi(int(round(6.0 * MenuScript.evidence() / float(total))), 0, 6) if _auto == "" or MenuScript.evidence() > 0 else 0
+
+
+## Fewer men give up the more Frank has shot with their hands up, more when he lets them walk.
+func _quit_odds() -> float:
+	return clampf(1.2 - _guilt_now() * 0.09, 0.2, 1.25)
+
+
+## A man shot with his hands up (2026-11-16): the picture greys for a breath, ash falls where he stood,
+## a match is struck somewhere, the soot spreads on Frank's portrait; a man who saw it says so by name,
+## and the first time on a map Frank says something about it himself.
+func _executed(e: Dictionary, at: Vector2) -> void:
+	(stats["shot_up"] as Array).append(String(e.get("name", "")))
+	var g := _guilt_now() / 10.0
+	atmo.pulse_ash(MenuScript.guilt() / 10.0, minf(1.0, g + 0.45))
+	sfx.play("match", -2.0, INF, 0.0)
+	hud.soot_up(g)
+	var p := CPUParticles2D.new()   # the ash coming down over him
+	p.texture = atmo._flake()
+	p.one_shot = true
+	p.explosiveness = 0.6
+	p.amount = 60
+	p.lifetime = 3.5
+	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	p.emission_rect_extents = Vector2(260.0, 40.0)
+	p.position = at + Vector2(0.0, -620.0)
+	p.direction = Vector2(0.2, 1.0)
+	p.spread = 30.0
+	p.gravity = Vector2(10.0, 90.0)
+	p.initial_velocity_min = 30.0
+	p.initial_velocity_max = 90.0
+	p.angular_velocity_min = -90.0
+	p.angular_velocity_max = 90.0
+	p.scale_amount_min = 1.0
+	p.scale_amount_max = 2.2
+	var gr := Gradient.new()
+	gr.set_color(0, Color(0.85, 0.83, 0.8, 0.0))
+	gr.set_color(1, Color(0.6, 0.58, 0.55, 0.0))
+	gr.add_point(0.1, Color(0.85, 0.83, 0.8, 0.95))
+	p.color_ramp = gr
+	p.z_index = 15
+	add_child(p)
+	p.emitting = true
+	get_tree().create_timer(4.0, false).timeout.connect(p.queue_free)
+	var best = null
+	for o in enemies:   # somebody saw him shot like that
+		if o != e and o["alive"] and not o["boss"] and o["state"] not in ["give", "wait"] and absf(o["node"].position.x - at.x) < 1800.0 \
+				and absf(o["node"].position.y - at.y) < 250.0:
+			best = o
+	if best != null:
+		var who: Dictionary = best
+		var nm := String(e.get("name", ""))
+		get_tree().create_timer(0.6, false).timeout.connect(func() -> void:
+			if who["alive"] and who["state"] != "give":
+				_bark(who["node"], "shotup", nm, true))
+	elif int(stats["executed"]) == 1 and not _stand:
+		hud.caption([["One more I'll carry.", "His hands were up.", "Eddie wouldn't have done that."].pick_random()])
 
 
 ## He drops the gun and puts his hands up. Shot like that, he is an execution; left alone, he backs
@@ -4985,6 +5107,15 @@ func _give_up(e: Dictionary, delay := 0.0) -> void:
 	e["said"] = false
 	var m = e["node"]
 	m.reload = 0.0
+	if chapter >= 1 and not _stand and not _taught_run and MenuScript.story("mercy_taught") != "yes":
+		_taught_run = true
+		# the first man ever to give up: the game stops to say it is a choice, and what it weighs
+		if _auto == "":
+			MenuScript.set_story("mercy_taught", "yes")
+		e["give_t"] = -delay - 1.2   # a longer look before he backs off
+		_impact(0.7, 0.2)
+		hud.caption(["He dropped the gun.", "Eddie would have let him walk."])
+		hud.hint("HE GAVE UP. HOLD YOUR FIRE AND HE WALKS. SHOOT HIM AND YOU CARRY IT.", true)
 
 
 ## A bullet into a box: wood splinters and finally gives way, metal sparks, a barrel explodes.
@@ -5409,6 +5540,7 @@ func _rate() -> void:
 		lv_line = "LEVEL UP: %d   A POINT TO SPEND" % lvl
 	hud.rating(lv_line, head, score, [["BEST COMBO", "X%d" % stats["best_combo"]], ["IN THE AIR", stats["air"]],
 		["HEAD SHOTS", stats["heads"]], ["SLOWED TIME", stats["slow"]], ["HITS TAKEN", stats["hits"]], ["TIME", "%d:%02d" % [t / 60, t % 60]]])
+	hud.conscience(stats["let_go"], stats["shot_up"])
 
 
 func _restart() -> void:
@@ -8198,7 +8330,10 @@ func _giving_up(e: Dictionary, delta: float) -> void:
 		m.hands_up = move_toward(m.hands_up, 1.0, delta * 4.0)
 		if not e["said"] and t > 0.25:
 			e["said"] = true
-			_say(m, ["DON'T SHOOT!", "I'M DONE!", "OKAY, OKAY!"].pick_random())
+			if MenuScript.spared_total() + int(stats["spared"]) >= 2 and _guilt_now() <= 2 and randf() < 0.5:
+				_bark(m, "quit", "", true)   # Frank's name for letting men walk has got round
+			else:
+				_say(m, ["DON'T SHOOT!", "I'M DONE!", "OKAY, OKAY!"].pick_random())
 	if t > 1.7 and m.position.y == 0.0:   # backs away, eyes on the gun
 		walk = side
 		var step: float = side * 190.0 * delta
@@ -8217,6 +8352,9 @@ func _giving_up(e: Dictionary, delta: float) -> void:
 			e["spared"] = true
 			m.visible = false
 			stats["spared"] += 1
+			(stats["let_go"] as Array).append(String(e.get("name", "")))
+			if not over:   # the rain washes a little ash off his face
+				hud.set_conscience(_guilt_now() / 10.0, _pages_held(), true)
 			_gain_xp(250)   # a man let go is worth as much as a clean kill or two
 			if _perk("secondwind") and hp < max_hp and not over:   # letting him go puts something back in Frank
 				hp += 1
@@ -8232,8 +8370,11 @@ func _giving_up(e: Dictionary, delta: float) -> void:
 			var key := "%d:%d" % [chapter, map]
 			if stats["spared"] == 1 and TESTIMONY.has(key):   # the first man let go on a map talks on his way out
 				hud.caption(["He talked before he ran.", String(TESTIMONY[key])])
+				var was := _pages_held()
 				if _auto == "":
 					MenuScript.set_story("testimony_" + key.replace(":", "-"), "yes")
+				sfx.play("page", -4.0, INF, 0.0)
+				hud.page_in(get_viewport().get_canvas_transform() * (m.position + Vector2(0.0, -260.0)), _guilt_now() / 10.0, maxi(was, _pages_held()) if _auto == "" else was + 1)
 			return
 	m.set_state(walk, to_player.normalized() * 100.0, delta)
 
