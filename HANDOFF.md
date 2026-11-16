@@ -263,3 +263,9 @@ Read `.claude/skills/ashes-znalosti/SKILL.md` first (stable rules + topic index,
 - Cross-section engine: see knowledge ch05 "Buildings in cross-section". Trial map `--sandbox=0`; the bot clears it (up three storeys, the ladder, the roof). Rendered pictures not yet looked at (software rendering here ~1 fps) – first thing on the PC.
 - Gemini brief for the tenement kit (11 pieces, art_src 211–221, fixed rows: floor line 1230 of 1344) in gen/QUEUE_doma.md §5.
 - Next on the PC: look at --sandbox=0 at 1280/1560, facade dissolve from the door, door kick, men taking the stairs, then the kit art.
+
+## (15) PC environment ready (Claude Code on the user's PC), 2026-11-16
+- Installed/checked: Git 2.56, Python 3.13 (`py -3`; pillow, numpy, scipy, opencv, pocketsphinx, playwright + chromium), ffmpeg 9.0.2 (winget), Godot 4.7.2 Web export templates. Details in knowledge ch01 "On the user's PC".
+- `gen/deploy/deploy_pc.sh` (one repo + gh-pages clone `..\ink-and-lead-pages`), `gen/tests/bots.sh` takes the Godot path from `G`. Not yet run end to end (first push needs the user's GitHub login).
+- First import 24 s; `--test=play --sandbox=0` renders at 60 fps on the RTX 5070 Ti (4 shots). The run ended after the shots without a BOT CLEARED line – check that first.
+- Seen in play_2 (1560): the roof storey stays in frame above the 3rd floor (camera does not hold the storey yet), Frank's arm reaches through the stair rail. Next: PC_SETUP "Pak práce" 1 – the cross-section at 1280/1560.

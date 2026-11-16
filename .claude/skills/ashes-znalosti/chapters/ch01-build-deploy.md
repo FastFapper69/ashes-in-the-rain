@@ -15,6 +15,14 @@ Sources live on `main`, the playable web build on `gh-pages`; one script builds 
 4. Container cannot reach github.io / supabase.co: verify a deploy in the **built-in browser on the user's PC** (`preview_start https://fastfapper69.github.io/ink-and-lead/?v=<hash>`, then javascript `GODOT_CONFIG.executable`, `JSON.parse(localStorage.ashes_crumbs)`). Headless Chrome in the container (`/usr/bin/google-chrome` + playwright, `--use-angle=swiftshader --enable-unsafe-swiftshader`) is good for console checks (no `compressedTexImage2D` errors).
 5. Commit trailer: `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` + current `Claude-Session:` link.
 
+## On the user's PC (Claude Code, from 2026-11-16)
+- One clone `C:\Users\super\Documents\MobileGames\ink-and-lead` (main) + gh-pages clone `..\ink-and-lead-pages` (made by the script, depth 1). The old folder `Ink and Lead` stays only for `art_src` (Gemini images).
+- Godot 4.7.2: `C:\Users\super\Downloads\Godot_v4.7.2-stable_win64_console.exe` (console build for logs), Web export templates in `%APPDATA%\Godot\export_templates\4.7.2.stable`.
+- Python: `py -3` (the bare `python` is the Microsoft Store stub). Pillow, numpy, scipy, opencv, pocketsphinx, playwright (+ chromium) installed. ffmpeg/ffprobe via winget. Run gen scripts with `PYTHONUTF8=1` (Windows default codepage breaks `open()`).
+- Deploy: `gen/deploy/deploy_pc.sh "msg"` in Git Bash – same order as deploy.sh (fetch guard, packs, export, main push, version_build, gh-pages push, GHP-OK/MAIN-OK). Paths overridable with `G=`, `PY=`, `PAGES=`.
+- Tests with the real GPU, no xvfb: `"$G" --path . --resolution 1560x720 --fixed-fps 30 -- --test=<mode>` (and 1280x720). Bot: `G=<godot.exe> bash gen/tests/bots.sh`.
+- Git: repo-local identity `Claude <noreply@anthropic.com>`, `core.autocrlf input` (repo-local): Godot writes LF; with the Windows default (true) or false, git shows every .import as modified after an import (content identical – `git add` them to refresh the index). Pushing asks the user to log in to GitHub once (browser window); Claude never types passwords.
+
 ## Anti-patterns
 - **Copying the repo tree over a newer origin** – wipes the other chat's work. Fetch, merge, then deploy.
 - **Declaring a deploy done without seeing it live** – user expects Claude to verify Pages itself.

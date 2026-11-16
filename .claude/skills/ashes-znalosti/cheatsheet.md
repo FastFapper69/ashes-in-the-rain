@@ -11,6 +11,7 @@
 | pack contents | split-build test with `--main-pack` + `--packs` |
 | narration text | re-record voice (md5 key) |
 | commit/deploy | `git fetch` both clones, merge origin first |
+| deploy on the PC | `gen/deploy/deploy_pc.sh "msg"` (Git Bash), Python is `py -3` + `PYTHONUTF8=1` |
 
 ## Decision rules
 - Need visible art (mast, shade, beam)? → Gemini drawing, never Line2D/Polygon2D.
