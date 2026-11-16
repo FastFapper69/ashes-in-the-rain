@@ -40,6 +40,7 @@ Pick the chapter for the task. Every idea marked **[H]** is a hypothesis: measur
 | [ch06](chapters/ch06-godot-web-ios.md) | Godot web & iOS | web export facts, iOS memory, CanvasGroup, time_scale, textures, audio |
 | [ch07](chapters/ch07-code-patterns.md) | Code patterns | object pool, state, component, dirty flag – where they fit main.gd |
 | [ch08](chapters/ch08-mobile-controls.md) | Mobile controls | thumb reach, forgiveness (coyote/buffer), auto-aim |
+| [ch09](chapters/ch09-skills-and-tools.md) | Anthropic skills & tools | which of anthropics/skills help us, reader testing, web-build check, skill writing rules |
 
 ## Topic index
 - **attack tokens** → ch04 · **backbuffer / CanvasGroup** → ch06 · **barks / callouts** → ch04
@@ -48,6 +49,7 @@ Pick the chapter for the task. Every idea marked **[H]** is a hypothesis: measur
 - **hitstop / screenshake** → ch03 · **interrogation (L.A. Noire)** → ch02 · **kishōtenketsu** → ch05
 - **narration / monologue** → ch02 · **object pool** → ch07 · **Parallax2D** → ch06
 - **texture compression (Basis, ETC2)** → ch06 · **web audio samples** → ch06
+- **skills / tools / web build check / reader testing** → ch09
 
 ## Supporting files
 - [cheatsheet.md](cheatsheet.md) – decision rules distilled from all chapters
