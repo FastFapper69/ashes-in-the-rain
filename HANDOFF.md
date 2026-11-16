@@ -206,3 +206,11 @@ Read this first when picking the project up in a new chat. Reply to the user in 
 - Zkoušeno: rdo_quality_loss / zstd supercompression na Basis velikost .ctex skoro nemění (~2 MB na 2032×1177).
 - Eddie: cfg "short_coat" → puppet nevytváří skirt_fly ani skirt_run/air (Frankův dlouhý kabát se mu už neobjevuje).
 - Další krok proti pádům, pokud budou pokračovat: menší packy (pack na mapu místo na kapitolu), protože heap = base pck + pack + hra.
+
+## (5) Enemies smarter, 2026-11-16
+- main.gd `_enemies`: if Frank crouches >1 s behind a WOODEN crate, up to 2 visible men (post/tommy/shotgun) aim at the crate (`_covering_crate`, aim_vec) and chip it apart (~8–10 s). Callout "SHOOT THROUGH IT!". Steel cover is not shot at.
+- `_send_round`/`_going_round`: lead, after cover_t > 3.5 s, sends the furthest man of a group of ≥3 round the back (state "around": walks off-screen, 3.5–5 s later runs in from behind with "!" and a shout). Once per 22 s; `_flank_ok` = not ch I maps 0–1, not rooms/dream/moving/roofs.
+- `_seek_cover`: a post/tommy seeing Frank from >500 px walks to a crate/drum within 650 px on his side (not within 650 of Frank, not taken). Not prologue.
+- `_go_close` flanker stops 470–550 px off, never leans on Frank's own crate; no two on one spot.
+- gen/levels.py `cover_men`: ~60 % of open static street men get a crate/drum 140 px in front; pairs <250 px spread. Audit open 150→133, covered 86→103.
+- Test: `--test=aicover --chapter=2 --map=1`.
