@@ -5,7 +5,7 @@ extends Node2D
 ## contact pool on the stones, so it reads 3D in 2D (user 16. 11.).
 ##
 ## A new kind: a line in gen/kit.py KINDS + a `_shot_<kind>` (or floor behaviour) here. main.gd only calls
-## build(), tick(), shot() and landed_on().
+## build(), tick(), shot(), landed_on() and near_climb().
 
 const Kit = preload("res://kit.gd")
 var game   # main.gd
@@ -100,7 +100,7 @@ func landed_on(pos: Vector2) -> void:
 
 
 ## Play a kind's drawn animation (art/props/hk_<kind>_anim.png, 6 equal cells, gen/street_props.py) over the thing:
-## the strip's cells are scaled so the thing in them matches the thing on the street (its width share ANIM_W), the
+## (cells 0-2 the hit, `loop` repeated for `hold` seconds, 4-5 the end) - the strip's cells are scaled so the thing in them matches the thing on the street (its width share ANIM_W), the
 ## foot on the same line; `hold` (seconds) on the given loop cells, then it ends on the last cell and stays there.
 const ANIM_W := {"hydrant": 0.5, "kegs": 0.8, "steampipe": 0.91}   # the thing's width in a cell, as a share of the cell
 func _animate(p: Dictionary, loop: Array, hold: float) -> bool:
@@ -119,10 +119,8 @@ func _animate(p: Dictionary, loop: Array, hold: float) -> bool:
 	sp.position = Vector2(r.get_center().x - cw * k * 0.5, r.end.y - ch * k)
 	p["base"] = sp.position
 	(p["shadow"] as Sprite2D).visible = false
-	var frames: Array = [0, 1, 2]
-	var t := 0.0
 	var tw := sp.create_tween()
-	for f in frames:
+	for f in [0, 1, 2]:
 		tw.tween_callback(func() -> void: sp.region_rect = Rect2(cw * f, 0.0, cw, ch))
 		tw.tween_interval(0.09)
 	var loops := int(hold / (0.12 * loop.size())) if loop.size() > 0 else 0
@@ -133,8 +131,6 @@ func _animate(p: Dictionary, loop: Array, hold: float) -> bool:
 	for f in [4, 5]:
 		tw.tween_callback(func() -> void: sp.region_rect = Rect2(cw * f, 0.0, cw, ch))
 		tw.tween_interval(0.14)
-	if t < 0.0:
-		pass
 	return true
 
 

@@ -15,7 +15,7 @@ dest_files=["res://.godot/imported/hk_steampipe.png-010df342229a28a6e22b1c2ac771
 
 [params]
 
-compress/mode=0
+compress/mode=1
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

@@ -451,7 +451,6 @@ func title(small: String, big: String) -> void:
 
 
 var _weapon_label: Label
-var _bag_label: Label
 
 
 ## The gun slot, GTA style: a card like his picture's with the gun in hand drawn on it, and the

@@ -364,3 +364,9 @@ Read `.claude/skills/ashes-znalosti/SKILL.md` first (stable rules + topic index,
 
 ## (31) Úkol pro Claude Code: kontrola podobnosti screenshotů (2026-11-16 večer)
 - Uživatel schválil: `gen/QUEUE_doma.md` §7 – `gen/tools/likeness.py` (SSIM + rozvržení proti schváleným screenshotům na 1280 a 1560, maska deště/ohně/blikání ze 3 snímků, `LIKENESS LOW` pod prahem, reference jen vědomě přes `--approve`). Zdroj nápadu: craft-anything (`ashes-vyzkum` ch09).
+
+## (31) Technical cleanup, 2026-11-16
+- Dead code out (main.gd -90 lines): `_seam_shades` + SEAM_SHADE/DARK (seam shades were switched off), `_window_card`, `_flat_piece` (the old window card, replaced by the drawn flat window), `_bag_names`, `_perk_early`, DEEP_SHADER (DEEP_PERSPECTIVE replaced it), `_bounced_at` (awning is a trampoline every time); choice.gd BLOOD, hud.gd _bag_label, bigtex.gd LIMIT; props.gd `_animate` tidied. Unreferenced-name check: /tmp-style script in the session (any top-level func/const/var named once in all .gd = dead; bigtex `_get_*` are engine overrides, props `_shot_<kind>` are called by name).
+- Art: art/fx/fire/flame0-5 (superseded by anim.png) and art/props/lamp_trough removed; the street kit's props were imported LOSSLESS (mode 0, the hydrant strip alone 4 MB) -> lossy WebP 0.85 like every other prop; gen/street_props.py SHRINK scales the hydrant strip to the size it is shown at (4.2 -> 1.4 MB).
+- setpieces.gd.orig (a merge leftover, tracked) removed, *.orig in .gitignore; _shots/.gdignore so test screenshots are not imported by Godot (nor exported).
+- Checked: all 17 maps + both sandboxes cleared by the bot, map audit no errors, hydrant animation still in place.

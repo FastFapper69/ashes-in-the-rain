@@ -6,7 +6,6 @@ extends Texture2D
 ## trims) stays as it is. The small texture is told its full size on the rendering server, so source
 ## rectangles and UVs given in painted pixels land where they should.
 
-const LIMIT := 2048.0
 var path := ""
 var inner: Texture2D
 var full := Vector2i.ZERO

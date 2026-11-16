@@ -1234,21 +1234,6 @@ void fragment() {
 }
 """
 const DEEP_VP := {"alley": Vector2(0.52, 0.55), "laundry": Vector2(0.6, 0.5), "subway": Vector2(0.62, 0.5)}   # in the opening
-const DEEP_SHADER := """
-shader_type canvas_item;
-uniform vec4 box;       // the deep part, in the texture's UV: x, y, width, height
-uniform vec2 shift;     // how far the far end slides, in UV
-varying vec4 tint;
-void vertex() { tint = COLOR; }
-void fragment() {
-	vec2 l = (UV - box.xy) / box.zw;
-	float w = smoothstep(0.0, 0.32, l.x) * smoothstep(0.0, 0.32, 1.0 - l.x)
-			* smoothstep(0.0, 0.22, l.y) * smoothstep(0.0, 0.3, 1.0 - l.y);
-	vec4 t = texture(TEXTURE, UV - shift * w);
-	COLOR = t * t * tint;   // the facade's blur shader also multiplies the picture in twice: match its tone
-	COLOR.a = t.a * tint.a;
-}
-"""
 var deeps: Array = []   # {sprite, center (world), box (UV)}
 var _deep_rects: Array[Rect2] = []
 var _stain_hosts: Array = []   # [x0, x1, node]: the masks blood on each drawing is clipped to   # the same in world space, for the blood
@@ -1289,31 +1274,6 @@ const ROOM_SCALE := 0.75   # interiors: see _build_room
 const ROOM_ZOOM := 0.58    # indoors the camera comes in closer: a room is small, the people in it are not
 var _veils: Array = []   # [x0, x1, node]: the dark over each interior seen from afar
 var _room_tops: Array = []   # [x0, x1, y of the ceiling] of each interior   # the facades meet the pavement this far down each drawing
-
-
-## The street as a run of different drawn segments, each with its own buildings and a view into the
-## depth between them; the sky and the distant city show through the gaps.
-## Where two street drawings meet, one often ends in a wall right at its edge and the next begins with sky or
-## another front (gen/tests/audit_maps.py ranks them): a soft shadow down the join reads as the dark gap between
-## two buildings and hides the hard cut (user 16. 11.: smoke cut off at one drawing's end, a wall begun on the next).
-const SEAM_SHADE := 230.0   # half-width of the shadow, px
-const SEAM_DARK := 0.82
-func _seam_shades() -> void:
-	var st: Array = level["street"]
-	for i in range(1, st.size()):
-		var x := float(st[i][1])
-		var top := -3200.0
-		var foot := -WALL_LIFT - 10.0
-		var poly := Polygon2D.new()
-		poly.polygon = PackedVector2Array([Vector2(x - SEAM_SHADE, top), Vector2(x, top), Vector2(x + SEAM_SHADE, top),
-				Vector2(x + SEAM_SHADE, foot), Vector2(x, foot), Vector2(x - SEAM_SHADE, foot)])
-		var c0 := Color(0, 0, 0, 0)
-		var c1 := Color(0, 0, 0, SEAM_DARK)
-		poly.vertex_colors = PackedColorArray([c0, c1, c0, c0, c1, c0])
-		poly.polygons = [PackedInt32Array([0, 1, 4, 5]), PackedInt32Array([1, 2, 3, 4])]
-		poly.z_index = -9
-		poly.light_mask = 0
-		add_child(poly)
 
 
 ## The street kit's things to play with: props.gd (behaviour) reading kit.gd (gen/kit.py: what is where).
@@ -4106,7 +4066,6 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 		elif fall > AWNING_BOUNCE and player.position.y >= floor_y and _awning_under():   # (a trampoline every time: user)
 			player.position.y = floor_y   # onto an awning: the canvas gives and throws him up (a stunt: a slowed beat)
 			fall = -JUMP_SPEED * 1.42   # high enough to land on the fire escape's top landing beside it
-			_bounced_at = _time   # (the next landing on it is taken by the canvas: no endless trampoline)
 			sfx.play("land", -2.0)
 			_word(["thud"], player.position + Vector2(0.0, -80.0), 0.14)
 			_free_slow = maxf(_free_slow, 0.6)
@@ -4564,14 +4523,6 @@ func _show_guns() -> void:
 			other = k
 	var card := func(k: String) -> String: return "twoguns" if k == "revolver" and player.dual else ("revolver" if not k in ["shotgun", "tommy"] else k)
 	hud.set_guns(card.call(weapon), "" if other == "" else card.call(other))
-
-
-func _bag_names() -> Array:
-	var out: Array = []
-	for k in _bag:
-		if k != "revolver":
-			out.append(String(WEAPONS[k]["name"]))
-	return out
 
 
 ## His big gun (a shotgun or a tommy gun), in hand or in the coat, or "". He carries one, besides
@@ -6226,29 +6177,6 @@ func _build_flats() -> void:
 ## The window as a card in the outer wall's plane: the sash's face turned WIN_YAW away from us round its inner
 ## edge (the wall is seen from the side), its foot on the sill.
 const WIN_YAW := 1.22
-func _window_card(f: Dictionary) -> void:
-	var poly: Polygon2D = f["glass"]
-	var tex := poly.texture
-	var h := float(f["lintel"]) - float(f["sill"])
-	var w := h * tex.get_width() / tex.get_height()
-	var foot := Vector2(float(f["wx0"]) + 30.0, float(f["y"]) - float(f["sill"]))
-	var pts := PackedVector2Array()
-	var uvs := PackedVector2Array()
-	for j in 2:
-		for i in 2:
-			var x := w * float(i)
-			var y := -h * (1.0 - float(j))
-			var x3 := x * cos(WIN_YAW)
-			var z3 := -x * sin(WIN_YAW)   # into the wall, away from the viewer
-			var k := DOOR_EYE / (DOOR_EYE - z3)
-			pts.append(foot + Vector2(x3 * k, y * k))
-			uvs.append(Vector2(float(i) * tex.get_width(), float(j) * tex.get_height()))
-	var grid := []
-	poly.polygon = pts
-	poly.uv = uvs
-	poly.polygons = [PackedInt32Array([0, 1, 3, 2])]
-	if grid.size() > 0:
-		pass
 
 
 ## The door as a card in space: `yaw` round its hinge (radians, + swings its free edge away into the room),
@@ -6289,21 +6217,6 @@ func _door_card(f: Dictionary, yaw: float, pitch: float, shift: Vector2) -> void
 	poly.polygon = pts
 	poly.uv = uvs
 	poly.polygons = polys
-
-
-## One of the flat's two-state pieces (art_src 224, seen from the front), `h` tall.
-func _flat_piece(name: String, floor_y: float, h: float) -> Sprite2D:
-	var sp := Sprite2D.new()
-	sp.texture = load("res://art/section/" + name + ".png")
-	sp.centered = false
-	sp.scale = Vector2.ONE * h / sp.texture.get_height()
-	sp.position = Vector2(0.0, floor_y)
-	sp.z_index = -2
-	sp.light_mask = 0
-	sp.modulate = Color(ROOM_BASE, ROOM_BASE, ROOM_BASE, 1.0)
-	sp.visible = false   # shown with the storeys (from inside)
-	add_child(sp)
-	return sp
 
 
 func _flat_at_storey(y: float) -> Dictionary:
@@ -6436,7 +6349,6 @@ func _flat_closed_between(a: Vector2, b: Vector2) -> bool:
 	return false
 
 
-var _bounced_at := -99.0
 const AWNING_BOUNCE := 520.0   # how fast he must be falling for the awning to throw him back up
 func _awning_under() -> bool:
 	for i in catwalks.size():
@@ -6803,10 +6715,6 @@ func _body_dmg() -> float:
 	if _sperk("dmg"):
 		d *= 2.0 if side == "revolver" else 1.5
 	return d
-
-
-func _perk_early(fx: String) -> bool:   # before the difficulty step is known (building the hero)
-	return Instincts.has_fx(fx)
 
 
 func _perk(fx: String) -> bool:

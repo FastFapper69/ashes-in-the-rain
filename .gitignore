@@ -10,3 +10,4 @@ Claude outputs/
 
 # Python bytecode from the gen/ scripts
 __pycache__/
+*.orig

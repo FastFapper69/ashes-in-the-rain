@@ -1,8 +1,7 @@
 """The chapter I street kit's interactive things (user 16. 11.: they stand a little out of the picture, 3D in 2D).
 The street drawings are Gemini's versions with the thing removed (art_src 233-236); the things themselves come from
 one green sheet drawn to match (art_src 232): cut apart and keyed into art/props/hk_<kind>.png. The game stands each
-one where it was painted (STREET_PROPS in main.gd: its box in the street drawing's pixels, same numbers as BOXES
-here), a little in front of the wall: parallax + a contact shadow.
+one where it was painted (gen/kit.py PIECES: its box in the street drawing's pixels, same numbers as BOXES here), a little in front of the wall: parallax + a contact shadow.
 
 Run from the repo root after gen/process_art.py hk_tailor hk_grocery hk_saloon hk_laundry.
 """
@@ -49,8 +48,9 @@ if __name__ == "__main__":
 # Animation sheets (art_src 237 hydrant, 238 kegs, 239 steam pipe): six frames in a row on green, the thing's foot at
 # the same place in each. Keyed and cut into six equal cells, all cropped by the SAME box (the union over the frames,
 # aligned on the cells' foot) so the thing does not jump: art/props/hk_<kind>_anim.png, a strip of 6 cells
-# (main.gd/props.gd split it by width / 6). The foot's x share in the cell is printed (props.gd ANIM_FOOT).
+# (props.gd splits it by width / 6; ANIM_W there = the thing's width share of a cell). A grid sheet (rows > 1) reads row by row.
 ANIMS = {"hydrant": ("237.jpg", 1), "kegs": ("238.jpg", 1), "steampipe": ("239.jpg", 2)}   # (file, rows of 6 frames)
+SHRINK = {"hydrant": 0.72}   # drawn bigger than shown: a hydrant cell is ~360 px wide on the street
 def anim(kind, f, n=6, rows=1):
     a = np.asarray(Image.open(os.path.join(SRC, f)).convert("RGB")).astype(float)
     r, g, b = a[..., 0], a[..., 1], a[..., 2]
@@ -62,9 +62,11 @@ def anim(kind, f, n=6, rows=1):
     cells = [rgba[(i // cols) * H:(i // cols + 1) * H, (i % cols) * W:(i % cols + 1) * W] for i in range(n)]
     ys, xs = np.where(np.max([c[..., 3] for c in cells], axis=0) > 20)
     x0, x1, y0, y1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1
-    strip = np.concatenate([c[y0:y1, x0:x1] for c in cells], axis=1)
-    Image.fromarray(strip).save(os.path.join(ROOT, "art", "props", f"hk_{kind}_anim.png"))
-    print(kind, "anim", n, "frames of", (x1 - x0, y1 - y0))
+    strip = Image.fromarray(np.concatenate([c[y0:y1, x0:x1] for c in cells], axis=1))
+    if kind in SHRINK:   # no more pixels than the game shows it at (props.gd scales the cell to the thing on the street)
+        strip = strip.resize((round(strip.width * SHRINK[kind] / 6) * 6, round(strip.height * SHRINK[kind])), Image.LANCZOS)
+    strip.save(os.path.join(ROOT, "art", "props", f"hk_{kind}_anim.png"))
+    print(kind, "anim", n, "frames of", (strip.width // 6, strip.height))
 
 
 if __name__ == "__main__":

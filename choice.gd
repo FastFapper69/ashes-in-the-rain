@@ -3,7 +3,6 @@ extends CanvasLayer
 
 const PAPER := Color(0.93, 0.89, 0.8)
 const INK := Color(0.05, 0.05, 0.06)
-const BLOOD := Color(0.54, 0.11, 0.08)
 
 var question := ""
 var options: Array = []

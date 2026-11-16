@@ -15,7 +15,7 @@ dest_files=["res://.godot/imported/hk_awning.png-6cbf78fae55cedcd0cae9df79d95a83
 
 [params]
 
-compress/mode=0
+compress/mode=1
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
