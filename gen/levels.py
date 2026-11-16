@@ -729,6 +729,8 @@ def street_props(m):
             m.plats.append([wx(a), top + y * k, (b - a) * k, style])
         for xa, ya, xb, yb in piece.get("ramps", []):
             m.ramps.append([wx(xa), top + ya * k, wx(xb), top + yb * k, "fescape"])   # (painted: not drawn by the game)
+        for mx, my, kind in piece.get("men", []):
+            m.enemies.append({"x": wx(mx), "y": top + my * k, "kind": kind, "trig": None, "from": None, "delay": 0.0, "run": False})
         for lx, ly, foot in piece.get("ladders", []):
             m.ropes.append(["ladder", wx(lx), top + ly * k, 0.0, top + foot * k, "drawn"])
 

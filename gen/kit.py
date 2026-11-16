@@ -37,6 +37,9 @@ PIECES = {
         "floors": [(1909, 2321, 693, "drawn"), (1909, 2321, 389, "drawn")],
         "ramps": [(2013, 693, 2239, 390)],
         "ladders": [(2020, 693, 902)],   # x, the landing it reaches, its foot
+        # men up on the fire escape: they only fire at a Frank on their own landing (the floor rule), so the way to
+        # them is the ladder or a bounce off the awning; the awning is how you get the drop on them
+        "men": [(2230, 389, "post"), (1960, 693, "shotgun")],
         "clear": [(975, 1732), (1890, 2330)],
     },
     "hk_grocery": {

@@ -50,15 +50,16 @@ if __name__ == "__main__":
 # the same place in each. Keyed and cut into six equal cells, all cropped by the SAME box (the union over the frames,
 # aligned on the cells' foot) so the thing does not jump: art/props/hk_<kind>_anim.png, a strip of 6 cells
 # (main.gd/props.gd split it by width / 6). The foot's x share in the cell is printed (props.gd ANIM_FOOT).
-ANIMS = {"hydrant": "237.jpg", "kegs": "238.jpg", "steampipe": "239.jpg"}
-def anim(kind, f, n=6):
+ANIMS = {"hydrant": ("237.jpg", 1), "kegs": ("238.jpg", 1), "steampipe": ("239.jpg", 2)}   # (file, rows of 6 frames)
+def anim(kind, f, n=6, rows=1):
     a = np.asarray(Image.open(os.path.join(SRC, f)).convert("RGB")).astype(float)
     r, g, b = a[..., 0], a[..., 1], a[..., 2]
     alpha = ndimage.grey_opening(1 - np.clip((g - np.maximum(r, b) - 40) / 50, 0, 1), size=(3, 3))
     a[..., 1] -= np.maximum(g - np.maximum(r, b), 0) * (1 - alpha * 0.5)
     rgba = np.dstack([np.clip(a, 0, 255), alpha * 255]).astype(np.uint8)
-    W = rgba.shape[1] // n
-    cells = [rgba[:, i * W:(i + 1) * W] for i in range(n)]
+    cols = n // rows
+    W, H = rgba.shape[1] // cols, rgba.shape[0] // rows
+    cells = [rgba[(i // cols) * H:(i // cols + 1) * H, (i % cols) * W:(i % cols + 1) * W] for i in range(n)]
     ys, xs = np.where(np.max([c[..., 3] for c in cells], axis=0) > 20)
     x0, x1, y0, y1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1
     strip = np.concatenate([c[y0:y1, x0:x1] for c in cells], axis=1)
@@ -67,6 +68,6 @@ def anim(kind, f, n=6):
 
 
 if __name__ == "__main__":
-    for kind, f in ANIMS.items():
+    for kind, (f, rows) in ANIMS.items():
         if os.path.exists(os.path.join(SRC, f)):
-            anim(kind, f)
+            anim(kind, f, 6, rows)

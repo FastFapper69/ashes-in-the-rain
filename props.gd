@@ -102,7 +102,7 @@ func landed_on(pos: Vector2) -> void:
 ## Play a kind's drawn animation (art/props/hk_<kind>_anim.png, 6 equal cells, gen/street_props.py) over the thing:
 ## the strip's cells are scaled so the thing in them matches the thing on the street (its width share ANIM_W), the
 ## foot on the same line; `hold` (seconds) on the given loop cells, then it ends on the last cell and stays there.
-const ANIM_W := {"hydrant": 0.5, "kegs": 0.8, "steampipe": 0.8}   # the thing's width in a cell, as a share of the cell
+const ANIM_W := {"hydrant": 0.5, "kegs": 0.8, "steampipe": 0.91}   # the thing's width in a cell, as a share of the cell
 func _animate(p: Dictionary, loop: Array, hold: float) -> bool:
 	var path := "res://art/props/hk_%s_anim.png" % String(p["kind"])
 	if not ResourceLoader.exists(path):
@@ -193,8 +193,28 @@ func _shot_steampipe(p: Dictionary, pos: Vector2) -> void:
 	var foot := _foot(p)
 	game._impact(0.06, 0.06)
 	game.sfx.play("steam", 4.0, foot.x, 0.05)
-	game.sets.smoke(Vector2(pos.x, foot.y - 40.0), true)
-	_animate(p, [2, 3], 3.0)
+	var r: Rect2 = p["rect"]
+	var valve := r.position + r.size * Vector2(0.59, 0.74)   # the valve wheel: it snaps off and the steam comes out of its stem
+	if not _animate(p, [3, 4], 3.0):
+		var wheel := CPUParticles2D.new()
+		wheel.position = valve
+		wheel.amount = 90
+		wheel.lifetime = 1.4
+		wheel.direction = Vector2.UP
+		wheel.spread = 14.0
+		wheel.initial_velocity_min = 500.0
+		wheel.initial_velocity_max = 900.0
+		wheel.gravity = Vector2(0.0, -120.0)
+		wheel.damping_min = 120.0
+		wheel.damping_max = 200.0
+		wheel.scale_amount_min = 10.0
+		wheel.scale_amount_max = 26.0
+		wheel.color = Color(0.92, 0.92, 0.94, 0.55) * Color(game._undo_night(1.0), 1.0)
+		wheel.z_index = 2
+		add_child(wheel)
+		get_tree().create_timer(3.5, false).timeout.connect(func() -> void:
+			wheel.emitting = false
+			get_tree().create_timer(1.6, false).timeout.connect(wheel.queue_free))
 	for e in game.enemies:
 		if e["alive"] and absf(float(e["node"].position.x) - pos.x) < 520.0 and absf(float(e["node"].position.y) - foot.y) < 120.0:
 			e["cool"] = maxf(float(e["cool"]), 3.2)

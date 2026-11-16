@@ -2804,6 +2804,10 @@ func _auto_step(delta: float) -> void:
 				pass
 			else:
 				_bot_esc_up = false
+		if not fight and move_state == "ground" and player.position.y < -300.0 and _section_at(player.position) < 0:
+			for e in enemies:   # up on a fire escape: toward a man still higher (its stairs run up to the right)
+				if e["alive"] and float(e["node"].position.y) < player.position.y - 200.0 and absf(float(e["node"].position.x) - player.position.x) < 900.0:
+					hud.move = 1.0
 		var lad = _bot_ladder()
 		if lad != null and (not fight or player.position.y < -10.0 and absf(near.position.y - player.position.y) > 60.0):
 			var lx: float = (lad["a"] as Vector2).x
@@ -2876,6 +2880,23 @@ func _auto_step(delta: float) -> void:
 			for e in enemies:
 				if e["alive"]:
 					print("  left: ", int(e["node"].position.x), " ", e["state"], " y ", int(e["node"].position.y))
+			get_tree().quit()
+		return
+	elif _auto.begins_with("propshot"):   # --test=propshot:x,y : Frank a step left of x, a bullet into the street thing at (x, y), frames
+		var at := _auto.trim_prefix("propshot:").split(",")
+		if _at < 0.05:
+			player.position = Vector2(float(at[0]) - 700.0, 0.0)
+			_grace = 99.0
+			for e in enemies:
+				e["seen"] = false
+		if _at > 0.5 and _auto_done & (1 << 20) == 0:
+			_auto_done |= 1 << 20
+			props.shot(Vector2(float(at[0]), float(at[1])))
+		var kf := int((_at - 0.4) / 0.12)
+		if kf >= 0 and kf < 16 and _auto_done & (1 << kf) == 0:
+			_auto_done |= 1 << kf
+			_shot("film_%02d" % kf)
+		if _at > 2.6:
 			get_tree().quit()
 		return
 	elif _auto.begins_with("awning"):   # --test=awning:x,y (a fire escape landing): off it to the left onto the awning
@@ -4082,9 +4103,9 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			_jump_buf = 0.0
 		elif dive:   # a dive can also be thrown out of a jump
 			_start_dive(dir if dir != 0.0 else facing, facing, minf(fall, -300.0), false)
-		elif fall > AWNING_BOUNCE and player.position.y >= floor_y and _awning_under() and _time - _bounced_at > 2.5:
+		elif fall > AWNING_BOUNCE and player.position.y >= floor_y and _awning_under():   # (a trampoline every time: user)
 			player.position.y = floor_y   # onto an awning: the canvas gives and throws him up (a stunt: a slowed beat)
-			fall = -JUMP_SPEED * 1.32
+			fall = -JUMP_SPEED * 1.42   # high enough to land on the fire escape's top landing beside it
 			_bounced_at = _time   # (the next landing on it is taken by the canvas: no endless trampoline)
 			sfx.play("land", -2.0)
 			_word(["thud"], player.position + Vector2(0.0, -80.0), 0.14)
@@ -8047,6 +8068,13 @@ func _nearest_enemy(side := 0.0):
 ## The bot's way up the scaffold: the ladder that stands on the floor he is on (on the street, only
 ## once he has come to it).
 func _bot_ladder():
+	for r in _ropes:   # a street piece's fire escape with a man still up on it: up the drop ladder after him
+		if r["kind"] != "ladder" or not r.get("drawn", false) or player.position.y < -10.0:
+			continue
+		var lx: float = (r["a"] as Vector2).x
+		for e in enemies:
+			if e["alive"] and float(e["node"].position.y) < -300.0 and absf(float(e["node"].position.x) - lx) < 900.0 and absf(player.position.x - lx) < 1600.0:
+				return r
 	if roof.is_empty() or player.position.y < float(roof["y"]) + 60.0:
 		return null
 	for r in _ropes:
@@ -8989,6 +9017,7 @@ func _add_rope(ro: Array) -> void:
 		sp.visible = not (_section_kit() and _section_at(Vector2(x, bottom - 10.0)) >= 0) and not (ro.size() > 5 and String(ro[5]) == "drawn")   # the drawing paints its own
 		add_child(sp)
 		r["line"] = sp
+		r["drawn"] = ro.size() > 5 and String(ro[5]) == "drawn"
 	elif kind == "climb":   # knotted to the landing's rail, the end coiled on the stones
 		var x := float(ro[1])
 		r["a"] = Vector2(x, float(ro[2]) - 92.0)
