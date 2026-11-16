@@ -8,6 +8,12 @@ Everything in the game must be licensed for *a game sold to players*. Video-crea
 - **ElevenLabs direct**: every paid plan includes a commercial licence; output generated on a paid plan stays usable after cancelling; free plan = no commercial use. Fallback if Artlist voice is not cleared (re-generate lines there).
 - **Gemini images**: Google does not claim ownership; commercial use is generally read as allowed, but there is **no IP indemnity** for consumer Gemini. Nano Banana Pro images from the free / AI Pro plans carry a **visible watermark** (removed only for Ultra / AI Studio) plus invisible SynthID. [H] audit our art for watermark remnants. Pure AI images may not be copyrightable (US) → others could copy them; our edits/compositing help.
 - **Store disclosure**: Steam requires an AI content survey (enforced). Google Play: declaration of AI-generated store-listing assets reported mandatory since Aug 2026 (EU AI Act context); Play also has an AI-generated content policy. Apple: no public AI label rule found – re-check at submission.
+- **Voice alternatives if Artlist does not clear the narration/barks for a game** (checked 16. 11.):
+  - Microsoft **VibeVoice** (MIT repo): NOT a fit – the TTS code was removed from the repo in Sept 2025 (only weights + a small realtime 0.5B model left), and Microsoft does not recommend it for commercial or real-world use without further testing. Its ASR part could time words (alternative to faster-whisper, ch10).
+  - **ElevenLabs paid plan**: clear commercial rights, quality and emotion like now (barks were Eleven v3) – first choice.
+  - Open-source on the PC, free to test: **Chatterbox** (MIT, Resemble AI, voice cloning, built-in watermark), **Kokoro** (Apache 2.0, fast, no cloning), CosyVoice2 (Apache 2.0). Check each model's current licence before use.
+  - **Never clone Artlist's "Gravity"** (or any voice we do not own) with another tool – Artlist says users do not own voice clones. A switch = new narrator + re-record all ~88 lines and the barks (key = md5 of text, gen/voice_lines.py, gen/bark_voices.py).
+  - Music and SFX need the Artlist game licence (or replacements) regardless of the voice.
 - **Music for games** is usually priced per project/copies or as a perpetual buyout (e.g. libraries that name "video games" in the licence) – a cheaper alternative to Enterprise if needed.
 
 ## Checklist before release
