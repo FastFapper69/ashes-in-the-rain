@@ -300,3 +300,7 @@ Read `.claude/skills/ashes-znalosti/SKILL.md` first (stable rules + topic index,
 ## (20) Sky ghosts found, 2026-11-16
 - Cause of the orange "letter glows" over the roofs: art/bg/sky.png had blurred city lights (bokeh) and a painted moon in its low band; from a roof the camera shows that band (doubled by the mirrored sky under it). gen/tools/clean_sky.py blends the band into a wide blur of itself (run once, done). The game's own moon over the pale haze read as a faint ring: it now gets an additive copy (`lit`), on the roofs it melts into the haze (rainy night), from the street unchanged. `--skydebug` on look tests lists every sprite in the top 40 % of the screen.
 - User: dubbing at the very end, all at once (knowledge rule 17). User played the sandbox: storeys work, details to polish later.
+
+## (20) Uživatel schválil zjištění 1, 2, 3, 4, 6 z výzkumu (2026-11-16 večer)
+- Úkoly rozepsané v `gen/QUEUE_doma.md` §6: (1) kontrola vodoznaků Gemini v artu, (2) nástroje Claude Code na PC – runtime Godot MCP, hooks, GdUnit4, TokenEconomizer, (3) kamera: cue focus, platform snapping, nájezd na začátku mapy, (4) telemetrie smrtí/dokončení/odchodu do Supabase + heatmapa, (6) haptika (Android vibrate, iPhone switch trik) s přepínačem.
+- NEschváleno zatím: přístupnost (titulky, assist mód), byznys model, nativní build, licence Artlist (zůstává jako riziko v ch12).

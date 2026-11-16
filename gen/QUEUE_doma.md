@@ -86,3 +86,29 @@ copies can be joined side by side. No people. Nothing standing in the middle of 
 - `python3 gen/section_art.py` (napíšu): srovná čáru podlahy na řádek 1230, zkontroluje spoj dvou kusů, uloží
   art/section/tenement_*.png + Basis importy. Pak testovací mapa řezu a screenshoty 1280 i 1560.
 - Odmítnout a přegenerovat kus, kde: je perspektiva podlahy, dveře nestojí na čáře, okraj není pilastr, je tam postava.
+
+## 6. Z výzkumu – SCHVÁLENO uživatelem 16. 11. večer (zjištění 1, 2, 3, 4, 6 z `ashes-vyzkum` ch11–ch14)
+Dělat postupně mezi ostatní prací, každý bod s testem/screenshoty podle pravidel. Přístupnost (titulky, assist mód) a byznys/licence zatím NE.
+
+1. **Vodoznaky v artu** (ch12): projít všechny kresby z Gemini (`art/`, `art_src`) a hledat zbytky viditelného vodoznaku Gemini
+   (hvězdička/logo v rohu, typicky vpravo dole) – skript, který vyřízne rohy všech PNG do jednoho kontaktního archu + ruční kontrola.
+   Nalezené: vyčistit (retuš) nebo přegenerovat. Výsledek a seznam souborů do HANDOFF.
+2. **Nástroje Claude Code na PC** (ch11) – instalaci vždy krátce potvrdit s uživatelem v okně Claude Code:
+   - runtime Godot MCP `Erodenn/godot-mcp-runtime` (MIT, zdarma): screenshoty běžící hry, simulovaný vstup, živý strom scény →
+     používat ke kontrole „podívej se sám“. Jeho dočasný autoload nesmí skončit v commitu (ověřit .gitignore / git status).
+   - hooks v `.claude/settings.json`: po Edit/Write `*.gd` rychlá kontrola parsování (Godot `--headless --check-only` nebo ekvivalent),
+     při Stop krátký smoke test jednoho `--test=` módu; těžké věci (bot přes všechny mapy) dál ručně. Nic, co trvá přes ~1–2 min.
+   - GdUnit4 (MIT): prvních 10–20 testů na čísla – XP křivka, násobiče skóre, CURVE, packs list, barks bez opakování.
+   - TokenEconomizer (microsoft, Apache 2.0) na týden zkušebně; porovnat spotřebu. Zapsat do ch11, co se osvědčilo.
+3. **Kamera** (ch14, Itay Keren): (a) cue focus – přitažení kamery k bossovi při vstupu, k padající neonce, k světlometu;
+   (b) platform snapping – výška kamery se při skoku/úskoku drží a srovná až po dopadu (méně houpání při střelbě);
+   (c) krátký nájezd na začátku mapy, který ukáže trasu nahoru (schody, střecha, řez domem). Pravidla: žádné tvrdé střihy,
+   pravidlo „jen aktuální patro v záběru“ platí dál. Porovnat před/po na videu nebo sérii screenshotů 1280 i 1560.
+4. **Telemetrie** (ch14): události `death` (mapa, x, y, příčina, čas na mapě, build), `map_done` (čas, smrti, XP) a `quit`
+   (kde hráč zavřel hru) do Supabase vedle `ashes_reports` (nová tabulka, jen anon insert, čtení jen přes MCP – klíče nikdy do repa).
+   Skript `gen/tools/heatmap.py`: heatmapa smrtí přes pás mapy + funnel po mapách. Souhlas: jedna věta v nastavení
+   („Send anonymous play data“, výchozí ZAP, jde vypnout) + zmínka v privacy textu; žádná osobní data kromě user agentu.
+6. **Haptika** (ch13): na webu Android `navigator.vibrate`, iPhone Safari 17.4+ trik se skrytým `<input type="checkbox" switch>`
+   (jen při dotyku, jinak nefunguje) – v `gen/deploy/crash.js` nebo vlastním JS + `JavaScriptBridge` z Godotu. Jemně a málo:
+   výstřel (velmi krátce), zásah Franka, zabití, dopad z výšky, výbuch. Přepínač „Vibration“ v nastavení (výchozí ZAP).
+   Ověřit na uživatelově iPhonu 17; když trik nepůjde, nechat jen Android a zapsat do HANDOFF.
