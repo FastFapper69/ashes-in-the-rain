@@ -40,7 +40,7 @@ STREET = {
     'yard_c': ('190.jpg', 134, False), 'tunnel_c': ('191.jpg', 134, False),
     # chapter I modular street kit (2026-11-16): flat fronts, the same dark party wall down both edges (any order joins),
     # each with something to play with: an awning beside a fire escape, a hydrant, beer barrels, a steam pipe
-    'hk_tailor': ('228.jpg', 0, False), 'hk_grocery': ('229.jpg', 0, False), 'hk_saloon': ('230.jpg', 0, False), 'hk_laundry': ('231.jpg', 0, False),
+    'hk_tailor': ('233.jpg', 0, False), 'hk_grocery': ('234.jpg', 0, False), 'hk_saloon': ('235.jpg', 0, False), 'hk_laundry': ('236.jpg', 0, False),   # (228-231 with the things painted in; these without them: gen/street_props.py)
 }
 KIT = {'yard_c': 'yard', 'tunnel_c': 'tunnel', 'walkway_b': 'walkway', 'signal_b': 'signal', 'arches_b': 'arches', 'yard_b': 'yard', 'tunnel_b': 'tunnel', 'tunnel_lo_b': 'tunnel_lo',
        'sheds_b': 'sheds', 'pier17_b': 'pier17', 'shipping_b': 'shipping', 'quay_b': 'quay',

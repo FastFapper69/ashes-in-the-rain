@@ -27,7 +27,8 @@ SUB = 0.52
 SEG_SIZE = {"deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": SUB, "walkway": SUB, "bowery": SUB, "tunnel_lo": SUB,
             "signal": SUB, "arches": SUB, "sheds": 0.55, "fire_a": 0.605, "fire_b": 0.605, "fire_c": 0.605}
 UNDER_ROOF = ["tenrow_a", "tenrow_c", "tenrow_b", "tenrow_d"]   # the facades under the rooftops: their cornice meets the roof drawings   # shown smaller: see main.gd SEGMENT_SIZE
-STREET_POOL = ["alley", "warehouse", "laundry", "subway", "church", "market",
+STREET_POOL = ["hk_tailor", "hk_grocery", "hk_saloon", "hk_laundry",   # (the kit: gen/kit.py)
+               "alley", "warehouse", "laundry", "subway", "church", "market",
                "alley_b", "warehouse_b", "laundry_b", "subway_b", "church_b", "market_b", "market_c"]
 DOCKS_POOL = ["pier17", "cranes", "shipping", "quay", "sheds", "pier17_b", "shipping_b", "quay_b", "sheds_b"]   # (the harbor with its lighthouse: only the Harbor Master's own)
 # variants (2026-11-15): the same kit redrawn with other details over the same floor, rails, edges and lamps,
@@ -532,6 +533,7 @@ def _build(mp, nudge):
     out.checks = sorted(set(round(c) for c in out.checks if 800 < c < out.end - 500))
     out.street = street(mp, out, rng)
     hoist_ropes(out)
+    street_props(out)
     for b in out.boxes:
         if b[0] == "barrel" and not barrel_ok(place_at(out, b[1])) and not mp.get("keep_barrel"):
             b[0] = "drum"
@@ -542,6 +544,10 @@ def _build(mp, nudge):
     for e in mp.get("events", []):
         out.events.append(list(e))
     cover_men(out, mp)
+    for e in out.enemies:   # (after the kit moved things about) nobody left standing inside a crate
+        inside = lambda x: any(len(o) == 2 and o[1] - 50 < x < o[1] + BOX[o[0]][0] + 50 for o in out.boxes)
+        if e["y"] == 0.0 and inside(e["x"]):
+            e["x"] = next(x for d in range(40, 3000, 40) for x in (e["x"] + d, e["x"] - d) if not inside(x))
     for name, sx in out.street:   # two of them keep watch under every crane's hanging crate
         if name != "cranes":
             continue
@@ -668,6 +674,58 @@ def barrel_ok(place):
 # with m.hoists.append(x): the warehouse segment nearest x becomes warehouse_c and the rope, the cargo wall it
 # swings over and the man behind it go where its pulley is. In the docks the crane's rope stays (crane_swing).
 HOIST_PX = (698.0, 618.0)   # the pulley wheel's bottom in the warehouse drawing's pixels
+# The street kit (gen/kit.py: the one catalogue the game reads too, as kit.gd): for each kit piece in the street,
+# nothing stands in front of its things (cover moved to free sidewalk or dropped), its floors (an awning, a fire
+# escape's landings) are added, and a man is stood by each hazard (one Frank's bullet sets off).
+import kit as KIT_CAT
+for _n, _p in KIT_CAT.PIECES.items():
+    SEGMENTS[_n] = KIT_CAT.WIDTH
+    SEG_SIZE[_n] = _p["size"]
+    TRIM[_n] = 0
+def street_props(m):
+    for name, x0 in m.street:
+        piece = KIT_CAT.PIECES.get(name)
+        if not piece:
+            continue
+        k = 1.9 * piece["size"]
+        wx = lambda px: x0 + px * k
+        top = KIT_CAT.TOP(piece["size"])
+        blocked = [(wx(a) - 120, wx(b) + 120) for a, b in piece.get("clear", [])]
+        def free(x, w, me):
+            if any(a < x + w and x < b for a, b in blocked):
+                return False
+            if any(o is not me and len(o) == 2 and o[1] - 270 < x + w and x < o[1] + BOX[o[0]][0] + 270 for o in m.boxes):
+                return False
+            return not any(e["y"] == 0.0 and x - 90 < e["x"] < x + w + 90 for e in m.enemies)
+        for bx in list(m.boxes):
+            if len(bx) != 2 or not any(a < bx[1] + BOX[bx[0]][0] and bx[1] < b for a, b in blocked):
+                continue
+            w = BOX[bx[0]][0]
+            spot = next((x for d in range(0, 2400, 60) for x in (bx[1] + d, bx[1] - d) if free(x, w, bx)), None)
+            if spot is None:
+                m.boxes.remove(bx)
+            else:
+                bx[1] = spot
+        in_box = lambda x: any(len(o) == 2 and o[1] - 60 < x < o[1] + BOX[o[0]][0] + 60 for o in m.boxes)
+        for e in m.enemies:   # nobody standing inside a painted thing (or, moved, inside a crate) either
+            if e["y"] == 0.0 and any(a < e["x"] < b for a, b in blocked):
+                e["x"] = next(x for d in range(0, 3000, 40) for x in (e["x"] + d, e["x"] - d)
+                              if not any(a < x < b for a, b in blocked) and not in_box(x))
+        for pr in piece["props"]:
+            kd = KIT_CAT.KINDS[pr["kind"]]
+            x_a, y_a, x_b, y_b = pr["box"]
+            if kd["floor"]:
+                m.plats.append([wx(x_a + 15), top + pr.get("walk_y", y_a) * k, (x_b - x_a - 30) * k, kd["floor"]])
+            if kd["shot"]:
+                hx = wx((x_a + x_b) / 2)
+                if not any(abs(e["x"] - hx) < 500 and e["y"] == 0.0 for e in m.enemies) and 1500 < hx < m.end - 1500:
+                    ex = next(x for d in range(0, 2000, 40) for x in (wx(x_b) + 200 + d, wx(x_a) - 200 - d)
+                              if not any(a < x < b for a, b in blocked) and not in_box(x))
+                    m.enemies.append({"x": ex, "y": 0.0, "kind": "post", "trig": None, "from": None, "delay": 0.0, "run": False})
+        for a, b, y, style in piece.get("floors", []):
+            m.plats.append([wx(a), top + y * k, (b - a) * k, style])
+
+
 def hoist_ropes(m):
     k = 1.9 * SEG_SIZE.get("warehouse", 1.0)
     off = (HOIST_PX[0] - TRIM["warehouse"]) * k * SEGMENTS["warehouse"] / (SEGMENTS["warehouse"] - TRIM["warehouse"])
@@ -685,6 +743,7 @@ def hoist_ropes(m):
         x = m.street[i][1] + off
         y = -1344 * 1.9 * 0.92 - 60.0 + HOIST_PX[1] * 1.9   # (main.gd: the drawing's top, WALL_SCALE, SEGMENT_BASE, WALL_LIFT)
         m.ropes.append(["swing", x, y, 0.0, 0.0])
+        m.boxes[:] = [o for o in m.boxes if not (len(o) == 2 and x + 220 < o[1] + BOX[o[0]][0] and o[1] < x + 520 + BOX["stack"][0] + 300)]
         m.boxes.append(["stack", x + 520])
         m.enemies.append({"x": x + 1300, "y": 0.0, "kind": "post", "trig": None, "from": None, "delay": 0.0, "run": False})
         m.end = max(m.end, x + 1900)
@@ -851,6 +910,8 @@ def check(m):
         if not any(a - 1 <= b[1] and b[1] + BOX[b[0]][0] <= c + 1 and abs(y - by(b)) < 1 for a, c, y in floors):
             errs.append(f"box at {b[1]:.0f},{by(b):.0f} floats")
     for px, py, pw, st in m.plats:
+        if st in ("awning", "drawn"):
+            continue   # the street kit's awning and fire escape: reached by jumping off the awning
         # reachable: a ramp ends on it, a ladder comes up onto it, or something within jumping reach stands under its near end
         ok = any(abs(r[3] - py) < 1 and px - 20 <= r[2] <= px + pw + 20 for r in m.ramps)
         ok = ok or any(abs(r[1] - py) < 1 and px - 20 <= r[0] <= px + pw + 20 for r in m.ramps)
@@ -1145,6 +1206,7 @@ if __name__ == "__main__":
         sand.append(lv)
     box = gd([{"title": "SANDBOX", "name": "SANDBOX", "ready": False, "hero": "frank", "ambient": [0.2, 0.21, 0.27], "rain": 1.0, "maps": sand}])
     box = box[box.index("const CAMPAIGN := [") + len("const CAMPAIGN := ["):].rstrip().rstrip("]")
+    open(os.path.join(REPO, "kit.gd"), "w", encoding="utf-8", newline=chr(10)).write(KIT_CAT.gd())
     open(sys.argv[1] if len(sys.argv) > 1 else "/mnt/user-data/outputs/godot2/levels.gd", "w").write(
         gd(campaign) + "\n# Trial maps (--sandbox=N): a new system on its own map, never in the case file.\nconst SANDBOX := [" + box + "]\n")
     sys.exit(1 if bad else 0)

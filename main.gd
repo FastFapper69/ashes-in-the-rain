@@ -107,6 +107,8 @@ var level: Dictionary
 var level_end := 0.0
 var cam_start := 0.0
 var catwalks: Array[Rect2] = []   # floors above the street: catwalks, fire-escape landings, landings indoors
+var catwalk_style: Array[String] = []   # what each is (gen/levels.py floors): an awning throws a falling man back up
+var _last_floor_style := ""
 var catwalk_solid: Array[bool] = []   # a roof: no dropping through it to the street six storeys down
 var _box_sets := {}   # with rooftops: the crates of the street and those of the roof, swapped in as he climbs
 var _box_up := false
@@ -1265,7 +1267,7 @@ const SEGMENT_KIT := {"walkway_b": "walkway", "signal_b": "signal", "arches_b": 
 	"yard_b": "yard", "tunnel_b": "tunnel", "sheds_b": "sheds", "pier17_b": "pier17", "shipping_b": "shipping", "quay_b": "quay",
 	"laundry_b": "laundry", "alley_b": "alley", "warehouse_b": "warehouse", "warehouse_c": "warehouse", "church_b": "church", "subway_b": "subway", "market_b": "market", "market_c": "market", "yard_c": "yard", "tunnel_c": "tunnel",
 	"fire_d": "fire_a", "fire_e": "fire_b", "fire_f": "fire_c", "fire_g": "fire_a"}
-const SEGMENT_SIZE := {"deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
+const SEGMENT_SIZE := {"hk_tailor": 0.8, "hk_grocery": 0.8, "hk_saloon": 0.8, "hk_laundry": 0.8, "deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
 	"signal": 0.52, "arches": 0.52, "sheds": 0.55, "fire_a": 0.605, "fire_b": 0.605, "fire_c": 0.605}
 # A drawing whose floor runs into the depth: where on it a man's feet go, as a share of its height (the
 # street drawings stand at the back of the pavement at SEGMENT_BASE instead).
@@ -1314,7 +1316,14 @@ func _seam_shades() -> void:
 		add_child(poly)
 
 
+## The street kit's things to play with: props.gd (behaviour) reading kit.gd (gen/kit.py: what is where).
+var props: Node2D
+
+
 func _build_segments() -> void:
+	props = preload("res://props.gd").new()
+	props.game = self
+	add_child(props)
 	pass   # (seam shades tried 16. 11.: over open sky they read as a black pole - the street order fixes the joins instead)
 	var halo_tex := _soft_glow()
 	var additive := CanvasItemMaterial.new()
@@ -1348,6 +1357,7 @@ func _build_segments() -> void:
 		w.material = atmo.blur_material(1.4)
 		w.modulate = Color.WHITE * SEGMENT_MOON * float(SEGMENT_GAIN.get(seg_name, 1.0))   # a moonlit wash, so the drawing reads between the lamps
 		add_child(w)
+		props.build(art, w, ws, sx, trim)   # (the kit's things: once the drawing stands where it goes)
 		if level.get("under", false) and float(SEGMENT_SIZE.get(seg_name, 1.0)) < 0.6:
 			# a subway drawing at a man's scale is lower than the screen: its vault goes on up, the top of
 			# the drawing mirrored over it and sinking into the dark, so no edge shows when he jumps
@@ -2729,6 +2739,8 @@ func _process(delta: float) -> void:
 	else:
 		cam.offset = Vector2.ZERO
 	fore.position.x = -cam.position.x * 0.35
+	if props:
+		props.tick(real)
 	for i in depth.size():
 		depth[i].position.x = cam.position.x * depth_follow[i]
 	if _dt >= 0.0:
@@ -4055,6 +4067,14 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			_jump_buf = 0.0
 		elif dive:   # a dive can also be thrown out of a jump
 			_start_dive(dir if dir != 0.0 else facing, facing, minf(fall, -300.0), false)
+		elif fall > AWNING_BOUNCE and player.position.y >= floor_y and _awning_under():
+			player.position.y = floor_y   # onto an awning: the canvas gives and throws him up (a stunt: a slowed beat)
+			fall = -JUMP_SPEED * 1.32
+			sfx.play("land", -2.0)
+			_word(["thud"], player.position + Vector2(0.0, -80.0), 0.14)
+			_free_slow = maxf(_free_slow, 0.6)
+			if props:
+				props.landed_on(player.position)
 		elif fall > 0.0 and player.position.y >= floor_y:
 			player.position.y = floor_y
 			player.crouch = clampf(fall / 1500.0, 0.3, 0.9)   # the harder the landing, the deeper the knees
@@ -4194,6 +4214,7 @@ func _floor_at(x: float, feet: float) -> float:
 				continue
 			best = c.position.y
 			_last_kind = "roof" if catwalk_solid[ci] else "floor"
+			_last_floor_style = catwalk_style[ci]
 	for r in ramps:
 		var a: float = minf(r[0], r[2])
 		var b2: float = maxf(r[0], r[2])
@@ -4805,6 +4826,8 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 				return true
 			_hit_box(i, pos)
 			return true
+	if from_player and props and props.shot(pos):
+		return true
 	if from_player and (sets.bullet(pos) or mapfx.bullet(pos)):
 		return true
 	if from_player:
@@ -6376,6 +6399,15 @@ func _flat_closed_between(a: Vector2, b: Vector2) -> bool:
 	return false
 
 
+const AWNING_BOUNCE := 520.0   # how fast he must be falling for the awning to throw him back up
+func _awning_under() -> bool:
+	for i in catwalks.size():
+		var c: Rect2 = catwalks[i]
+		if catwalk_style[i] == "awning" and player.position.x > c.position.x and player.position.x < c.end.x and absf(player.position.y - c.position.y) < 60.0:
+			return true
+	return false
+
+
 func _stair_foot() -> float:
 	return 0.0 if _section_kit() else STAIRDOOR_FOOT   # the kit's flights go straight back from the opening
 
@@ -6582,8 +6614,9 @@ func _build_level() -> void:
 	for c in level["floors"]:
 		var r := Rect2(float(c[0]), float(c[1]), float(c[2]), 0.0)
 		catwalks.append(r)
+		catwalk_style.append(String(c[3]))
 		catwalk_solid.append(String(c[3]) in ["roof", "section", "fescape"])   # a storey's floor, a fire escape's deck: no dropping through it
-		if String(c[3]) in ["section", "fescape"]:
+		if String(c[3]) in ["section", "fescape", "drawn", "awning"]:
 			continue   # the storey's drawing (or the fire escape's) is the floor
 		if String(c[3]) == "floor":
 			_slab(r)
