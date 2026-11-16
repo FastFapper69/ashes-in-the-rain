@@ -1,6 +1,6 @@
 # ASHES IN THE RAIN – handoff for the next session (updated 15. 11. 2026, 15:10)
 
-Read this first when picking the project up in a new chat. Reply to the user in Czech, short. In-game text English, nothing Czech in the story, hero Frank Malone.
+Read `.claude/skills/ashes-znalosti/SKILL.md` first (stable rules + topic index, see CLAUDE.md), then this log. Reply to the user in Czech, short. In-game text English, nothing Czech in the story, hero Frank Malone.
 
 ## Where things live
 - GitHub: `FastFapper69/ink-and-lead` – `main` = sources, `gh-pages` = web build (https://fastfapper69.github.io/ink-and-lead/). The user plays on an iPhone 17.
