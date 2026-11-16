@@ -36,6 +36,7 @@ description: "Distilled project knowledge for Ashes in the Rain (Godot 4.7 web/i
 17. **Voice/dubbing is done at the very end, all at once** (user, 16. 11.): new barks and lines ship as bubbles only; collect them, do not record piecemeal.
 18. **Stunts give slowed time for free** (user, 16. 11.): door kick 1.2 s, a swing on a rope 1 s, a window 0.5 s – the slow meter is not touched (`_free_slow`).
 19. **Nothing hangs or stands without a reason** (user, 16. 11.): a swing rope hangs from something drawn – a crane in the docks, the warehouse hoist's painted pulley in the streets (`hoist_ropes`, warehouse_c). Never a freestanding rope or a wall strip pasted on the map like a sticker: change the drawing itself (a variant) so it belongs to the background.
+20. **Looking good comes first** (user, 16. 11.: "regenerate whatever you need, above all it must look good"): redraw art freely (Gemini) instead of shipping something that repeats, reads as a sticker or does not make sense. No two pieces of a kit share the same building behind them; interactive things are cut into their own layer and stand slightly forward of the wall (parallax + contact shadow) so they read 3D in 2D.
 
 ## 2. Core mental models
 - **The phone is the target, desktop numbers lie.** iPhone uses ~100 MB more textures (full-screen buffers at pixel ratio), the web keeps every loaded pack in the wasm heap, and Web Audio decodes whole streams to PCM. Measure with crumbs/crash reports, not with desktop feel.
