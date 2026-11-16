@@ -245,6 +245,6 @@ Read `.claude/skills/ashes-znalosti/SKILL.md` first (stable rules + topic index,
 - Disarm: a hit on the barrel end of his gun (puppet.gun_hit) disarms 5 % of the time any time, always in slowed time (whole gun) or with OPEN HAND; forearm in slowed time as before. Bot: 4–9 disarms per map. Hats: hat_hit takes near misses (a few px around the hat, the upper 55 %).
 - gen/QUEUE_doma.md: what to download/draw once the PC is free (9 recorded dialogue lines, worn shotgun/tommy).
 
-## Anthropic skills prozkoumány (chat „book-to-skill“), 2026-11-16 odpoledne
+## (11) Anthropic skills reviewed (chat „book-to-skill“), 2026-11-16
 - `github.com/anthropics/skills` prošlé: verdikt pro každý skill v `ashes-vyzkum` ch09. Přidán `.claude/skills/webapp-testing` (Apache 2.0) + PROJECT.md s receptem na kontrolu web buildu před pushem gh-pages (lokální server + headless Chromium jako iPhone, chyby konzole, crumbs, screenshot).
 - K použití: skill-creator `quick_validate.py` po úpravě skillů (naše 3 skilly prošly); „reader testing“ z doc-coauthoring na story doc (hledá díry v příběhu, jen když uživatel povolí sub-agenty); „vizuální filozofie“ z canvas-design před dávkou Gemini zadání. NE: algorithmic-art (procedurální art zakázán), claude-api, theme/brand/internal-comms.
