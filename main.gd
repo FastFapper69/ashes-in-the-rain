@@ -1237,7 +1237,7 @@ const SEGMENT_GAIN := {"alley": 0.92, "bluenote": 0.98, "warehouse": 0.9, "laund
 # variants of a kit (gen/levels.py KIT, art_src 164-168): their own picture, the kit's everything else
 const SEGMENT_KIT := {"walkway_b": "walkway", "signal_b": "signal", "arches_b": "arches", "tunnel_lo_b": "tunnel_lo",
 	"yard_b": "yard", "tunnel_b": "tunnel", "sheds_b": "sheds", "pier17_b": "pier17", "shipping_b": "shipping", "quay_b": "quay",
-	"laundry_b": "laundry", "alley_b": "alley", "warehouse_b": "warehouse", "church_b": "church", "subway_b": "subway", "market_b": "market", "market_c": "market", "yard_c": "yard", "tunnel_c": "tunnel",
+	"laundry_b": "laundry", "alley_b": "alley", "warehouse_b": "warehouse", "warehouse_c": "warehouse", "church_b": "church", "subway_b": "subway", "market_b": "market", "market_c": "market", "yard_c": "yard", "tunnel_c": "tunnel",
 	"fire_d": "fire_a", "fire_e": "fire_b", "fire_f": "fire_c", "fire_g": "fire_a"}
 const SEGMENT_SIZE := {"deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
 	"signal": 0.52, "arches": 0.52, "sheds": 0.55, "fire_a": 0.605, "fire_b": 0.605, "fire_c": 0.605}
@@ -8939,7 +8939,7 @@ func _add_rope(ro: Array) -> void:
 		hook.position = s0 + Vector2(0.0, 22.0)
 	elif kind == "swing":   # from a crane's jib out of the picture, a cargo hook on its end
 		var x := float(ro[1])
-		r["a"] = Vector2(x, SWING_ANCHOR)
+		r["a"] = Vector2(x, float(ro[2]) if float(ro[2]) != 0.0 else SWING_ANCHOR)   # a hoist's painted pulley, or the crane's jib out of the picture
 		r["b"] = Vector2(x, SWING_BOTTOM)
 		r["line"] = _rope_line(_undo_night(0.55), 12.0)
 		var hook := Sprite2D.new()
@@ -8950,14 +8950,14 @@ func _add_rope(ro: Array) -> void:
 		hook.modulate = _undo_night(0.75)
 		add_child(hook)
 		r["hook"] = hook
-		_draw_swing(r, 0.0, SWING_BOTTOM - SWING_ANCHOR)
+		_draw_swing(r, 0.0, SWING_BOTTOM - (r["a"] as Vector2).y)
 	_ropes.append(r)
 
 
 func _draw_swing(r: Dictionary, th: float, grip_len: float) -> void:
 	var a: Vector2 = r["a"]
 	var d := Vector2(sin(th), cos(th))
-	var full: float = SWING_BOTTOM - SWING_ANCHOR
+	var full: float = SWING_BOTTOM - a.y
 	var end := a + d * maxf(full, grip_len + 40.0)
 	(r["line"] as Line2D).points = PackedVector2Array([a, end])
 	var hook: Sprite2D = r["hook"]
@@ -9010,7 +9010,7 @@ func _grab_rope() -> void:
 		else:
 			player.hang_one = false
 			player.hang_cycle = -1.0
-			var g := GRAVITY / (SWING_BOTTOM - SWING_ANCHOR)
+			var g := GRAVITY / (SWING_BOTTOM - (r["a"] as Vector2).y)
 			var rel := (near - (r["a"] as Vector2))
 			_swing_dir = signf(run) if absf(run) > 50.0 else (signf(player.scale.x))
 			_theta = clampf(atan2(rel.x, rel.y) * _swing_dir, -SWING_AMP + 0.05, SWING_AMP - 0.05)
@@ -9096,7 +9096,7 @@ func _on_rope(dir: float, jump: bool, down: bool, delta: float) -> void:
 			hk.create_tween().tween_property(hk, "position", (r["b"] as Vector2) + d * 160.0, 0.3)
 			return
 	elif move_state == "swing":
-		var L: float = SWING_BOTTOM - SWING_ANCHOR
+		var L: float = SWING_BOTTOM - (_rope["a"] as Vector2).y   # (a hoist's rope is shorter than a crane's)
 		var g := GRAVITY / L
 		_omega -= g * sin(_theta) * delta
 		_theta += _omega * delta

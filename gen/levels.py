@@ -34,7 +34,7 @@ DOCKS_POOL = ["pier17", "cranes", "shipping", "quay", "sheds", "pier17_b", "ship
 # so a map does not show one drawing again and again; everything about them but the picture is the kit's
 KIT = {"walkway_b": "walkway", "signal_b": "signal", "arches_b": "arches", "tunnel_lo_b": "tunnel_lo",
        "yard_b": "yard", "tunnel_b": "tunnel", "sheds_b": "sheds", "pier17_b": "pier17", "shipping_b": "shipping", "quay_b": "quay",
-       "laundry_b": "laundry", "alley_b": "alley", "warehouse_b": "warehouse", "church_b": "church", "subway_b": "subway", "market_b": "market", "market_c": "market", "yard_c": "yard", "tunnel_c": "tunnel",
+       "laundry_b": "laundry", "alley_b": "alley", "warehouse_b": "warehouse", "warehouse_c": "warehouse", "church_b": "church", "subway_b": "subway", "market_b": "market", "market_c": "market", "yard_c": "yard", "tunnel_c": "tunnel",
        # the dream's rooms gone wrong (gen/process_dream.py): the burning warehouse's own cut and floor
        "fire_d": "fire_a", "fire_e": "fire_b", "fire_f": "fire_c", "fire_g": "fire_a"}
 for _v, _k in KIT.items():
@@ -136,6 +136,7 @@ class Chunk:
         self.sections = []     # buildings in cross-section: [x0, x1, storeys, style]
         self.xy_checks = []    # checkpoints up in a building: [x, y]
         self.stairdoors = []   # the stairs in a building's back wall: [x, storey y, the y they lead to]
+        self.hoists = []       # where a swing rope is wanted from a warehouse hoist (hoist_ropes)
         self.flats = []        # a flat to kick into and jump out of: [door x, storey y, door h, window x0, x1, sill, lintel]
 
     def box(self, kind, x, y=0.0): self.boxes.append([kind, x, y] if y else [kind, x]); return self
@@ -317,7 +318,7 @@ def chunk(name, hard, rng=None):
         c.sections.append([0.0, w, 1, "tenement_stunt"])
         c.flats.append([SEC_FLAT_DOOR, 0.0, 476.0, SEC_WIN[0], SEC_WIN[1], 178.0, 501.0])
         c.foe(SEC_FLAT_DOOR + 180).foe(2800, kind="shotgun")
-        c.rope("swing", w + 900).box("stack", w + 1420).foe(w + 2200)
+        c.hoists.append(w + 900)   # the swing rope from the warehouse's hoist down the street (hoist_ropes)
         c.checks += [-60.0]
         c.hint(-400, "RUN AT THE DOOR")
     elif name == "stairs_up":   # the end of the platform: the stairs up to the mezzanine, the way out
@@ -467,6 +468,7 @@ def _build(mp, nudge):
         for a, b, n, st in c.sections: out.sections.append([x + a, x + b, n, st])
         for cx, cy in c.xy_checks: out.xy_checks.append([x + cx, cy])
         for sx, sy, ty in c.stairdoors: out.stairdoors.append([x + sx, sy, ty])
+        for hx in c.hoists: out.hoists.append(x + hx)
         for fl in c.flats: out.flats.append([x + fl[0], fl[1], fl[2], x + fl[3], x + fl[4], fl[5], fl[6]])
         for lx, ly in c.lamps: out.lamps.append([x + lx, ly])
         for k, px, py in c.pickups: out.pickups.append([k, x + px, py])
@@ -529,6 +531,7 @@ def _build(mp, nudge):
             out.pickups.append(["page", out.end * 0.55, 0.0])
     out.checks = sorted(set(round(c) for c in out.checks if 800 < c < out.end - 500))
     out.street = street(mp, out, rng)
+    hoist_ropes(out)
     for b in out.boxes:
         if b[0] == "barrel" and not barrel_ok(place_at(out, b[1])) and not mp.get("keep_barrel"):
             b[0] = "drum"
@@ -657,6 +660,34 @@ BARREL_OK = {"alley", "warehouse", "deadend", "bluenote", "pier17", "cranes", "s
 
 def barrel_ok(place):
     return place is not None and (place in BARREL_OK or KIT.get(place, place) in BARREL_OK)
+
+
+# A swing rope in the streets hangs from something drawn (user, 16. 11.: "a rope in the middle of the street is
+# cheap"): the warehouse's hoist (art/street/warehouse_c.png = warehouse with its painted rope and hook taken
+# out, gen/tools/hoist_street.py; the game hangs its swinging rope from the painted pulley). A chunk asks for one
+# with m.hoists.append(x): the warehouse segment nearest x becomes warehouse_c and the rope, the cargo wall it
+# swings over and the man behind it go where its pulley is. In the docks the crane's rope stays (crane_swing).
+HOIST_PX = (698.0, 618.0)   # the pulley wheel's bottom in the warehouse drawing's pixels
+def hoist_ropes(m):
+    k = 1.9 * SEG_SIZE.get("warehouse", 1.0)
+    off = (HOIST_PX[0] - TRIM["warehouse"]) * k * SEGMENTS["warehouse"] / (SEGMENTS["warehouse"] - TRIM["warehouse"])
+    for want in m.hoists:
+        # the first segment whose pulley would fall at or past the wanted x becomes the hoisted warehouse; the
+        # segments after it move by the difference in width, so the drawings still meet edge to edge
+        i = next((n for n, seg in enumerate(m.street) if seg[1] + off >= want - 600), None)
+        if i is None:
+            raise ValueError(f"no street under the hoist rope near {want:.0f}")
+        old = SEGMENTS[m.street[i][0]] * 1.9 * SEG_SIZE.get(m.street[i][0], 1.0)
+        m.street[i][0] = "warehouse_c"
+        delta = SEGMENTS["warehouse"] * k - old
+        for seg in m.street[i + 1:]:
+            seg[1] += delta
+        x = m.street[i][1] + off
+        y = -1344 * 1.9 * 0.92 - 60.0 + HOIST_PX[1] * 1.9   # (main.gd: the drawing's top, WALL_SCALE, SEGMENT_BASE, WALL_LIFT)
+        m.ropes.append(["swing", x, y, 0.0, 0.0])
+        m.boxes.append(["stack", x + 520])
+        m.enemies.append({"x": x + 1300, "y": 0.0, "kind": "post", "trig": None, "from": None, "delay": 0.0, "run": False})
+        m.end = max(m.end, x + 1900)
 
 
 def street(mp, m, rng):
