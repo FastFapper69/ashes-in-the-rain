@@ -32,8 +32,9 @@ dialogy „Uložit jako“. Na PC s grafikou je to v reálném čase a soubory j
 ## Pak práce (pořadí dohodnuté s Jakubem)
 1. **Podívat se na řez domem** `--sandbox=0` na 1280 i 1560 (zatím s dočasným artem) a opravit, co je špatně.
 2. **Fasáda se rozpouští od dveří** (shader, 0,6 s), pak **kopnutí do dveří** (1,2 s zpomalení), **skok oknem** ven na požární
-   schodiště, **nepřátelé po schodech** mezi patry. Navržené další kousky (čekají na schválení): okno do okna přes uličku,
-   sjezd po zábradlí, propad poklopem, šňůra s prádlem jako lano, výtah v kap. IV.
+   schodiště, **nepřátelé po schodech** mezi patry. Kaskadérské kousky a předměty prostředí místo sudů (schváleno 16. 11.):
+   přidávat po kapitolách s mapami, 3–4 na kapitolu, seznam a obtížnost v story docu, tab „Řez domem a kamera“, sekce
+   „Kaskadérské kousky a prostředí“. Každý: kresba ve 2 stavech, balíček kapitoly, screenshoty 1280/1560, bot, telefon.
 3. **Gemini**: stavebnice činžáku (gen/QUEUE_doma.md §5, kusy 211–221) + kresby pro kousky výše (okno celé/rozbité, poklop,
    zábradlí, šňůra) – Gemini jen na PC, Artlist jen zvuk.
 4. **Fronta z cloudu** (gen/QUEUE_doma.md §1, §2, §4): stáhnout 9 dialogů z Artlistu, ošoupaná brokovnice a tommy, nadabovat
