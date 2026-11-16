@@ -88,7 +88,7 @@ SEC_LADDER = 2935.0      # the ladder to the roof hatch in tenement_ladder (not 
 # The flat at the right end of the top storey (tenement_flat, art_src 223) and the fire escape outside it (art_src 222):
 # kick in its door under the partition's lintel, out of its window onto the escape, up the escape to the roof.
 SEC_FLAT_DOOR = 1778.0   # the doorway under the lintel (door leaf 476 high)
-SEC_WIN = (3131.0, 3364.0)   # the window through the outer wall: inner face, outer face; sill 178, lintel 501 above the floor
+SEC_WIN = (3195.0, 3340.0)   # the window through the outer wall: inner face, outer face; sill 178, lintel 501 above the floor
 ESC_K = 1.0526           # the escape drawing's pixels to the world (its landings fall on the storeys)
 def esc(px): return SEC_WIN[1] + (px - 570.0) * ESC_K   # its picture's x (570 = the wall's outer face) in the chunk
 SEC_CLEAR = [(-60.0, 300.0), (1767.0, 2000.0), (2259.0, 2692.0), (2963.0, 3200.0)]   # ground floor, from x0: the street
@@ -690,6 +690,38 @@ def hoist_ropes(m):
         m.end = max(m.end, x + 1900)
 
 
+# How well two street drawings join (gen/tests/audit_maps.py measures the same: the right edge of one against the
+# left edge of the next in world space; 0 = seamless, ~0.9 = a hard cut such as a wall against open sky).
+SEAM_OK = 0.6
+_SEAMS = {}
+def seam_score(a, b):
+    if (a, b) not in _SEAMS:
+        import importlib.util, numpy as np
+        spec = importlib.util.spec_from_file_location("audit_maps", os.path.join(REPO, "gen", "tests", "audit_maps.py"))
+        A = importlib.util.module_from_spec(spec)
+        cwd = os.getcwd(); spec.loader.exec_module(A); os.chdir(cwd)
+        C = A.main_consts.__wrapped__() if hasattr(A.main_consts, "__wrapped__") else _main_consts(A)
+        rows = np.arange(-2400.0, -20.0, 8.0)
+        ea, eb = A.edge_world(a, C, "right", rows), A.edge_world(b, C, "left", rows)
+        if ea is None or eb is None:
+            _SEAMS[(a, b)] = 0.5
+        else:
+            both = ~np.isnan(ea[:, 0]) & ~np.isnan(eb[:, 0])
+            d = np.abs(ea[both] - eb[both]).mean(1)
+            lum = np.abs(ea[both].mean(1) - eb[both].mean(1))
+            only = int((np.isnan(ea[:, 0]) != np.isnan(eb[:, 0])).sum())
+            _SEAMS[(a, b)] = float(np.percentile(d, 90) * 0.6 + np.percentile(lum, 95) * 0.4 + only * 0.002)
+    return _SEAMS[(a, b)]
+
+
+_C = None
+def _main_consts(A):
+    global _C
+    if _C is None:
+        cwd = os.getcwd(); os.chdir(REPO); _C = A.main_consts(); os.chdir(cwd)
+    return _C
+
+
 def street(mp, m, rng):
     """The run of drawn segments under the map: the map's own feature segment early on, no segment twice
     in a row, and (in the prologue) the dead-end alley under the last stand."""
@@ -742,6 +774,15 @@ def street(mp, m, rng):
                 cand = [s for s in cand if barrel_ok(s)] or cand
             cand = sorted(cand, key=lambda s: used.count(s))   # and the least used first
             least = [s for s in cand if used.count(s) == used.count(cand[0])]
+            # the joins must look right (user 16. 11.: a wall begun mid-air, smoke cut off at a drawing's end):
+            # among the least used, those whose left edge meets the last one's right edge; if none does, the
+            # best-fitting of all the candidates (a little reuse beats a hard cut)
+            if last is not None:
+                fit = [s for s in least if seam_score(last, s) < SEAM_OK]
+                if not fit:
+                    best = min(seam_score(last, s) for s in cand)
+                    fit = [s for s in cand if seam_score(last, s) <= best + 0.05]
+                least = fit
             name = rng.choice(least)
         seq.append([name, x])
         last = name

@@ -24,7 +24,7 @@ PIECES = {               # art_src number: name (main.gd SEC_KIT)
     217: "tenement_ladder",     # top storey: the ladder to the roof hatch, the outer wall on the right
     218: "tenement_facade",     # one storey of the front, seen from the street
     219: "tenement_facade_ground",   # the ground floor front, the street door on the left
-    223: "tenement_flat",       # (220 had a solid partition: redrawn) an apartment kitchen: partition wall with the doorway on the left, the outer wall
+    227: "tenement_flat",       # (220: solid partition, 223: the window was only a hole) the kitchen, its window glazed in the end wall: partition wall with the doorway on the left, the outer wall
 }                               # cut through on the right with the window opening (door kick, window jump)
 
 
@@ -101,3 +101,17 @@ if os.path.exists(p):
     im = im.crop(im.getbbox())
     im.save(os.path.join(OUT, "flat_glass_broken.png"))
     print("225 -> flat_glass_broken", im.size)
+
+
+# the flat after he went through the window: the frame and glass gone, the dark rainy night outside seen through
+# the hole in the end wall (the sill and the lintel stay); the rain is copied from just outside the building
+p = os.path.join(OUT, "tenement_flat.png")
+if os.path.exists(p):
+    im = np.asarray(Image.open(p).convert("RGB")).copy()
+    top = 118   # (the piece is cut from row 118 of the drawing)
+    y0, y1, x0, x1 = 420 - top, 927 - top, 2717, 2952
+    rain = im[y0:y1, 2962:3168]
+    for x in range(x0, x1):
+        im[y0:y1, x] = rain[:, (x - x0) % rain.shape[1]]
+    Image.fromarray(im).save(os.path.join(OUT, "tenement_flat_open.png"))
+    print("tenement_flat_open.png")

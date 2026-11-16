@@ -389,6 +389,7 @@ var sections: Array = []      # buildings in cross-section: [x0, x1, storeys, st
 var section_h := 700.0
 var _bot_esc_up := false      # the test bot on a fire escape: turned back to the foot of the flight
 var _free_slow := 0.0         # real seconds of slowed time a stunt gives for free (door kick 1.2 s, swing 1 s)
+var _flat_art: Array = []     # [storey y, the flat's drawing]: tenement_flat_open replaces it when the window goes
 var _flats: Array = []        # the flats to kick into and jump out of (gen/levels.py flats)
 var _stairdoors: Array = []   # the stairs in a building's back wall: [x, storey y, the y they lead to]
 var _sd: Dictionary = {}       # on those stairs: where from, the door, where to, how long
@@ -1206,6 +1207,31 @@ const SEGMENT_DEEP := {
 	"platform": [Rect2(0.1044, 0.31, 0.1357, 0.38)], "tunnel": [Rect2(0.8249, 0.33, 0.1253, 0.38)], "tunnel_lo": [Rect2(0.8249, 0.33, 0.1253, 0.38)], "yard": [Rect2(0.4908, 0.45, 0.1357, 0.3)],
 }
 const CRANE_CUT := Rect2(0.3863, 0.2, 0.0783, 0.255)   # the hanging crate taken out of the crane yard drawing (setpieces.gd)
+## A street opening into depth (an alley, a passage, the far end of a station) seen in true perspective (user 16. 11.:
+## "it only stretches oddly; it should have real depth"): the opening is a corridor running to a vanishing point.
+## A pixel's depth follows from where it lies between the mouth (depth 0: the box's border, fixed to the world like
+## the facade round it) and the vanishing point (far away): p = 1 - its distance to the vanishing point over the
+## mouth's distance on that side (walls by x, floor and ceiling by y, as in a box corridor). As the camera moves,
+## the far part lags behind (moves with the camera) by p: straight lines stay straight, verticals stay vertical,
+## nothing stretches, and the border never moves.
+const DEEP_PERSPECTIVE := """
+shader_type canvas_item;
+uniform vec4 box;       // the opening, in the texture's UV: x, y, width, height
+uniform vec2 vp;        // its vanishing point, in the box (0..1)
+uniform vec2 shift;     // how far the farthest part lags behind the camera, in UV
+varying vec4 tint;
+void vertex() { tint = COLOR; }
+void fragment() {
+	vec2 l = (UV - box.xy) / box.zw;
+	vec2 d = l - vp;
+	vec2 half_ = vec2(d.x < 0.0 ? vp.x : 1.0 - vp.x, d.y < 0.0 ? vp.y : 1.0 - vp.y);
+	float p = 1.0 - clamp(max(abs(d.x) / max(half_.x, 0.01), abs(d.y) / max(half_.y, 0.01)), 0.0, 1.0);
+	vec4 t = texture(TEXTURE, UV - shift * p);
+	COLOR = t * t * tint;   // the facade's blur shader also multiplies the picture in twice: match its tone
+	COLOR.a = t.a * tint.a;
+}
+"""
+const DEEP_VP := {"alley": Vector2(0.52, 0.55), "laundry": Vector2(0.6, 0.5), "subway": Vector2(0.62, 0.5)}   # in the opening
 const DEEP_SHADER := """
 shader_type canvas_item;
 uniform vec4 box;       // the deep part, in the texture's UV: x, y, width, height
@@ -1265,7 +1291,31 @@ var _room_tops: Array = []   # [x0, x1, y of the ceiling] of each interior   # t
 
 ## The street as a run of different drawn segments, each with its own buildings and a view into the
 ## depth between them; the sky and the distant city show through the gaps.
+## Where two street drawings meet, one often ends in a wall right at its edge and the next begins with sky or
+## another front (gen/tests/audit_maps.py ranks them): a soft shadow down the join reads as the dark gap between
+## two buildings and hides the hard cut (user 16. 11.: smoke cut off at one drawing's end, a wall begun on the next).
+const SEAM_SHADE := 230.0   # half-width of the shadow, px
+const SEAM_DARK := 0.82
+func _seam_shades() -> void:
+	var st: Array = level["street"]
+	for i in range(1, st.size()):
+		var x := float(st[i][1])
+		var top := -3200.0
+		var foot := -WALL_LIFT - 10.0
+		var poly := Polygon2D.new()
+		poly.polygon = PackedVector2Array([Vector2(x - SEAM_SHADE, top), Vector2(x, top), Vector2(x + SEAM_SHADE, top),
+				Vector2(x + SEAM_SHADE, foot), Vector2(x, foot), Vector2(x - SEAM_SHADE, foot)])
+		var c0 := Color(0, 0, 0, 0)
+		var c1 := Color(0, 0, 0, SEAM_DARK)
+		poly.vertex_colors = PackedColorArray([c0, c1, c0, c0, c1, c0])
+		poly.polygons = [PackedInt32Array([0, 1, 4, 5]), PackedInt32Array([1, 2, 3, 4])]
+		poly.z_index = -9
+		poly.light_mask = 0
+		add_child(poly)
+
+
 func _build_segments() -> void:
+	pass   # (seam shades tried 16. 11.: over open sky they read as a black pole - the street order fixes the joins instead)
 	var halo_tex := _soft_glow()
 	var additive := CanvasItemMaterial.new()
 	additive.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
@@ -1440,7 +1490,7 @@ func _build_segments() -> void:
 # Only views whose ground ends inside the cut-out (a closed alley, a yard): where a road or tram tracks
 # run on out of it (warehouse, market), a sliding far end breaks them at the cut, so those stay put.
 const DEEP_SPLIT := {"alley": [0.3, 0.74], "laundry": [0.42, 1.0], "subway": [0.32, 1.0]}
-const DEEP_SLIDE := 0.12   # how far the far end slides per pixel the camera stands off the alley's mouth
+const DEEP_SLIDE := 0.17   # how far the far end slides per pixel the camera stands off the alley's mouth
 const DEEP_LIFT := 0.02     # and how much it rises and falls with the camera
 
 func _add_deep(tex: Texture2D, facade: Sprite2D, r: Rect2, trim: float, seg_name := "") -> void:
@@ -1453,23 +1503,23 @@ func _add_deep(tex: Texture2D, facade: Sprite2D, r: Rect2, trim: float, seg_name
 	# (an even stretch, a shear), so a straight line in it stays straight: no warp bends a lamp post.
 	if not DEEP_SPLIT.has(seg_name):
 		return
+	var poly := Polygon2D.new()
+	poly.texture = tex
+	poly.uv = PackedVector2Array([px.position, Vector2(px.end.x, px.position.y), px.end, Vector2(px.position.x, px.end.y)])
+	poly.polygon = PackedVector2Array([world.position, Vector2(world.end.x, world.position.y), world.end, Vector2(world.position.x, world.end.y)])
+	var mat := ShaderMaterial.new()
+	var sh := Shader.new()
+	sh.code = DEEP_PERSPECTIVE
+	mat.shader = sh
+	mat.set_shader_parameter("box", Vector4(r.position.x, r.position.y, r.size.x, r.size.y))
 	var cut: Array = DEEP_SPLIT[seg_name]
-	var xs := [0.0, float(cut[0]), float(cut[1]), 1.0]
-	var pieces: Array = []
-	for k in 3:
-		if float(xs[k + 1]) - float(xs[k]) < 0.01:
-			continue
-		var poly := Polygon2D.new()
-		poly.texture = tex
-		var u0: float = px.position.x + px.size.x * float(xs[k])
-		var u1: float = px.position.x + px.size.x * float(xs[k + 1])
-		poly.uv = PackedVector2Array([Vector2(u0, px.position.y), Vector2(u1, px.position.y), Vector2(u1, px.end.y), Vector2(u0, px.end.y)])
-		poly.modulate = facade.modulate
-		poly.material = facade.material
-		poly.z_index = facade.z_index
-		add_child(poly)
-		pieces.append({"poly": poly, "a": k, "b": k + 1})
-	deeps.append({"pieces": pieces, "world": world, "xs": xs, "center": world.get_center()})
+	mat.set_shader_parameter("vp", DEEP_VP.get(seg_name, Vector2((float(cut[0]) + float(cut[1])) * 0.5, 0.5)))
+	mat.set_shader_parameter("shift", Vector2.ZERO)
+	poly.material = mat
+	poly.modulate = facade.modulate
+	poly.z_index = facade.z_index
+	add_child(poly)
+	deeps.append({"mat": mat, "world": world, "center": world.get_center(), "uv": r.size, "size": size})
 	_tick_one_deep(deeps[deeps.size() - 1], Vector2.ZERO)
 
 
@@ -1484,27 +1534,11 @@ func _tick_deep() -> void:
 
 
 func _tick_one_deep(dp: Dictionary, off: Vector2) -> void:
+	# the far end lags behind the camera: in world px, then into the texture's UV (at most a third of the opening)
 	var w: Rect2 = dp["world"]
-	var xs: Array = dp["xs"]
-	# the inner edges (where a wall meets the far end) move; the mouth of the alley stays put
-	var room := w.size.x
-	for k in [1, 2]:
-		if float(xs[k]) > 0.0 and float(xs[k]) < 1.0:   # a wall on that side: it can give up to 70% of its width
-			var wall: float = (float(xs[k]) if k == 1 else 1.0 - float(xs[k])) * w.size.x
-			room = minf(room, wall * 0.7)
-	var s := clampf(off.x * DEEP_SLIDE, -room, room)
-	var v := clampf(off.y * DEEP_LIFT, -14.0, 14.0)
-	var edge := func(k: int) -> Array:   # x of that boundary, and how far it rises
-		var x: float = w.position.x + w.size.x * float(xs[k])
-		var moves: bool = k > 0 and k < 3 and float(xs[k]) > 0.0 and float(xs[k]) < 1.0
-		if k > 0 and k < 3 and not moves and (float(xs[1]) > 0.0 or float(xs[2]) < 1.0):
-			moves = false
-		return [x + (s if moves else 0.0), v if moves else 0.0]
-	for pc in dp["pieces"]:
-		var a: Array = edge.call(int(pc["a"]))
-		var b: Array = edge.call(int(pc["b"]))
-		(pc["poly"] as Polygon2D).polygon = PackedVector2Array([Vector2(a[0], w.position.y + a[1]), Vector2(b[0], w.position.y + b[1]),
-				Vector2(b[0], w.end.y + b[1]), Vector2(a[0], w.end.y + a[1])])
+	var lag := Vector2(clampf(off.x * DEEP_SLIDE, -w.size.x * 0.33, w.size.x * 0.33), clampf(off.y * DEEP_LIFT, -w.size.y * 0.1, w.size.y * 0.1))
+	var uv: Vector2 = dp["uv"]
+	(dp["mat"] as ShaderMaterial).set_shader_parameter("shift", Vector2(lag.x / w.size.x * uv.x, lag.y / w.size.y * uv.y))
 
 
 ## The drawing under a point, whose solid parts a stain there is clipped to (null: none).
@@ -2734,6 +2768,8 @@ func _auto_step(delta: float) -> void:
 		if not fight and _section_dir() != 0.0:   # up through a building: each storey the other way
 			hud.move = _section_dir()
 			var bf := _flat_at_storey(_ground_y)
+			if not bf.is_empty() and not bf["open"] and move_state == "ground" and player.position.x > float(bf["hinge"]) - float(bf["dw"]) - FLAT_KICK_FROM:
+				hud.dive_tapped = true   # the bot kicks the shut door in, as a player would: a dive into it
 			if not bf.is_empty() and bf["open"] and move_state == "ground" and player.position.x > float(bf["wx0"]) - 330.0 and _section_at(player.position) >= 0:
 				hud.dive_tapped = true   # out of the window
 			for d in _stairdoors:   # and up the stairs in the back wall when he gets to them
@@ -3672,7 +3708,7 @@ func _auto_step(delta: float) -> void:
 			var at: PackedStringArray = xs[k].split("@")   # x@y: standing on whatever floor is under that height
 			var feet := float(at[1]) if at.size() > 1 else -2000.0
 			player.position = Vector2(float(at[0]), _floor_at(float(at[0]), feet))
-			cam.position = Vector2(player.position.x + _lead, CAM_Y + _cam_rise(player.position.y))
+			cam.position = Vector2(player.position.x + (0.0 if OS.get_cmdline_user_args().has("--center") else _lead), CAM_Y + _cam_rise(player.position.y))
 		if OS.get_cmdline_user_args().has("--skydebug") and fmod(_at, 2.6) > 2.2 and _auto_done & (1 << (k + 8)) == 0:
 			_auto_done |= 1 << (k + 8)
 			var view := get_viewport().get_canvas_transform().affine_inverse() * get_viewport().get_visible_rect()
@@ -3684,6 +3720,8 @@ func _auto_step(delta: float) -> void:
 				var r := sp.get_global_transform() * sp.get_rect()
 				if r.intersects(sky_band):
 					print("SKY ", sp.get_path(), " ", sp.texture.resource_path, " z ", sp.z_index, " mod ", sp.modulate, " mat ", sp.material)
+		if OS.get_cmdline_user_args().has("--center"):   # gen/tests/audit_maps.py: the seam right in the middle
+			cam.position.x = float(xs[k].split("@")[0])
 		if OS.get_cmdline_user_args().has("--high"):   # the camera as high as a jump off a stack takes it
 			cam.position.y = CAM_Y - 330.0
 		if fmod(_at, 2.6) > 2.3 and _auto_done & (1 << k) == 0:
@@ -4178,7 +4216,10 @@ func _block(before_x: float) -> void:
 	var si := _section_at(Vector2(before_x, player.position.y))
 	if si >= 0:   # a building's outer walls: the street door on the ground floor's left is the only way out
 		var sec: Array = sections[si]
-		if not _through_window():
+		var fw := _flat_at_storey(_ground_y)
+		if not fw.is_empty() and not _through_window():   # the flat's end wall: up to its window's inner face
+			player.position.x = minf(player.position.x, float(fw["wx0"]) - 60.0)
+		elif fw.is_empty():
 			player.position.x = minf(player.position.x, float(sec[1]) - (SEC_KIT_WALL.y - SEC_KIT_WALL.x) * section_h / SEC_KIT_ROWS - 40.0 if _section_kit() else float(sec[1]) - 70.0)
 		if player.position.y < -40.0:
 			player.position.x = maxf(player.position.x, float(sec[0]) + 70.0)
@@ -5937,7 +5978,10 @@ func _build_section_kit(x0: float, x1: float, storeys: int, holder: Node2D, styl
 		storey.modulate = Color(ROOM_BASE, ROOM_BASE, ROOM_BASE, 1.0)
 		holder.add_child(storey)
 		for i in 2:
-			storey.add_child(_kit_piece(String(lay[i]), Rect2(0.0, 0.0, SEC_KIT_W, SEC_KIT_ROWS), Vector2(start + i * SEC_KIT_W * s, top), s, false))
+			var piece := _kit_piece(String(lay[i]), Rect2(0.0, 0.0, SEC_KIT_W, SEC_KIT_ROWS), Vector2(start + i * SEC_KIT_W * s, top), s, false)
+			storey.add_child(piece)
+			if String(lay[i]) == "tenement_flat":   # its window bursts: swapped for the drawing with the empty hole
+				_flat_art.append([-section_h * k, piece])
 			var front := "tenement_facade_ground" if k == 0 and i == 0 else "tenement_facade"
 			facade.add_child(_kit_piece(front, Rect2(0.0, 0.0, SEC_KIT_W, SEC_KIT_ROWS), Vector2(start + i * SEC_KIT_W * s, top), s, false))
 		var cap := Rect2(0.0, 0.0, SEC_KIT_WALL.y, SEC_KIT_ROWS)
@@ -6095,11 +6139,7 @@ func _build_flats() -> void:
 		var dw := h * dtex.get_width() / dtex.get_height()
 		var wx0 := float(fl[3])
 		var wx1 := float(fl[4])
-		var glass := Polygon2D.new()   # the sash sits in the outer wall, which we see cut through: a card turned into it
-		glass.texture = load("res://art/section/flat_glass.png")
-		glass.z_index = -2
-		glass.color = Color(ROOM_BASE, ROOM_BASE, ROOM_BASE, 1.0)
-		glass.visible = false
+		var glass := Node2D.new()   # (the glazed window is painted in the flat's drawing, art_src 227)
 		add_child(glass)
 		_flats.append({"x": float(fl[0]), "hinge": hinge, "y": y, "h": h, "door": door, "dw": dw, "open": false,
 				"glass": glass, "gx": (wx0 + wx1) * 0.5, "wx0": wx0, "wx1": wx1, "sill": float(fl[5]), "lintel": float(fl[6]), "broken": false})
@@ -6121,7 +6161,6 @@ func _build_flats() -> void:
 		add_child(sp)
 	for f in _flats:
 		_door_card(f, 0.0, 0.0, Vector2.ZERO)
-		_window_card(f)
 
 
 ## The window as a card in the outer wall's plane: the sash's face turned WIN_YAW away from us round its inner
@@ -6214,16 +6253,13 @@ func _flat_at_storey(y: float) -> Dictionary:
 	return {}
 
 
-## The shut door stops him. Running at it he throws himself into a flying kick (a dive) a step before it; the
-## kick meets the door: the picture stops for a beat, CRACK, splinters, and the door goes in.
+## The shut door stops him. The player kicks it in himself: a dive or a slide into it (never automatic, user
+## 16. 11.); the kick meets the door: the picture stops for a beat, CRACK, splinters, and the door goes in.
 func _flat_door_block(before_x: float) -> void:
 	var f := _flat_at_storey(_ground_y)
 	if f.is_empty() or f["open"] or absf(player.position.y - float(f["y"])) > 60.0:
 		return
 	var face := float(f["hinge"]) - float(f["dw"]) - 30.0
-	if move_state == "ground" and absf(run) > 250.0 and signf(run) > 0.0 and player.position.x > face - FLAT_KICK_FROM and player.position.x < face:
-		_start_dive(1.0, 1.0, DIVE_SPEED.y * 0.55, true)   # a flying kick into it
-		return
 	if before_x <= face + 1.0 and player.position.x > face:
 		if move_state in ["dive", "slide"] or absf(glide) > 200.0:
 			_kick_door(f)
@@ -6306,15 +6342,15 @@ func _knock_down(e: Dictionary, push: float) -> void:
 ## Through the flat's window: only in the air (the sill is above the boards); the glass bursts out with him.
 func _through_window() -> bool:
 	var f := _flat_at_storey(_ground_y)
-	if f.is_empty() or move_state == "ground" or player.position.x < float(f["wx0"]) - 140.0:
+	if f.is_empty() or move_state == "ground" or player.position.x < float(f["wx0"]) - 70.0:
 		return false
 	if player.position.y > float(f["y"]) + 10.0:
 		return false
 	if not f["broken"]:
 		f["broken"] = true
-		(f["glass"] as Polygon2D).queue_free()   # nothing left in the frame: all of it goes out with him
-		f["glass"] = Node2D.new()
-		add_child(f["glass"])
+		for fa in _flat_art:   # nothing left in the frame: all of it goes out with him
+			if absf(float(fa[0]) - float(f["y"])) < 10.0:
+				(fa[1] as Sprite2D).texture = BigTex.get_tex("res://art/section/tenement_flat_open.png")
 		var mid := Vector2(float(f["gx"]), float(f["y"]) - (float(f["sill"]) + float(f["lintel"])) * 0.5)
 		_impact(0.06, 0.05)
 		_word(["crash", "smash"], mid + Vector2(60.0, -200.0), 0.24, Vector2.RIGHT)
