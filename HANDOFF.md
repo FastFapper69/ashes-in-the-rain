@@ -190,3 +190,12 @@ Read this first when picking the project up in a new chat. Reply to the user in 
 - Nový level ve hře: hud.level_up(n) = malá páska nahoře na 1,8 s (dřív banner uprostřed zůstával).
 - POZOR pro Basis větev: sheets.png se čte přes get_image (díry od kulek) → nesmí být Basis.
 - Testy: --test=neondrop, storm, rock, sea, steam, rats, freight, flood, girder, levelup.
+
+## 2026-11-16 (3) – Basis všude + technická čistka (tento chat převzal větev basis-textures)
+- Kód z `basis-textures` (8a9190e) je v main a nasazený; větev už není potřeba. gen/basis_imports.py zahrnuje i nové kresby (fire_d–g, yard_c, tunnel_c) a rekvizity map (oříznuté na násobky 4, ne sheets.png – čte se get_image).
+- Postavy, efekty a lampy (gen/lowres_paths.txt, 140 souborů) se importují v POLOVIČNÍ velikosti a LowRes.tex je jen obalí přes BigTex (velikost z big_sizes.gd) – telefon už nedekóduje plné kresby a nezmenšuje je CPU při načtení (hráč 443→93 ms, efekty 597→136 ms na PC). Výjimky (načítané i přímo): blood*, puff*, hole*, spark1, bulb_broken, fire/*, light_blob, crate, crate_long. puppet.hat_hit přepočítává pixel na poloviční obrázek. Nová kresba čtená přes LowRes → přidat do gen/lowres_paths.txt (nebo ne, pokud se načítá i přímo) a spustit gen/basis_imports.py.
+- Menu: nečeká na pack kapitoly (dřív stáhlo až 68 MB před titulkem) – když pack chybí, postaví se za titulkem ulice 1931 z base packu; v menu se staví jen 2 kresby ulice bez nepřátel/místností (svět je stejně schovaný za key artem).
+- Base pack 86 → 51 MB: nepoužité art/bg/far, mid, fore, wall2* vyřazené z exportu (gen/packs.py NEVER), rekvizity jen jedné kapitoly v jejím packu (EXTRA), key_87/burst/gunsmith/sheets/skirt/fire lossy. Packy: a 68, b 25, c 40 MB (Basis je větší ke stažení, ale ~40 % méně paměti textur).
+- Zvuky: všechny wav > 1,5 s na 22 kHz mono (14 → 8,7 MB PCM), fire.ogg 22 kHz.
+- --timing vypíše časy stavby stránky; _shot ukládá do user://_shots, když je res:// jen pro čtení (test s --main-pack).
+- Web (Chrome, vestavěný prohlížeč): žádné chyby komprimovaných textur; v konzoli jsou WebGL varování „bufferSubData: no buffer / element array buffers“ (Godot 2D meshe), nejsou nová z této změny ověřena.
