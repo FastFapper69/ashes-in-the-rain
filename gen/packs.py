@@ -17,7 +17,7 @@ src = open('levels.gd').read()
 src = src.split('const SANDBOX')[0]   # trial maps use chapter I drawings: they add nothing to the packs
 chapters = re.split(r'\n\t\{"title": ', src)[1:]
 files = collections.defaultdict(set)   # path -> groups
-for f in sorted(set(glob.glob('art/street/*.png') + glob.glob('art/rooms/**/*.png', recursive=True))):
+for f in sorted(set(x.replace(os.sep, '/') for x in glob.glob('art/street/*.png') + glob.glob('art/rooms/**/*.png', recursive=True))):   # (/ on Windows too)
     stem = os.path.basename(f)[:-4]
     base = re.sub(r'_(lit|solid|neon\d|n)$', '', stem)
     for i, c in enumerate(chapters):
@@ -57,7 +57,7 @@ cfg = open('export_presets.cfg').read()
 cfg = cfg[:cfg.index('[preset.1]')] if '[preset.1]' in cfg else cfg
 base_ex = 'art_src/*,art/_src/*,_shots/*,gen/*,build/*'
 allg = [f for g in sorted(groups) for f in groups[g]]
-cfg = re.sub(r'exclude_filter="[^"]*"', 'exclude_filter="%s"' % ','.join([base_ex] + allg + NEVER), cfg, count=1)
+cfg = re.sub(r'exclude_filter="[^"]*"', lambda _m: 'exclude_filter="%s"' % ','.join([base_ex] + allg + NEVER), cfg, count=1)
 cfg = cfg.rstrip('\n') + '\n'
 for k, g in enumerate(sorted(groups)):
     lst = ', '.join('"res://%s"' % f for f in groups[g])
