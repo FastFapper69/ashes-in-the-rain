@@ -153,6 +153,29 @@ func banner(text: String) -> void:
 	tw.parallel().tween_property(b, "modulate:a", 1.0, 0.12)
 
 
+## A level reached mid-fight (2026-11-16): a small paper tag up at the top between the gun card and
+## the pause button, never over the street, gone again in under two seconds.
+func level_up(n: int) -> void:
+	var Paper = load("res://paper.gd")
+	var head := FontVariation.new()
+	head.base_font = load("res://fonts/Oswald.ttf")
+	head.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): 600}
+	var view := get_viewport().get_visible_rect().size
+	var text := "LEVEL %d" % n
+	var fs := 30
+	var w := head.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + 200.0
+	var b: Control = Paper.sheet("tape", Vector2(w, 66.0))
+	Paper.write(b, text, head, fs, Paper.INK)
+	b.position = Vector2((view.x - b.size.x) * 0.5, -b.size.y - 10.0)
+	b.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(b)
+	var tw := b.create_tween()
+	tw.tween_property(b, "position:y", 22.0, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(1.3)
+	tw.tween_property(b, "position:y", -b.size.y - 10.0, 0.25).set_ease(Tween.EASE_IN)
+	tw.tween_callback(b.queue_free)
+
+
 const PAPER := Color(0.93, 0.89, 0.8)
 const INK := Color(0.05, 0.05, 0.06)
 var _boss_box: Control

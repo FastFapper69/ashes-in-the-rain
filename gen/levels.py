@@ -574,7 +574,7 @@ PROLOGUE = {"name": "THE LAST NOTE", "seed": 1, "feature": "bluenote", "pool": [
 CAMPAIGN = [
   {"title": "PROLOGUE", "name": "EDDIE DOYLE", "ready": True, "hero": "eddie", "ambient": [0.2, 0.21, 0.27], "rain": 1.2, "maps": [PROLOGUE]},
   {"title": "CHAPTER I", "name": "RAIN ON HELL'S KITCHEN", "ready": True, "hero": "frank", "ambient": [0.2, 0.21, 0.27], "rain": 1.0, "maps": [
-    {"name": "THE ALLEY", "seed": 101, "feature": "alley", "start": 0.0, "end": 0.35,
+    {"name": "THE ALLEY", "seed": 101, "neon_drop": True, "feature": "alley", "start": 0.0, "end": 0.35,
      "fixed": ["crate_cover", "drum_duo", "dumpster_alley", "fire_escape", "barrel_trap", "crate_cover", "pistols_cache", "ambush_behind", "gauntlet"],
      "intro": ["The shooters hadn't gone far. Rain doesn't wash a trail away that fast.", "Eddie had left a trail too: pages torn from his diary, nailed up where only I would look."],
      "diary": "Nov 3. Rosie showed me Tommy's photo again. Eleven men burned in '39 and the papers called it bad wiring. Bad wiring doesn't lock doors from the outside.",
@@ -589,7 +589,7 @@ CAMPAIGN = [
      "intro": ["Steam, starch and gun oil.", "Nobody washes shirts at three in the morning."],
      "diary": "Nov 20. Insurance paid out $400,000 to a company owned by a company owned by a church charity. The Saint's charity.",
      "outro": ["A receipt in the back room, signed M. T.", "The back door led up. They always lead up."]},
-    {"name": "TENEMENTS", "seed": 104, "start": 0.45, "end": 0.7,
+    {"name": "TENEMENTS", "seed": 104, "start": 0.45, "end": 0.7, "storm": True,
      "fixed": ["tenement", "ambush_behind", "fire_escape", "car_ambush", "breather", "barrel_trap", "tenement", "gauntlet", "scaffold"],
      "roof": True, "roofs": ["roof_b", "roof_a"],
      "intro": ["Iron stairs, wet as a liar's palm."],
@@ -618,17 +618,17 @@ CAMPAIGN = [
      "intro": ["The cranes stood over the yard with their heads bowed, like men at a wake."],
      "diary": "Nov 29. A crane man named Sully told me Kessler had the keys that night. Sully drinks. Sully also cried when he said it.",
      "outro": ["A dock rat with a broken arm told me the rest for a dollar.", "The Santa Lucia. Kessler kept his ledgers aboard."]},
-    {"name": "SANTA LUCIA", "seed": 203, "feature": "quay", "pool": DOCKS_POOL, "start": 0.55, "end": 0.8, "ash": 0.7, "embers": 0.2,
+    {"name": "SANTA LUCIA", "seed": 203, "rock": True, "feature": "quay", "pool": DOCKS_POOL, "start": 0.55, "end": 0.8, "ash": 0.7, "embers": 0.2,
      "fixed": ["dock_crates", "crane_swing", "catwalk", "hold", "breather", "blackout", "gauntlet"],
      "intro": ["The Santa Lucia. Registered in Panama, owned in Manhattan, prayed for on Sundays."],
      "diary": "Dec 2. The Santa Lucia sails under the Saint's flag. Its manifest for August '39 lists eleven crates of 'machine parts'. Eleven.",
      "outro": ["The ledger had a page torn out. The stub said August 1939."]},
-    {"name": "CARGO HOLD", "seed": 204, "feature": "shipping", "pool": DOCKS_POOL, "start": 0.6, "end": 0.85, "ash": 0.8, "embers": 0.3,
+    {"name": "CARGO HOLD", "seed": 204, "rock": True, "feature": "shipping", "pool": DOCKS_POOL, "start": 0.6, "end": 0.85, "ash": 0.8, "embers": 0.3,
      "fixed": ["hold", "crane_swing", "dock_crates", "hold", "warehouse_arena", "searchlight_yard"],
      "intro": ["Down in the hold the rain sounded like applause for somebody else."],
      "diary": "Dec 5. Frank asked me why I keep at this. I said a reporter's job is to write down what everybody already knows. He didn't laugh.",
      "outro": ["Kessler ran for the harbor office. Men like him always run toward their paperwork."]},
-    {"name": "HARBOR MASTER", "seed": 205, "feature": "harbor", "pool": DOCKS_POOL, "start": 0.65, "end": 0.9, "boss": "kessler", "boss_room": "office", "ash": 1.0, "embers": 0.5,
+    {"name": "HARBOR MASTER", "seed": 205, "sea": True, "feature": "harbor", "pool": DOCKS_POOL, "start": 0.65, "end": 0.9, "boss": "kessler", "boss_room": "office", "ash": 1.0, "embers": 0.5,
      "fixed": ["dock_crates", "crane_swing", "breather", "searchlight_yard", "rush"],
      "intro": ["Bruno Kessler. Dock master since '38. He hadn't closed a door in eight years."],
      "diary": "Dec 12. If anything happens to me, the report is in the harbor office, second drawer. Frank, if you're reading this, then you already know that I know.",
@@ -648,12 +648,12 @@ CAMPAIGN = [
      "intro": ["The cuffs came off on the third stair. Thirty years of falling down stairs teaches a man something."],
      "diary": "Dec 13. Rourke called me into his office and asked about my 'little crusade'. He offered me a drink. He has never once offered me a drink.",
      "outro": ["Briggs's men knew the stations. I knew the tunnels. Eddie and I used to cut through them on bad nights."]},
-    {"name": "THE TUNNELS", "seed": 302, "feature": "tunnel_lo", "pool": UNDER_POOL, "under": True, "cops": True, "start": 0.55, "end": 0.8, "ash": 0.15,
+    {"name": "THE TUNNELS", "seed": 302, "steam": True, "rats": True, "feature": "tunnel_lo", "pool": UNDER_POOL, "under": True, "cops": True, "start": 0.55, "end": 0.8, "ash": 0.15,
      "fixed": ["blackout", "drum_duo", "train_platform", "cityhall", "ambush_behind", "blackout", "rush", "gauntlet"],
      "intro": ["Down here the dark has a sound. It sounds like trains that never come."],
      "diary": "Dec 14. Found a fireman's helmet in a pawnshop on Ninth. Engine 54. Same company as Frank's old man. The pawnbroker said a cop sold it. Years ago.",
      "outro": ["Briggs was counting his shells out loud somewhere behind me. A man who counts like that has never missed."]},
-    {"name": "TRAIN YARD", "seed": 303, "feature": "yard", "pool": ["yard", "yard_b", "yard_c"], "cops": True, "rain": 1.6, "start": 0.55, "end": 0.8, "ash": 0.4,
+    {"name": "TRAIN YARD", "seed": 303, "freight": True, "feature": "yard", "pool": ["yard", "yard_b", "yard_c"], "cops": True, "rain": 1.6, "start": 0.55, "end": 0.8, "ash": 0.4,
      "fixed": ["drum_duo", "car_ambush", "searchlight_yard", "crane_swing", "crate_cover", "blackout", "gauntlet"],
      "intro": ["The yard was the only way out that didn't have a badge standing in it."],
      "diary": "Dec 15. 1931. A tenement on West 47th burned with nine families inside. Engine 54 got there first. One fireman went in for the kids and didn't come out. Patrick Malone.",
@@ -664,7 +664,7 @@ CAMPAIGN = [
      "hints": [[2400, "RED LIGHT: A GIRDER. GET DOWN."]],
      "diary": "Dec 16. The fire marshal's 1931 report has a witness: a fireman who ran out before the roof came down. Declan Rourke. He was the first man out.",
      "outro": ["The train ran out of tunnel under the old Bowery. Under that, the Catacombs."]},
-    {"name": "THE CATACOMBS", "seed": 305, "feature": "bowery", "pool": UNDER_POOL, "under": True, "cops": True, "start": 0.6, "end": 0.9, "ash": 0.3,
+    {"name": "THE CATACOMBS", "seed": 305, "flood": True, "rats": True, "feature": "bowery", "pool": UNDER_POOL, "under": True, "cops": True, "start": 0.6, "end": 0.9, "ash": 0.3,
      "boss": "briggs", "boss_room": "catacombs",
      "fixed": ["crate_cover", "catacombs", "breather", "train_platform", "rush", "catacombs"],
      "intro": ["Lieutenant Harlan Briggs. Four Bronze Stars and not one bent dollar. The only honest man who ever hunted me."],
@@ -718,6 +718,8 @@ def gd(campaign):
             if lv.get("memory"): out.append('\t\t\t"memory": true,')
             if lv.get("el"): out.append('\t\t\t"el": true,')
             if lv.get("fog"): out.append('\t\t\t"fog": true,')
+            for flag in ["storm", "rock", "steam", "sea", "rats", "flood", "neon_drop", "freight"]:
+                if lv.get(flag): out.append('\t\t\t"%s": true,' % flag)
             if lv.get("moving"): out.append(f'\t\t\t"moving": {lv["moving"]},')
             if lv.get("cops"): out.append('\t\t\t"cops": true,')
             if m.roof:

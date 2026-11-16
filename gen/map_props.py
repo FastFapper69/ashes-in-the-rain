@@ -33,3 +33,26 @@ key('193.jpg', 'sheets.png', 2048)
 
 # art_src 195 -> art/props/girder.png: the steel girder across the last train's tunnel, end-on, on its hanger
 key('195.jpg', 'girder.png', 1536)
+
+# 2026-11-16, the rest of the map set pieces (mapfx.gd):
+key('196.jpg', 'neon_hotel.png', 900)      # the HOTEL sign over the alley
+key('197.jpg', 'boxcars.png', 2048)        # three freight cars for the train yard's far track
+key('198.jpg', 'rat.png', 400)             # a rat running left
+key('199.jpg', 'sewer_water.png', 2048)    # the catacombs' water, a band seen side-on
+key('200.jpg', 'wave.png', 1200)           # a wave breaking over the harbor quay
+
+
+def neon_glow():
+    # the lit tubes only: the hot pink of the drawing, for the additive glow that goes dark when it falls
+    a = np.asarray(Image.open(OUT + 'neon_hotel.png')).astype(float)
+    r, g, b = a[..., 0], a[..., 1], a[..., 2]
+    m = np.clip((r - g - 60) / 60, 0, 1) * np.clip((r - 150) / 60, 0, 1) * (a[..., 3] / 255)
+    rgba = np.dstack([np.full_like(r, 255), np.full_like(r, 120), np.full_like(r, 170), m * 200]).astype(np.uint8)
+    Image.fromarray(rgba, 'RGBA').save(OUT + 'neon_hotel_glow.png')
+
+
+neon_glow()
+# (the water: Gemini drew a second, greener band under the first; keep the top one only)
+_w = Image.open(OUT + 'sewer_water.png')
+_w = _w.crop((0, 0, _w.width, 327))
+_w.crop(_w.getbbox()).save(OUT + 'sewer_water.png')

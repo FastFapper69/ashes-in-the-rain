@@ -6,7 +6,7 @@ const DIR := "res://sfx/"
 const NAMES := ["shot_player", "shot_enemy", "shot_tommy", "shot_shotgun", "hit_flesh", "hit_cover", "clink", "casing",
 		"slow_in", "slow_out", "dive", "land", "body_fall", "step1", "step2", "whiz", "death_sting", "explosion", "glass",
 		"pickup", "drink", "flutter", "dry_fire", "reload_revolver", "reload_mag", "reload_shells", "reload_done",
-		"thunder", "coo", "wing", "knock", "foghorn", "cuffs", "drawer", "punch", "cup", "hammer", "toast", "creak", "resolve", "drip", "wood_break", "wood_hit", "zap", "type", "page", "skid", "phone_ring", "match", "sting", "car_arrive", "door", "power_down", "chain", "train_pass", "cyl_open", "shell_in", "cyl_spin", "collapse", "beams", "el_train", "train_horn", "cloth"]
+		"thunder", "coo", "wing", "knock", "foghorn", "cuffs", "drawer", "punch", "cup", "hammer", "toast", "creak", "resolve", "drip", "wood_break", "wood_hit", "zap", "type", "page", "skid", "phone_ring", "match", "sting", "car_arrive", "door", "power_down", "chain", "train_pass", "cyl_open", "shell_in", "cyl_spin", "collapse", "beams", "el_train", "train_horn", "cloth", "wave", "rats"]
 const LOOPS := ["train_loop", "fire", "neon_hum", "lamp_hum", "steam", "city", "heartbeat", "siren", "crowd", "water", "rain_in",
 		"music_base", "music_lead", "music_tension", "music_fight"]
 const STEMS := ["music_base", "music_lead", "music_tension", "music_fight"]   # all four run in step; only their levels move

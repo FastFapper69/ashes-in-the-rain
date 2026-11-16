@@ -1715,6 +1715,13 @@ func _tick_dream_sound() -> void:
 				fx.spark(at + Vector2(randf_range(-160.0, 160.0), randf_range(-260.0, -40.0)))
 
 
+## In the Catacombs' rising water (mapfx.gd flood) everybody on the floor wades: up to a third slower.
+func _wading(y: float) -> float:
+	if mapfx == null or mapfx.flood <= 0.0 or y < -40.0:
+		return 1.0
+	return 1.0 - 0.35 * clampf(mapfx.flood / mapfx.FLOOD_TOP, 0.0, 1.0)
+
+
 ## The sky: clouds drifting, and now and then lightning far off, the thunder a moment later.
 func _tick_sky(delta: float) -> void:
 	if _sky_mat == null:
@@ -3052,7 +3059,7 @@ func _auto_step(delta: float) -> void:
 		if _at > 4.0:
 			print("BAG weapon ", weapon, " bag ", _bag.keys())
 			get_tree().quit()
-	elif _auto in ["el", "fog", "oncoming", "sheets", "girder"]:   # the map set pieces (mapfx.gd, setpieces.gd), pictured as they happen
+	elif _auto in ["el", "fog", "oncoming", "sheets", "girder", "storm", "rock", "steam", "rats", "neon", "freight", "sea", "flood", "neondrop", "levelup"]:   # the map set pieces (mapfx.gd, setpieces.gd), pictured as they happen
 		hp = max_hp
 		_grace = 99.0
 		if _at < 0.05:
@@ -3062,6 +3069,20 @@ func _auto_step(delta: float) -> void:
 				mapfx._fog_phase = 2
 				mapfx._fog_t = 99.0
 				mapfx.fog = 1.0
+			elif _auto == "levelup":
+				hud.level_up(8)
+			elif _auto == "storm":
+				mapfx._storm_t = 0.3
+			elif _auto == "steam":
+				mapfx._steam_t = 0.3
+			elif _auto == "freight":
+				mapfx._freight_t = 0.3
+			elif _auto == "sea":
+				mapfx._wave_t = 0.6
+			elif _auto == "flood":
+				mapfx._flood_t = 200.0
+			elif _auto == "neondrop" and not mapfx._neon.is_empty():
+				player.position.x = (mapfx._neon["root"] as Node2D).position.x - 700.0
 			elif _auto == "girder":
 				sets._beam_t = 0.4
 				sets._oncoming_t = 99.0
@@ -3081,7 +3102,12 @@ func _auto_step(delta: float) -> void:
 			_fire(player, true)
 		shots = {"el": [[1.6, "el_0"], [2.4, "el_1"], [3.2, "el_2"]], "fog": [[1.2, "fog_0"], [2.5, "fog_1"]],
 			"oncoming": [[1.2, "onc_0"], [2.3, "onc_1"], [2.7, "onc_2"], [3.3, "onc_3"]], "sheets": [[0.6, "sheets_0"], [2.0, "sheets_1"]],
-			"girder": [[0.9, "girder_0"], [1.3, "girder_1"], [1.7, "girder_2"]]}[_auto]
+			"girder": [[0.9, "girder_0"], [1.3, "girder_1"], [1.7, "girder_2"]],
+			"storm": [[0.36, "storm_0"], [0.5, "storm_1"]], "rock": [[1.0, "rock_0"], [4.0, "rock_1"]], "steam": [[1.2, "steam_0"], [2.4, "steam_1"]],
+			"rats": [[0.5, "rats_0"], [1.0, "rats_1"]], "freight": [[3.0, "freight_0"], [5.0, "freight_1"]], "sea": [[0.95, "sea_0"], [1.3, "sea_1"]],
+			"flood": [[1.0, "flood_0"]], "neondrop": [[0.95, "neon_0"], [1.5, "neon_1"], [2.6, "neon_2"]], "levelup": [[0.6, "levelup_0"], [2.2, "levelup_1"]]}[_auto]
+		if _auto == "neondrop" and _at > 1.0 and _at < 1.05 and not mapfx._neon.is_empty():
+			mapfx._neon_drop()
 	elif _auto == "hat":   # the nearest mobster with a hat: a bullet through the hat (found by hat_hit), pictures as it flies and lands
 		hp = max_hp
 		_grace = 99.0
@@ -3649,7 +3675,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 	if move_state == "ground":
 		var crouched: bool = duck_held and player.dive < 0.05 and _pop == 0.0
 		player.duck = move_toward(player.duck, 1.0 if crouched else 0.0, delta * (11.0 if crouched else 10.0))
-		run = move_toward(run, dir * RUN_SPEED * (1.0 - player.dive) * (1.0 - 0.62 * player.duck), RUN_ACCEL * delta)
+		run = move_toward(run, dir * RUN_SPEED * (1.0 - player.dive) * (1.0 - 0.62 * player.duck) * _wading(player.position.y), RUN_ACCEL * delta)
 		glide = move_toward(glide, 0.0, delta * 1500.0)    # landed flat, he skids along the wet stones a while
 		player.position.x += (run + glide) * delta
 		player.air = move_toward(player.air, 0.0, delta * 8.0)
@@ -4368,7 +4394,7 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 				return true
 			_hit_box(i, pos)
 			return true
-	if from_player and sets.bullet(pos):
+	if from_player and (sets.bullet(pos) or mapfx.bullet(pos)):
 		return true
 	if from_player:
 		for k in _sticks.size():   # a stick of dynamite, hit: it goes up right there
@@ -4669,7 +4695,7 @@ func _gain_xp(n: int) -> void:
 	_xp_run += n
 	var now := Instincts.level_at(Instincts.xp() + _xp_run)
 	if now > before:
-		hud.banner("LEVEL %d" % now)
+		hud.level_up(now)
 		sfx.play("sting", -4.0)
 		crumb("level up %d" % now)
 
@@ -6910,7 +6936,7 @@ func _enemies(delta: float) -> void:
 			continue
 		if e["state"] == "run":   # running in to his spot, gun already on the detective; then he stands and fights
 			var way: float = signf(float(e["goal"]) - m.position.x)
-			m.position.x += way * RUNNER_SPEED * delta
+			m.position.x += way * RUNNER_SPEED * delta * _wading(m.position.y)
 			var aim_at: Vector2 = player.position + Vector2(0.0, SHOULDER.y) - (m.position + Vector2(0.0, SHOULDER.y))
 			m.set_state(way, aim_at, delta)
 			m.duck = move_toward(m.duck, 0.0, delta * 7.0)

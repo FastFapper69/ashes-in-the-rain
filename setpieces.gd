@@ -126,7 +126,7 @@ func lit(p: Vector2) -> bool:
 
 
 ## Kessler's smoke: a grey wall rolling out over the quay for a few seconds.
-func smoke(at: Vector2) -> void:
+func smoke(at: Vector2, steam := false) -> void:
 	var p := CPUParticles2D.new()
 	p.texture = load("res://art/fx/puff3.png")   # inked puffs, the same as the street's steam (the round flame blob read as white discs)
 	p.angle_min = 0.0
@@ -161,8 +161,19 @@ func smoke(at: Vector2) -> void:
 	p.color_ramp = g
 	p.modulate = game._undo_night(0.35)
 	p.z_index = 4
+	if steam:   # a burst pipe (mapfx.gd): white, out of the roof and down, with its own hiss
+		p.position = at + Vector2(0.0, -700.0)
+		p.direction = Vector2(0.0, 1.0)
+		p.spread = 50.0
+		p.gravity = Vector2(10.0, 60.0)
+		p.initial_velocity_min = 300.0
+		p.initial_velocity_max = 650.0
+		p.emission_rect_extents = Vector2(70.0, 20.0)
+		g.set_color(0, Color(0.95, 0.95, 0.93, 0.0))
+		g.set_color(1, Color(0.9, 0.9, 0.88, 0.75))
+		p.modulate = game._undo_night(0.6)
 	add_child(p)
-	game.sfx.play("slow_out", -4.0, at.x, 0.1)   # the hiss of the canister
+	game.sfx.play("steam" if steam else "slow_out", 2.0 if steam else -4.0, at.x, 0.1)   # the hiss of the canister / the pipe
 	_smokes.append([at, _t + 7.0])
 	get_tree().create_timer(4.5, false).timeout.connect(func() -> void: p.emitting = false)
 	get_tree().create_timer(9.5, false).timeout.connect(p.queue_free)
