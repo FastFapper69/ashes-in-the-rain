@@ -46,6 +46,7 @@ const CutsceneScript = preload("res://cutscene.gd")
 const DiaryScript = preload("res://diary.gd")
 const SetpiecesScript = preload("res://setpieces.gd")
 const MapFxScript = preload("res://mapfx.gd")
+const Barks = preload("res://barks.gd")
 const LoadingScript = preload("res://loading.gd")
 const PauseScript = preload("res://pause.gd")
 const SettingsScript = preload("res://settings.gd")
@@ -343,7 +344,15 @@ var _flank_called := false
 var _behind_at := -99.0        # when a man was last sent round behind the detective (_send_round)
 var _crate_shooters := 0       # men shooting at his crate this frame (no more than two at once)
 var _crate_called := false
-var _aic := -1   # (--test=aicover: the crate he hides behind)
+var _aic := -1
+var _bark_t := -9.0          # when a mobster last shouted something (barks.gd): one voice at a time
+var _bark_last := {}
+var _bark_at := {}           # when each kind was last heard
+const BARK_GAP := {"empty": 18.0, "spot": 5.0, "reload": 7.0, "cover": 6.0, "taunt": 14.0, "crate": 10.0, "flank": 8.0}         # the last line used of each kind, so none comes twice running
+var _names := []             # the names given out on this map
+var _fallen := []            # [name, x, time] of the men shot on this map, for the last one to call for
+var _taunt_t := 0.0
+var _prop_groups := []   # (--test=props)   # (--test=aicover: the crate he hides behind)
 var _grace := 3.0             # seconds after a start or a checkpoint before anybody may fire
 var _vault := {}              # the speed vault in progress: from, to, top, t
 var glide := 0.0               # horizontal speed of a dive
@@ -3511,6 +3520,34 @@ func _auto_step(delta: float) -> void:
 			_auto_done |= 1 << k
 			_shot("look_%d" % k)
 		return
+	elif _auto == "props":   # every group of cover on the map, seen wide: does it make sense where it stands?
+		hud.visible = false
+		if _at < 0.05:
+			for e in enemies:
+				e["node"].position.x += 90000.0
+				e["goal"] = e["node"].position.x
+			_prop_groups = []
+			var xs := []
+			for bx in boxes:
+				if bx.end.y > -5.0:
+					xs.append(bx.get_center().x)
+			xs.sort()
+			for x in xs:
+				if _prop_groups.is_empty() or x - float(_prop_groups[-1]) > 1900.0:
+					_prop_groups.append(x)
+		var k := int(_at / 0.5)
+		if k < _prop_groups.size():
+			var x: float = float(_prop_groups[k]) + 700.0
+			player.position = Vector2(x - 900.0, _floor_at(x - 900.0, -3000.0))
+			move_state = "ground"
+			cam.position = Vector2(x, CAM_Y - 150.0)
+			cam.zoom = Vector2.ONE * 0.62
+			if fmod(_at, 0.5) > 0.4 and _auto_done & (1 << k) == 0:
+				_auto_done |= 1 << k
+				_shot("props_%d_%d_%02d_%d" % [chapter, map, k, int(x)])
+		else:
+			get_tree().quit()
+		return
 	elif _auto == "rooms":   # each drawing of the street as he walks through it, one picture each, enemies away
 		var segs: Array = level["street"]
 		var k := int(_at / 1.2)
@@ -4164,6 +4201,10 @@ func _start_reload() -> void:
 		return
 	var dur := float(WEAPONS[weapon]["reload"]) * (0.67 if _perk("fasthands") else 1.0)
 	reloading = dur
+	if mag == 0 and randf() < 0.45:   # (an empty gun heard clicking, not a top-up)
+		var near = _nearest_enemy()
+		if near != null and _on_screen(near.position) and _same_floor(near):
+			_bark(near, "empty")
 	var missing := full - mag
 	var later := func(t: float, what: Callable) -> void:
 		get_tree().create_timer(t, false).timeout.connect(func() -> void:
@@ -4432,7 +4473,7 @@ func _enemy_fire(e: Dictionary) -> void:
 			sfx.play("dry_fire", -4.0, m.position.x)
 			_word(["click"], m.position + Vector2(0.0, -560.0), 0.14)
 			if randf() < 0.5 and not e["boss"]:
-				_say(m, "RELOADING!")
+				_bark(m, "reload")
 			sfx.play("reload_mag" if String(e["type"]) != "post" else "reload_revolver", -6.0, m.position.x))
 		e["cool"] = t + randf_range(2.2, 2.8)
 
@@ -4770,14 +4811,12 @@ func _kill(e: Dictionary, head: bool, quiet := false, part := "") -> void:
 		_add_pickup(String(e["type"]), m.position)
 	elif randf() < 0.12:
 		_add_pickup("flask", m.position)
+	_fallen.append([String(e.get("name", "")), m.position.x, _ai_t])
 	if e.get("role", "") == "lead":   # the man who gave the orders is down: the rest falter
-		var said := false
 		for o in enemies:
 			if o["alive"] and o != e and absf(o["node"].position.x - m.position.x) < GROUP:
 				o["shaken"] = true
-				if not said and o["state"] != "give":
-					said = true
-					_say(o["node"], ["THEY GOT SAL!", "VINNIE'S DOWN!", "WHO'S CALLING IT NOW?"].pick_random())
+	_witness(e, m)
 	_morale(m.position, head or slow_on)
 
 
@@ -4858,6 +4897,15 @@ func _morale(at: Vector2, ugly: bool) -> void:
 				others += 1
 		if others > 0:
 			continue
+		if not e2.get("alone_said", false):
+			e2["alone_said"] = true
+			var gone := ""
+			for f in _fallen:
+				if absf(float(f[1]) - p2.x) < GROUP * 1.3 and String(f[0]) != "":
+					gone = String(f[0])
+			get_tree().create_timer(0.9, false).timeout.connect(func() -> void:
+				if e2["alive"] and e2["state"] != "give":
+					_bark(e2["node"], "alone", gone, true))
 		var chance := 1.0 if int(e2["hp"]) < mob_hp else (0.65 if ugly else 0.4) + (0.25 if e2.get("shaken", false) else 0.0) + (0.25 if _perk("voice") else 0.0)
 		if randf() < chance:
 			_give_up(e2, 0.55)
@@ -5981,6 +6029,8 @@ func _add_enemy(at: Vector2, kind: String, state: String, goal_x: float) -> Dict
 		e["shield"] = -1.0
 		e["shells"] = 5
 		e["reload_t"] = 0.0
+	if kind != "boss":
+		e["name"] = _new_name()
 	enemies.append(e)
 	return e
 
@@ -6728,6 +6778,68 @@ func _glint(m) -> void:
 
 
 ## Words over somebody's head: Briggs counting his shells out loud.
+## A name for a new man, not yet used on this map.
+func _new_name() -> String:
+	var free: Array = Barks.NAMES.filter(func(n): return not _names.has(n))
+	if free.is_empty():
+		_names.clear()
+		free = Barks.NAMES.duplicate()
+	var n: String = free.pick_random()
+	_names.append(n)
+	return n
+
+
+## One of the lines of a kind (barks.gd) over a man's hat. `who` fills {n}; lines that need a name are
+## left out when there is none. One voice at a time: a line that is not urgent waits its turn by being
+## dropped (they are many; silence is better than a chorus).
+func _bark(m, kind: String, who := "", urgent := false) -> void:
+	if m == null or _unreal() or _stand:
+		return
+	for o in enemies:   # the bosses have their own words
+		if o["node"] == m and o["boss"]:
+			return
+	if _ai_t - _bark_t < (0.6 if urgent else 1.6) or _ai_t - float(_bark_at.get(kind, -99.0)) < float(BARK_GAP.get(kind, 0.0)):
+		return
+	_bark_at[kind] = _ai_t
+	var lines: Array = Barks.LINES[kind].filter(func(l: String): return who != "" or not l.contains("{n}"))
+	if lines.size() > 1:
+		lines = lines.filter(func(l: String): return l != String(_bark_last.get(kind, "")))
+	if who != "" and randf() < 0.75:   # a name in it, when there is one, most of the time
+		var named: Array = lines.filter(func(l: String): return l.contains("{n}"))
+		if not named.is_empty():
+			lines = named
+	var line: String = lines.pick_random()
+	_bark_last[kind] = line
+	_bark_t = _ai_t
+	var hero := "DOYLE" if String(Levels.CAMPAIGN[chapter]["hero"]) == "eddie" else "MALONE"
+	_say(m, line.format({"n": who, "p": hero}))
+
+
+## A man is shot: the nearest of his own who can see it says so, by name. He is angry: he fires sooner.
+func _witness(dead: Dictionary, dm) -> void:
+	if _all_down():
+		return
+	var best = null
+	var best_d := 1800.0
+	for o in enemies:
+		if not o["alive"] or o == dead or o["boss"] or o["state"] in ["give", "wait", "around", "down"]:
+			continue
+		var on = o["node"]
+		if not o["seen"] and not _on_screen(on.position) and absf(on.position.x - dm.position.x) > 900.0:
+			continue   # far off and not yet in the fight: he did not see it
+		var d: float = absf(on.position.x - dm.position.x)
+		if d < best_d and absf(on.position.y - dm.position.y) < 200.0:   # (off the picture too: his shout comes from its edge)
+			best_d = d
+			best = o
+	if best == null or randf() > (0.9 if best_d < 900.0 else 0.65):
+		return
+	var who: Dictionary = best
+	get_tree().create_timer(randf_range(0.35, 0.6), false).timeout.connect(func() -> void:   # a beat: he takes it in
+		if who["alive"] and who["state"] != "give":
+			_bark(who["node"], "lead_down" if dead.get("role", "") == "lead" else "down", String(dead.get("name", "")), true)
+			who["cool"] = minf(float(who["cool"]), 0.7))
+
+
 func _say(m, text: String) -> void:
 	if text == "":
 		return
@@ -6740,12 +6852,23 @@ func _say(m, text: String) -> void:
 	l.add_theme_color_override("font_color", Color(0.95, 0.92, 0.85) * Color(_undo_night(0.5), 1.0))
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	l.add_theme_constant_override("outline_size", 12)
-	l.position = m.position + Vector2(-90.0, -620.0)
+	var font: Font = l.get_theme_font("font")
+	var tw_w: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 72).x
+	var lift := 0.0
+	for o in get_children():   # a line still up over a man nearby: this one goes above it
+		if o is Label and o.has_meta("say") and absf(float(o.get_meta("say")) - m.position.x) < 700.0 and o.modulate.a > 0.3:
+			lift = maxf(lift, 90.0)
+	l.set_meta("say", m.position.x)
+	l.position = m.position + Vector2(-tw_w * 0.5, -640.0 - lift)
+	if m != player and cam != null:   # a shout from beyond the picture: at its edge, toward him
+		var half: float = get_viewport().get_visible_rect().size.x * 0.5 / cam.zoom.x
+		l.position.x = clampf(l.position.x, cam.position.x - half + 140.0, cam.position.x + half - 140.0 - tw_w)
 	l.z_index = 20
 	add_child(l)
 	var tw := l.create_tween()
-	tw.tween_property(l, "position:y", l.position.y - 60.0, 1.2)
-	tw.parallel().tween_property(l, "modulate:a", 0.0, 1.2).set_delay(0.5)
+	var long_line: float = 0.5 + 0.03 * text.length()   # a longer line stays up long enough to read
+	tw.tween_property(l, "position:y", l.position.y - 60.0, 0.7 + long_line)
+	tw.parallel().tween_property(l, "modulate:a", 0.0, 0.7).set_delay(long_line)
 	tw.tween_callback(l.queue_free)
 
 
@@ -6942,12 +7065,14 @@ func _squad(e: Dictionary, m, to_player: Vector2, delta: float) -> void:
 		_send_round(e, m)
 	if e["role"] == "lead" and _cover_t > 1.8 and not _flank_called:
 		_flank_called = true
-		_say(m, ["FLANK HIM!", "GO AROUND!", "HE'S PINNED, MOVE!"].pick_random())
+		var sent := ""
 		for o in enemies:
 			if o["alive"] and o.get("role", "") == "flank" and o["state"] == "post" and o["node"].position.y == 0.0 \
 					and absf(o["node"].position.x - m.position.x) < GROUP and signf(o["node"].position.x - player.position.x) == signf(m.position.x - player.position.x):
 				_go_close(o)
+				sent = String(o.get("name", ""))
 				break
+		_bark(m, "flank", sent)
 	if e["state"] == "move":
 		var goal: float = e["goal"]
 		var way: float = signf(goal - m.position.x)
@@ -7038,7 +7163,7 @@ func _seek_cover(e: Dictionary, m) -> bool:
 	e["state"] = "move"
 	e["to_cover"] = true
 	if randf() < 0.4:
-		_say(m, ["COVER!", "GET DOWN!", "IT'S MALONE!"].pick_random())
+		_bark(m, "cover")
 	return true
 
 
@@ -7085,7 +7210,7 @@ func _send_round(lead: Dictionary, lm) -> void:
 	if behind == INF:
 		return
 	_behind_at = _ai_t
-	_say(lm, ["GET BEHIND HIM!", "TAKE THE ALLEY, GO ROUND!", "ROUND THE BACK, MOVE!"].pick_random())
+	_bark(lm, "round", String(pick.get("name", "")), true)
 	pick["state"] = "around"
 	pick["around_t"] = randf_range(3.5, 5.0)
 	pick["around_x"] = behind
@@ -7116,7 +7241,7 @@ func _going_round(e: Dictionary, m, delta: float) -> void:
 	e["sought"] = true
 	_mark(m, "!")
 	sfx.play("step1", 2.0, x, 0.1)
-	_say(m, ["BEHIND YOU, MALONE!", "GOT YOU NOW!", "OVER HERE!"].pick_random())
+	_bark(m, "behind", "", true)
 
 
 ## A flanker goes in close, to just beyond the detective's crate, where he can fire down over it.
@@ -7152,6 +7277,13 @@ func _enemies(delta: float) -> void:
 		_flank_called = false
 		_crate_called = false
 	_crate_shooters = 0
+	if _cover_t > 6.0 and _ai_t - _taunt_t > 14.0 and randf() < delta * 0.5:
+		var near = _nearest_enemy()
+		if near != null:
+			for o in enemies:
+				if o["node"] == near and o["alive"] and o["seen"] and o["state"] == "post":
+					_taunt_t = _ai_t
+					_bark(near, "taunt")
 	for e in enemies:
 		if not e["alive"]:
 			continue
@@ -7217,6 +7349,8 @@ func _enemies(delta: float) -> void:
 				e["seen"] = true
 				e["cool"] = maxf(float(e["cool"]), 0.6)
 				_mark(m, "!")
+				if randf() < 0.55:
+					_bark(m, "spot")
 		if not e["seen"]:
 			continue
 		if not e.get("sought", false) and e["state"] == "post":
@@ -7244,7 +7378,7 @@ func _enemies(delta: float) -> void:
 			_crate_shooters += 1
 			if not _crate_called and e["type"] == "post":
 				_crate_called = true
-				_say(m, ["SHOOT THROUGH IT!", "CUT THAT CRATE DOWN!", "IT'S ONLY WOOD!"].pick_random())
+				_bark(m, "crate")
 		var may_fire: bool = not over and not cleared and _grace <= 0.0 and absf(to_player.x) < SIGHT * 1.3 * (1.0 - 0.6 * mapfx.fog) \
 				and (not _player_covered(side) or over_cover or at_cover or at_crate) and _can_see(m) and _slot_free(e)
 		var aim_vec: Vector2 = to_player

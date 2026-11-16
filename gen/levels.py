@@ -127,7 +127,80 @@ class Chunk:
         return self.foe(x, y, kind, trig, frm, delay, True)
 
 
-def chunk(name, hard):
+# ---- rooms: how they are furnished (2026-11-16) -------------------------------------------------
+# Every interior is furnished anew where it stands (no two rooms of a kind alike), by these rules:
+# - nothing in front of a door, an arch, a passage or a ladder painted in the room (ROOM_CLEAR, in the
+#   drawing's own pixels: main.gd _build_room shows it at ROOM_SCALE, centred, repeating past its width);
+# - a step clear of the way in and the far wall; a man's width at least between two things;
+# - never the same thing twice side by side, at most one of the big machines, a red barrel only where
+#   fuel is kept (BARREL_OK);
+# - the men stand behind the cover, on its far side from the door (Frank comes in from the left).
+ROOM_PIC_W, ROOM_SCALE = 3168, 0.75
+ROOM_CLEAR = {"laundry": [(1630, 1915), (1975, 2345)],   # the EXIT door, the doorway to the back
+              "warehouse": [(1750, 2395)],                # the loading bay with the truck
+              "club": [(1130, 1570)],                     # the arch to the back
+              "hold": [(1670, 1925)],                     # the ladder up to the hatch
+              "office": [(90, 230)],                      # the door
+              "cityhall": [(1230, 1830)],                 # the two tunnel mouths
+              "catacombs": [(2230, 2960)],                # the stage under the arch
+              "tenement": [(970, 1370), (1770, 2210)]}    # the open door of 3B, the stairs
+ROOM_KINDS = {"laundry": ["machine", "crate", "crate_long", "drum"], "warehouse": ["crate", "crate_long", "barrel", "drum"],
+              "club": ["crate", "crate_long"], "hold": ["crate", "crate_long", "drum", "barrel"],
+              "office": ["crate_long", "machine", "crate"], "cityhall": ["crate", "machine", "crate_long"],
+              "catacombs": ["crate", "crate_long"], "tenement": ["crate", "crate_long"]}
+BIG = ("machine",)
+
+
+def _room_src(style, w, x):
+    """Where room-x x falls in the room's drawing (its own pixels)."""
+    off = max(0.0, (ROOM_PIC_W - w / ROOM_SCALE) / 2)
+    return (off + x / ROOM_SCALE) % ROOM_PIC_W
+
+
+def _room_free(style, w, a, b):
+    for k in range(int(a), int(b) + 1, 20):
+        sx = _room_src(style, w, k)
+        if any(c0 - 60 <= sx <= c1 + 60 for c0, c1 in ROOM_CLEAR.get(style, [])):
+            return False
+    return True
+
+
+def furnish(c, style, rng, foes, flask=False):
+    w = c.rooms[0][1] - c.rooms[0][0]
+    kinds = ROOM_KINDS[style]
+    put, last, x = [], None, rng.uniform(430, 600)
+    while True:
+        opts = [k for k in kinds if k != last and not (k in BIG and any(p[0] == k for p in put))
+                and not (k == "barrel" and any(p[0] == "barrel" for p in put))]
+        kind = rng.choice(opts)
+        bw = BOX[kind][0]
+        tries = 0
+        while not _room_free(style, w, x, x + bw) and tries < 60:
+            x += 40; tries += 1
+        if x + bw > w - 380:
+            break
+        put.append((kind, x))
+        last = kind
+        x += bw + rng.uniform(430, 680)
+    if put and put[0][0] == "barrel":   # the first thing in the door is cover, not a bomb at his elbow
+        nxt = put[1][0] if len(put) > 1 else None
+        put[0] = ([k for k in kinds if k not in ("barrel", nxt) and k not in BIG] or ["crate"])[0], put[0][1]
+    for kind, bx in put:
+        c.box(kind, bx)
+    # the men: each behind a piece of cover, from the second on (the first is Frank's); the rest at the back
+    spots = [bx + BOX[k][0] + rng.uniform(110, 170) for k, bx in put[1:]] + [bx + BOX[k][0] + 130 for k, bx in put[:1]]
+    for i, kind in enumerate(foes):
+        x = spots[i] if i < len(spots) else w - 250 - 300 * (i - len(spots))
+        if any(bx - 60 < x < bx + BOX[k][0] + 60 for k, bx in put):
+            x = w - 220
+        c.foe(min(x, w - 200), kind=kind)
+    if flask:   # a flask on the floor between the first two pieces
+        a = put[0][1] + BOX[put[0][0]][0] + 60 if put else 600
+        c.pick("flask", a)
+
+
+def chunk(name, hard, rng=None):
+    rng = rng or random.Random(7)
     c = None
     if name == "crate_cover":
         c = Chunk(1300).box("crate", 0).foe(450)
@@ -141,8 +214,9 @@ def chunk(name, hard):
         c = Chunk(1600).box("dumpster", 300).foe(820).runner(1400, 150, 2900)
     elif name == "ambush_behind":
         c = Chunk(1500).box("crate", 1100).runner(-350, 700, -1500).runner(-150, 760, -1700, kind="shotgun" if hard > 0.5 else "post")
-    elif name == "gauntlet":
-        c = Chunk(2100).box("crate", 0).box("crate", 760).box("crate", 1500).foe(450).foe(1210, kind="shotgun" if hard > 0.6 else "post").foe(1950)
+    elif name == "gauntlet":   # three pieces of cover in a row, not three of the same
+        k1 = rng.choice(["crate_long", "drum"]); k2 = rng.choice([k for k in ("crate", "dumpster", "crate_long") if k != k1])
+        c = Chunk(2100).box("crate", 0).box(k1, 760).box(k2, 1500).foe(450).foe(1210, kind="shotgun" if hard > 0.6 else "post").foe(1950)
     elif name == "rush":
         n = 3 if hard > 0.6 else 2
         c = Chunk(1500).box("crate", 250)
@@ -185,19 +259,20 @@ def chunk(name, hard):
         c.ramps.append([0.0, 0.0, run, KITS["mezz"]["y"], "station"])
         c.up_end = run + 300.0
     elif name == "laundry":   # an interior: machines for cover, steam, a shotgunner in the back
-        c = (Chunk(2700).room(0, 2700, "laundry").box("machine", 500).box("machine", 1300).box("machine", 2050)
-             .lamp(400).lamp(1250).lamp(2150).foe(1000).foe(1750, kind="shotgun").foe(2450).pick("flask", 1180))
+        c = Chunk(2700).room(0, 2700, "laundry").lamp(400).lamp(1250).lamp(2150)
+        furnish(c, "laundry", rng, ["post", "shotgun", "post"], flask=True)
     elif name == "warehouse_arena":   # a locked room: waves through both doors
-        c = (Chunk(2400).room(0, 2400, "warehouse").box("crate", 500).box("barrel", 1150).box("crate", 1650).lamp(700).lamp(1700)
+        c = (Chunk(2400).room(0, 2400, "warehouse").lamp(700).lamp(1700)
              .runner(2050, 300, 2900).runner(2250, 300, 3100)
              .runner(300, 300, -900, delay=5.0).runner(1400, 300, 3000, kind="tommy", delay=9.0)
              .runner(150, 300, -1100, kind="shotgun", delay=13.0).pick("tommy", 1000))
+        furnish(c, "warehouse", rng, [])
     elif name == "tenement":   # the third-floor hallway: the drawing has no landing, so the fight is on its boards
-        c = (Chunk(2300).room(0, 2300, "tenement").box("crate", 600).box("crate_long", 1500)
-             .foe(1150).foe(1950, kind="shotgun" if hard > 0.5 else "post").foe(2200).pick("flask", 1050))
+        c = Chunk(2300).room(0, 2300, "tenement")
+        furnish(c, "tenement", rng, ["post", "shotgun" if hard > 0.5 else "post", "post"], flask=True)
     elif name == "club":   # the Blue Note: the bar for cover, tables, a stage at the back
-        c = (Chunk(2600).room(0, 2600, "club").box("bar", 400).box("crate_long", 1300).box("barrel", 1900).lamp(500).lamp(1400).lamp(2300)
-             .foe(1050).foe(1700, kind="shotgun").foe(2400, kind="tommy").runner(1100, 900, -800, delay=2.0))
+        c = Chunk(2600).room(0, 2600, "club").lamp(500).lamp(1400).lamp(2300).runner(1100, 900, -800, delay=2.0)
+        furnish(c, "club", rng, ["post", "shotgun", "tommy"])
     # ---- the docks -------------------------------------------------------------------------------
     elif name == "dock_crates":   # cargo waiting on the quay, and them behind it
         c = Chunk(1700).box("crate_long", 0).box("crate", 700).box("drum", 1350).foe(500).foe(1150).foe(1650, kind="tommy" if hard > 0.5 else "post")
@@ -210,11 +285,11 @@ def chunk(name, hard):
         c = (Chunk(2100).box("dumpster", 300).box("crate", 1350).foe(950).foe(1850, kind="tommy").runner(1150, 400, 3200)
              .event("blackout", 120, 10))
     elif name == "hold":   # below decks on the Santa Lucia: crates lashed down, lamps swinging
-        c = (Chunk(2700).room(0, 2700, "hold").box("crate", 450).box("crate_long", 1250).box("drum", 2000).lamp(500).lamp(1400).lamp(2250)
-             .foe(1000).foe(1850, kind="shotgun").foe(2450, kind="tommy" if hard > 0.5 else "post").pick("flask", 860))
+        c = Chunk(2700).room(0, 2700, "hold").lamp(500).lamp(1400).lamp(2250)
+        furnish(c, "hold", rng, ["post", "shotgun", "tommy" if hard > 0.5 else "post"], flask=True)
     elif name == "office":   # the harbor master's: filing cabinets and a counter for cover
-        c = (Chunk(2400).room(0, 2400, "office").box("crate_long", 500).box("machine", 1500).lamp(600).lamp(1700)
-             .foe(1150).foe(2000, kind="shotgun").foe(2300).pick("flask", 1000))
+        c = Chunk(2400).room(0, 2400, "office").lamp(600).lamp(1700)
+        furnish(c, "office", rng, ["post", "shotgun", "post"], flask=True)
     elif name == "crane_swing":   # a wall of cargo too tall to climb: a crane's rope hangs before it, and them behind it
         c = (Chunk(2400).rope("swing", 380).box("stack", 900).box("crate", 1330)
              .foe(1950).foe(2300, kind="shotgun" if hard > 0.5 else "post")
@@ -224,11 +299,11 @@ def chunk(name, hard):
         c = (Chunk(2400).box("drum", 250).box("crate_long", 1100).foe(700).foe(1650, kind="shotgun" if hard > 0.5 else "post").foe(2250)
              .event("train_pass", 300))
     elif name == "cityhall":   # the closed station: chandeliers, boarded booths, rain through the skylight
-        c = (Chunk(2600).room(0, 2600, "cityhall").box("crate", 500).box("machine", 1500).lamp(700).lamp(1800)
-             .foe(1100).foe(2000, kind="tommy" if hard > 0.4 else "post").foe(2450).pick("flask", 900))
+        c = Chunk(2600).room(0, 2600, "cityhall").lamp(700).lamp(1800)
+        furnish(c, "cityhall", rng, ["post", "tommy" if hard > 0.4 else "post", "post"], flask=True)
     elif name == "catacombs":   # the speakeasy in the sewer vaults: the bar and the tables for cover
-        c = (Chunk(2800).room(0, 2800, "catacombs").box("crate", 400).box("crate_long", 1300).box("drum", 2200).lamp(500).lamp(1500).lamp(2400)
-             .foe(900).foe(1850, kind="shotgun").foe(2600, kind="tommy" if hard > 0.5 else "post"))
+        c = Chunk(2800).room(0, 2800, "catacombs").lamp(500).lamp(1500).lamp(2400)
+        furnish(c, "catacombs", rng, ["post", "shotgun", "tommy" if hard > 0.5 else "post"])
     elif name == "roof_vents":   # on top of the moving train: the vent housings are all the cover there is
         c = Chunk(2000).foe(950).foe(1850, kind="tommy" if hard > 0.5 else "post")
     elif name == "roof_rush":   # they climb up from the cars behind and in front
@@ -305,7 +380,7 @@ def _build(mp, nudge):
     n = len(picks)
     for i, name in enumerate(picks):
         hard = mp["start"] + (mp["end"] - mp["start"]) * i / max(1, n - 1)
-        c = chunk(name, hard)
+        c = chunk(name, hard, random.Random(mp["seed"] * 101 + i * 13))
         x += nudge.get(i, 0)
         if c.plats and not c.rooms:
             if mp.get("pool") is DOCKS_POOL:   # no wall on the quay: the walkway stands on its own legs
@@ -353,17 +428,24 @@ def _build(mp, nudge):
         if mp.get("boss_room"):   # the fight in a room of its own
             out.rooms.append([x - 200, x + 2700, mp["boss_room"]])
             out.lamps += [[x + 400, -760.0], [x + 1400, -760.0], [x + 2300, -760.0]]
-        if mp.get("boss_room") == "club":   # Mickey's own club: the bar and the tables, the stage behind him
-            out.boxes += [["bar", x + 300], ["crate_long", x + 1500]]
-        else:
-            out.boxes += [["crate", x + 300], ["crate_long" if mp.get("boss_room") else "dumpster", x + 1500]]
+        first, second = ("bar", "crate_long") if mp.get("boss_room") == "club" else ("crate", "crate_long" if mp.get("boss_room") else "dumpster")
+        a, b = x + 300, x + 1500
+        if mp.get("boss_room"):   # nothing in front of the room's doors (ROOM_CLEAR): along to the nearest clear floor
+            st, r0, rw = mp["boss_room"], x - 200, 2900
+            for d in range(0, 900, 20):
+                if _room_free(st, rw, a - d - r0, a - d - r0 + BOX[first][0]) and a - d - r0 > 300:
+                    a -= d; break
+            for d in range(0, 900, 20):
+                if _room_free(st, rw, b - d - r0, b - d - r0 + BOX[second][0]):
+                    b -= d; break
+        out.boxes += [[first, a], [second, b]]
         out.enemies += [{"x": x + 1050, "y": 0.0, "kind": "post", "trig": None, "from": None, "delay": 0.0, "run": False},
                         {"x": x + 2050, "y": 0.0, "kind": "boss", "trig": None, "from": None, "delay": 0.0, "run": False}]
         out.checks.append(x - 100)
         out.end = x + 2300
     else:
-        out.boxes += [["crate", x], ["crate", x + 380]]
-        out.enemies += [{"x": x + 800, "y": 0.0, "kind": "post", "trig": None, "from": None, "delay": 0.0, "run": False},
+        out.boxes += [["crate", x], ["drum", x + 560]]
+        out.enemies += [{"x": x + 880, "y": 0.0, "kind": "post", "trig": None, "from": None, "delay": 0.0, "run": False},
                         {"x": x + 1100, "y": 0.0, "kind": "tommy", "trig": x - 200, "from": x + 2600, "delay": 0.0, "run": True}]
         out.end = x + 1600
     if mp.get("diary"):   # a page of Eddie's notebook, nailed to the wall just before a crate partway along, at hand from the road
@@ -375,6 +457,13 @@ def _build(mp, nudge):
             out.pickups.append(["page", out.end * 0.55, 0.0])
     out.checks = sorted(set(round(c) for c in out.checks if 800 < c < out.end - 500))
     out.street = street(mp, out, rng)
+    for b in out.boxes:
+        if b[0] == "barrel" and not barrel_ok(place_at(out, b[1])) and not mp.get("keep_barrel"):
+            b[0] = "drum"
+            b[1] -= (BOX["drum"][0] - BOX["barrel"][0]) / 2
+            for en in out.enemies:
+                if en["y"] == 0.0 and b[1] - 50 < en["x"] < b[1] + BOX["drum"][0] + 50:
+                    en["x"] = b[1] + BOX["drum"][0] + 60
     for e in mp.get("events", []):
         out.events.append(list(e))
     cover_men(out, mp)
@@ -388,6 +477,44 @@ def _build(mp, nudge):
                     and not any(abs(en["x"] - ex) < 120 for en in out.enemies):
                 out.enemies.append({"x": ex, "y": 0.0, "kind": "post", "trig": None, "from": None, "delay": 0.0, "run": False})
     return out
+
+
+def place_at(m, x):
+    """What x is in: 'room:<style>' or the street drawing under it."""
+    for a, b, st in m.rooms:
+        if a <= x < b:
+            return "room:" + st
+    best = None
+    for name, sx in m.street:
+        if sx <= x:
+            best = name
+    return best
+
+
+def check_props(m):
+    """The rules for cover (2026-11-16), for every map now and every map to come."""
+    errs = []
+    by = lambda b: b[2] if len(b) > 2 else 0.0
+    bs = sorted([b for b in m.boxes if by(b) == 0.0], key=lambda b: b[1])
+    for a, b in zip(bs, bs[1:]):
+        gap = b[1] - (a[1] + BOX[a[0]][0])
+        if 0 < gap < 260 and "stack" not in (a[0], b[0]):
+            errs.append(f"{a[0]} and {b[0]} at {a[1]:.0f}: {gap:.0f} apart, no room for a man between, not a pile either")
+    for a, b, c in zip(bs, bs[1:], bs[2:]):
+        if a[0] == b[0] == c[0] and c[1] - a[1] < 2600:
+            errs.append(f"three {a[0]}s in a row at {a[1]:.0f}")
+    for b in bs:
+        if b[0] == "barrel" and not barrel_ok(place_at(m, b[1])):
+            errs.append(f"red barrel at {b[1]:.0f} in {place_at(m, b[1])}: no fuel kept there")
+    for a, b, st in m.rooms:
+        inside = [q for q in bs if a <= q[1] < b]
+        for q in inside:
+            if not _room_free(st, b - a, q[1] - a, q[1] - a + BOX[q[0]][0]):
+                errs.append(f"{q[0]} at {q[1]:.0f} stands in front of a door in the {st}")
+        for p, q in zip(inside, inside[1:]):
+            if p[0] == q[0]:
+                errs.append(f"two {p[0]}s side by side in the {st} at {p[1]:.0f}")
+    return errs
 
 
 def cover_men(m, mp):
@@ -411,24 +538,50 @@ def cover_men(m, mp):
             continue   # (a shotgunner comes in; he does not hide)
         if rng.random() > 0.6:
             continue
-        kind = "crate" if rng.random() < 0.6 else "drum"
-        w = BOX[kind][0]
-        bx = e["x"] - 140 - w
-        lo, hi = bx - 140, bx + w + 140
-        if any(by(b) == 0.0 and b[1] < hi and b[1] + BOX[b[0]][0] > lo for b in m.boxes):
-            continue
-        if any(o is not e and lo - 60 < o["x"] < hi + 60 and o["y"] == 0.0 for o in m.enemies):
-            continue
-        if any(lo - 200 < x < hi + 200 for r in m.ramps for x in (r[0], r[2])):
-            continue
-        if any(lo - 100 < px < hi + 100 for k, px, py in m.pickups) or any(lo - 150 < c < hi + 150 for c in m.checks):
-            continue
-        if any(px - 100 < bx + w and bx < px + pw + 100 and py > -700 for px, py, pw, st in m.plats):
-            continue   # (nothing under a low walkway: it would block the way up)
-        if any(ev[0] == "car" and abs(ev[2] - bx) < 700 for ev in m.events):
-            continue
-        m.boxes.append([kind, bx])
+        first = "crate" if rng.random() < 0.6 else "drum"
+        near = [b[0] for b in m.boxes if by(b) == 0.0 and abs(b[1] - e["x"]) < 2600]
+        if near.count(first) >= 1:   # not the same thing again next to its own kind
+            first = "drum" if first == "crate" else "crate"
+        for kind, off in [(first, 140), (first, 200), ("drum" if first == "crate" else "crate", 140)]:
+            w = BOX[kind][0]
+            bx = e["x"] - off - w
+            left = [b for b in m.boxes if by(b) == 0.0 and b[1] < bx]
+            right = [b for b in m.boxes if by(b) == 0.0 and b[1] > bx]
+            two_l = [b[0] for b in sorted(left, key=lambda b: b[1])[-2:]]
+            two_r = [b[0] for b in sorted(right, key=lambda b: b[1])[:2]]
+            if two_l == [kind, kind] or two_r == [kind, kind] or (two_l[-1:] == [kind] and two_r[:1] == [kind]):
+                continue   # a third of the same in a row
+            if _cover_spot(m, e, bx, w, by):
+                m.boxes.append([kind, bx])
+                break
     m.boxes.sort(key=lambda b: (by(b), b[1]))
+
+
+def _cover_spot(m, e, bx, w, by):
+    lo, hi = bx - 270, bx + w + 270   # a man's width clear of anything else on the ground
+    if any(by(b) == 0.0 and b[1] < hi and b[1] + BOX[b[0]][0] > lo for b in m.boxes):
+        return False
+    if any(o is not e and bx - 120 < o["x"] < bx + w + 120 and o["y"] == 0.0 for o in m.enemies):
+        return False
+    if any(bx - 300 < x < bx + w + 300 for r in m.ramps for x in (r[0], r[2])):
+        return False
+    if any(bx - 150 < px < bx + w + 150 for k, px, py in m.pickups) or any(bx - 250 < c < bx + w + 250 for c in m.checks):
+        return False
+    if any(px - 100 < bx + w and bx < px + pw + 100 and py > -700 for px, py, pw, st in m.plats):
+        return False   # (nothing under a low walkway: it would block the way up)
+    if any(ev[0] == "car" and abs(ev[2] - bx) < 700 for ev in m.events):
+        return False
+    return True
+
+
+# A red barrel is fuel: it stands where fuel is kept (yards, warehouses, docks, tunnels, a back alley's
+# garage, the club's boiler oil by its back door), never outside a church, a laundry, a club or a market, nor in a hallway or an office.
+BARREL_OK = {"alley", "warehouse", "deadend", "bluenote", "pier17", "cranes", "shipping", "quay", "sheds", "harbor",
+             "tunnel", "yard", "walkway", "tunnel_lo", "signal", "arches", "pump", "room:warehouse", "room:hold"}
+
+
+def barrel_ok(place):
+    return place is not None and (place in BARREL_OK or KIT.get(place, place) in BARREL_OK)
 
 
 def street(mp, m, rng):
@@ -477,6 +630,10 @@ def street(mp, m, rng):
             cand = [s for s in cand if KIT.get(s, s) != KIT.get(last, last)] or cand   # nor a kit next to its own variant
             if i == 0:   # nor the one the feature is about to show next to it
                 cand = [s for s in cand if s != mp.get("feature")] or cand
+            w_here = lambda s: SEGMENTS[s] * 1.9 * SEG_SIZE.get(s, 1.0)
+            fuel = [b[1] for b in m.boxes if b[0] == "barrel" and not any(a <= b[1] < c for a, c, st in m.rooms)]
+            if any(x <= f < x + w_here(cand[0]) for f in fuel):   # a red barrel here: a place where fuel is kept
+                cand = [s for s in cand if barrel_ok(s)] or cand
             cand = sorted(cand, key=lambda s: used.count(s))   # and the least used first
             least = [s for s in cand if used.count(s) == used.count(cand[0])]
             name = rng.choice(least)
@@ -530,7 +687,7 @@ def last_stand(out, x):   # the prologue's end: a dead-end alley and more of the
 
 
 def check(m):
-    errs = []
+    errs = check_props(m)
     by = lambda b: b[2] if len(b) > 2 else 0.0
     bs = sorted([b for b in m.boxes if by(b) == 0.0], key=lambda b: b[1])   # on the street
     hi = [b for b in m.boxes if by(b) != 0.0]                                  # up on a floor or the roof
