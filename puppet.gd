@@ -247,7 +247,8 @@ func _ready() -> void:
 		if ResourceLoader.exists(String(cfg["dir"]) + "farm_open.png") and _spr.has("farm_b"):
 			_farm_tex = _spr["farm_b"].texture
 			_farm_open_tex = _tex(String(cfg["dir"]) + "farm_open")
-		if ResourceLoader.exists(String(cfg["dir"]) + "skirt_fly.png"):   # the coat caught by the wind, for dives
+		var long_coat: bool = not cfg.get("short_coat", false)   # (Eddie's pea coat stops at the hip: none of the trench's drawn flares)
+		if long_coat and ResourceLoader.exists(String(cfg["dir"]) + "skirt_fly.png"):   # the coat caught by the wind, for dives
 			_skirt_fly = Sprite2D.new()
 			_skirt_fly.texture = _tex(String(cfg["dir"]) + "skirt_fly")
 			_skirt_fly.centered = false
@@ -259,7 +260,7 @@ func _ready() -> void:
 			_skirt_fly.visible = false
 			_body.add_child(_skirt_fly)
 			_body.move_child(_skirt_fly, _skirt_mesh.get_index())
-		for pose in ["run", "air"]:   # the coat streaming back in a run, flared open in a leap
+		for pose in (["run", "air"] if long_coat else []):   # the coat streaming back in a run, flared open in a leap
 			var path: String = String(cfg["dir"]) + "skirt_" + pose
 			if not ResourceLoader.exists(path + ".png"):
 				continue

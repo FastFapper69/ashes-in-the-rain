@@ -51,6 +51,10 @@ for f in candidates():
         if lim and max(w, h) > lim:
             iw, ih = (lim, h * lim // w) if w >= h else (w * lim // h, lim)
     ok = iw % 4 == 0 and ih % 4 == 0
+    # comic panels stay WebP (2026-11-16): one or two are on screen at a time, so Basis saves little
+    # memory there, while their packs (held whole in the web page's heap) grew by 20 MB
+    if f.startswith('art/cut/'):
+        ok = False
     s = re.sub(r'compress/mode=\d', 'compress/mode=%d' % (4 if ok else 1), s)
     open(p, 'w').write(s)
     basis += ok

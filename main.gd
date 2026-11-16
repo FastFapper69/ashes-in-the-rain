@@ -5883,6 +5883,7 @@ func _eddie_cfg() -> Dictionary:
 	var c: Dictionary = DETECTIVE.duplicate(true)
 	c["head_tex"] = "res://art/eddie/head.png"
 	c["parts"]["head"] = {"a": Vector2(210.0, 390.6), "b": Vector2(210.0, 84.0), "ppm": 1100}
+	c["short_coat"] = true   # (puppet.gd: no drawn trench-coat flares for him)
 	var sk: Dictionary = c["parts"]["skirt"]   # a pea coat stops at the hip: only the top of the coat's drawing
 	sk["b"] = Vector2((sk["b"] as Vector2).x, lerpf((sk["a"] as Vector2).y, (sk["b"] as Vector2).y, 0.45))
 	return c
