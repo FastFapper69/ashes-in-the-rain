@@ -17,6 +17,8 @@
 - Light without a painted source? → add the source or drop the light.
 - Enemy can shoot? → same floor AND on screen AND not just after spawn.
 - Frank camps behind cover? → wood: chip it; groups ≥ 3: flank. Never bullets through cover.
+- New prop / room / barrel? → `python3 gen/levels.py levels.gd` must print only "ok" (check_props), then `--test=props` and look.
+- New enemy behaviour? → add a bark kind to barks.gd.
 - Pickup? → into the coat, never auto-equip.
 - Deep view slide? → only if its ground ends inside the cut-out.
 - Street variant? → ≥ 25 % different above the floor, same edges, never next to its kit.

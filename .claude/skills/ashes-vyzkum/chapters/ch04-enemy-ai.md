@@ -10,7 +10,7 @@ AI feels smart when it *tells* the player what it is doing and when its pressure
 - **Hotline Miami**: hair-trigger enemies make every encounter a learnable puzzle; fairness comes from instant restart.
 
 ## Status in Ashes
-- [OK] max two shooters (a token pool of 2), callouts, cover chipping on wood, flanking with a delay, same-floor + on-screen gates.
+- [OK] max two shooters (a token pool of 2), callouts, named men + witness barks ("HE GOT VINNIE!", barks.gd, 16. 11.), cover chipping on wood, flanking with a delay, same-floor + on-screen gates.
 - [H] tokens per category: rifle/pistol 2, thrower 1, heavy (tommy/shotgun) 1, marksman 1; a man that loses sight of Frank releases his token; "steal" when a closer man has a clean line. Difficulty = token counts + reaction delay, not accuracy (keeps it fair and readable).
 - [H] push-forward hook for Frank: men knocked down/disarmed drop rounds (ties into the gun bag) – rewards aggression over camping.
 - Every new behaviour ships with a bark line (English, comic lettering).

@@ -6,7 +6,7 @@ description: "Distilled project knowledge for Ashes in the Rain (Godot 4.7 web/i
 <!-- argument-hint: [topic, system name, or chapter number] -->
 
 # Ashes in the Rain – project knowledge
-**Sources**: HANDOFF.md (up to section "(5) Enemies smarter", 2026-11-16), `.claude/skills/ui-papir`, user's standing rules | **Built with**: book-to-skill structure (index + on-demand chapters) | **Generated**: 2026-11-16
+**Sources**: HANDOFF.md (up to section "(7) Barks, rooms, barrels", 2026-11-16), `.claude/skills/ui-papir`, user's standing rules | **Built with**: book-to-skill structure (index + on-demand chapters) | **Generated**: 2026-11-16
 
 ## How to use
 - Read THIS file at the start of every session (~2k tokens; HANDOFF.md is ~10k and chronological).
@@ -26,7 +26,9 @@ description: "Distilled project knowledge for Ashes in the Rain (Godot 4.7 web/i
 7. **Two chats deploy to this repo.** Before any commit/deploy: `git fetch` both clones, merge origin's commits first; `deploy.sh` STOPs by itself. Never copy the tree over a newer origin.
 8. **Phone memory is the #1 crash cause** (Safari kills the tab, no JS error). Long audio 22050 Hz mono (ffprobe before commit); never Basis for textures read via `get_image` or for comic panels; new big drawing → `python3 gen/basis_imports.py`. Details: ch04.
 9. **Things the user decided – do not reopen**: figures +18 % (FIG 1.18), post `lift` 0.2, character scale, Sin City blacks (black voids are style), plain lamp glow, levels/XP instead of stars, HP and damage *bought* not automatic, revolver always + one big gun, pickups never auto-equip, bullets do not pass through cover (SPLINTERS instead), prologue Eddie overpowered then weak Frank with a rising curve, Eddie wears a different (short) coat.
-10. Story: no plot holes; inspired by Max Payne / Alan Wake / L.A. Noire storytelling but never copying; original characters.
+10. **Cover and props make sense where they stand** (user, 16. 11.): never three identical things in a row, nothing in front of a painted door/passage/ladder, a man's width between two props, rooms not identical copies, red barrels only where fuel is kept. Enforced by `check_props()` in gen/levels.py – rules in skill `mapy`.
+11. **Enemies talk** (user, 16. 11., "like The Last of Us"): every man has a name, the others shout it when he falls; every new behaviour ships with a bark (barks.gd, English caps, ~24 chars).
+12. Story: no plot holes; inspired by Max Payne / Alan Wake / L.A. Noire storytelling but never copying; original characters.
 
 ## 2. Core mental models
 - **The phone is the target, desktop numbers lie.** iPhone uses ~100 MB more textures (full-screen buffers at pixel ratio), the web keeps every loaded pack in the wasm heap, and Web Audio decodes whole streams to PCM. Measure with crumbs/crash reports, not with desktop feel.
@@ -68,6 +70,8 @@ description: "Distilled project knowledge for Ashes in the Rain (Godot 4.7 web/i
 - **checkpoints / respawn** → ch05, ch07
 - **combo / style score / XP** → ch08
 - **cover, crates, SPLINTERS** → ch07, ch08
+- **barks / enemy names** → ch07
+- **room furnishing, red barrels, prop rules** → ch05, skill `mapy`
 - **crash reports / crumbs** → ch04
 - **cutscene panels / narration** → ch10, ch09
 - **deep views (DEEP_SPLIT)** → ch05

@@ -13,6 +13,7 @@ Enemies are a squad with roles that must be fair (same floor, on screen, no spaw
 - Roles, flank, cover, morale. `_seek_cover`: post/tommy seeing Frank from > 500 px walks to a crate/drum within 650 px on his side (not near Frank, not taken; not prologue).
 - `_covering_crate`: Frank crouched > 1 s behind a **wooden** crate → up to 2 men chip it apart (~8–10 s), "SHOOT THROUGH IT!". Steel is never shot at.
 - `_send_round` / `_going_round`: lead sends the furthest of a group ≥ 3 round the back after cover_t > 3.5 s (off-screen 3.5–5 s, runs in with "!"); once per 22 s; `_flank_ok` excludes ch I maps 0–1, rooms, dream, moving, roofs.
+- Barks (`barks.gd`, `_bark`): every non-boss man has a name (NAMES, none from the story); `_witness` – the nearest of his own shouts the fallen man's name ("HE GOT VINNIE!", bubble clamped to the screen edge when off-screen) and fires sooner; last man calls the fallen, lead sends men by name, empty reload → "HE'S EMPTY!", long hiding → taunt. One voice at a time (1.6 s, urgent 0.6 s) + per-kind gap `BARK_GAP`. {p} = MALONE / DOYLE.
 - `_go_close` flanker stops 470–550 px off, never on Frank's crate, no two on one spot.
 
 ## Enemy types by chapter

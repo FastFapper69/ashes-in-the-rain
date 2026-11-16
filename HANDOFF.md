@@ -221,7 +221,7 @@ Read `.claude/skills/ashes-znalosti/SKILL.md` first (stable rules + topic index,
 - NOVÉ: `.claude/skills/book-to-skill/` (převod knih/dokumentů na skill, MIT, @e7bb659). Repo je VEŘEJNÉ: skill z cizí chráněné knihy do gitu nepatří (viz PROJECT.md).
 - Navrženo, NEnasazeno (čeká na souhlas uživatele, nejdřív změřit): 1) stopa za Frankem (`player.ghost()` každých 0,05 s = nový CanvasGroup = průchod přes back buffer) → pool nebo siluety bez CanvasGroup; 2) pack na mapu místo na kapitolu (iOS limit stránky ~300–450 MB); 3) zabití dobije trochu zpomalení; 4) žetony útoku podle typu nepřítele; 5) rychlejší návrat po smrti.
 
-## (6) Barks, rooms, barrels, map rules, 2026-11-16
+## (7) Barks, rooms, barrels, map rules, 2026-11-16
 - barks.gd (preloaded as `Barks` in main.gd): every non-boss man gets a name (`_new_name`); `_bark(m, kind, who, urgent)` picks a line, one voice at a time + per-kind gap (BARK_GAP). `_witness` on every kill: nearest of his own (≤1800 px, also off-screen → bubble clamped to screen edge) shouts the dead man's name. Last man calls a fallen name (`_morale`), lead sends men round by name, hero reloading empty → "HE'S EMPTY!", long hiding → taunt. {p} = MALONE / DOYLE (prologue).
 - gen/levels.py: `furnish()` furnishes every room per seed (ROOM_CLEAR = painted doors/arches/ladders in drawing px, ROOM_KINDS); `check_props()` errors on gaps <260, three alike in a row, barrel outside BARREL_OK, prop in front of a door, two alike side by side in a room. `street()` prefers a fuel-fitting drawing under a barrel; leftovers become drums.
 - New skill `.claude/skills/mapy` = the rules for future maps. Tools: gen/prop_audit.py, `--test=props`.
