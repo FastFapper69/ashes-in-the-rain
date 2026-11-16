@@ -4149,6 +4149,8 @@ func _floor_at(x: float, feet: float) -> float:
 	for ci in catwalks.size():
 		var c: Rect2 = catwalks[ci]
 		var reach := 34.0 if catwalk_solid[ci] else 14.0   # a storey's floor is stepped onto off the top stair, like a stair
+		if catwalk_solid[ci] and fall > 0.0 and move_state in ["dive", "jump"]:
+			reach = 100.0   # falling fast onto a deck (out of a window at full tilt): caught, not dropped through onto the flight below
 		if x > c.position.x and x < c.end.x and feet <= c.position.y + reach and c.position.y < best:
 			if _drop_t > 0.0 and c.position.y <= _drop_y + 10.0:
 				continue
@@ -4159,6 +4161,8 @@ func _floor_at(x: float, feet: float) -> float:
 		var b2: float = maxf(r[0], r[2])
 		if x < a or x > b2:
 			continue
+		if move_state == "dive" and r.size() > 4 and String(r[4]) == "fescape":
+			continue   # a flat dive does not land on steep iron stairs: it carries on onto the deck
 		var ry: float = lerpf(r[1], r[3], (x - float(r[0])) / (float(r[2]) - float(r[0])))
 		var stride := maxf(34.0, absf((float(r[3]) - float(r[1])) / (float(r[2]) - float(r[0]))) * 30.0)   # steep iron stairs: a longer step
 		if feet <= ry + stride and ry < best and ry < -1.0:   # a step up the stairs is within reach of a stride
@@ -4183,7 +4187,7 @@ func _block(before_x: float) -> void:
 		if String(c[3]) != "fescape":
 			continue
 		var end := float(c[0]) + float(c[2]) - 40.0
-		if player.position.y < float(c[1]) + 6.0 and player.position.y > float(c[1]) - 300.0 and before_x <= end + 1.0 and player.position.x > end:
+		if player.position.y < float(c[1]) + DIVE_LAND + 10.0 and player.position.y > float(c[1]) - 300.0 and before_x <= end + 1.0 and player.position.x > end:   # (skidding prone too)
 			player.position.x = end
 			glide = 0.0
 			run = 0.0
@@ -4732,7 +4736,7 @@ func _in_dark(x: float) -> bool:
 func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 	_hit_at = pos   # where a word goes if this bullet kills
 	for f in _flats:   # the shut door of a flat stops a bullet
-		if not f["open"] and absf(pos.x - float(f["x"])) < 14.0 and pos.y < float(f["y"]) and pos.y > float(f["y"]) - float(f["h"]):
+		if not f["open"] and absf(pos.x - (float(f["hinge"]) - 60.0)) < 70.0 and pos.y < float(f["y"]) and pos.y > float(f["y"]) - float(f["h"]):
 			fx.chip(pos)
 			return true
 	for sec in sections:   # a building cut open: its floors stop bullets both ways (nobody shoots through a storey)
@@ -5918,14 +5922,16 @@ const SEC_KIT_LAYOUT := [      # per storey: the two pieces, then the end walls 
 	["tenement_entry", "tenement_stairs_a", "", "R"],
 	["tenement_stairs_b", "tenement_stairs_a", "L", "R"],
 	["tenement_stairs_b", "tenement_flat", "L", ""]]   # (the flat has its own outer wall and window)
-func _build_section_kit(x0: float, x1: float, storeys: int, holder: Node2D) -> void:
+const SEC_KIT_STUNT := [["tenement_entry", "tenement_flat", "", ""]]   # SANDBOX STUNTS: one storey, the flat by the door
+func _build_section_kit(x0: float, x1: float, storeys: int, holder: Node2D, style := "tenement") -> void:
 	var s := section_h / SEC_KIT_ROWS
 	var start := x0 - SEC_KIT_X0
 	var facade := Node2D.new()   # the front seen from the street: under the storeys, which open over it from the door
 	facade.z_index = -6
 	add_child(facade)
 	for k in storeys:
-		var lay: Array = SEC_KIT_LAYOUT[mini(k, SEC_KIT_LAYOUT.size() - 1)]
+		var layout: Array = SEC_KIT_STUNT if style == "tenement_stunt" else SEC_KIT_LAYOUT
+		var lay: Array = layout[mini(k, layout.size() - 1)]
 		var top := -section_h * k - SEC_KIT_WALK * s
 		var storey := Node2D.new()
 		storey.modulate = Color(ROOM_BASE, ROOM_BASE, ROOM_BASE, 1.0)
@@ -5972,7 +5978,7 @@ func _build_sections() -> void:
 		ink.set_shader_parameter("origin", Vector2(x0 + 60.0, -210.0))
 		ink.set_shader_parameter("radius", -400.0)
 		if _section_kit():
-			_build_section_kit(x0, x1, int(sec[2]), holder)
+			_build_section_kit(x0, x1, int(sec[2]), holder, String(sec[3]))
 		for k in (0 if _section_kit() else int(sec[2])):
 			var storey := Node2D.new()   # one hallway: its end walls only at its ends, never a wall with a window halfway along
 			storey.modulate = Color(ROOM_BASE, ROOM_BASE, ROOM_BASE, 1.0)
@@ -6073,33 +6079,95 @@ const STAIRDOOR_OUT := 0.45
 const ESC_K := 1.0526            # the fire escape drawing's pixels to the world (its landings fall on the storeys)
 func _build_flats() -> void:
 	_flats.clear()
+	var ks := section_h / SEC_KIT_ROWS
 	for fl in level.get("flats", []):
 		var y := float(fl[1])
-		var door := _flat_piece("flat_door", float(fl[0]), y, float(fl[2]))
-		var gx := (float(fl[3]) + float(fl[4])) * 0.5
-		var glass := _flat_piece("flat_glass", gx, y - float(fl[5]), float(fl[6]) - float(fl[5]))
-		_flats.append({"x": float(fl[0]), "y": y, "h": float(fl[2]), "door": door, "open": false,
-				"glass": glass, "gx": gx, "wx0": float(fl[3]), "wx1": float(fl[4]), "sill": float(fl[5]), "lintel": float(fl[6]), "broken": false})
-		var tex: Texture2D = BigTex.get_tex("res://art/section/tenement_escape.png")   # the fire escape on the side
+		var h := float(fl[2])
+		# the door seen from the front, shut in the passage, its hinge on the painted post (FLAT_POST)
+		var hinge := float(fl[0]) + FLAT_DOOR_HINGE
+		var dtex: Texture2D = load("res://art/section/flat_door.png")
+		var door := Polygon2D.new()   # a card in space: turned round its hinge, it narrows in perspective
+		door.texture = dtex
+		door.z_index = -2
+		door.color = Color(ROOM_BASE, ROOM_BASE, ROOM_BASE, 1.0)
+		door.visible = false
+		add_child(door)
+		var dw := h * dtex.get_width() / dtex.get_height()
+		var wx0 := float(fl[3])
+		var wx1 := float(fl[4])
+		var glass := _flat_piece("flat_glass", y - float(fl[5]), float(fl[6]) - float(fl[5]))
+		glass.scale = Vector2((wx1 - wx0) / glass.texture.get_width(), glass.scale.y)   # it fills the opening in the wall
+		glass.offset = Vector2(0.0, -glass.texture.get_height())
+		glass.position = Vector2(wx0, y - float(fl[5]))
+		_flats.append({"x": float(fl[0]), "hinge": hinge, "y": y, "h": h, "door": door, "dw": dw, "open": false,
+				"glass": glass, "gx": (wx0 + wx1) * 0.5, "wx0": wx0, "wx1": wx1, "sill": float(fl[5]), "lintel": float(fl[6]), "broken": false})
+		var has_escape := false   # the fire escape on the side: only where the map has its decks (not on a ground-floor flat)
+		for c in level["floors"]:
+			if String(c[3]) == "fescape" and absf(float(c[1]) - y) < 10.0:
+				has_escape = true
+		if not has_escape:
+			continue
+		var tex: Texture2D = BigTex.get_tex("res://art/section/tenement_escape.png")
 		var sp := Sprite2D.new()
 		sp.texture = tex
 		sp.centered = false
 		sp.scale = Vector2.ONE * ESC_K
-		sp.position = Vector2(float(fl[4]), y - section_h)   # its top landing level with the roof
+		sp.position = Vector2(wx1, y - section_h)   # its top landing level with the roof
 		sp.z_index = -2   # over the dark veil laid on the houses around
 		sp.light_mask = 0
 		sp.modulate = Color(ROOM_BASE, ROOM_BASE, ROOM_BASE, 1.0)
 		add_child(sp)
+	for f in _flats:
+		_door_card(f, 0.0, 0.0, Vector2.ZERO)
 
 
-## One of the flat's two-state pieces, its bottom on `floor_y`, `h` tall, centred on x.
-func _flat_piece(name: String, x: float, floor_y: float, h: float) -> Sprite2D:
+## The door as a card in space: `yaw` round its hinge (radians, + swings its free edge away into the room),
+## `pitch` falling flat (+ tips its top toward the viewer onto the floor), `shift` moves the hinge's foot.
+## Projected with a mild perspective from the viewer, on a grid so the texture does not bend at the seam.
+const DOOR_FLAT := 1.43     # lying on the boards: not quite edge-on, so it still reads as a door (a plank's thickness)
+const DOOR_EYE := 2600.0   # how far the viewer stands from the cut (px): the perspective's strength
+func _door_card(f: Dictionary, yaw: float, pitch: float, shift: Vector2) -> void:
+	var poly: Polygon2D = f["door"]
+	var w := float(f["dw"])
+	var h := float(f["h"])
+	var foot := Vector2(float(f["hinge"]), float(f["y"])) + shift
+	var tex := poly.texture
+	var pts := PackedVector2Array()
+	var uvs := PackedVector2Array()
+	var nx := 4
+	var ny := 8
+	for j in ny + 1:
+		for i in nx + 1:
+			var u := float(i) / nx
+			var v := float(j) / ny
+			# the door's own space: hinge edge at x 0, the free edge at -w, the foot at y 0, the top at -h
+			var x := -w * (1.0 - u)
+			var y := -h * (1.0 - v)
+			var z := 0.0
+			var y2 := y * cos(pitch)
+			var z2 := -y * sin(pitch)        # falling: the top comes out of the picture toward the viewer
+			var x3 := x * cos(yaw)
+			var z3 := z2 + x * sin(yaw)       # turning: the free edge goes back into the room
+			var k := DOOR_EYE / (DOOR_EYE - z3)
+			pts.append(foot + Vector2(x3 * k, y2 * k))
+			uvs.append(Vector2(u * tex.get_width(), v * tex.get_height()))
+	var polys := []
+	for j in ny:
+		for i in nx:
+			var a := j * (nx + 1) + i
+			polys.append(PackedInt32Array([a, a + 1, a + nx + 2, a + nx + 1]))
+	poly.polygon = pts
+	poly.uv = uvs
+	poly.polygons = polys
+
+
+## One of the flat's two-state pieces (art_src 224, seen from the front), `h` tall.
+func _flat_piece(name: String, floor_y: float, h: float) -> Sprite2D:
 	var sp := Sprite2D.new()
 	sp.texture = load("res://art/section/" + name + ".png")
 	sp.centered = false
-	var k := h / sp.texture.get_height()
-	sp.scale = Vector2.ONE * k
-	sp.position = Vector2(x - sp.texture.get_width() * k * 0.5, floor_y - h)
+	sp.scale = Vector2.ONE * h / sp.texture.get_height()
+	sp.position = Vector2(0.0, floor_y)
 	sp.z_index = -2
 	sp.light_mask = 0
 	sp.modulate = Color(ROOM_BASE, ROOM_BASE, ROOM_BASE, 1.0)
@@ -6115,45 +6183,96 @@ func _flat_at_storey(y: float) -> Dictionary:
 	return {}
 
 
-## The shut door stops him; running, diving or sliding into it kicks it in: the door bursts, the man right behind
-## it goes down, and time slows 1.2 s for free.
+## The shut door stops him. Running at it he throws himself into a flying kick (a dive) a step before it; the
+## kick meets the door: the picture stops for a beat, CRACK, splinters, and the door goes in.
 func _flat_door_block(before_x: float) -> void:
 	var f := _flat_at_storey(_ground_y)
 	if f.is_empty() or f["open"] or absf(player.position.y - float(f["y"])) > 60.0:
 		return
-	var dx := float(f["x"]) - 24.0
-	if before_x <= dx and player.position.x > dx:
-		if absf(run) > 250.0 or move_state in ["dive", "slide"] or absf(glide) > 200.0:
+	var face := float(f["hinge"]) - float(f["dw"]) - 30.0
+	if move_state == "ground" and absf(run) > 250.0 and signf(run) > 0.0 and player.position.x > face - FLAT_KICK_FROM and player.position.x < face:
+		_start_dive(1.0, 1.0, DIVE_SPEED.y * 0.55, true)   # a flying kick into it
+		return
+	if before_x <= face + 1.0 and player.position.x > face:
+		if move_state in ["dive", "slide"] or absf(glide) > 200.0:
 			_kick_door(f)
 		else:
-			player.position.x = dx
+			player.position.x = face
 			run = 0.0
 
 
+const FLAT_DOOR_HINGE := 65.0   # the door's hinge: on the painted post, this far right of the passage's middle
+const FLAT_KICK_FROM := 330.0   # how far before the door a run turns into the flying kick
+const FLAT_SWING := 2.35        # how far the kicked door swings round its hinge (radians): back into the flat, onto the stove
 func _kick_door(f: Dictionary) -> void:
 	f["open"] = true
-	var d: Sprite2D = f["door"]
-	d.texture = load("res://art/section/flat_door_broken.png")
-	var tw := d.create_tween()   # torn off its hinges: it flies in and lands flat on the boards
-	tw.tween_property(d, "rotation", PI * 0.5, 0.35).set_ease(Tween.EASE_IN)
-	tw.parallel().tween_property(d, "position", d.position + Vector2(float(f["h"]) + 40.0, float(f["h"]) - 26.0), 0.35)
-	sfx.play("door", 2.0, float(f["x"]), 0.05)
-	sfx.play("wood_break", 0.0, float(f["x"]), 0.08)
+	var d: Polygon2D = f["door"]
+	var contact := Vector2(float(f["hinge"]) - float(f["dw"]) * 0.8, float(f["y"]) - float(f["h"]) * 0.45)
+	_impact(0.09, 0.03)   # the moment of contact: the world holds still a beat
+	_word(["crack", "wham"], contact + Vector2(-40.0, -170.0), 0.24, Vector2.RIGHT)
+	sfx.play("door", 3.0, contact.x, 0.05)
+	sfx.play("wood_break", 1.0, contact.x, 0.08)
+	for k in 6:
+		fx.chip(contact + Vector2(randf_range(-30.0, 30.0), randf_range(-90.0, 90.0)))
+	fx.dust(Vector2(contact.x, float(f["y"])), 0.5)
+	_shake = 0.3
 	_free_slow = 1.2
-	_shake = 0.25
+	glide *= 0.25   # the kick takes his speed: he lands in the doorway
+	var tw := d.create_tween()
+	tw.tween_interval(0.06)
+	tw.tween_callback(func() -> void:
+		d.texture = load("res://art/section/flat_door_broken.png"))
+	if _perk("doorram"):   # BATTERING RAM: torn off its hinges, it flies on the way he kicked, falls flat, flattens whoever is there
+		d.z_index = 3
+		tw.tween_method(func(t: float) -> void:
+			var fly := Vector2(float(f["dw"]) * 0.9 + FLAT_RAM_FLY * t, -60.0 * sin(t * PI))
+			_door_card(f, 0.35 * t, DOOR_FLAT * t * t, fly)   # turning a little, tipping over onto the boards
+			_door_ram_hits(f, float(f["hinge"]) + fly.x), 0.0, 1.0, 0.45).set_ease(Tween.EASE_OUT)
+		tw.tween_callback(func() -> void:
+			sfx.play("wood_hit", 0.0, float(f["hinge"]) + FLAT_RAM_FLY, 0.08)
+			fx.dust(Vector2(float(f["hinge"]) + FLAT_RAM_FLY, float(f["y"])), 0.6))
+	else:     # round on its hinge into the flat, slammed against the stove, and left hanging there broken
+		var swing := func(a: float) -> void:
+			_door_card(f, a, 0.0, Vector2.ZERO)
+		tw.tween_method(swing, 0.0, FLAT_SWING, 0.24).set_ease(Tween.EASE_IN)
+		tw.tween_callback(func() -> void:
+			sfx.play("wood_hit", 0.0, float(f["hinge"]), 0.08))
+		tw.tween_method(swing, FLAT_SWING, FLAT_SWING - 0.18, 0.08)   # the bounce off the stove
+		tw.tween_method(swing, FLAT_SWING - 0.18, FLAT_SWING, 0.12)
+		_door_knock(f, 260.0)   # only the man right behind it
+	for e in enemies:   # the rest: caught cold, a beat before they fire
+		if e["alive"] and absf(float(e["node"].position.y) - float(f["y"])) < 60.0 and e["node"].position.x > float(f["x"]):
+			e["seen"] = true
+			e["cool"] = maxf(float(e["cool"]), 0.8)
+
+
+const FLAT_RAM_FLY := 420.0     # BATTERING RAM: how far the door flies (about a metre and a half)
+func _door_ram_hits(f: Dictionary, at_x: float) -> void:
 	for e in enemies:
-		if not e["alive"] or absf(float(e["node"].position.y) - float(f["y"])) > 60.0 or e["node"].position.x < float(f["x"]):
-			continue
-		e["seen"] = true
-		if e["node"].position.x - float(f["x"]) < 260.0 and String(e["state"]) in ["post", "run", "move"]:
-			e["state"] = "down"   # right behind it: the door knocks him flat
-			e["down_t"] = 0.0
-			e["push"] = 600.0
-		else:
-			e["cool"] = maxf(float(e["cool"]), 0.8)   # caught cold: a beat before they fire
+		if e["alive"] and absf(float(e["node"].position.y) - float(f["y"])) < 60.0 and absf(e["node"].position.x - at_x) < 90.0 \
+				and String(e["state"]) in ["post", "run", "move", "hop"]:
+			_knock_down(e, 900.0)
 
 
-## Through the flat's window: only in the air (the sill is above the boards); the first time the glass bursts.
+func _door_knock(f: Dictionary, reach: float) -> void:
+	for e in enemies:
+		var dx: float = e["node"].position.x - float(f["hinge"])
+		if e["alive"] and absf(float(e["node"].position.y) - float(f["y"])) < 60.0 and dx > -20.0 and dx < reach \
+				and String(e["state"]) in ["post", "run", "move", "hop"]:
+			_knock_down(e, 600.0)
+
+
+func _knock_down(e: Dictionary, push: float) -> void:
+	e["state"] = "down"
+	e["down_t"] = 0.0
+	e["seen"] = true
+	e["push"] = push
+	e["node"].duck = 0.0
+	e["node"].slide_side = 1.0
+	_word(["thud"], e["node"].position + Vector2(0.0, -380.0), 0.18)
+
+
+## Through the flat's window: only in the air (the sill is above the boards); the glass bursts out with him.
 func _through_window() -> bool:
 	var f := _flat_at_storey(_ground_y)
 	if f.is_empty() or move_state == "ground" or player.position.x < float(f["wx0"]) - 140.0:
@@ -6162,9 +6281,18 @@ func _through_window() -> bool:
 		return false
 	if not f["broken"]:
 		f["broken"] = true
-		(f["glass"] as Sprite2D).texture = load("res://art/section/flat_glass_broken.png")
-		for i in 3:
-			fx.shatter(Vector2(float(f["gx"]), float(f["y"]) - float(f["sill"]) - 60.0 - 90.0 * i))
+		var g: Sprite2D = f["glass"]
+		g.texture = load("res://art/section/flat_glass_broken.png")
+		var mid := Vector2(float(f["gx"]), float(f["y"]) - (float(f["sill"]) + float(f["lintel"])) * 0.5)
+		_impact(0.06, 0.05)
+		_word(["crash", "smash"], mid + Vector2(60.0, -200.0), 0.24, Vector2.RIGHT)
+		var opening := Rect2(float(f["wx0"]), float(f["y"]) - float(f["lintel"]), float(f["wx1"]) - float(f["wx0"]), float(f["lintel"]) - float(f["sill"]))
+		var deck := Vector2(-INF, INF)
+		for c in level["floors"]:   # the fire escape's landing outside: what falls past its end goes down to the street
+			if String(c[3]) == "fescape" and absf(float(c[1]) - float(f["y"])) < 10.0:
+				deck = Vector2(float(c[0]), float(c[0]) + float(c[2]))
+		fx.burst_window(opening, Vector2(glide + run, fall), float(f["y"]), deck, 0.0)   # out with him
+		fx.shatter(mid)
 		sfx.play("glass", 3.0, float(f["gx"]), 0.05)
 		_free_slow = maxf(_free_slow, 0.5)
 	return true
@@ -6175,7 +6303,7 @@ func _flat_closed_between(a: Vector2, b: Vector2) -> bool:
 	for f in _flats:
 		if f["open"] or absf(a.y - float(f["y"])) > 300.0 or absf(b.y - float(f["y"])) > 300.0:
 			continue
-		if (a.x - float(f["x"])) * (b.x - float(f["x"])) < 0.0:
+		if (a.x - float(f["hinge"])) * (b.x - float(f["hinge"])) < 0.0:
 			return true
 	return false
 
@@ -6288,7 +6416,7 @@ func _tick_sections(real: float) -> void:
 		(art["void"] as Node2D).modulate.a = maxf(open, float(art["veil_a"]))
 		for f in _flats:   # the flat's door and glass show with the storeys
 			for key in ["door", "glass"]:
-				(f[key] as Sprite2D).visible = open > 0.5
+				(f[key] as CanvasItem).visible = open > 0.5
 		for e in enemies:   # whoever is inside is behind the facade until it opens: nobody floats in front of it
 			if e["state"] != "wait" and _section_at(e["node"].position) == i:
 				e["node"].visible = open > 0.3
@@ -7789,6 +7917,8 @@ func _nearest_enemy(side := 0.0):
 			continue
 		if e["state"] == "stairs" or (_section_at(player.position) >= 0 and absf(e["node"].position.y - _ground_y) > 300.0):
 			continue   # in a building only his own storey: the ceiling is between him and the rest
+		if _flat_closed_between(e["node"].position, player.position):
+			continue   # behind a shut door: kick it in first
 		if best == null or absf(dx) < absf(best.position.x - player.position.x):
 			best = e["node"]
 	return best

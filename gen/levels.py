@@ -299,7 +299,7 @@ def chunk(name, hard, rng=None):
         c.flats.append([SEC_FLAT_DOOR, -SEC_H * 2, 476.0, SEC_WIN[0], SEC_WIN[1], 178.0, 501.0])
         e0 = esc(570.0)
         for k in (1, 2, 3):                                                  # the escape's three landings
-            c.plat(e0, -SEC_H * k, esc(1220.0) - e0, "fescape")
+            c.plat(e0, -SEC_H * k, esc(1160.0) - e0, "fescape")   # (the deck's drawn outer end, under the railing)
         c.ramps.append([esc(820.0), -SEC_H, esc(1050.0), -SEC_H * 2, "fescape"])      # its flights, as drawn
         c.ramps.append([esc(790.0), -SEC_H * 2, esc(1050.0), -SEC_H * 3, "fescape"])
         c.foe(1200).foe(2100, kind="shotgun" if hard > 0.6 else "post")
@@ -311,6 +311,15 @@ def chunk(name, hard, rng=None):
         c.checks += [-60.0]
         c.hint(-400, "INSIDE, UP THE STAIRS")
         c.up_end = esc(1050.0)   # the roof reaches out to where the fire escape's top flight arrives
+    elif name == "stunts":   # SANDBOX STUNTS: the new moves in a few seconds - one storey, the flat right by the door,
+        w = SEC_W            # kick its door in (a man behind it), out of its window to the street, the rope behind
+        c = Chunk(w + 2600)
+        c.sections.append([0.0, w, 1, "tenement_stunt"])
+        c.flats.append([SEC_FLAT_DOOR, 0.0, 476.0, SEC_WIN[0], SEC_WIN[1], 178.0, 501.0])
+        c.foe(SEC_FLAT_DOOR + 180).foe(2800, kind="shotgun")
+        c.rope("swing", w + 900).box("stack", w + 1420).foe(w + 2200)
+        c.checks += [-60.0]
+        c.hint(-400, "RUN AT THE DOOR")
     elif name == "stairs_up":   # the end of the platform: the stairs up to the mezzanine, the way out
         k = -KITS["mezz"]["y"] / (STAIR_FOOT[1] - STAIR_TOP[1])
         run = (STAIR_TOP[0] - STAIR_FOOT[0]) * k
@@ -1023,6 +1032,8 @@ SANDBOX = [
     # the building in cross-section (stand-in drawings until the tenement kit is drawn, gen/QUEUE_doma.md §5)
     {"name": "SECTION", "seed": 901, "start": 0.45, "end": 0.6, "fixed": ["breather", "section"],
      "roof": True, "kit": "troof", "roofs": ["roof_b", "roof_a"], "intro": [], "outro": []},
+    # the stunts alone, for a quick look and a quick bot: door kick, window jump, rope swing (--sandbox=1)
+    {"name": "STUNTS", "seed": 902, "start": 0.45, "end": 0.6, "fixed": ["stunts"], "intro": [], "outro": []},
 ]
 
 SEEN = set()   # a rope hint is shown once in the whole story, on the first map that has that rope

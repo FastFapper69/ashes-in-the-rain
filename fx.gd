@@ -718,6 +718,9 @@ func _fly_debris(delta: float) -> void:
 	while i >= 0:
 		var d: Dictionary = _debris[i]
 		var n: Node2D = d["node"]
+		if d["rest"] > 0.0 and d.has("ledge") and n.position.y < float(d["ground"]) - 5.0 and (n.position.x < (d["ledge"] as Vector2).x or n.position.x > (d["ledge"] as Vector2).y):
+			d["rest"] = 0.0   # (resting past the ledge's end: falls on)
+			d["floor"] = d["ground"]
 		if d["rest"] > 0.0:   # lying on the ground: wait, then fade
 			d["rest"] = float(d["rest"]) - delta
 			if d["rest"] <= 0.0:
@@ -726,6 +729,8 @@ func _fly_debris(delta: float) -> void:
 			i -= 1
 			continue
 		var v: Vector2 = d["vel"]
+		if d.has("ledge") and float(d["floor"]) != float(d["ground"]) and (n.position.x < (d["ledge"] as Vector2).x or n.position.x > (d["ledge"] as Vector2).y):
+			d["floor"] = d["ground"]   # slid off the end of the ledge: on down to the ground
 		v.y += 2600.0 * delta
 		n.position += v * delta
 		n.rotation += float(d["spin"]) * delta
@@ -742,6 +747,45 @@ func _fly_debris(delta: float) -> void:
 				d["spin"] = float(d["spin"]) * 0.5
 		d["vel"] = v
 		i -= 1
+
+
+## A window smashed by a man going through it: the glass and the snapped bars burst out with him (his velocity,
+## spread), tumble and fall onto whatever is below (`floor_y`), bounce and lie there.
+func burst_window(rect: Rect2, vel: Vector2, floor_y: float, ledge := Vector2(-INF, INF), ground := 0.0) -> void:
+	for i in 34:   # glass: big jagged pieces and slivers, catching the light
+		var shard := Polygon2D.new()
+		var r := randf_range(8.0, 34.0) if i < 20 else randf_range(4.0, 10.0)
+		shard.polygon = PackedVector2Array([Vector2(-r, -r * 0.35), Vector2(r * randf_range(0.6, 1.3), randf_range(-r, -r * 0.1)),
+				Vector2(randf_range(-r * 0.3, r * 0.6), r * randf_range(0.5, 1.2)), Vector2(-r * randf_range(0.5, 1.0), r * 0.2)])
+		shard.color = Color(0.82 * night.r, 0.88 * night.g, 0.93 * night.b, randf_range(0.55, 0.95))
+		shard.material = _unshaded
+		shard.z_index = 4
+		shard.position = rect.position + Vector2(randf() * rect.size.x, randf() * rect.size.y)
+		add_child(shard)
+		var v := vel * randf_range(0.55, 1.05) + Vector2(randf_range(-120.0, 260.0), randf_range(-420.0, 120.0))
+		_debris.append({"node": shard, "vel": v, "spin": randf_range(-18.0, 18.0), "floor": _lands_on(shard.position, v, floor_y, ledge, ground) - randf_range(0.0, 10.0), "bounces": 0, "rest": 0.0, "ledge": ledge, "ground": ground})
+	for i in 7:   # pieces of the snapped bars and the sash
+		var bar := Polygon2D.new()
+		var l := randf_range(26.0, 70.0)
+		bar.polygon = PackedVector2Array([Vector2(-l, -4.0), Vector2(l, -3.0), Vector2(l * 0.85, 4.0), Vector2(-l, 3.5)])
+		bar.color = Color(0.33, 0.26, 0.19) * night
+		bar.material = _unshaded
+		bar.z_index = 4
+		bar.position = rect.get_center() + Vector2(randf_range(-0.4, 0.4) * rect.size.x, randf_range(-0.4, 0.4) * rect.size.y)
+		add_child(bar)
+		var v := vel * randf_range(0.5, 0.9) + Vector2(randf_range(-80.0, 200.0), randf_range(-380.0, 0.0))
+		_debris.append({"node": bar, "vel": v, "spin": randf_range(-14.0, 14.0), "floor": _lands_on(bar.position, v, floor_y, ledge, ground), "bounces": 0, "rest": 0.0, "ledge": ledge, "ground": ground})
+	if sound:
+		sound.play("glass", 0.0, rect.get_center().x + 200.0, 0.1)   # and again as it lands
+
+
+## Where a piece thrown from `at` at `v` comes down: on the ledge (`floor_y`, between ledge.x and ledge.y) if it
+## falls onto it, else on the ground far below.
+func _lands_on(at: Vector2, v: Vector2, floor_y: float, ledge: Vector2, ground: float) -> float:
+	var dy := floor_y - at.y
+	var t := (v.y + sqrt(maxf(0.0, v.y * v.y + 2.0 * 2600.0 * dy))) / 2600.0
+	var x := at.x + v.x * t
+	return floor_y if x > ledge.x and x < ledge.y else ground
 
 
 ## A chip of wood knocked off a crate by a bullet.

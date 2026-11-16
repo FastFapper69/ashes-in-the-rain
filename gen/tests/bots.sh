@@ -7,3 +7,4 @@ echo "0 0" >> /tmp/maps.txt
 cat /tmp/maps.txt | xargs -P 6 -n 2 bash -c 'run $0 $1'
 # the trial maps (levels.gd SANDBOX)
 timeout 300 "$G" --headless --fixed-fps 30 -- --test=play --sandbox=0 > /tmp/bot_sb0.log 2>&1; echo "sandbox 0: $(grep -E 'BOT CLEARED|BOT DIED|SCRIPT ERROR' /tmp/bot_sb0.log | head -1)"
+timeout 120 "$G" --headless --fixed-fps 30 -- --test=play --sandbox=1 > /tmp/bot_sb1.log 2>&1; echo "sandbox 1 (stunts): $(grep -E 'BOT CLEARED|BOT DIED|SCRIPT ERROR' /tmp/bot_sb1.log | head -1)"

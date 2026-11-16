@@ -51,18 +51,18 @@ for n, name in PIECES.items():
     print(f"{n} -> {name}.png  slab at {top}")
 
 
-# art_src 221: the two-state pieces on Gemini's flat green, four in a row: the flat's door seen edge-on whole and
-# kicked in, the window's sash seen edge-on glazed and shattered. Keyed and cut apart at the green gaps; kept at
-# the pieces' own scale (main.gd scales them like the storeys).
+# art_src 224: the flat's door and window seen from the front (221, edge-on, read as nothing in the game: replaced),
+# on Gemini's flat green, four in a row: door shut, door kicked in, window glazed, window shattered. Keyed and cut
+# apart at the green gaps.
 from scipy import ndimage
-p = os.path.join(SRC, "221.png")   # (the 1024 px preview: Gemini served a broken full-size file)
+p = os.path.join(SRC, "224.jpg")
 if os.path.exists(p):
     a = np.asarray(Image.open(p).convert("RGB")).astype(float)
     r, g, b = a[..., 0], a[..., 1], a[..., 2]
     alpha = ndimage.grey_opening(1 - np.clip((g - np.maximum(r, b) - 40) / 50, 0, 1), size=(3, 3))
     a[..., 1] -= np.maximum(g - np.maximum(r, b), 0) * (1 - alpha * 0.5)
     rgba = np.dstack([np.clip(a, 0, 255), alpha * 255]).astype(np.uint8)
-    cols = np.where(alpha.max(0) > 0.5)[0]
+    cols = np.where((alpha > 0.5).sum(0) > 40)[0]
     runs, s0, prev = [], None, None
     for x in cols:
         if s0 is None: s0 = x
@@ -72,10 +72,10 @@ if os.path.exists(p):
     names = ["flat_door", "flat_door_broken", "flat_glass", "flat_glass_broken"]
     assert len(runs) == 4, runs
     for (x0, x1), nm in zip(runs, names):
-        im = Image.fromarray(rgba[:, x0 - 4:x1 + 5], "RGBA")
+        im = Image.fromarray(rgba[:, max(0, x0 - 4):x1 + 5], "RGBA")
         im = im.crop(im.getbbox())
         im.save(os.path.join(OUT, nm + ".png"))
-        print("221 ->", nm, im.size)
+        print("224 ->", nm, im.size)
 
 
 # art_src 222: the fire escape on the building's right side, seen side-on. Cut from the wall's outer face (x 570) and
@@ -87,3 +87,17 @@ if os.path.exists(p):
     im = im.crop((0, 0, im.width - im.width % 4, im.height - im.height % 4))
     im.save(os.path.join(OUT, "tenement_escape.png"))
     print("222 -> tenement_escape.png", im.size)
+
+
+# art_src 225 (the 1024 px page preview: the full-size file came broken): the window after he went through it, a hole
+# where the bars snapped. Replaces the shattered piece of 224 (whose bars were all whole: nobody gets through that).
+p = os.path.join(SRC, "225.png")
+if os.path.exists(p):
+    a = np.asarray(Image.open(p).convert("RGB")).astype(float)
+    r, g, b = a[..., 0], a[..., 1], a[..., 2]
+    alpha = ndimage.grey_opening(1 - np.clip((g - np.maximum(r, b) - 40) / 50, 0, 1), size=(3, 3))
+    a[..., 1] -= np.maximum(g - np.maximum(r, b), 0) * (1 - alpha * 0.5)
+    im = Image.fromarray(np.dstack([np.clip(a, 0, 255), alpha * 255]).astype(np.uint8), "RGBA")
+    im = im.crop(im.getbbox())
+    im.save(os.path.join(OUT, "flat_glass_broken.png"))
+    print("225 -> flat_glass_broken", im.size)

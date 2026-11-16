@@ -49,6 +49,7 @@ const CARDS := {
 		["OPEN HAND", "Shoot a gun out of a hand without slowed time.", "openhand", "mercy1"],
 		["HOT STREAK", "A combo of three puts a round back in the gun.", "hotstreak", "lead4"],
 		["SPLINTERS", "Wooden cover goes to pieces in a few shots.", "splinters", "lead2"],
+		["BATTERING RAM", "A door kicked in flies on and flattens the man behind it.", "doorram", "heavy"],
 		["ACROBAT", "A kill in the air gives back slowed time.", "acrobat", "time4"],
 		["SECOND WIND", "Letting a man go gives back a hit.", "secondwind", "mercy3"],
 	],
