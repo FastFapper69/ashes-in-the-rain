@@ -1,3 +1,4 @@
+"""Web build check: serve build/ on localhost:8060 first. usage: web_check.py [chapter:map]"""
 import json, sys, time
 from playwright.sync_api import sync_playwright
 import os, sys
@@ -5,7 +6,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 from paths import REPO
 errs = []
 with sync_playwright() as p:
-    b = p.chromium.launch(executable_path="/usr/bin/google-chrome", headless=True,
+    chrome = "/usr/bin/google-chrome" if os.path.exists("/usr/bin/google-chrome") else None   # PC: playwright's own chromium
+    b = p.chromium.launch(executable_path=chrome, headless=True,
         args=["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist", "--autoplay-policy=no-user-gesture-required"])
     ctx = b.new_context(viewport={"width": 852, "height": 393}, device_scale_factor=2, is_mobile=True, has_touch=True)
     pg = ctx.new_page()
@@ -26,7 +28,7 @@ with sync_playwright() as p:
             break
     time.sleep(8)
     pg.screenshot(path=REPO + "_shots/web_title.png")
-    pg.evaluate("localStorage.setItem('ashes_resume','1:1')")
+    pg.evaluate("localStorage.setItem('ashes_resume','%s')" % (sys.argv[1] if len(sys.argv) > 1 else "1:1"))   # chapter:map
     pg.reload()
     time.sleep(25); pg.mouse.click(426, 200)
     for k in range(4):

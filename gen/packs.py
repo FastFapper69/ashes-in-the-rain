@@ -2,7 +2,7 @@
 drawings of the chapter being played (Godot's web build keeps every pack it has in memory).
 
 Groups: a = prologue + chapter I (both in Hell's Kitchen), b = chapter II, c = chapter III, d = chapter IV.
-A street or room drawing goes into a group's pack if only that group's maps name it; a comic panel if
+A street, room or cross-section drawing goes into a group's pack if only that group's maps name it; a comic panel if
 only that group's cutscenes show it. Everything else stays in the base pack.
 Writes export_presets.cfg (base exclude list + one preset per group) and packs.gd (what runtime needs).
 Run from the repo root: python3 gen/packs.py
@@ -23,6 +23,13 @@ for f in sorted(set(x.replace(os.sep, '/') for x in glob.glob('art/street/*.png'
     for i, c in enumerate(chapters):
         if re.search(r'"%s"' % re.escape(base), c):
             files[f].add(GROUP_OF_CHAPTER[i])
+# a building in cross-section (art/section/<style>_*.png, the kit main.gd builds the storeys from): into the pack
+# of the only group whose maps have a section of that style ("tenement" -> chapter I)
+for f in sorted(x.replace(os.sep, '/') for x in glob.glob('art/section/*.png')):
+    style = os.path.basename(f)[:-4].split('_')[0]
+    gs = {GROUP_OF_CHAPTER[i] for i, c in enumerate(chapters) if re.search(r'"%s[a-z_]*"' % re.escape(style), c)}
+    if len(gs) == 1:
+        files[f] = gs
 cs = open('cutscene.gd').read()
 body = cs[cs.index('const SCENES'):]
 body = body[:body.index('\n}\n')]

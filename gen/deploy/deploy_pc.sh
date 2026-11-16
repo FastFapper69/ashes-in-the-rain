@@ -10,6 +10,7 @@ PAGES="${PAGES:-$REPO/../ink-and-lead-pages}"
 export PYTHONUTF8=1
 [ -x "$G" ] || { echo "STOP: Godot not found at $G (set G=...)"; exit 1; }
 [ -d "$PAGES/.git" ] || git clone -q --depth 1 --single-branch -b gh-pages https://github.com/FastFapper69/ink-and-lead.git "$PAGES"
+git -C "$PAGES" config user.name Claude; git -C "$PAGES" config user.email noreply@anthropic.com   # (a fresh clone has no identity: the build commit failed silently)
 # Another chat may deploy to the same repo: never push over work that is not in this clone.
 for d in "$REPO" "$PAGES"; do
   cd "$d" && git fetch -q origin
@@ -36,9 +37,10 @@ git diff --cached --quiet || git commit -qm "$1
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 git push -q origin main
 $PY gen/deploy/version_build.py "$REPO/build" "$PAGES"
+GHP_BEFORE=$(git -C "$PAGES" rev-parse HEAD)
 cd "$PAGES" && git add -A && git commit -qm "Deploy: $1
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" && git push -q origin gh-pages
-git fetch -q origin && [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/gh-pages)" ] && echo GHP-OK
+git fetch -q origin && [ "$(git rev-parse HEAD)" != "$GHP_BEFORE" ] && [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/gh-pages)" ] && echo GHP-OK || echo "GHP-FAILED: no new build commit on gh-pages"
 cd "$REPO" && git fetch -q origin && [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] && echo MAIN-OK
 grep -o '"executable":"ashes-[0-9a-f]*"' "$PAGES/index.html"
