@@ -8,11 +8,11 @@ extends RefCounted
 const MenuScript = preload("res://menu.gd")
 const Levels = preload("res://levels.gd")
 
-const BRANCHES := ["frank", "gun", "instinct", "shotgun", "tommy"]   # every row of cards; the guns' rows are shown at the gunsmith
+const BRANCHES := ["frank", "gun", "instinct", "beretta", "shotgun", "tommy"]   # every row of cards; the guns' rows are shown at the gunsmith
 const BOARD := ["frank", "instinct"]   # the rows on the cork board
-const GUNS := ["gun", "shotgun", "tommy"]   # the gunsmith's: the revolver's row is "gun"
-const BRANCH_NAMES := {"frank": "FRANK", "gun": "REVOLVER", "instinct": "TRICKS", "shotgun": "SHOTGUN", "tommy": "TOMMY GUN"}
-const GUN_FROM := {"gun": 1, "shotgun": 2, "tommy": 3}   # a gun is found from this chapter on (and upgraded from then)
+const GUNS := ["gun", "beretta", "shotgun", "tommy"]   # the gunsmith's: the revolver's row is "gun"
+const BRANCH_NAMES := {"frank": "FRANK", "gun": "REVOLVER", "instinct": "TRICKS", "beretta": "BERETTA", "shotgun": "SHOTGUN", "tommy": "TOMMY GUN"}
+const GUN_FROM := {"gun": 1, "beretta": 1, "shotgun": 2, "tommy": 3}   # a gun is found from this chapter on (and upgraded from then)
 const FROM_CHAPTER := [1, 1, 2, 2, 3]   # a tier opens once the story has reached this chapter
 # name, text, effect id (main.gd _perk), icon (art/ui/instincts/icon_<icon>.png)
 const CARDS := {
@@ -29,6 +29,13 @@ const CARDS := {
 		["STEADY HAND", "Tighter shots and a longer aim help.", "steady", "lead1"],
 		["LAST ROUND", "The last round always kills, in slowed time.", "lastround", "lead3"],
 		["TWO GUNS", "A second revolver in the other hand.", "twoguns", "twoguns"],
+	],
+	"beretta": [
+		["QUICK MAGS", "Changes magazines a third faster.", "b_fast", "lead0"],
+		["HOT LOADS", "Body shots hit half as hard again.", "b_hot", "heavy"],
+		["STEADY GRIP", "Tighter shots and a longer aim help.", "b_steady", "lead1"],
+		["LONG MAG", "Two more rounds in every magazine.", "b_mag", "lead3"],
+		["TWO BERETTAS", "A second Beretta in the other hand.", "b_two", "twoguns"],
 	],
 	"shotgun": [
 		["SHELL TUBE", "Two more shells in the tube.", "sg_tube", "lead0"],
@@ -159,6 +166,38 @@ static func rank() -> Array:
 	for f in ["tough1", "tough2", "tough3"]:
 		hits += 1 if has_fx(f) else 0
 	return [hits, DRAIN * (0.8 if has_fx("longwatch") else 1.0), REFILL]
+
+
+## The side gun he carries (his choice at the gunsmith, 2026-11-16): "revolver" or "beretta", and one
+## or two of it (two only once that row's last card is pinned).
+static func side() -> String:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--side="):
+			return a.trim_prefix("--side=")
+	return "beretta" if MenuScript.story("side") == "beretta" else "revolver"
+
+
+static func side_two() -> bool:
+	for a in OS.get_cmdline_user_args():
+		if a == "--two":
+			return true
+	return MenuScript.story("side_two") == "yes" and has_fx("twoguns" if side() == "revolver" else "b_two")
+
+
+static func set_side(kind: String, two: bool) -> void:
+	MenuScript.set_story("side", kind)
+	MenuScript.set_story("side_two", "yes" if two else "")
+
+
+## The big gun he takes along into a new chapter (2026-11-16): "", "shotgun" or "tommy", once found.
+## It comes with few rounds (BIG_START); more are found as ever.
+const BIG_START := {"shotgun": 8, "tommy": 40}
+static func big() -> String:
+	return MenuScript.story("big_gun")
+
+
+static func set_big(kind: String) -> void:
+	MenuScript.set_story("big_gun", kind)
 
 
 static func reached(chapter: int) -> bool:

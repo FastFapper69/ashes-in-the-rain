@@ -163,6 +163,35 @@ const WEAPONS := {
 	"shotgun": {"mag": 5, "reload": 1.1, "cool": 0.7, "ammo": 10, "pellets": 6, "spread": 0.15, "life": 0.3, "kick": 0.35, "sound": "shot_shotgun", "name": "SHOTGUN"},
 	"rifle": {"mag": 5, "reload": 1.6, "cool": 1.0, "ammo": 0, "pellets": 1, "spread": 0.0, "life": 1.8, "kick": 0.4, "sound": "shot_shotgun", "name": "RIFLE"},   # the marksman's: never Frank's
 }
+# The side gun, as he chose it at the gunsmith (2026-11-16): one or two revolvers or Berettas, each its
+# own feel. dmg = body damage (a man takes mob_hp; a head shot always kills). In code the side gun is
+# always the weapon "revolver"; `side` says which it is.
+const SIDE_STATS := {
+	"revolver": [{"mag": 6, "reload": 0.85, "cool": 0.3, "spread": 0.0, "dmg": 1.5, "kick": 0.24, "sound": "shot_player", "name": "REVOLVER"},
+			{"mag": 12, "reload": 1.35, "cool": 0.14, "spread": 0.03, "dmg": 1.0, "kick": 0.2, "sound": "shot_player", "name": "TWO REVOLVERS"}],
+	"beretta": [{"mag": 8, "reload": 0.6, "cool": 0.16, "spread": 0.012, "dmg": 1.0, "kick": 0.12, "sound": "shot_enemy", "name": "BERETTA"},
+			{"mag": 16, "reload": 0.95, "cool": 0.085, "spread": 0.045, "dmg": 0.75, "kick": 0.1, "sound": "shot_enemy", "name": "TWO BERETTAS"}],
+}
+# the side gun's cards by what they do: [the revolver's effect, the Beretta's]
+const SIDE_FX := {"fast": ["fasthands", "b_fast"], "dmg": ["heavy", "b_hot"], "steady": ["steady", "b_steady"], "last": ["lastround", ""], "mag": ["", "b_mag"]}
+var side := "revolver"
+
+
+## A gun's numbers: the side gun's from SIDE_STATS, the others from WEAPONS.
+func _w(kind: String) -> Dictionary:
+	if kind != "revolver":
+		return WEAPONS[kind]
+	var w: Dictionary = WEAPONS["revolver"].duplicate()
+	w.merge(SIDE_STATS[side][1 if player != null and player.dual else 0], true)
+	return w
+
+
+## A side-gun card (SIDE_FX) for the gun he carries.
+func _sperk(what: String) -> bool:
+	var fx: String = SIDE_FX[what][0 if side == "revolver" else 1]
+	return fx != "" and _perk(fx)
+
+
 const WOOD := ["crate", "crate_long", "kegs", "barrel", "milk_crates", "fruit_cart", "bench", "cable_spool", "linen_table", "desk", "court_bench", "newsstand", "paper_bundles"]
 # How far down each drawing its top surface is, the line a man stands on: the drawings are seen a
 # little from above, so the top of the picture is the far edge of the lid, not where feet go. The
@@ -626,7 +655,9 @@ func _ready() -> void:
 	_tm("flocks")
 	player = PuppetScript.new()
 	player.cfg = DETECTIVE
-	player.dual = String(Levels.CAMPAIGN[chapter]["hero"]) != "eddie" and _perk_early("twoguns")
+	side = "revolver" if String(Levels.CAMPAIGN[chapter]["hero"]) == "eddie" else Instincts.side()
+	player.side = side
+	player.dual = String(Levels.CAMPAIGN[chapter]["hero"]) != "eddie" and Instincts.side_two()
 	if ch["hero"] == "eddie" and not in_menu:   # Eddie (the title always shows Frank: it is his story)
 		player.cfg = _eddie_cfg()
 	player.night = _undo_night(1.0)
@@ -735,6 +766,12 @@ func _ready() -> void:
 	if String(Levels.CAMPAIGN[chapter]["hero"]) == "eddie":   # the prologue is Eddie's: his picture in the corner
 		hud.set_portrait("res://art/ui/portrait_eddie.png")
 	hud.voice = sfx.voice
+	var big := Instincts.big()
+	if not in_menu and map == 0 and checkpoint < 0.0 and big != "" and String(Levels.CAMPAIGN[chapter]["hero"]) != "eddie" \
+			and Instincts.gun_open(big, chapter) and _auto in ["", "play"]:   # the big gun he took along: in the coat, few rounds
+		var n: int = int(Instincts.BIG_START[big])
+		_bag[big] = {"mag": mini(n, _mag_size(big)), "ammo": maxi(0, n - _mag_size(big))}
+		hud.toast("%s IN THE COAT: %d ROUNDS" % [String(WEAPONS[big]["name"]), n])
 	if not in_menu:
 		_show_guns()
 	hud.target_at = _man_under
@@ -2372,11 +2409,11 @@ func _process(delta: float) -> void:
 				for c in get_children():
 					if c.has_method("_smith_buy"):
 						c._smith_buy()
-			for k in 4:
-				if _at > 6.6 + [0.3, 0.62, 0.9, 1.6][k] and _auto_done == k + 1:
+			for k in 6:
+				if _at > 6.6 + [0.3, 0.62, 0.9, 1.2, 1.5, 2.9][k] and _auto_done == k + 1:
 					_auto_done = k + 2
 					_shot("smith_%d" % k)
-			if _at > 8.4:
+			if _at > 9.8:
 				get_tree().quit()
 		if _auto == "menu":
 			_at += delta
@@ -2515,7 +2552,7 @@ func _process(delta: float) -> void:
 				player.snap_aim(aim)
 			_fire(player, true)
 			_pop = 0.15
-		fire_cool = float(WEAPONS[weapon]["cool"]) * (0.6 if weapon == "revolver" and player.dual else 1.0)
+		fire_cool = float(_w(weapon)["cool"])
 	hud.fire_tapped = false
 	if not _queued_shot:   # the time risen out of cover counts from the shot, not from the tap
 		_pop = maxf(0.0, _pop - delta)
@@ -4204,7 +4241,7 @@ func _start_reload() -> void:
 	var full := _mag_size(weapon)
 	if reloading > 0.0 or mag >= full or (weapon != "revolver" and ammo <= 0):
 		return
-	var dur := float(WEAPONS[weapon]["reload"]) * (0.67 if _perk("fasthands") else 1.0)
+	var dur := float(_w(weapon)["reload"]) * (0.67 if weapon == "revolver" and _sperk("fast") else 1.0)
 	reloading = dur
 	if mag == 0 and randf() < 0.45:   # (an empty gun heard clicking, not a top-up)
 		var near = _nearest_enemy()
@@ -4215,7 +4252,10 @@ func _start_reload() -> void:
 		get_tree().create_timer(t, false).timeout.connect(func() -> void:
 			if reloading > 0.0 and not over:
 				what.call())
-	if weapon == "revolver":
+	if weapon == "revolver" and side == "beretta":   # magazine out, a fresh one slapped in, the slide
+		sfx.play("reload_mag", -2.0)
+		later.call(dur * 0.8, func() -> void: sfx.play("click", -4.0, INF, 0.05))
+	elif weapon == "revolver":
 		# latch and cylinder out; the empties tumble onto the stones; a round into each chamber;
 		# a spin of the cylinder with the thumb; it snaps shut (reload_done, in _tick_reload)
 		sfx.play("cyl_open", 0.0)
@@ -4244,7 +4284,7 @@ func _tick_reload(delta: float) -> void:
 	_idle_fire += delta
 	if reloading <= 0.0 and mag < _mag_size(weapon) and _idle_fire > 2.2 and not over:
 		_start_reload()
-	player.reload = 0.0 if reloading <= 0.0 else 1.0 - reloading / (float(WEAPONS[weapon]["reload"]) * (0.67 if _perk("fasthands") else 1.0))
+	player.reload = 0.0 if reloading <= 0.0 else 1.0 - reloading / (float(_w(weapon)["reload"]) * (0.67 if weapon == "revolver" and _sperk("fast") else 1.0))
 	if reloading > 0.0:
 		reloading -= delta
 		if reloading <= 0.0:
@@ -4346,7 +4386,7 @@ func _equip(kind: String) -> void:
 ## Rounds the gun holds: TWO GUNS doubles the revolver's.
 func _mag_size(kind: String) -> int:
 	match kind:
-		"revolver": return int(WEAPONS[kind]["mag"]) * (2 if player != null and player.dual else 1)
+		"revolver": return int(_w(kind)["mag"]) + (2 * (2 if player != null and player.dual else 1) if _sperk("mag") else 0)
 		"shotgun": return int(WEAPONS[kind]["mag"]) + (2 if _perk("sg_tube") else 0)   # the gunsmith's longer tube
 		"tommy": return 50 if _perk("tg_drum") else int(WEAPONS[kind]["mag"])   # the drum
 	return int(WEAPONS[kind]["mag"])
@@ -4360,8 +4400,8 @@ func _gun_open(kind: String) -> bool:
 
 
 func _show_ammo() -> void:
-	var w: Dictionary = WEAPONS[weapon]
-	var left := 0.0 if reloading <= 0.0 else 1.0 - reloading / (float(w["reload"]) * (0.67 if _perk("fasthands") else 1.0))
+	var w: Dictionary = _w(weapon)
+	var left := 0.0 if reloading <= 0.0 else 1.0 - reloading / (float(w["reload"]) * (0.67 if weapon == "revolver" and _sperk("fast") else 1.0))
 	hud.set_ammo("", mag, _mag_size(weapon), ammo if weapon != "revolver" else -1, left)
 
 
@@ -4375,8 +4415,13 @@ func _fire(shooter, from_player: bool, kind := "") -> void:
 	if from_player and _aim_point != Vector2.INF and _aim_point.distance_to(at) > 120.0:
 		d = (_aim_point - at).normalized()   # exactly onto the finger or the cursor, wherever the arm still is
 	var gun := weapon if from_player else (kind if WEAPONS.has(kind) else "revolver")
-	var w: Dictionary = WEAPONS[gun]
-	fx.muzzle(at, d, gun)
+	var w: Dictionary = _w(gun) if from_player else WEAPONS[gun]
+	# the gunsmith's work shows in the street: a new barrel (or slide) and its loads flash bigger and
+	# bark deeper; a worn Beretta's flash is small and sharp
+	var flash := gun
+	if from_player and gun == "revolver":
+		flash = "heavy" if _sperk("dmg") else ("pistol" if side == "beretta" else "revolver")
+	fx.muzzle(at, d, flash)
 	_scare_birds(at, 1300.0)
 	var point_blank := false
 	if from_player:
@@ -4395,14 +4440,20 @@ func _fire(shooter, from_player: bool, kind := "") -> void:
 					break
 	var pellets := int(w["pellets"]) + (2 if from_player and gun == "shotgun" and _perk("sg_buck") else 0)
 	for k in (0 if point_blank and pellets == 1 else pellets):
-		var spread: float = float(w["spread"]) * (0.5 if from_player and _perk("steady") else 1.0) * (0.5 if from_player and gun == "tommy" and _perk("tg_comp") else 1.0)
+		var spread: float = float(w["spread"]) * (0.5 if from_player and gun == "revolver" and _sperk("steady") else 1.0) * (0.5 if from_player and gun == "tommy" and _perk("tg_comp") else 1.0)
 		fx.shoot(at, d.rotated(randf_range(-spread, spread)) * BULLET_SPEED, from_player, w["life"])
 	if gun != "revolver":   # a revolver keeps its empties until it is reloaded
 		fx.casing(at - d * 50.0, signf(d.x))
 	shooter.recoil = w["kick"]
 	var sound: String = w["sound"] if from_player else ("shot_enemy" if gun == "revolver" else String(w["sound"]))
 	if from_player:
-		sfx.play(sound, 0.0)
+		if gun == "revolver":   # the side gun: a Beretta cracks higher, fitted loads boom lower and louder
+			var heavy := _sperk("dmg")
+			sfx.play(sound, 2.5 if heavy else 0.0, INF, 0.04)
+			if heavy or side == "beretta":
+				sfx.pitch_last((0.86 if heavy else 1.0) * (1.18 if side == "beretta" else 1.0))
+		else:
+			sfx.play(sound, 0.0)
 	else:
 		sfx.play(sound, -2.0, at.x)
 	# The comic words are a punctuation mark, not a soundtrack: only his own big moments get one,
@@ -4416,7 +4467,7 @@ func _fire(shooter, from_player: bool, kind := "") -> void:
 		_word(["rattat"], at + Vector2(signf(d.x) * 120.0, -150.0), 0.26, d)
 	shooter.next_hand()
 	if from_player:
-		if mag == 1 and _perk("lastround") and gun == "revolver":   # the last round: it finds its man
+		if mag == 1 and _sperk("last") and gun == "revolver":   # the last round: it finds its man
 			_last_round_t = 0.6
 			slow_on = true
 		mag -= 1
@@ -4610,7 +4661,7 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 						_briggs_down(e)
 						return true
 			else:
-				e["hp"] -= mob_hp if (part == "head" or _last_round_t > 0.0) else (2 if _perk("heavy") and weapon == "revolver" else 1)   # a head shot always kills
+				e["hp"] -= mob_hp if (part == "head" or _last_round_t > 0.0) else _body_dmg()   # a head shot always kills
 				if e["hp"] > 0:   # still up: knocked back a step, off his aim for a moment
 					var m2 = e["node"]
 					var back: float = signf(m2.position.x - player.position.x) * (70.0 if part == "torso" else 40.0)
@@ -5773,6 +5824,16 @@ var diff_step := -1   # -1 in the prologue
 
 
 ## An instinct Frank has pinned (never Eddie's: the prologue is played as it is).
+## A body hit with the gun in hand: the side gun's own weight (SIDE_STATS), its loads card on top.
+func _body_dmg() -> float:
+	if weapon != "revolver":
+		return 1.0
+	var d := float(_w("revolver")["dmg"])
+	if _sperk("dmg"):
+		d *= 2.0 if side == "revolver" else 1.5
+	return d
+
+
 func _perk_early(fx: String) -> bool:   # before the difficulty step is known (building the hero)
 	return Instincts.has_fx(fx)
 
@@ -6985,7 +7046,7 @@ func _man_under(screen: Vector2) -> bool:
 			continue
 		var m = e["node"]
 		var top: float = m.position.y - 400.0 * m.size + DUCK_DROP * m.duck
-		if absf(w.x - m.position.x) < (130.0 if _perk("steady") else 80.0) and w.y > top and w.y < m.position.y + 30.0:
+		if absf(w.x - m.position.x) < (130.0 if _sperk("steady") else 80.0) and w.y > top and w.y < m.position.y + 30.0:
 			return true
 	return false
 

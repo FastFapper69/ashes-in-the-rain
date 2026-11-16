@@ -980,16 +980,32 @@ func _portrait_note(view: Vector2) -> void:
 ## one swings the drawing round onto the part it changes, rings it in ink and works it: the revolver's
 ## cylinder swings out, the shotgun's shells go in, the tommy gun takes its drum. Points are the same as
 ## the board's (instincts.gd: rows "gun", "shotgun", "tommy").
-const SMITH_ART := {"gun": ["revolver", "revolver_open"], "shotgun": ["shotgun", "shotgun_open"], "tommy": ["tommy", "tommy_drum"]}
+# The side guns in parts (gen/gun_parts.py, art/ui/gunsmith/parts): every part worn until its card is
+# fitted, then new; fitting knocks the old part off and slides the new one in. [part, offset on the
+# 1300 x 726 drawing], in the order of the gun's cards; a fifth card is the second gun.
+const SMITH_SIZE := Vector2(1300.0, 726.0)
+const SMITH_PIECES := {
+	"gun": [["cylinder", Vector2(491.3, 87.4)], ["barrel", Vector2(817.7, 41.6)], ["grip", Vector2(85.0, 302.3)], ["frame", Vector2(83.6, 34.5)]],
+	"beretta": [["frame", Vector2(132.3, 95.4)], ["slide", Vector2(199.8, 45.8)], ["grip", Vector2(157.3, 205.0)], ["plate", Vector2(135.1, 619.3)]],
+}
+var _smith_pieces := {}   # part -> its Sprite2D on the stage
+const SMITH_ART := {"gun": ["revolver", "revolver_open"], "beretta": ["revolver", "revolver"], "shotgun": ["shotgun", "shotgun_open"], "tommy": ["tommy", "tommy_drum"]}
 # per upgrade: the part (pixels on the drawing), how close to go, its name, the drawing to show
 # ("" closed, "alt" the second), the word that pops, the sound, and an extra: shells fly in, a second gun
 const SMITH_PARTS := {
 	"gun": [
-		[Vector2(655, 300), 1.45, "THE CYLINDER", "alt", "kachak", "cyl_open", ""],
-		[Vector2(655, 300), 1.9, "THE ROUNDS", "alt", "clink", "shell_in", ""],
-		[Vector2(1150, 95), 1.7, "THE SIGHT", "", "", "cyl_spin", ""],
-		[Vector2(355, 100), 1.8, "THE HAMMER", "", "click", "hammer", ""],
-		[Vector2(720, 400), 0.8, "A SECOND REVOLVER", "", "", "reload_done", "second"],
+		[Vector2(620, 185), 1.0, "THE CYLINDER", "", "", "cyl_open", ""],
+		[Vector2(1030, 120), 1.0, "THE BARREL", "", "", "cyl_spin", ""],
+		[Vector2(200, 480), 1.0, "THE GRIPS", "", "", "click", ""],
+		[Vector2(420, 230), 0.95, "THE FRAME", "", "", "hammer", ""],
+		[Vector2(650, 380), 0.8, "A SECOND REVOLVER", "", "", "reload_done", "second"],
+	],
+	"beretta": [
+		[Vector2(560, 300), 0.95, "THE FRAME", "", "", "reload_mag", ""],
+		[Vector2(700, 120), 1.0, "THE SLIDE", "", "", "hammer", ""],
+		[Vector2(280, 420), 1.0, "THE GRIPS", "", "", "click", ""],
+		[Vector2(280, 650), 1.1, "THE MAGAZINE", "", "", "reload_mag", ""],
+		[Vector2(650, 380), 0.8, "A SECOND BERETTA", "", "", "reload_done", "second"],
 	],
 	"shotgun": [
 		[Vector2(1240, 118), 1.6, "THE TUBE", "", "", "reload_shells", ""],
@@ -1058,18 +1074,30 @@ func _gunsmith(gun := "", pick := -1) -> void:
 	var part: Array = SMITH_PARTS[_smith_gun][_smith_pick]
 	var have := Instincts.owned(_smith_gun, _smith_pick)
 	_smith_sprites = []
-	for k in 2:
-		var sp := Sprite2D.new()
-		sp.texture = load("res://art/ui/gunsmith/%s.png" % names[k])
-		var drum_on := _smith_gun == "tommy" and Instincts.owned("tommy", 0)   # a fitted drum stays on the gun
-		sp.visible = (k == 1) == drum_on
-		holder.add_child(sp)
-		_smith_sprites.append(sp)
-	var tex_size: Vector2 = (_smith_sprites[0] as Sprite2D).texture.get_size()
+	_smith_pieces = {}
+	var tex_size := SMITH_SIZE
+	if SMITH_PIECES.has(_smith_gun):   # the side guns: built of parts, each worn or new
+		for k in (SMITH_PIECES[_smith_gun] as Array).size():
+			var pc: Array = SMITH_PIECES[_smith_gun][k]
+			var sp := _smith_piece(String(pc[0]), Instincts.owned(_smith_gun, k))
+			sp.position = (pc[1] as Vector2) + sp.texture.get_size() * 0.5 - SMITH_SIZE * 0.5
+			holder.add_child(sp)
+			_smith_pieces[String(pc[0])] = sp
+	else:
+		for k in 2:
+			var sp := Sprite2D.new()
+			sp.texture = load("res://art/ui/gunsmith/%s.png" % names[k])
+			var drum_on := _smith_gun == "tommy" and Instincts.owned("tommy", 0)   # a fitted drum stays on the gun
+			sp.visible = (k == 1) == drum_on
+			holder.add_child(sp)
+			_smith_sprites.append(sp)
+		tex_size = (_smith_sprites[0] as Sprite2D).texture.get_size()
 	_smith_fit = minf(stage.size.x * 0.92 / tex_size.x, stage.size.y * 0.8 / tex_size.y)
-	if String(part[6]) == "second":   # a second revolver, behind and below the first
-		var two := Sprite2D.new()
-		two.texture = (_smith_sprites[0] as Sprite2D).texture
+	if String(part[6]) == "second":   # a second one, behind and below the first, as it stands now
+		var two := Node2D.new()
+		for c in holder.get_children():
+			var d: Sprite2D = (c as Sprite2D).duplicate()
+			two.add_child(d)
 		two.modulate = Color(0.7, 0.68, 0.66)
 		two.position = Vector2(140.0, 150.0)
 		two.rotation = deg_to_rad(9.0)
@@ -1088,21 +1116,22 @@ func _gunsmith(gun := "", pick := -1) -> void:
 
 	var title := _label("THE GUNSMITH", _font_head, 44, PAPER, 12)
 	title.position = Vector2(M, 18.0)
-	title.size = Vector2(520.0, 56.0)
+	title.size = Vector2(420.0, 56.0)
 	_page.add_child(title)
 	var sub := _label("LEVEL %d     %d POINTS TO SPEND" % [Instincts.level(), Instincts.unspent()], _font_type, 20, PAPER, 6)
 	sub.position = Vector2(M, 74.0)
-	sub.size = Vector2(560.0, 28.0)
+	sub.size = Vector2(420.0, 28.0)
 	_page.add_child(sub)
 	# the three guns as tags, top right
-	var tag_w := 196.0
-	for gi in Instincts.GUNS.size():
+	var ng := Instincts.GUNS.size()
+	var tag_w := minf(196.0, (view.x - M - 470.0 - (ng - 1) * GAP) / ng)
+	for gi in ng:
 		var g: String = Instincts.GUNS[gi]
 		var open := Instincts.reached(int(Instincts.GUN_FROM[g]))
-		var at := Vector2(view.x - M - (3 - gi) * tag_w - (2 - gi) * GAP, 28.0)
+		var at := Vector2(view.x - M - (ng - gi) * tag_w - (ng - 1 - gi) * GAP, 28.0)
 		var tag := _paper("tag", at, Vector2(tag_w, 64.0), TILT[gi + 1], _gunsmith.bind(g, 0) if open else func() -> void: pass)
-		var word: String = String({"gun": "REVOLVER", "shotgun": "SHOTGUN", "tommy": "TOMMY"}[g]) if open else "CHAPTER " + String(["", "I", "II", "III"][int(Instincts.GUN_FROM[g])])
-		Paper.write(tag, word, _font_head, 18, CRIMSON if g == _smith_gun else INK)
+		var word: String = String({"gun": "REVOLVER", "beretta": "BERETTA", "shotgun": "SHOTGUN", "tommy": "TOMMY"}[g]) if open else "CH " + String(["", "I", "II", "III"][int(Instincts.GUN_FROM[g])])
+		Paper.write(tag, word, _font_head, 15, CRIMSON if g == _smith_gun else INK)
 		if not open:
 			(tag.get_node("Drawing") as TextureRect).modulate = Color(0.78, 0.76, 0.72)
 	# the upgrades, one strip each
@@ -1132,6 +1161,45 @@ func _gunsmith(gun := "", pick := -1) -> void:
 	Paper.write(panel, "FITTED" if have else (why2 if why2 != "" else "COSTS 1 POINT"), _font_head, 19, CRIMSON, HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0.72, 1, 0.28))
 	var back := _paper("tape", Vector2(M, view.y - M - 60.0), Vector2(180.0, 60.0), TILT[5], _smith_back if _smith_back.is_valid() else _instincts)
 	Paper.write(back, "BACK", _font_head, 24, INK)
+	if _smith_gun in ["shotgun", "tommy"]:   # take it along into each new chapter, with few rounds
+		var along := Instincts.big() == _smith_gun
+		var x1 := M + 180.0 + GAP * 2.0
+		var tk := _paper("tape", Vector2(x1, view.y - M - 60.0), Vector2(250.0, 60.0), TILT[2], func() -> void:
+			Instincts.set_big("" if along else _smith_gun)
+			if sound.is_valid():
+				sound.call("reload_done")
+			_gunsmith())
+		Paper.write(tk, "LEAVE IT" if along else "TAKE ALONG", _font_head, 24, INK if along else CRIMSON)
+		var note := _label("%d ROUNDS AT EACH CHAPTER START" % int(Instincts.BIG_START[_smith_gun]) if along else "", _font_type, 16, PAPER, 6)
+		note.position = Vector2(x1 + 250.0 + GAP, view.y - M - 46.0)
+		note.size = Vector2(300.0, 30.0)
+		_page.add_child(note)
+	if _smith_gun in ["gun", "beretta"]:   # which side gun he carries, and one or two of it
+		var kind := "revolver" if _smith_gun == "gun" else "beretta"
+		var carried := Instincts.side() == kind
+		var two_fx := "twoguns" if kind == "revolver" else "b_two"
+		var x0 := M + 180.0 + GAP * 2.0
+		if carried:
+			var st := _label("CARRIED", _font_head, 30, CRIMSON, 0)
+			st.position = Vector2(x0, view.y - M - 56.0)
+			st.size = Vector2(170.0, 50.0)
+			st.rotation = deg_to_rad(-4.0)
+			_page.add_child(st)
+		else:
+			var carry := _paper("tape", Vector2(x0, view.y - M - 60.0), Vector2(200.0, 60.0), TILT[2], func() -> void:
+				Instincts.set_side(kind, Instincts.has_fx(two_fx))
+				if sound.is_valid():
+					sound.call("reload_done")
+				_gunsmith())
+			Paper.write(carry, "CARRY IT", _font_head, 24, CRIMSON)
+		if Instincts.has_fx(two_fx) and carried:
+			var two := Instincts.side_two()
+			var tog := _paper("tape", Vector2(x0 + 200.0 + GAP, view.y - M - 60.0), Vector2(170.0, 60.0), TILT[3], func() -> void:
+				Instincts.set_side(kind, not two)
+				if sound.is_valid():
+					sound.call("cyl_spin")
+				_gunsmith())
+			Paper.write(tog, "ONE GUN" if two else "TWO GUNS", _font_head, 22, INK)
 	if not have and why2 == "":
 		var buy := _paper("tape", Vector2(view.x - M - 260.0, view.y - M - 60.0), Vector2(260.0, 60.0), TILT[1], _smith_buy)
 		Paper.write(buy, "FIT IT", _font_head, 26, CRIMSON)
@@ -1147,7 +1215,7 @@ func _gunsmith(gun := "", pick := -1) -> void:
 ## part works (the second drawing cuts in with a word and a flash), and its name is captioned.
 func _smith_show(part: Array, fitted: bool) -> void:
 	var holder := _smith_stage
-	var tex_size: Vector2 = (_smith_sprites[0] as Sprite2D).texture.get_size()
+	var tex_size: Vector2 = SMITH_SIZE if SMITH_PIECES.has(_smith_gun) else (_smith_sprites[0] as Sprite2D).texture.get_size()
 	var hot: Vector2 = (part[0] as Vector2) - tex_size * 0.5
 	var z: float = float(part[1])
 	var s := _smith_fit * z
@@ -1176,12 +1244,12 @@ func _smith_show(part: Array, fitted: bool) -> void:
 		ring.queue_redraw(), 0.0, 1.0, 0.3)
 	# the part at work
 	var alt := String(part[3]) == "alt"
-	var first: Sprite2D = _smith_sprites[0]
-	var second: Sprite2D = _smith_sprites[1]
+	var first: Sprite2D = _smith_sprites[0] if _smith_sprites.size() > 1 else null
+	var second: Sprite2D = _smith_sprites[1] if _smith_sprites.size() > 1 else null
 	var t2 := holder.create_tween()
 	t2.tween_interval(0.6)
 	t2.tween_callback(func() -> void:
-		if alt and not second.visible:
+		if alt and second != null and not second.visible:
 			first.visible = false
 			second.visible = true
 			_smith_flash()
@@ -1193,8 +1261,8 @@ func _smith_show(part: Array, fitted: bool) -> void:
 			_smith_shells(holder, tex_size)
 		if String(part[6]) == "second":
 			for sp in _smith_sprites:
-				if (sp as Sprite2D).has_meta("second"):
-					var two: Sprite2D = sp
+				if (sp as Node2D).has_meta("second"):
+					var two: Node2D = sp
 					var at := two.position
 					two.position = at + Vector2(700.0, 120.0)
 					two.create_tween().tween_property(two, "position", at, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT))
@@ -1239,6 +1307,7 @@ func _smith_word(w: String, at: Vector2) -> void:
 	s.position = at + Vector2(0.0, -40.0)
 	s.rotation = deg_to_rad(-8.0)
 	s.scale = Vector2.ONE * 0.05
+	s.z_index = 5
 	_smith_panel.add_child(s)
 	var k := 150.0 / s.texture.get_width()
 	var tw := s.create_tween()
@@ -1247,6 +1316,81 @@ func _smith_word(w: String, at: Vector2) -> void:
 	tw.tween_interval(0.7)
 	tw.tween_property(s, "modulate:a", 0.0, 0.3)
 	tw.tween_callback(s.queue_free)
+
+
+func _smith_piece(part: String, new: bool) -> Sprite2D:
+	var sp := Sprite2D.new()
+	sp.texture = load("res://art/ui/gunsmith/parts/%s_%s_%s.png" % ["revolver" if _smith_gun == "gun" else _smith_gun, part, "new" if new else "worn"])
+	return sp
+
+
+## A part is fitted: the old one is knocked off the gun and falls away turning, the new one slides in
+## from the other side and seats with a jolt, sparks fly at the joint, and the stamp comes down.
+func _smith_swap(part: String) -> void:
+	var old: Sprite2D = _smith_pieces.get(part)
+	if old == null:
+		_gunsmith()
+		return
+	var holder := _smith_stage
+	var at := old.position
+	var away := (at.normalized() if at.length() > 1.0 else Vector2(0.0, 1.0))
+	var fresh := _smith_piece(part, true)
+	fresh.position = at + away * 900.0 + Vector2(0.0, -200.0)
+	fresh.modulate.a = 0.0
+	holder.add_child(fresh)
+	if sound.is_valid():
+		sound.call("cyl_open")
+	var tw := old.create_tween().set_parallel()
+	tw.tween_property(old, "position", at + Vector2(away.x * 260.0, 900.0), 0.6).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_property(old, "rotation", deg_to_rad(randf_range(-40.0, 40.0)), 0.6)
+	tw.tween_property(old, "modulate", Color(0.6, 0.55, 0.5, 0.0), 0.6).set_delay(0.2)
+	var tn := fresh.create_tween()
+	tn.tween_interval(0.45)
+	tn.tween_property(fresh, "modulate:a", 1.0, 0.1)
+	tn.parallel().tween_property(fresh, "position", at, 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tn.tween_callback(func() -> void:
+		if sound.is_valid():
+			sound.call("hammer")
+		_smith_sparks(holder.position + at.rotated(holder.rotation) * holder.scale.x)
+		_smith_flash()
+		_smith_word("kachak", holder.position + (at + Vector2(0.0, -120.0)).rotated(holder.rotation) * holder.scale.x))
+	tn.tween_interval(0.25)
+	tn.tween_callback(func() -> void:
+		var st := _label("FITTED", _font_head, 64, CRIMSON, 0)
+		st.size = Vector2(320.0, 80.0)
+		st.pivot_offset = st.size * 0.5
+		st.position = _smith_c - st.size * 0.5 + Vector2(0.0, 150.0)
+		st.rotation = deg_to_rad(-9.0)
+		st.scale = Vector2.ONE * 2.6
+		st.modulate.a = 0.0
+		st.z_index = 6
+		_smith_panel.add_child(st)
+		var ts := st.create_tween().set_parallel()
+		ts.tween_property(st, "scale", Vector2.ONE, 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		ts.tween_property(st, "modulate:a", 1.0, 0.1)
+		ts.chain().tween_interval(0.9)
+		ts.chain().tween_callback(_gunsmith))
+
+
+## Sparks off the joint where a new part seats: the game's own drawn sparks (fx.gd INK_SPARKS).
+const SPARK_ART := preload("res://fx.gd").INK_SPARKS
+func _smith_sparks(at: Vector2) -> void:
+	var add := CanvasItemMaterial.new()
+	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	for k in 3:
+		var s := Sprite2D.new()
+		s.texture = load(SPARK_ART.pick_random())
+		s.material = add
+		s.position = at + Vector2(randf_range(-30.0, 30.0), randf_range(-20.0, 20.0))
+		s.rotation = randf_range(-1.2, 1.2)
+		s.scale = Vector2.ONE * 0.1
+		s.z_index = 5
+		_smith_panel.add_child(s)
+		var tw := s.create_tween()
+		tw.tween_interval(0.05 * k)
+		tw.tween_property(s, "scale", Vector2.ONE * randf_range(0.35, 0.5), 0.08).set_ease(Tween.EASE_OUT)
+		tw.tween_property(s, "modulate:a", 0.0, 0.22)
+		tw.tween_callback(s.queue_free)
 
 
 ## The shotgun's shells fly up into the open port one after another.
@@ -1274,6 +1418,12 @@ func _smith_shells(holder: Node2D, tex_size: Vector2) -> void:
 ## Fit the picked upgrade: a red stamp comes down on the drawing, then the screen shows it fitted.
 func _smith_buy() -> void:
 	if not Instincts.pin(_smith_gun, _smith_pick):
+		return
+	var fx := String(Instincts.CARDS[_smith_gun][_smith_pick][2])
+	if fx in ["twoguns", "b_two"]:   # a second one bought: he carries the pair
+		Instincts.set_side("revolver" if fx == "twoguns" else "beretta", true)
+	if SMITH_PIECES.has(_smith_gun) and _smith_pick < (SMITH_PIECES[_smith_gun] as Array).size():
+		_smith_swap(String(SMITH_PIECES[_smith_gun][_smith_pick][0]))
 		return
 	if sound.is_valid():
 		sound.call("hammer")

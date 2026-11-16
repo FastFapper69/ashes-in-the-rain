@@ -91,7 +91,7 @@ func _fade_out(node: CanvasItem, hold: float, fade: float) -> void:
 ## No two are alike: shape, size, how long it hangs and how the light flickers all vary a little,
 ## and the gun sets the scale (a shotgun roars, a tommy gun stutters small and fast).
 func muzzle(at: Vector2, dir: Vector2, kind := "") -> void:
-	var big: float = {"shotgun": 1.35, "tommy": 0.78}.get(kind, 1.0) * randf_range(0.82, 1.18)
+	var big: float = {"shotgun": 1.35, "tommy": 0.78, "heavy": 1.25, "pistol": 0.8}.get(kind, 1.0) * randf_range(0.82, 1.18)
 	var s := _sprite((BIG_FLASHES if kind == "shotgun" else FLASHES).pick_random(), at, 0.34)
 	s.centered = false   # the drawings fire to the right from their left edge
 	s.offset = Vector2(-20.0, -s.texture.get_height() * 0.5)

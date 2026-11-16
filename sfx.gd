@@ -222,6 +222,12 @@ func voice(text: String) -> float:
 	return (_voice.stream as AudioStream).get_length()
 
 
+## Retune the sound just started (the player that play() used last).
+func pitch_last(k: float) -> void:
+	var p := _pool[(_next - 1 + VOICES) % VOICES]
+	p.pitch_scale *= k
+
+
 ## A mobster's shout (barks.gd), heard from where he stands; one at a time, like the speech bubbles.
 var _bark_p: AudioStreamPlayer
 func bark(path: String, at_x: float) -> void:

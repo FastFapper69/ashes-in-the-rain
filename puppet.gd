@@ -49,6 +49,7 @@ const SKIRT_ROWS := 7
 const SKIRT_COLS := 4
 var _gun2: Sprite2D   # the second pistol, in the far hand
 var dual := false
+var side := "revolver"   # Frank's side gun: "revolver" or "beretta" (drawn as the pistol)
 var _skirt_fly: Sprite2D
 var _skirt_poses := {}   # "run" / "air": drawn coats (art_src 159) the hanging one fades into, belt middle at (W/2, 8)
 var _skirt_w := {}
@@ -1028,7 +1029,7 @@ func switch_to(name: String) -> void:
 
 
 func set_weapon(name: String) -> void:
-	var key := "pistol" if name == "pistols" else name
+	var key := "pistol" if name == "pistols" or (name == "revolver" and side == "beretta") else name
 	if not GUNS.has(key):
 		key = "revolver"
 	weapon = name
@@ -1063,7 +1064,7 @@ func shoulder_top() -> Vector2:
 ## The end of the barrel, in world coordinates. With two pistols the hands take turns.
 func muzzle() -> Vector2:
 	var g := _gun2 if (_left_shot and _gun2.visible) else _gun
-	var key := "pistol" if weapon == "pistols" else weapon
+	var key := "pistol" if weapon == "pistols" or (weapon == "revolver" and side == "beretta") else weapon
 	var gd: Dictionary = GUNS.get(key, GUNS["revolver"])
 	var size_px := Vector2(g.texture.get_size())
 	var local := (size_px * (gd["muzzle"] as Vector2) + g.offset) * g.scale
