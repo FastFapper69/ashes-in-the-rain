@@ -137,6 +137,7 @@ const STAR_3 := 4.5   # and the third
 var _last_kind := "ground"     # what _floor_at last stood him on: ground, box or floor
 var _drop_t := 0.0             # seconds he falls through the landing he stood on (stick pulled down)
 var _drop_y := 0.0
+var _drop_tap := 0.0           # a first pull down on a landing: a second within this time drops through
 var _hurt_t := 0.0             # a moment of grace after a hit: a shotgun blast counts once
 var _room := ""
 var _hint_i := 0
@@ -4020,7 +4021,14 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 				_start_vault(vb, signf(run))
 
 	_drop_t = maxf(0.0, _drop_t - delta)
-	if move_state == "ground" and slide and player.dive < 0.05:   # stick pulled down on a landing or the stairs: he drops through
+	# stick pulled down TWICE on a landing or the stairs: he drops through (user 17. 11.: one pull is a crouch
+	# behind the rail, and dropping on it was "I fall through the balconies")
+	_drop_tap = maxf(0.0, _drop_tap - delta)
+	var drop_ask := false
+	if move_state == "ground" and slide and player.dive < 0.05:
+		drop_ask = _drop_tap > 0.0
+		_drop_tap = 0.0 if drop_ask else 0.4
+	if drop_ask:
 		_floor_at(player.position.x, player.position.y)
 		if _last_kind == "floor" and absf(run) < 300.0:
 			_drop_t = 0.35
@@ -4203,6 +4211,7 @@ func _floor_at(x: float, feet: float) -> float:
 	for ci in catwalks.size():
 		var c: Rect2 = catwalks[ci]
 		var reach := 34.0 if catwalk_solid[ci] else 14.0   # a storey's floor is stepped onto off the top stair, like a stair
+		reach = maxf(reach, fall * get_process_delta_time() * 1.3 + 14.0) if fall > 0.0 and move_state != "ground" else reach   # (falling fast: caught, not passed in one frame)
 		if catwalk_solid[ci] and fall > 0.0 and move_state in ["dive", "jump"]:
 			reach = 100.0   # falling fast onto a deck (out of a window at full tilt): caught, not dropped through onto the flight below
 		if x > c.position.x and x < c.end.x and feet <= c.position.y + reach and c.position.y < best:
@@ -8866,6 +8875,11 @@ const LADDER_W := 125.0       # rail to rail
 const LADDER_PROUD := 230.0   # how far it stands up past the deck it leans on
 const LADDER_HANDS := 200.0   # his hands at the top, before he steps off onto the deck
 const ROPE_REACH := 392.0 * FIG       # feet to fists, arms straight up (the puppet's hang_top: 1.95 m)
+const ZIP_WINCH_H := 250.0            # the zip line's winch on the street, its height in px
+const ZIP_DRUM := Vector2(0.29, 0.27)  # where the cable leaves the winch's drum, share of its picture
+const ZIP_WHEEL := Vector2(0.8, 0.13) # the mast's pulley wheel, share of its picture
+const ZIP_TINT := Color(0.6, 0.58, 0.56)   # the drawings came out paler than the street's crates
+const ZIP_PULLEY_BACK := 260.0        # the pulley stands this far back up the cable from where he grabs it
 const SWING_ANCHOR := -1460.0   # the crane's jib, above the top of the picture
 const SWING_BOTTOM := -650.0 - 392.0 * (FIG - 1.0)   # the rope's end: within reach of a jump; higher by what his longer arms add, so his feet still clear the stacks
 const SWING_AMP := 1.33         # how far out he swings (radians)
@@ -8934,15 +8948,33 @@ func _add_rope(ro: Array) -> void:
 		var l := _rope_line(_undo_night(0.7), 13.0)
 		l.points = PackedVector2Array([r["a"], r["b"], Vector2(x + 26.0, -4.0), Vector2(x + 58.0, -8.0), Vector2(x + 40.0, -2.0)])
 		r["line"] = l
-	elif kind == "zip":   # a cable from the roof, over the landing's end, down to a drum on the street
+	elif kind == "zip":   # a cable over a mast's pulley on the walkway's end, down to a winch on the street
+		# (user 17. 11.: tied to a barrel on the ground it was random: each end has a thing of its own, art_src 240)
 		var s0 := Vector2(float(ro[1]), float(ro[2]) - ROPE_REACH - 6.0)
-		var drum := Vector2(float(ro[3]) + 330.0, -226.0)
-		var best := INF
-		for b in boxes:   # made fast round the drum that stands at its foot
-			if absf(b.get_center().x - (float(ro[3]) + 330.0)) < best and b.position.y > -300.0:
-				best = absf(b.get_center().x - (float(ro[3]) + 330.0))
-				drum = Vector2(b.get_center().x, b.position.y + 22.0)
+		var winch_tex: Texture2D = load("res://art/props/zip_winch.png")
+		var wk := ZIP_WINCH_H / winch_tex.get_height()
+		var drum := Vector2(float(ro[3]) + 330.0, -winch_tex.get_height() * wk * (1.0 - ZIP_DRUM.y))
+		var winch := Sprite2D.new()
+		winch.texture = winch_tex
+		winch.centered = false
+		winch.scale = Vector2.ONE * wk
+		winch.position = drum - Vector2(winch_tex.get_width() * ZIP_DRUM.x, winch_tex.get_height() * ZIP_DRUM.y) * wk
+		winch.z_index = -2
+		winch.modulate = ZIP_TINT
+		add_child(winch)
+		_ground_shadow(drum.x + winch_tex.get_width() * (0.5 - ZIP_DRUM.x) * wk, winch_tex.get_width() * wk, 0.0)
 		var d := (drum - s0).normalized()
+		var pulley := s0 - d * ZIP_PULLEY_BACK   # the wheel the cable runs over, behind and above his hands
+		var mast_tex: Texture2D = load("res://art/props/zip_mast.png")
+		var mk := (float(ro[2]) - pulley.y) / (mast_tex.get_height() * (1.0 - ZIP_WHEEL.y))
+		var mast := Sprite2D.new()
+		mast.texture = mast_tex
+		mast.centered = false
+		mast.scale = Vector2.ONE * mk
+		mast.position = pulley - Vector2(mast_tex.get_width() * ZIP_WHEEL.x, mast_tex.get_height() * ZIP_WHEEL.y) * mk
+		mast.z_index = -2
+		mast.modulate = ZIP_TINT
+		add_child(mast)
 		var end_y := -ROPE_REACH - 30.0   # he lets go with his feet just off the ground
 		var e := s0 + d * ((end_y - s0.y) / d.y)
 		r["a"] = s0
@@ -8950,7 +8982,7 @@ func _add_rope(ro: Array) -> void:
 		r["d"] = d
 		r["top"] = float(ro[2])
 		var l := _rope_line(_undo_night(0.42) * Color(0.8, 0.82, 0.86), 7.0)
-		l.points = PackedVector2Array([s0 - d * 1900.0, drum])
+		l.points = PackedVector2Array([pulley, drum])
 		r["line"] = l
 		var hook := Sprite2D.new()   # a cargo hook hung over the cable: what he rides down on
 		hook.texture = load("res://art/guns/hook.png")

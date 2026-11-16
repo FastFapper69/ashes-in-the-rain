@@ -138,6 +138,7 @@ class Chunk:
         self.xy_checks = []    # checkpoints up in a building: [x, y]
         self.stairdoors = []   # the stairs in a building's back wall: [x, storey y, the y they lead to]
         self.hoists = []       # where a swing rope is wanted from a warehouse hoist (hoist_ropes)
+        self.kits = []         # (x, piece): a street-kit drawing wanted with its things at x (kit_pieces)
         self.flats = []        # a flat to kick into and jump out of: [door x, storey y, door h, window x0, x1, sill, lintel]
 
     def box(self, kind, x, y=0.0): self.boxes.append([kind, x, y] if y else [kind, x]); return self
@@ -260,22 +261,18 @@ def chunk(name, hard, rng=None):
             c.runner(1000 + i * 260, 0, 2600 + i * 300, kind="shotgun" if i == 2 else "post")
     elif name == "catwalk":   # up the long crate onto the walkway, then down its cable into them
         c = (Chunk(2900).box("crate_long", 0).plat(400, F1, LAND_W[3]).foe(900, F1).foe(1500)
-             .rope("zip", 400 + LAND_W[3] - 60, F1, 400 + LAND_W[3] + 1000, 0.0).box("drum", 400 + LAND_W[3] + 1200).foe(2300))
+             .rope("zip", 400 + LAND_W[3] - 60, F1, 400 + LAND_W[3] + 1000, 0.0).foe(2300))   # (its mast and winch: main.gd _add_rope)
         if hard > 0.5: c.foe(1250, F1)
     elif name == "high_ground":
         c = (Chunk(2200).box("crate_long", 0).box("drum", 1450).plat(380, F1, LAND_W[3]).foe(800, F1).foe(1300, F1, kind="tommy" if hard > 0.6 else "post").foe(1780)
              .rope("climb", 380 + LAND_W[3] - 70, F1))
-    elif name == "fire_escape":   # up the iron stairs two storeys, fighting on every landing, then a drop
-        # a fire escape on a building: a flight up to the first landing, a second flight from its far end
-        a = 650; b = a + LAND_W[2]
-        top_end = b + STAIR_RUN + LAND_W[1]
-        c = (Chunk(4500).ramp(a - STAIR_RUN, 0, a, F1).plat(a, F1, LAND_W[2], "escape")
-             .ramp(b, F1, b + STAIR_RUN, F2).plat(b + STAIR_RUN, F2, LAND_W[1], "escape")
-             .foe(1300, F1).foe(1900, 0.0).foe(2400, F2, kind="tommy" if hard > 0.4 else "post").foe(2750, 0.0, kind="shotgun" if hard > 0.6 else "post")
-             .foe(3400, 0.0).foe(3900, 0.0, kind="tommy" if hard > 0.5 else "post")
-             .pick("flask", 2250, F2)
-             .rope("climb", b + STAIR_RUN + 70, F2).rope("zip", top_end - 60, F2, top_end + 1500, 0.0).box("drum", top_end + 1750)
-             .hint(b + STAIR_RUN - 900, "JUMP AT A ROPE TO CLIMB IT").hint(top_end - 500, "RUN OFF THE END ONTO THE CABLE"))
+    elif name == "fire_escape":   # the tailor's painted fire escape (gen/kit.py hk_tailor): up the drop ladder,
+        # men on both landings (the kit's "men"), the awning beside it throws him up to the top one. The game no
+        # longer builds a fire escape of its own in front of a drawing (user 17. 11.: it never fitted the picture).
+        c = (Chunk(4800).foe(1900, 0.0).foe(3700, 0.0, kind="tommy" if hard > 0.5 else "post"))
+        if hard > 0.6: c.foe(4200, 0.0, kind="shotgun")
+        c.kits.append((2400.0, "hk_tailor"))   # its fire escape here (kit_pieces)
+        c.hint(1200, "JUMP AT THE LADDER TO CLIMB IT")
     elif name == "scaffold":   # a building under repair: four storeys of planks, a ladder up each, the zigzag to the roof
         w = SCAF_BAY * 2
         c = Chunk(w + 400)
@@ -473,6 +470,7 @@ def _build(mp, nudge):
         for cx, cy in c.xy_checks: out.xy_checks.append([x + cx, cy])
         for sx, sy, ty in c.stairdoors: out.stairdoors.append([x + sx, sy, ty])
         for hx in c.hoists: out.hoists.append(x + hx)
+        for kx, kp in c.kits: out.kits.append((x + kx, kp))
         for fl in c.flats: out.flats.append([x + fl[0], fl[1], fl[2], x + fl[3], x + fl[4], fl[5], fl[6]])
         for lx, ly in c.lamps: out.lamps.append([x + lx, ly])
         for k, px, py in c.pickups: out.pickups.append([k, x + px, py])
@@ -535,6 +533,7 @@ def _build(mp, nudge):
             out.pickups.append(["page", out.end * 0.55, 0.0])
     out.checks = sorted(set(round(c) for c in out.checks if 800 < c < out.end - 500))
     out.street = street(mp, out, rng)
+    kit_pieces(out)
     hoist_ropes(out)
     street_props(out)
     for b in out.boxes:
@@ -697,6 +696,8 @@ def street_props(m):
         def free(x, w, me):
             if any(a < x + w and x < b for a, b in blocked):
                 return False
+            if any(r[0] - 250 < x + w and x < r[1] + 250 for r in m.rooms):
+                return False   # (not in front of a room's door either)
             if any(o is not me and len(o) == 2 and o[1] - 270 < x + w and x < o[1] + BOX[o[0]][0] + 270 for o in m.boxes):
                 return False
             return not any(e["y"] == 0.0 and x - 90 < e["x"] < x + w + 90 for e in m.enemies)
@@ -735,6 +736,26 @@ def street_props(m):
             m.enemies.append({"x": wx(mx), "y": top + my * k, "kind": kind, "trig": None, "from": None, "delay": 0.0, "run": False})
         for lx, ly, foot in piece.get("ladders", []):
             m.ropes.append(["ladder", wx(lx), top + ly * k, 0.0, top + foot * k, "drawn"])
+
+
+def kit_pieces(m):
+    """A chunk's wanted street-kit drawing (m.kits: (x, piece)): the segment under x becomes that piece, placed so
+    its things' middle falls at x; the segments after it move by the difference, so the drawings still meet."""
+    for want, piece in m.kits:
+        p = KIT_CAT.PIECES[piece]
+        k = 1.9 * p["size"]
+        xs = [a for a, b in p.get("clear", [])] + [b for a, b in p.get("clear", [])]
+        mid = (min(xs) + max(xs)) / 2 * k if xs else KIT_CAT.WIDTH * k / 2
+        i = next((n for n, seg in enumerate(m.street) if seg[1] + mid >= want - 900), None)
+        if i is None:
+            raise ValueError(f"no street under the kit piece {piece} near {want:.0f}")
+        if any(0 <= n < len(m.street) and m.street[n][0] == piece for n in (i - 1, i, i + 1)):
+            continue   # it is there already, or next door: never the same drawing twice in a row
+        old = SEGMENTS[m.street[i][0]] * 1.9 * SEG_SIZE.get(m.street[i][0], 1.0)
+        m.street[i][0] = piece
+        delta = KIT_CAT.WIDTH * k - old
+        for seg in m.street[i + 1:]:
+            seg[1] += delta
 
 
 def hoist_ropes(m):

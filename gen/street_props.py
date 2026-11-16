@@ -73,3 +73,30 @@ if __name__ == "__main__":
     for kind, (f, rows) in ANIMS.items():
         if os.path.exists(os.path.join(SRC, f)):
             anim(kind, f, 6, rows)
+
+
+# The zip line's two ends (art_src 240, user 17. 11.: "a cable tied to a barrel on the ground is random – it wants an
+# object of its own, a mast or so"): a timber mast with a pulley block on top (the cable runs over its wheel) and an
+# iron hand winch on a skid (the cable wound on its drum). Cut apart on the green, left to right.
+def cut_pair(f, names):
+    a = np.asarray(Image.open(os.path.join(SRC, f)).convert("RGB")).astype(float)
+    r, g, b = a[..., 0], a[..., 1], a[..., 2]
+    alpha = ndimage.grey_opening(1 - np.clip((g - np.maximum(r, b) - 40) / 50, 0, 1), size=(3, 3))
+    a[..., 1] -= np.maximum(g - np.maximum(r, b), 0) * (1 - alpha * 0.5)
+    rgba = np.dstack([np.clip(a, 0, 255), alpha * 255]).astype(np.uint8)
+    lab, n = ndimage.label(ndimage.binary_dilation(alpha > 0.5, iterations=6))   # (a thin cable stays with its winch)
+    objs = sorted([(sl[1].start, i + 1, sl) for i, sl in enumerate(ndimage.find_objects(lab)) if (lab[sl] == i + 1).sum() > 20000])
+    for name, (_, idx, sl) in zip(names, objs):
+        piece = rgba[sl].copy()
+        piece[..., 3] = np.where(lab[sl] == idx, piece[..., 3], 0)
+        if name == "zip_winch":   # its painted loose cable off: the game draws the taut one from the drum's top
+            h, w = piece.shape[:2]
+            piece[: int(h * 0.262), : int(w * 0.53), 3] = 0   # everything above the drum's top, left of the frame
+        im = Image.fromarray(piece)
+        im = im.resize((im.width // 2, im.height // 2), Image.LANCZOS)
+        im.save(os.path.join(ROOT, "art", "props", f"{name}.png"))
+        print(name, im.size)
+
+
+if __name__ == "__main__" and os.path.exists(os.path.join(SRC, "240.jpg")):
+    cut_pair("240.jpg", ["zip_mast", "zip_winch"])
