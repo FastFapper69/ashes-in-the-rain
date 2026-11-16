@@ -307,6 +307,18 @@ func fire_bed(db: float) -> void:
 
 
 ## A cutscene starts its piece from the top, so its opening bars are heard.
+## The title's tune (2026-11-16): heard at once, softly, rising to its level in a few seconds (the
+## usual fade-in from silence took 5-10 s before it could be heard at all).
+func melody_soon(k: String, db := -24.0) -> void:
+	if not _melody.has(k):
+		return
+	var jp: AudioStreamPlayer = _melody[k]
+	if jp.volume_db < db:
+		jp.volume_db = db
+	if not jp.playing:
+		jp.play()
+
+
 func melody_from_start(k: String) -> void:
 	melody = k
 	if not _melody.has(k) and MELODIES.has(k):

@@ -2221,7 +2221,9 @@ func _process(delta: float) -> void:
 	if in_menu:   # the title over the street: the rain, the signs, the birds, a slow drift of the camera
 		sfx.listener_x = cam.position.x
 		sfx.music_want = [-9.0, -7.0, -80.0, -80.0]
-		sfx.melody = "dusk"
+		if sfx.melody != "dusk":
+			sfx.melody = "dusk"
+			sfx.melody_soon("dusk")
 		sfx.rain_want = _rain()
 		cam.position.x = _menu_x + sin(_time * 0.09) * 160.0
 		cam.position.y = CAM_Y + sin(_time * 0.13) * 20.0
