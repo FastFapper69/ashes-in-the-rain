@@ -349,6 +349,8 @@ var _aic := -1
 var _bark_t := -9.0          # when a mobster last shouted something (barks.gd): one voice at a time
 var _bark_last := {}
 var _bark_at := {}           # when each kind was last heard
+var _bark_recent := []       # the last lines heard: not again soon
+var _cry_t := -9.0           # the last dying man's cry
 const BARK_GAP := {"empty": 18.0, "spot": 5.0, "reload": 7.0, "cover": 6.0, "taunt": 14.0, "crate": 10.0, "flank": 8.0}         # the last line used of each kind, so none comes twice running
 var _names := []             # the names given out on this map
 var _fallen := []            # [name, x, time] of the men shot on this map, for the last one to call for
@@ -4815,6 +4817,7 @@ func _kill(e: Dictionary, head: bool, quiet := false, part := "") -> void:
 	elif randf() < 0.12:
 		_add_pickup("flask", m.position)
 	_fallen.append([String(e.get("name", "")), m.position.x, _ai_t])
+	_cry(e, m, head)
 	if e.get("role", "") == "lead":   # the man who gave the orders is down: the rest falter
 		for o in enemies:
 			if o["alive"] and o != e and absf(o["node"].position.x - m.position.x) < GROUP:
@@ -6784,6 +6787,21 @@ func _glint(m) -> void:
 
 
 ## Words over somebody's head: Briggs counting his shells out loud.
+## Now and then a man goes down with a sound: a gasp, a groan, his mother. Never on a head shot (he has
+## no breath left), never two close together, about one kill in four (barks.gd "death").
+func _cry(e: Dictionary, m, head: bool) -> void:
+	var voice := String(e.get("voice", ""))
+	if voice == "" or head or _unreal() or _ai_t - _cry_t < 6.0 or randf() > 0.28:
+		return
+	var heard: Array = Barks.LINES["death"].filter(func(l: String): return ResourceLoader.exists(Barks.path(voice, l)) and not _bark_recent.has(l))
+	if heard.is_empty():
+		return
+	var line: String = heard.pick_random()
+	_cry_t = _ai_t
+	_bark_recent.append(line)
+	sfx.cry(Barks.path(voice, line), m.position.x)
+
+
 ## A name for a new man, not yet used on this map.
 func _new_name() -> String:
 	var free: Array = Barks.NAMES.filter(func(n): return not _names.has(n))
@@ -6810,23 +6828,32 @@ func _bark(m, kind: String, who := "", urgent := false) -> void:
 	var lines: Array = Barks.LINES[kind].filter(func(l: String): return who != "" or not l.contains("{n}"))
 	if lines.size() > 1:
 		lines = lines.filter(func(l: String): return l != String(_bark_last.get(kind, "")))
-	if who != "" and randf() < 0.75:   # a name in it, when there is one, most of the time
-		var named: Array = lines.filter(func(l: String): return l.contains("{n}"))
-		if not named.is_empty():
-			lines = named
 	var hero := "DOYLE" if String(Levels.CAMPAIGN[chapter]["hero"]) == "eddie" else "MALONE"
 	var voice := ""
 	for o in enemies:
 		if o["node"] == m:
 			voice = String(o.get("voice", ""))
-	if voice != "":   # a line he has a recording of, if there is one
+	if voice != "":   # a line he has a recording of, if there is one (a voice beats a silent bubble)
 		var heard: Array = lines.filter(func(l: String): return ResourceLoader.exists(Barks.path(voice, l.format({"n": who, "p": hero}))))
 		if not heard.is_empty():
 			lines = heard
+	if lines.size() > 1:   # nothing heard in the last minute or so again (the last 14 lines)
+		var fresh: Array = lines.filter(func(l: String): return not _bark_recent.has(l.format({"n": who, "p": hero})))
+		if not fresh.is_empty():
+			lines = fresh
+		elif not urgent:
+			return   # all of them heard just now: better silence than the same line again
+	if who != "" and randf() < 0.75:   # a name in it, when there is one, most of the time
+		var named: Array = lines.filter(func(l: String): return l.contains("{n}"))
+		if not named.is_empty():
+			lines = named
 	var line: String = lines.pick_random()
 	_bark_last[kind] = line
 	_bark_t = _ai_t
 	var text := line.format({"n": who, "p": hero})
+	_bark_recent.append(text)
+	if _bark_recent.size() > 14:
+		_bark_recent.pop_front()
 	_say(m, text)
 	if voice != "":
 		sfx.bark(Barks.path(voice, text), m.position.x)

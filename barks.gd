@@ -38,10 +38,12 @@ const LINES := {
 	"round": ["{n}, GET BEHIND HIM!", "{n}, TAKE THE ALLEY!", "{n}, ROUND THE BACK!", "GET BEHIND HIM!"],
 	"behind": ["BEHIND YOU, {p}!", "GOT YOU NOW!", "OVER HERE!", "SURPRISE, {p}!"],
 	"cover": ["COVER!", "GET DOWN!", "IT'S {p}!", "FIND COVER!"],
-	"crate": ["SHOOT THROUGH IT!", "CUT THAT CRATE DOWN!", "IT'S ONLY WOOD!", "SPLINTER IT!"],
+	"crate": ["CHEW THROUGH IT!", "CUT THAT CRATE DOWN!", "IT'S ONLY WOOD!", "SPLINTER IT!"],
 	"reload": ["RELOADING!", "COVER ME, I'M OUT!", "I'M EMPTY!", "RELOADING, COVER ME!"],
 	# the hero is reloading: they push
 	"empty": ["HE'S RELOADING!", "HE'S EMPTY! GO!", "NOW! PUSH HIM!", "HE'S OUT! MOVE!"],
+	# his own last breath, only sometimes (a sound, no bubble)
+	"death": ["Agh!", "Ugh...", "No, no, no...", "Ma...", "Not like this...", "Aaargh!", "Oh God...", "Damn you..."],
 	# he has hidden a long time
 	"taunt": ["COME OUT, {p}!", "CAN'T HIDE ALL NIGHT!", "WE GOT ALL NIGHT, {p}!", "COME ON OUT, SHAMUS!"],
 }

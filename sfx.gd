@@ -236,9 +236,27 @@ func bark(path: String, at_x: float) -> void:
 		_bark_p.bus = "SFX"
 		add_child(_bark_p)
 	_bark_p.stream = load(path)
+	if _log:
+		print("BARK ", path)
 	_bark_p.volume_db = vol
 	_bark_p.pitch_scale = lerpf(1.0, 0.75, slow)
 	_bark_p.play()
+
+
+## A dying man's last sound: its own player, so it never cuts off the shout of the man who saw it.
+var _cry_p: AudioStreamPlayer
+func cry(path: String, at_x: float) -> void:
+	if _story or not ResourceLoader.exists(path):
+		return
+	if _cry_p == null:
+		_cry_p = AudioStreamPlayer.new()
+		_cry_p.bus = "SFX"
+		add_child(_cry_p)
+	var k := clampf(absf(at_x - listener_x) / HEAR, 0.0, 1.0)
+	_cry_p.stream = load(path)
+	_cry_p.volume_db = -3.0 + linear_to_db(maxf(0.2, 1.0 - k * k))
+	_cry_p.pitch_scale = randf_range(0.95, 1.03) * lerpf(1.0, 0.7, slow)
+	_cry_p.play()
 
 
 func voice_on() -> bool:
