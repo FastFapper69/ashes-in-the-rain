@@ -7,8 +7,9 @@ import numpy as np
 from PIL import Image, ImageFilter
 from scipy import ndimage
 
-SRC = '/mnt/user-data/uploads/Ink and Lead/art_src/'
-OUT = '/home/claude/repo/art/'
+import os
+SRC = os.path.join(os.path.expanduser('~'), 'Documents', 'MobileGames', 'Ink and Lead', 'art_src') + os.sep
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'art') + os.sep
 # segment name: (file, right pilaster to trim, has the tower pair at top left)
 STREET = {
     'alley': ('20.jpg', 140, True), 'bluenote': ('21.png', 140, True), 'warehouse': ('23.png', 140, True),
@@ -37,6 +38,9 @@ STREET = {
     'church_b': ('182.jpg', 60, False), 'subway_b': ('183.jpg', 60, False), 'market_b': ('184.jpg', 130, False), 'market_c': ('185.jpg', 130, False),
     # a third of the two chapter III maps that had only two drawings (2026-11-15)
     'yard_c': ('190.jpg', 134, False), 'tunnel_c': ('191.jpg', 134, False),
+    # chapter I modular street kit (2026-11-16): flat fronts, the same dark party wall down both edges (any order joins),
+    # each with something to play with: an awning beside a fire escape, a hydrant, beer barrels, a steam pipe
+    'hk_tailor': ('228.jpg', 0, False), 'hk_grocery': ('229.jpg', 0, False), 'hk_saloon': ('230.jpg', 0, False), 'hk_laundry': ('231.jpg', 0, False),
 }
 KIT = {'yard_c': 'yard', 'tunnel_c': 'tunnel', 'walkway_b': 'walkway', 'signal_b': 'signal', 'arches_b': 'arches', 'yard_b': 'yard', 'tunnel_b': 'tunnel', 'tunnel_lo_b': 'tunnel_lo',
        'sheds_b': 'sheds', 'pier17_b': 'pier17', 'shipping_b': 'shipping', 'quay_b': 'quay',

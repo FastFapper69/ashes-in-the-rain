@@ -335,3 +335,9 @@ Read `.claude/skills/ashes-znalosti/SKILL.md` first (stable rules + topic index,
 - The window: the code-drawn glass card was a sticker (user: "terrible"). Gemini redrew the flat with a glazed sash window in its end wall (art_src 227 → tenement_flat); gen/section_art.py makes tenement_flat_open (frame and glass replaced by the night outside); the burst swaps the drawing (`_flat_art`). SEC_WIN 3195-3340.
 - User: no automatic flying kick – the player dives/slides into the door himself; a walk into it just stops him (the bot dives on its own).
 - User: dubbing at the end (rule 17); rule 19 nothing hangs/stands without a reason.
+
+## (26) Chapter I modular street kit drawn (not wired in yet), 2026-11-16
+- User: new street drawings that join in any order, with something to play with. Gemini (new chat, refs tenrow_a + alley): art_src 228 hk_tailor (awning beside a fire escape over clear sidewalk – user: a fire escape over an awning makes no sense), 229 hk_grocery (hydrant + lamp), 230 hk_saloon (beer barrels, open cellar hatch), 231 hk_laundry (steam pipe with valve). Both edges the same dark party wall: seams measured 4-5 grey levels apart (joins clean).
+- gen/process_art.py now runs on the PC (paths) and has the hk_* entries (trim 0) → art/street/hk_*.png, _lit, _solid.
+- PROBLEM seen: Gemini reused the same building row behind all four (same windows, same stoops) – side by side they repeat. Before wiring in: redraw with different architecture per piece, or use only one or two per map.
+- Not done: SEGMENTS/SEG_SIZE/SEGMENT_* entries, the interactions (awning bounce, hydrant jet, barrels, steam burst), bot, audit.
