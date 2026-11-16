@@ -764,7 +764,7 @@ func burst_window(rect: Rect2, vel: Vector2, floor_y: float, ledge := Vector2(-I
 		add_child(shard)
 		var v := vel * randf_range(0.55, 1.05) + Vector2(randf_range(-120.0, 260.0), randf_range(-420.0, 120.0))
 		_debris.append({"node": shard, "vel": v, "spin": randf_range(-18.0, 18.0), "floor": _lands_on(shard.position, v, floor_y, ledge, ground) - randf_range(0.0, 10.0), "bounces": 0, "rest": 0.0, "ledge": ledge, "ground": ground})
-	for i in 7:   # pieces of the snapped bars and the sash
+	for i in 16:   # pieces of the snapped bars and the sash: the whole window goes
 		var bar := Polygon2D.new()
 		var l := randf_range(26.0, 70.0)
 		bar.polygon = PackedVector2Array([Vector2(-l, -4.0), Vector2(l, -3.0), Vector2(l * 0.85, 4.0), Vector2(-l, 3.5)])

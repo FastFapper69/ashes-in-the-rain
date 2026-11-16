@@ -6095,10 +6095,12 @@ func _build_flats() -> void:
 		var dw := h * dtex.get_width() / dtex.get_height()
 		var wx0 := float(fl[3])
 		var wx1 := float(fl[4])
-		var glass := _flat_piece("flat_glass", y - float(fl[5]), float(fl[6]) - float(fl[5]))
-		glass.scale = Vector2((wx1 - wx0) / glass.texture.get_width(), glass.scale.y)   # it fills the opening in the wall
-		glass.offset = Vector2(0.0, -glass.texture.get_height())
-		glass.position = Vector2(wx0, y - float(fl[5]))
+		var glass := Polygon2D.new()   # the sash sits in the outer wall, which we see cut through: a card turned into it
+		glass.texture = load("res://art/section/flat_glass.png")
+		glass.z_index = -2
+		glass.color = Color(ROOM_BASE, ROOM_BASE, ROOM_BASE, 1.0)
+		glass.visible = false
+		add_child(glass)
 		_flats.append({"x": float(fl[0]), "hinge": hinge, "y": y, "h": h, "door": door, "dw": dw, "open": false,
 				"glass": glass, "gx": (wx0 + wx1) * 0.5, "wx0": wx0, "wx1": wx1, "sill": float(fl[5]), "lintel": float(fl[6]), "broken": false})
 		var has_escape := false   # the fire escape on the side: only where the map has its decks (not on a ground-floor flat)
@@ -6119,6 +6121,35 @@ func _build_flats() -> void:
 		add_child(sp)
 	for f in _flats:
 		_door_card(f, 0.0, 0.0, Vector2.ZERO)
+		_window_card(f)
+
+
+## The window as a card in the outer wall's plane: the sash's face turned WIN_YAW away from us round its inner
+## edge (the wall is seen from the side), its foot on the sill.
+const WIN_YAW := 1.22
+func _window_card(f: Dictionary) -> void:
+	var poly: Polygon2D = f["glass"]
+	var tex := poly.texture
+	var h := float(f["lintel"]) - float(f["sill"])
+	var w := h * tex.get_width() / tex.get_height()
+	var foot := Vector2(float(f["wx0"]) + 30.0, float(f["y"]) - float(f["sill"]))
+	var pts := PackedVector2Array()
+	var uvs := PackedVector2Array()
+	for j in 2:
+		for i in 2:
+			var x := w * float(i)
+			var y := -h * (1.0 - float(j))
+			var x3 := x * cos(WIN_YAW)
+			var z3 := -x * sin(WIN_YAW)   # into the wall, away from the viewer
+			var k := DOOR_EYE / (DOOR_EYE - z3)
+			pts.append(foot + Vector2(x3 * k, y * k))
+			uvs.append(Vector2(float(i) * tex.get_width(), float(j) * tex.get_height()))
+	var grid := []
+	poly.polygon = pts
+	poly.uv = uvs
+	poly.polygons = [PackedInt32Array([0, 1, 3, 2])]
+	if grid.size() > 0:
+		pass
 
 
 ## The door as a card in space: `yaw` round its hinge (radians, + swings its free edge away into the room),
@@ -6281,8 +6312,9 @@ func _through_window() -> bool:
 		return false
 	if not f["broken"]:
 		f["broken"] = true
-		var g: Sprite2D = f["glass"]
-		g.texture = load("res://art/section/flat_glass_broken.png")
+		(f["glass"] as Polygon2D).queue_free()   # nothing left in the frame: all of it goes out with him
+		f["glass"] = Node2D.new()
+		add_child(f["glass"])
 		var mid := Vector2(float(f["gx"]), float(f["y"]) - (float(f["sill"]) + float(f["lintel"])) * 0.5)
 		_impact(0.06, 0.05)
 		_word(["crash", "smash"], mid + Vector2(60.0, -200.0), 0.24, Vector2.RIGHT)
@@ -8961,8 +8993,6 @@ func _grab_rope() -> void:
 		_rope = r
 		_hand = near
 		move_state = "climb" if r["kind"] == "ladder" else String(r["kind"])
-		if move_state == "swing":   # a swing on a rope is a stunt: a slowed second for free (user, 16. 11.)
-			_free_slow = maxf(_free_slow, 1.0)
 		player.hang = 1.0
 		player.air = 0.0
 		player.dive = 0.0
@@ -9000,6 +9030,7 @@ func _let_go(vx: float, vy: float) -> void:
 	_rope_cool = 0.45
 	if _rope != null and _rope["kind"] == "swing":
 		_draw_swing(_rope, 0.0, 0.0)
+		_free_slow = maxf(_free_slow, 1.0)   # flung off the swing: a slowed second for free, in the air (user, 16. 11.)
 	_rope = null
 
 
