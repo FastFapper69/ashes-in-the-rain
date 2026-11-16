@@ -1,0 +1,1 @@
+Scratch tools from the cloud container (2026-11-16 backup): early prototype (proto/), cutscene/rig cutting scripts, old generator versions. Not used by the build. gen/tests/ holds the test runners that lived in /tmp (bots.sh = bot over all maps, bal.sh = balance runs).
