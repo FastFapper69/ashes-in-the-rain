@@ -214,3 +214,9 @@ Read `.claude/skills/ashes-znalosti/SKILL.md` first (stable rules + topic index,
 - `_go_close` flanker stops 470–550 px off, never leans on Frank's own crate; no two on one spot.
 - gen/levels.py `cover_men`: ~60 % of open static street men get a crate/drum 140 px in front; pairs <250 px spread. Audit open 150→133, covered 86→103.
 - Test: `--test=aicover --chapter=2 --map=1`.
+
+## (6) Znalosti + výzkum (chat „book-to-skill“), 2026-11-16
+- NOVÉ: `CLAUDE.md` v kořeni repa = start pro každý chat. Skill `ashes-znalosti` (`.claude/skills/ashes-znalosti/`) = HANDOFF rozdělený podle témat: §1 pevná pravidla uživatele, 11 kapitol na vyžádání, cheatsheet, patterns, glossary. Nové trvalé pravidlo/rozhodnutí → zapsat tam (SKILL.md §1 + kapitola) ve stejném commitu; průběh dne dál sem.
+- NOVÉ: skill `ashes-vyzkum` = výzkum (noir styl Sin City/Mignola/film noir, Max Payne/L.A. Noire/Katana ZERO/Hotline Miami/My Friend Pedro, John Wick, F.E.A.R. a DOOM AI, kishōtenketsu, Godot web/iOS paměť, vzory kódu, mobilní ovládání) + zdroje. Nápady [H] se nejdřív měří.
+- NOVÉ: `.claude/skills/book-to-skill/` (převod knih/dokumentů na skill, MIT, @e7bb659). Repo je VEŘEJNÉ: skill z cizí chráněné knihy do gitu nepatří (viz PROJECT.md).
+- Navrženo, NEnasazeno (čeká na souhlas uživatele, nejdřív změřit): 1) stopa za Frankem (`player.ghost()` každých 0,05 s = nový CanvasGroup = průchod přes back buffer) → pool nebo siluety bez CanvasGroup; 2) pack na mapu místo na kapitolu (iOS limit stránky ~300–450 MB); 3) zabití dobije trochu zpomalení; 4) žetony útoku podle typu nepřítele; 5) rychlejší návrat po smrti.
