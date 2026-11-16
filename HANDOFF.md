@@ -292,6 +292,11 @@ Read `.claude/skills/ashes-znalosti/SKILL.md` first (stable rules + topic index,
 - Looked at 1280 + 1560 film: in at the door, three storeys, men down the stairs, the ladder, the roof. Bot clears SANDBOX 0 in 29 s.
 - Next: voice the barks comedown/goup; door kick / window jump (two-state drawings); then TENEMENTS in the campaign built from the kit.
 
-## (19) Sky ghosts found, 2026-11-16
+## (19) Nový výzkum: PC nástroje, licence, byznys, kamera, telemetrie (chat „book-to-skill“), 2026-11-16
+- `ashes-vyzkum` ch11–ch14. Nejdůležitější: **licence Artlist (hudba, SFX, hlas) pokrývá videa, ne hry** – hry jsou v Enterprise/vlastní licenci → před vydáním vyřešit s Artlistem (nebo hlas přes ElevenLabs placený plán, hudba s licencí pro hry). Gemini obrázky: bez IP záruky, na free/AI Pro plánu viditelný vodoznak u Nano Banana Pro → zkontrolovat art.
+- PC: runtime Godot MCP (Erodenn/godot-mcp-runtime: screenshoty, vstup, živý strom scény), GdUnit4 na čísla, hooks (rychlá kontrola po editaci .gd, smoke test při Stop), TokenEconomizer – vše jen se souhlasem uživatele.
+- ČEKÁ NA UŽIVATELE: byznys model (premium / zdarma + odemknutí / Apple Arcade), nativní iOS/Android (potřeba Mac + Xcode – je k účtu připojený Mac mini?), jazyky, telemetrie smrtí do Supabase (souhlas + privacy), assist mód a velikost titulků, instalace MCP/hooks na PC.
+
+## (20) Sky ghosts found, 2026-11-16
 - Cause of the orange "letter glows" over the roofs: art/bg/sky.png had blurred city lights (bokeh) and a painted moon in its low band; from a roof the camera shows that band (doubled by the mirrored sky under it). gen/tools/clean_sky.py blends the band into a wide blur of itself (run once, done). The game's own moon over the pale haze read as a faint ring: it now gets an additive copy (`lit`), on the roofs it melts into the haze (rainy night), from the street unchanged. `--skydebug` on look tests lists every sprite in the top 40 % of the screen.
 - User: dubbing at the very end, all at once (knowledge rule 17). User played the sandbox: storeys work, details to polish later.
