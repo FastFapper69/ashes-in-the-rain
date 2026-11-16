@@ -117,3 +117,16 @@ Dělat postupně mezi ostatní prací, každý bod s testem/screenshoty podle pr
    (jen při dotyku, jinak nefunguje) – v `gen/deploy/crash.js` nebo vlastním JS + `JavaScriptBridge` z Godotu. Jemně a málo:
    výstřel (velmi krátce), zásah Franka, zabití, dopad z výšky, výbuch. Přepínač „Vibration“ v nastavení (výchozí ZAP).
    Ověřit na uživatelově iPhonu 17; když trik nepůjde, nechat jen Android a zapsat do HANDOFF.
+
+## 7. Kontrola podobnosti screenshotů – SCHVÁLENO uživatelem 16. 11. (z `ashes-vyzkum` ch09, nápad z craft-anything)
+Cíl: automaticky poznat vizuální regresi, aby se nic nerozbilo bez povšimnutí (pravidlo „podívej se sám“ tím NEnahrazuje – jen upozorní, kam se dívat).
+1. `gen/tools/likeness.py`: SSIM (skimage nebo vlastní numpy) + jednoduchá shoda rozvržení mezi novým screenshotem a schváleným
+   referenčním (`gen/tests/approved/<test>_<1280|1560>.png`), výstup skóre 0–100 a obrázek rozdílů (heatmapa) do `_shots/diff/`.
+2. Maska věcí, které se mění samy (déšť, oheň, blikající neon, kouř, pára): stejnou scénu vyfotit 3× (jiný čas / seed) a pixely, které se
+   liší mezi těmi třemi, při porovnání vynechat. Masku uložit vedle reference.
+3. Referenční screenshoty jen se souhlasem uživatele („schváleno“ = poslal OK nebo je ve hře nasazené a nestěžoval si); nová reference
+   se zapisuje vědomě (`--approve`), nikdy automaticky.
+4. Pro menu a UI: porovnání i s mockupem z Gemini, který uživatel schválil (jen orientačně – jiné rozvržení dá nižší skóre, sledovat trend).
+5. Zapojit do testů: po `--test=` módech s fotkami spustit likeness; pod prahem (začít ~85, doladit) vypsat `LIKENESS LOW <test> <šířka> <skóre>`
+   a otevřít diff. Na PC lze pustit i z hooku Stop, pokud to trvá do ~1 min.
+6. Výsledek a práh zapsat do `ashes-znalosti` ch02 (Tests) a cheatsheetu.
