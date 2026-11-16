@@ -319,9 +319,12 @@ def chunk(name, hard, rng=None):
         c.sections.append([0.0, w, 1, "tenement_stunt"])
         c.flats.append([SEC_FLAT_DOOR, 0.0, 476.0, SEC_WIN[0], SEC_WIN[1], 178.0, 501.0])
         c.foe(SEC_FLAT_DOOR + 180).foe(2800, kind="shotgun")
-        c.hoists.append(w + 900)   # the swing rope from the warehouse's hoist down the street (hoist_ropes)
         c.checks += [-60.0]
         c.hint(-400, "RUN AT THE DOOR")
+    elif name == "lab":   # SANDBOX LAB: a long empty street for the street kit's things, set by the LAB's fixed street
+        c = Chunk(25500)
+        c.hint(300, "TEST LAB")
+        c.hoists.append(19400)   # the hoist rope: the warehouse near the end of the lab street (before the flat)
     elif name == "stairs_up":   # the end of the platform: the stairs up to the mezzanine, the way out
         k = -KITS["mezz"]["y"] / (STAIR_FOOT[1] - STAIR_TOP[1])
         run = (STAIR_TOP[0] - STAIR_FOOT[0]) * k
@@ -789,6 +792,13 @@ def street(mp, m, rng):
     """The run of drawn segments under the map: the map's own feature segment early on, no segment twice
     in a row, and (in the prologue) the dead-end alley under the last stand."""
     seq, x = [], -3000.0
+    if mp.get("street_fixed"):   # a test map: the drawings in the given order (then round again), nothing chosen
+        names, i = mp["street_fixed"], 0
+        while x < m.end + 2500:
+            seq.append([names[i % len(names)], x])
+            x += SEGMENTS[names[i % len(names)]] * 1.9 * SEG_SIZE.get(names[i % len(names)], 1.0)
+            i += 1
+        return seq
     if mp.get("dream"):   # the same two rooms over and over, then the far wall with the chained doors
         k = 0
         while True:
@@ -1174,7 +1184,11 @@ SANDBOX = [
     {"name": "SECTION", "seed": 901, "start": 0.45, "end": 0.6, "fixed": ["breather", "section"],
      "roof": True, "kit": "troof", "roofs": ["roof_b", "roof_a"], "intro": [], "outro": []},
     # the stunts alone, for a quick look and a quick bot: door kick, window jump, rope swing (--sandbox=1)
-    {"name": "STUNTS", "seed": 902, "start": 0.45, "end": 0.6, "fixed": ["stunts"], "intro": [], "outro": []},
+    # THE TEST LAB (--sandbox=1, user 16. 11.: one map where every new mechanic is, right from the start):
+    # the street kit's awning + fire escape, hydrant, kegs, steam pipe, the hoist rope, then the flat (door kick,
+    # window). Few men: only those the kit stands by its hazards and the flat's two. Add each new thing here.
+    {"name": "TEST LAB", "seed": 902, "start": 0.3, "end": 0.3, "fixed": ["lab", "stunts"], "intro": [], "outro": [],
+     "street_fixed": ["hk_laundry", "hk_tailor", "hk_grocery", "hk_saloon", "hk_laundry", "warehouse", "alley", "market"]},
 ]
 
 SEEN = set()   # a rope hint is shown once in the whole story, on the first map that has that rope
