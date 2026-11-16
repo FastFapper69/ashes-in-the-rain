@@ -154,13 +154,14 @@ var _shake := 0.0
 static var checkpoint := -1.0   # where a death sends him back to on this map; -1 = the start
 static var checkpoint_y := 0.0   # and how high: up on the roof he comes back on the roof
 static var _ground_cp := -1.0   # the last checkpoint down in the street, kept while he is up on the roof
-# the guns: seconds between shots, rounds when picked up, pellets per shot, spread (radians), how long a
+# the guns (range = life x BULLET_SPEED 4200: a side gun about one screen, 2600 px; the shotgun two
+# thirds of one, its pellets spreading; 2026-11-16, they used to cross the whole map): seconds between shots, rounds when picked up, pellets per shot, spread (radians), how long a
 # bullet flies, the kick of the arm, the sound
 const WEAPONS := {
-	"revolver": {"mag": 6, "reload": 0.85, "cool": 0.2, "ammo": 0, "pellets": 1, "spread": 0.0, "life": 1.4, "kick": 0.2, "sound": "shot_player", "name": "REVOLVER"},
-	"pistols": {"mag": 14, "reload": 0.95, "cool": 0.11, "ammo": 42, "pellets": 1, "spread": 0.025, "life": 1.4, "kick": 0.12, "sound": "shot_enemy", "name": "TWO PISTOLS"},
-	"tommy": {"mag": 30, "reload": 1.2, "cool": 0.085, "ammo": 60, "pellets": 1, "spread": 0.05, "life": 1.4, "kick": 0.08, "sound": "shot_tommy", "name": "TOMMY GUN"},
-	"shotgun": {"mag": 5, "reload": 1.1, "cool": 0.7, "ammo": 10, "pellets": 6, "spread": 0.15, "life": 0.3, "kick": 0.35, "sound": "shot_shotgun", "name": "SHOTGUN"},
+	"revolver": {"mag": 6, "reload": 0.85, "cool": 0.2, "ammo": 0, "pellets": 1, "spread": 0.0, "life": 0.62, "kick": 0.2, "sound": "shot_player", "name": "REVOLVER"},
+	"pistols": {"mag": 14, "reload": 0.95, "cool": 0.11, "ammo": 42, "pellets": 1, "spread": 0.025, "life": 0.55, "kick": 0.12, "sound": "shot_enemy", "name": "TWO PISTOLS"},
+	"tommy": {"mag": 30, "reload": 1.2, "cool": 0.085, "ammo": 60, "pellets": 1, "spread": 0.05, "life": 0.6, "kick": 0.08, "sound": "shot_tommy", "name": "TOMMY GUN"},
+	"shotgun": {"mag": 5, "reload": 1.1, "cool": 0.7, "ammo": 10, "pellets": 6, "spread": 0.15, "life": 0.42, "kick": 0.35, "sound": "shot_shotgun", "name": "SHOTGUN"},
 	"rifle": {"mag": 5, "reload": 1.6, "cool": 1.0, "ammo": 0, "pellets": 1, "spread": 0.0, "life": 1.8, "kick": 0.4, "sound": "shot_shotgun", "name": "RIFLE"},   # the marksman's: never Frank's
 }
 # The side gun, as he chose it at the gunsmith (2026-11-16): one or two revolvers or Berettas, each its
@@ -169,8 +170,8 @@ const WEAPONS := {
 const SIDE_STATS := {
 	"revolver": [{"mag": 6, "reload": 0.7, "cool": 0.22, "spread": 0.0, "dmg": 2.0, "kick": 0.24, "sound": "shot_player", "name": "REVOLVER"},
 			{"mag": 12, "reload": 1.35, "cool": 0.14, "spread": 0.03, "dmg": 1.0, "kick": 0.2, "sound": "shot_player", "name": "TWO REVOLVERS"}],
-	"beretta": [{"mag": 8, "reload": 0.6, "cool": 0.16, "spread": 0.012, "dmg": 1.0, "kick": 0.12, "sound": "shot_enemy", "name": "BERETTA"},
-			{"mag": 16, "reload": 1.1, "cool": 0.1, "spread": 0.07, "dmg": 0.75, "kick": 0.1, "sound": "shot_enemy", "name": "TWO BERETTAS"}],
+	"beretta": [{"mag": 8, "life": 0.55, "reload": 0.6, "cool": 0.16, "spread": 0.012, "dmg": 1.0, "kick": 0.12, "sound": "shot_enemy", "name": "BERETTA"},
+			{"mag": 16, "life": 0.5, "reload": 1.1, "cool": 0.1, "spread": 0.07, "dmg": 0.75, "kick": 0.1, "sound": "shot_enemy", "name": "TWO BERETTAS"}],
 }
 # the side gun's cards by what they do: [the revolver's effect, the Beretta's]
 const SIDE_FX := {"fast": ["fasthands", "b_fast"], "dmg": ["heavy", "b_hot"], "steady": ["steady", "b_steady"], "last": ["lastround", ""], "mag": ["", "b_mag"]}
@@ -7498,7 +7499,8 @@ func _enemies(delta: float) -> void:
 			if not _crate_called and e["type"] == "post":
 				_crate_called = true
 				_bark(m, "crate")
-		var may_fire: bool = not over and not cleared and _grace <= 0.0 and absf(to_player.x) < SIGHT * 1.3 * (1.0 - 0.6 * mapfx.fog) \
+		var reach: float = 1500.0 if e["type"] == "shotgun" else 2450.0   # (inside their guns' range: WEAPONS life)
+		var may_fire: bool = not over and not cleared and _grace <= 0.0 and absf(to_player.x) < minf(reach, SIGHT * 1.3) * (1.0 - 0.6 * mapfx.fog) \
 				and (not _player_covered(side) or over_cover or at_cover or at_crate) and _can_see(m) and _slot_free(e)
 		var aim_vec: Vector2 = to_player
 		if at_crate and _player_covered(side):   # his gun on the boards, chest high on the crate

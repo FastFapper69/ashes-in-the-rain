@@ -518,6 +518,11 @@ func _process(delta: float) -> void:
 		glow.width = lerpf(30.0, 54.0, slow)
 		(b["head"] as Sprite2D).position = pos
 		(b["head"] as Sprite2D).scale = Vector2(lerpf(0.2, 0.32, slow), 0.06)
+		var spent := clampf((float(b["life"]) / float(b["max"]) - 0.7) / 0.3, 0.0, 1.0)   # the end of its range: it dies out, not cut off
+		if spent > 0.0:
+			(b["head"] as Sprite2D).modulate.a = 1.0 - spent
+			line.modulate.a = 1.0 - spent * 0.8
+			glow.modulate.a = 1.0 - spent
 		b["wake"] = float(b["wake"]) + pos.distance_to(b["prev"])
 		if slow > 0.3 and float(b["wake"]) > 55.0:   # slowed: the bullet leaves its wake in the air
 			b["wake"] = 0.0
