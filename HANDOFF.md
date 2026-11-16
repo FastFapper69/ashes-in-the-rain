@@ -164,3 +164,10 @@ Read this first when picking the project up in a new chat. Reply to the user in 
 - Post-process: atmo.set_dream(0.55 → +0.25 za každý loop) – tetelení horka, kouř pod střechou, žhnoucí okraje, posun barevné desky k okrajům; atmo.jolt() při zřícení a loopu.
 - Plameny v popředí (_dream_vfx) a saze z velkých ohňů (_soot). Test: --test=rooms (snímek každé kresby ulice).
 - Pack a: 34,8 MB (dřív 31).
+
+## 2026-11-16 – Třetí kresby a prvky map
+- yard_c (art_src 190) a tunnel_c (191); THE LAST TRAIN: pozadí za vlakem střídá tunnel, tunnel_b, tunnel_c (setpieces BAND_ART; dřív byl vidět jen tunnel).
+- mapfx.gd (nový): nadzemka nad BACK STREETS ("el": true, art/props/el_span.png z 192), prádlo v prádelně (každá místnost laundry, art/props/sheets.png z 193, díry od kulek přes fx.pass_test), mlha na PIER 17 ("fog": true, shader fog/fog_at, zkracuje dohled obou stran).
+- setpieces.gd: protijedoucí vlak v THE LAST TRAIN (_tick_oncoming: světlomet, houkačka, poryv tlačí stojícího hráče, kryje ventilace/přikrčení).
+- Zvuky: el_train.ogg, train_horn.wav, cloth.wav (Artlist, 22 kHz mono). sfx NAMES umí i .ogg.
+- Testy: --test=el (1:1), --test=fog (2:0), --test=oncoming (3:3), --test=sheets (1:2), --test=rooms.
