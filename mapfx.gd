@@ -112,6 +112,7 @@ func tick(delta: float) -> void:
 		_tick_rock(delta)
 	if _steam:
 		_tick_steam(delta)
+	_tick_room_vents(delta)
 	if _rats:
 		_tick_rats(delta)
 	if not _neon.is_empty():
@@ -280,6 +281,14 @@ func _hang_sheets(x: float) -> void:
 	s.modulate = Color(game._undo_night(0.95), 0.74)
 	game.add_child(s)
 	var size: Vector2 = tex.get_size() * SHEET_SCALE
+	for cx in [x + 30.0, x + size.x - 30.0]:   # (hung on two cords from the hall's trusses: nothing hangs from nothing)
+		var cord := Line2D.new()
+		cord.points = PackedVector2Array([Vector2(cx, -680.0), Vector2(cx, -2400.0)])
+		cord.width = 4.0
+		cord.default_color = game._undo_night(0.3)
+		cord.z_index = 3
+		game.add_child(cord)
+		s.set_meta("cord%d" % int(cx), cord)
 	var img: Image = tex.get_image()
 	if img.is_compressed():
 		img.decompress()
@@ -450,6 +459,28 @@ func _tick_rock(delta: float) -> void:
 
 
 # ---- the steam ---------------------------------------------------------------------------------
+
+var _vent_t := 4.0
+## A room with drawn steam pipes (main.gd ROOM_VENTS - the laundry hall): one of them blows a jet now and then while he is
+## in there, a white cloud the men cannot see through for a moment.
+func _tick_room_vents(delta: float) -> void:
+	var here: String = game._room_at(game.player.position.x, game.player.position.y)
+	if not game.ROOM_VENTS.has(here) or game.over:
+		return
+	_vent_t -= delta
+	if _vent_t > 0.0:
+		return
+	_vent_t = randf_range(6.0, 10.0)
+	for r in game._room_art:
+		if game.player.position.x > float(r[0]) and game.player.position.x < float(r[1]):
+			var rs: float = game.ROOM_SCALES.get(here, game.ROOM_SCALE)
+			var tex_w := 3168.0 * rs
+			var x0: float = float(r[0]) + maxf(0.0, (float(r[1]) - float(r[0]) - tex_w) * 0.5)
+			var top: float = -1344.0 * rs * float(game.SEGMENT_BASE)
+			var v: Vector2 = game.ROOM_VENTS[here].pick_random()
+			game.sets.steam_jet(Vector2(x0 + v.x * tex_w, top + v.y * 1344.0 * rs))
+			return
+
 
 func _tick_steam(delta: float) -> void:
 	_steam_t -= delta

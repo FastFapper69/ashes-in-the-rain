@@ -183,8 +183,9 @@ class Chunk:
 #   fuel is kept (BARREL_OK);
 # - the men stand behind the cover, on its far side from the door (Frank comes in from the left).
 ROOM_PIC_W, ROOM_SCALE = 3168, 0.75
+ROOM_SCALES = {"laundry": 0.8523}   # (= main.gd ROOM_SCALES: the industrial laundry hall, art_src 275, shown at full size)
 ROOM_CLEAR = {"yard": [(1460, 1720)],   # the tenement's back door
-              "laundry": [(1630, 1915), (1975, 2345)],   # the EXIT door, the doorway to the back
+              "laundry": [(0, 300), (2820, 3168)],   # the hall's street doorway, the iron column at its far end   # the EXIT door, the doorway to the back
               "warehouse": [(1750, 2395)],                # the loading bay with the truck
               "club": [(90, 1317), (1380, 1810)],         # the bar counter (BAR_PX), the arch to the back (art_src 245)
               "hold": [(1670, 1925)],                     # the ladder up to the hatch
@@ -212,11 +213,12 @@ def bar_floor(x0, w):
 
 def _room_src(style, w, x):
     """Where room-x x falls in the room's drawing (its own pixels)."""
-    pic = ROOM_PIC_W * ROOM_SCALE
+    rs = ROOM_SCALES.get(style, ROOM_SCALE)
+    pic = ROOM_PIC_W * rs
     if w > pic:   # wider than its drawing: the drawing in the middle, dark at both ends (never repeated)
-        return (x - (w - pic) / 2) / ROOM_SCALE
-    off = (ROOM_PIC_W - w / ROOM_SCALE) / 2
-    return off + x / ROOM_SCALE
+        return (x - (w - pic) / 2) / rs
+    off = (ROOM_PIC_W - w / rs) / 2
+    return off + x / rs
 
 
 def _room_free(style, w, a, b):
@@ -361,7 +363,7 @@ def chunk(name, hard, rng=None):
         c = Chunk(2600).room(0, 2600, "yard")
         furnish(c, "yard", rng, ["post", "tommy" if hard > 0.5 else "post"])
     elif name == "laundry":   # an interior: machines for cover, steam, a shotgunner in the back
-        c = Chunk(2700).room(0, 2700, "laundry").lamp(400).lamp(1250).lamp(2150)
+        c = Chunk(2700).room(0, 2700, "laundry").lamp(670).lamp(1340).lamp(2060)   # (the industrial hall: its drawing's own lamps)
         furnish(c, "laundry", rng, ["post", "shotgun", "post"], flask=True)
     elif name == "warehouse_arena":   # a locked room: waves through both doors
         c = (Chunk(2400).room(0, 2400, "warehouse").lamp(700).lamp(1700)

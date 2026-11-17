@@ -219,7 +219,7 @@ const ROOM_PENDANTS := {   # [x, hook y, bulb y] on the painting: enamel lamps o
 const ROOM_BULBS := {   # [x, y, colour, size]: measured on each painting at the glass itself
 	"yard": [[0.594, 0.212, "warm", "small"]],
 	"tenement": [[0.499, 0.266, "warm", "big"]],
-	"laundry": [[0.263, 0.303, "warm", "big"], [0.492, 0.303, "warm", "big"], [0.791, 0.308, "warm", "big"]],
+	"laundry": [[0.249, 0.263, "warm", "big"], [0.495, 0.411, "warm", "small"], [0.763, 0.182, "warm", "big"], [0.794, 0.313, "warm", "small"]],
 	"warehouse": [[0.652, 0.471, "warm", "small"], [0.432, 0.25, "sky", "big"], [0.651, 0.25, "sky", "big"], [0.888, 0.25, "sky", "big"]],
 	"club": [[0.536, 0.173, "spot", "big"], [0.461, 0.66, "warm", "small"], [0.528, 0.589, "warm", "small"], [0.591, 0.614, "warm", "small"], [0.609, 0.662, "warm", "small"]],
 	"hold": [[0.511, 0.325, "warm", "big"]],
@@ -1349,6 +1349,9 @@ const SEGMENT_MOON := 1.6   # how much brighter than the bare night the drawn st
 const SEGMENT_BASE := 0.92
 const GROUND_STOREY := -900.0   # above this height a street room is not where he is (a roof over it)
 const ROOM_SCALE := 0.75   # interiors: see _build_room
+const ROOM_SCALES := {"laundry": 0.8523}   # (17. 11.: the industrial laundry hall, drums taller than a man)
+# where steam bursts out of a drawn pipe in a room (fractions of the drawing): mapfx, while he is in there
+const ROOM_VENTS := {"laundry": [Vector2(0.328, 0.235), Vector2(0.436, 0.455), Vector2(0.975, 0.56)]}
 const ROOM_ZOOM := 0.58    # indoors the camera comes in closer: a room is small, the people in it are not
 var _veils: Array = []   # [x0, x1, node]: the dark over each interior seen from afar
 var _room_tops: Array = []   # [x0, x1, y of the ceiling] of each interior   # the facades meet the pavement this far down each drawing
@@ -7712,6 +7715,7 @@ func _tick_rooms() -> void:
 
 
 func _build_room_art(x0: float, x1: float, style: String) -> void:
+	var rs: float = ROOM_SCALES.get(style, ROOM_SCALE)   # (the laundry hall is drawn bigger: shown at full size)
 	var sky_top := -4200.0   # the dark over a room reaches up out of the picture; under the roofs only to their cornice
 	if not roof.is_empty():
 		var pics: Array = roof["pics"]
@@ -7724,16 +7728,16 @@ func _build_room_art(x0: float, x1: float, style: String) -> void:
 	wall.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	wall.region_enabled = true
 	# The interiors were drawn close up: at the street's scale a door in them came out three men tall.
-	# At ROOM_SCALE a door is a head taller than him; above the drawing a dark ceiling.
+	# At rs a door is a head taller than him; above the drawing a dark ceiling.
 	# A room wider than its drawing never repeats it (that would put the drawing's end walls halfway along
 	# the room, the user's rule 16. 11.): the drawing sits in the middle and the extra at each end is the
 	# dark the hallway runs on into.
-	var src_w := minf((x1 - x0) / ROOM_SCALE, tex.get_width())
-	var pad := maxf(0.0, ((x1 - x0) - tex.get_width() * ROOM_SCALE) * 0.5)
+	var src_w := minf((x1 - x0) / rs, tex.get_width())
+	var pad := maxf(0.0, ((x1 - x0) - tex.get_width() * rs) * 0.5)
 	wall.texture_repeat = CanvasItem.TEXTURE_REPEAT_DISABLED
 	wall.region_rect = Rect2(maxf(0.0, (tex.get_width() - src_w) * 0.5), 0.0, src_w, tex.get_height())
-	wall.scale = Vector2.ONE * ROOM_SCALE
-	var top := -tex.get_height() * ROOM_SCALE * SEGMENT_BASE
+	wall.scale = Vector2.ONE * rs
+	var top := -tex.get_height() * rs * SEGMENT_BASE
 	wall.position = Vector2(x0 + pad, top)
 	wall.z_index = -5
 	# The painting already has its lamps' light in it: it takes no lamplight of its own (one big
@@ -7791,11 +7795,11 @@ func _build_room_art(x0: float, x1: float, style: String) -> void:
 	# the painted lamps: a soft glow on each bulb and its light on whoever stands under it
 	var crop_x := maxf(0.0, (tex.get_width() - src_w) * 0.5)
 	for pd in ROOM_PENDANTS.get(style, []):   # lamps hung from the painting's ceiling beam: they swing
-		var px: float = x0 + pad + (float(pd[0]) * tex.get_width() - crop_x) * ROOM_SCALE
+		var px: float = x0 + pad + (float(pd[0]) * tex.get_width() - crop_x) * rs
 		if px < x0 + 200.0 or px > x1 - 200.0:
 			continue
-		var hook: float = top + float(pd[1]) * tex.get_height() * ROOM_SCALE
-		var at := Vector2(px, top + float(pd[2]) * tex.get_height() * ROOM_SCALE)
+		var hook: float = top + float(pd[1]) * tex.get_height() * rs
+		var at := Vector2(px, top + float(pd[2]) * tex.get_height() * rs)
 		var pend := _pendant(at, hook)
 		lamps.append(at + Vector2(0.0, 8.0))
 		var plight := _lamp_light(at + Vector2(0.0, -8.0))
@@ -7804,7 +7808,7 @@ func _build_room_art(x0: float, x1: float, style: String) -> void:
 		pend["lamp"] = lamps.size() - 1
 		_swingers.append(pend)
 	for b in ROOM_BULBS.get(style, []):
-		var at := Vector2(x0 + pad + (float(b[0]) * tex.get_width() - crop_x) * ROOM_SCALE, top + float(b[1]) * tex.get_height() * ROOM_SCALE)
+		var at := Vector2(x0 + pad + (float(b[0]) * tex.get_width() - crop_x) * rs, top + float(b[1]) * tex.get_height() * rs)
 		if at.x < x0 + 60.0 or at.x > x1 - 60.0:
 			continue
 		var col: Color = BULB_COLORS.get(String(b[2]), BULB_COLORS["warm"])
