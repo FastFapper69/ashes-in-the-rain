@@ -1286,7 +1286,8 @@ PROLOGUE = {"name": "THE LAST NOTE", "seed": 1, "feature": "bluenote_row", "pool
 CAMPAIGN = [
   {"title": "PROLOGUE", "name": "EDDIE DOYLE", "ready": True, "hero": "eddie", "ambient": [0.2, 0.21, 0.27], "rain": 1.2, "maps": [PROLOGUE]},
   {"title": "CHAPTER I", "name": "RAIN ON HELL'S KITCHEN", "ready": True, "hero": "frank", "ambient": [0.2, 0.21, 0.27], "rain": 1.0, "maps": [
-    {"name": "THE ALLEY", "seed": 101, "neon_drop": True, "feature": "alley_mouth", "start": 0.0, "end": 0.35,
+    {"name": "THE ALLEY", "seed": 101, "neon_drop": True, "washing": True,   # (its landmark: washing lines strung from window to window, QUEUE §12)
+     "feature": "alley_mouth", "start": 0.0, "end": 0.35,
      "fixed": ["crate_cover", "drum_duo", "dumpster_alley", "fire_escape", "barrel_trap", "pistols_cache", "yard", "ambush_behind", "gauntlet"],
      "intro": ["The shooters hadn't gone far. Rain doesn't wash a trail away that fast.", "Eddie had left a trail too: pages torn from his diary, nailed up where only I would look."],
      "diary": "Nov 3. Rosie showed me Tommy's photo again. Eleven men burned in '39 and the papers called it bad wiring. Bad wiring doesn't lock doors from the outside.",
@@ -1438,7 +1439,7 @@ def gd(campaign):
             if lv.get("memory"): out.append('\t\t\t"memory": true,')
             if lv.get("el"): out.append('\t\t\t"el": true,')
             if lv.get("fog"): out.append('\t\t\t"fog": true,')
-            for flag in ["storm", "rock", "steam", "sea", "rats", "flood", "neon_drop", "freight", "neon_street"]:
+            for flag in ["storm", "rock", "steam", "sea", "rats", "flood", "neon_drop", "freight", "neon_street", "washing"]:
                 if lv.get(flag): out.append('\t\t\t"%s": true,' % flag)
             if lv.get("moving"): out.append(f'\t\t\t"moving": {lv["moving"]},')
             if lv.get("cops"): out.append('\t\t\t"cops": true,')

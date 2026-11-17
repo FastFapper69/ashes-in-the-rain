@@ -31,6 +31,7 @@ const CAMPAIGN := [
 			"intro": ["The shooters hadn't gone far. Rain doesn't wash a trail away that fast.", "Eddie had left a trail too: pages torn from his diary, nailed up where only I would look."], "outro": ["The shooters ran east. So did I."],
 			"diary": "Nov 3. Rosie showed me Tommy's photo again. Eleven men burned in '39 and the papers called it bad wiring. Bad wiring doesn't lock doors from the outside.", "ash": 0.3, "embers": 0.0,
 			"neon_drop": true,
+			"washing": true,
 			"events": [],
 			"hints": [[9372.3, "JUMP AT THE LADDER TO CLIMB IT"]],
 			"boxes": [["crate", 1900.0, 250.0, 248.0, 0.0], ["drum", 3544.3, 160.0, 246.0, 0.0], ["crate", 4784.3, 250.0, 248.0, 0.0], ["dumpster", 6132.8, 300.0, 250.0, 0.0], ["drum", 11572.3, 160.0, 246.0, 0.0], ["crate", 12499.5, 250.0, 248.0, 0.0], ["drum", 15099.5, 160.0, 246.0, 0.0], ["crate_long", 17974.0, 330.0, 176.0, 0.0], ["drum", 18894.1, 160.0, 246.0, 0.0], ["crate", 21129.6, 250.0, 248.0, 0.0], ["crate", 21653.1, 250.0, 248.0, 0.0], ["drum", 23329.6, 160.0, 246.0, 0.0], ["crate", 25206.1, 250.0, 248.0, 0.0], ["drum", 25766.1, 160.0, 246.0, 0.0], ["dumpster", 26409.6, 300.0, 250.0, 0.0]],

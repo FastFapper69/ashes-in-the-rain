@@ -1066,6 +1066,24 @@ func _build_street() -> void:
 		return
 	if level.has("street") and level["street"].size() > 0:
 		_build_segments()
+		if level.get("washing", false):   # the alley district (QUEUE §12): washing lines from window to window up the plain fronts
+			var plain := ["row_house", "apartment", "pawn_house", "factory", "warehouse_row"]
+			var top := -1344.0 * 1.52 * SEGMENT_BASE - WALL_LIFT
+			for seg in level["street"]:
+				if not String(seg[0]) in plain or seg.size() > 2:
+					continue
+				var x0 := float(seg[1])
+				for fl in [[530.0, int(x0 / 97.0) % 2]]:   # (the second floor's windows - in the picture - and which window it starts at)
+					var k0: int = fl[1]
+					while k0 + 3 < 12:
+						var c0 := 294.0 + 236.0 * k0 + 59.0 + 14.0        # the right jamb of one window
+						var c1 := 294.0 + 236.0 * (k0 + 3) - 59.0 - 14.0  # the left jamb of the one three along
+						var a := Vector2(x0 + c0 * 1.52, top + (fl[0] + 140.0) * 1.52)   # (at the sills: the laundry hangs in the picture, over their heads)
+						var b := Vector2(x0 + c1 * 1.52, a.y)
+						var mid := (a.x + b.x) * 0.5
+						if _room_at(mid) == "" and not _under_front(mid, "") and _front_spans.all(func(sp: Vector2) -> bool: return mid < sp.x - 300.0 or mid > sp.y + 300.0):
+							_washing_line(a, b)
+						k0 += 4
 		if level.get("neon_street", false):   # the night street round the club (QUEUE §12): neon signs on brackets over the doors
 			var signs := [["hotel", Color(1.0, 0.22, 0.16)], ["bar", Color(0.6, 0.8, 1.0)], ["dancing", Color(1.0, 0.42, 0.8)],
 				["cafe", Color(0.35, 1.0, 0.5)], ["liquors", Color(1.0, 0.7, 0.3)]]
@@ -9598,6 +9616,37 @@ func _manhole(x: float, tone: Color) -> void:
 	sp.modulate = tone * 0.9
 	sp.z_index = -6
 	add_child(sp)
+
+
+## A washing line hung between two window jambs (on its pulleys), sagging, laundry pegged along it: the alley's landmark.
+func _washing_line(a: Vector2, b: Vector2) -> void:
+	var sag := 60.0
+	var pts := PackedVector2Array()
+	for i in 13:
+		var t := i / 12.0
+		pts.append(a.lerp(b, t) + Vector2(0.0, sag * 4.0 * t * (1.0 - t)))
+	var l := _rope_line(_undo_night(0.5) * Color(0.85, 0.83, 0.78), 3.0)
+	l.points = pts
+	_pulley(a, Vector2(-26.0, 0.0))
+	_pulley(b, Vector2(26.0, 0.0))
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(a.x * 7.0 + a.y)
+	var span := b.x - a.x
+	var x := 60.0
+	while x < span - 90.0:
+		var tex: Texture2D = load("res://art/props/laundry_%d.png" % rng.randi_range(0, 8))
+		var t := x / span
+		var c := Sprite2D.new()
+		c.texture = tex
+		c.centered = false
+		c.offset = Vector2(-tex.get_width() * 0.5, 0.0)
+		c.scale = Vector2.ONE * WASH_K * rng.randf_range(0.85, 1.05)
+		c.position = a.lerp(b, t) + Vector2(0.0, sag * 4.0 * t * (1.0 - t) - 4.0)
+		c.rotation = rng.randf_range(-0.06, 0.06)
+		c.modulate = _undo_night(0.24)
+		c.z_index = -2
+		add_child(c)
+		x += tex.get_width() * WASH_K + rng.randf_range(20.0, 90.0)
 
 
 ## A small iron pulley: a ring and the bracket that holds it (from `arm` off the ring to the ring).

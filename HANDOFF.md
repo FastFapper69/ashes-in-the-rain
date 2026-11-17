@@ -502,3 +502,4 @@ Read `.claude/skills/ashes-znalosti/SKILL.md` first (stable rules + topic index,
 - Fronts: firewall piers at both ends, process_art TONE lifts dark fronts, doors lit from inside in their own shape.
 - Next: THE ALLEY's landmark (washing lines across between fire escapes), then the hk_tailor split (awning apart from the fire escape + washing line) as own layers (rule 27).
 - (53b) User: shops yes, but one to a building and never photocopied rows: pawn_house (267, PAWN on the right) and diner_house (268, DINER on the left, TONE 1.2), in ALLEY/BACK STREETS/BLUE NOTE districts. Boss room at a map's end has no way out the back (_plain_room_at).
+- (53c) THE ALLEY "washing": washing lines on pulleys between the first-floor window jambs of the plain kit pieces (kit window grid 294+236k, sills row 670), main.gd _washing_line.
