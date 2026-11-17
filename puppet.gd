@@ -926,7 +926,8 @@ func _make_skirt_mesh() -> Polygon2D:
 	for r in SKIRT_ROWS:
 		for c in SKIRT_COLS:
 			var i := r * (SKIRT_COLS + 1) + c
-			quads.append(PackedInt32Array([i, i + 1, i + SKIRT_COLS + 2, i + SKIRT_COLS + 1]))
+			quads.append(PackedInt32Array([i, i + 1, i + SKIRT_COLS + 2]))   # (triangles: see _make_leg_mesh)
+			quads.append(PackedInt32Array([i, i + SKIRT_COLS + 2, i + SKIRT_COLS + 1]))
 	m.polygons = quads
 	m.light_mask = MASK_FIGURE
 	return m
@@ -946,6 +947,8 @@ func _bend_skirt(belt: Vector2, lean: float, hem: Vector2, leg_f: Array, leg_b: 
 	var open := clampf(_moving * 0.8 + air * 0.6 + slide * 0.3, 0.0, 1.0) * (0.0 if _dead else 1.0)
 	var pts := PackedVector2Array()
 	var center := belt
+	var last_row: Array = []   # (the row above: rows and columns must never cross - a folded quad draws nothing and
+	# the background shows through the coat, outlined: user 17. 11. "a white spot on the coat when he moves")
 	for r in SKIRT_ROWS + 1:
 		var v := float(r) / SKIRT_ROWS
 		var d := top_dir.slerp(end_dir, pow(v, 1.4))
@@ -955,6 +958,7 @@ func _bend_skirt(belt: Vector2, lean: float, hem: Vector2, leg_f: Array, leg_b: 
 		var flare := 1.0 + 0.12 * v
 		var at_f := _along_leg(leg_f, v)
 		var at_b := _along_leg(leg_b, v)
+		var row: Array = []
 		for c in SKIRT_COLS + 1:
 			var across := (tex_w * c / SKIRT_COLS - ax) / ppm * flare
 			var q := center + n * across
@@ -968,7 +972,15 @@ func _bend_skirt(belt: Vector2, lean: float, hem: Vector2, leg_f: Array, leg_b: 
 				q = q.lerp(at_f - n * 0.02, pull * 0.5)
 			elif c == 1:
 				q = q.lerp(at_b + n * 0.02, pull * 0.5)
+			if c > 0:   # left of the next column, never past it
+				var left: Vector2 = row[c - 1]
+				if (q - left).dot(n) < 0.004:
+					q += n * (0.004 - (q - left).dot(n))
+			if not last_row.is_empty() and (q - (last_row[c] as Vector2)).dot(d) < 0.002:   # below the row above
+				q += d * (0.002 - (q - (last_row[c] as Vector2)).dot(d))
+			row.append(q)
 			pts.append(q * PPM)
+		last_row = row
 	_skirt_mesh.polygon = pts
 	if _skirt_shadow:
 		_skirt_shadow.polygon = pts
@@ -1000,7 +1012,10 @@ func _make_leg_mesh() -> Polygon2D:
 	for r in LEG_ROWS:
 		for c in 2:
 			var i := r * 3 + c
-			quads.append(PackedInt32Array([i, i + 1, i + 4, i + 3]))
+			# (two triangles, never a quad: a quad bent into a bow-tie is not drawn at all and the background shows
+			# through the leg - user 17. 11. "a white spot on the coat"; a twisted triangle still draws)
+			quads.append(PackedInt32Array([i, i + 1, i + 4]))
+			quads.append(PackedInt32Array([i, i + 4, i + 3]))
 	m.polygons = quads
 	m.light_mask = MASK_FIGURE
 	return m
@@ -1019,6 +1034,8 @@ func _bend_leg(m: Polygon2D, leg: Array, shadow) -> void:
 	var ppm := (LEG_ANKLE - LEG_HIP) * size.y / ((knee - hip).length() + (ankle - knee).length())
 	var axis := LEG_AXIS * size.x
 	var pts := PackedVector2Array()
+	var mid := up_dir.slerp(lo_dir, 0.5)   # down the leg at the knee: the plane thigh and shin meet on
+	var prev: Array = [null, null, null]   # each column's last point: on the inside of a bent knee the rows must not cross
 	for r in LEG_ROWS + 1:
 		var v := float(r) / LEG_ROWS
 		var at: Vector2
@@ -1032,7 +1049,19 @@ func _bend_leg(m: Polygon2D, leg: Array, shadow) -> void:
 		var n := Vector2(-d.y, d.x)   # across the leg; the drawing's right (the toe) is +x
 		for c in 3:
 			var across := (size.x * c * 0.5 - axis) / ppm
-			pts.append((at - n * across) * PPM)
+			var q := at - n * across
+			# (user 17. 11.: "a white spot on the coat when he moves" - a knee bent hard folded the inside of the leg over
+			# itself; the flipped triangles caught the light white. Thigh rows stay on the hip side of the knee's
+			# mid-plane, shin rows on the foot side, and no column runs backwards)
+			var side := (q - knee).dot(mid)
+			if v <= LEG_KNEE and side > 0.0:
+				q -= mid * side
+			elif v > LEG_KNEE and side < 0.0:
+				q -= mid * side
+			if prev[c] != null and (q - (prev[c] as Vector2)).dot(d) < 0.0:
+				q -= d * (q - (prev[c] as Vector2)).dot(d)
+			prev[c] = q
+			pts.append(q * PPM)
 	m.polygon = pts
 	if shadow:
 		(shadow as Polygon2D).polygon = pts
