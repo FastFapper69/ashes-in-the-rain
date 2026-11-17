@@ -1,5 +1,5 @@
 # Written by gen/deploy/deploy_pc.sh at every deploy: do not edit by hand.
 extends RefCounted
 
-const BUILD := 266
-const DATE := "17 NOV 2026 16:50"
+const BUILD := 269
+const DATE := "17 NOV 2026 18:06"

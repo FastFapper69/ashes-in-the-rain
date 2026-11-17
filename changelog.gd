@@ -5,6 +5,10 @@ extends RefCounted
 
 const ENTRIES := [
 	["17 NOV 2026", [
+		"Each chapter I map has its own district and buildings",
+		"The Laundry: steam bursts out of the street grates",
+		"The Blue Note: a night street of neon signs",
+		"Room doors glow from inside: you can see where to go in",
 		"Chapter I streets redrawn as one set: same scale, pavement and walls",
 		"New alley gate, market, church, subway entrance, warehouse",
 		"The Blue Note gets its neon sign",

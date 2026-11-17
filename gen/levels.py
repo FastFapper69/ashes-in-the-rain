@@ -1296,7 +1296,7 @@ CAMPAIGN = [
      "intro": ["Hell's Kitchen doesn't sleep. It just lies there with its eyes open."],
      "diary": "Nov 11. Pulled the Pier 17 file from records. Half of it is missing. The half that's left smells like money.",
      "outro": ["One of them talked before he stopped talking. A laundry on Tenth Avenue."]},
-    {"name": "THE LAUNDRY", "seed": 103, "start": 0.35, "end": 0.6,   # (no feature drawing: its laundry is the interior's front now)
+    {"name": "THE LAUNDRY", "seed": 103, "start": 0.35, "end": 0.6, "steam": True,   # (its landmark: steam out of the grates, QUEUE §12)   # (no feature drawing: its laundry is the interior's front now)
      "fixed": ["crate_cover", "barrel_trap", "laundry", "blackout", "breather", "warehouse_arena", "fire_escape", "rush"],
      "intro": ["Steam, starch and gun oil.", "Nobody washes shirts at three in the morning."],
      "diary": "Nov 20. Insurance paid out $400,000 to a company owned by a company owned by a church charity. The Saint's charity.",
@@ -1307,7 +1307,8 @@ CAMPAIGN = [
      "intro": ["Iron stairs, wet as a liar's palm."],
      "diary": "Dec 9. The precinct log says who walked the Pier 17 beat that night. I wish I hadn't read it. I need to hear it from him before I take it upstairs.",
      "outro": ["Below me the neon said JAZZ.", "Mickey Teague owned the Blue Note. Somebody else owned Mickey."]},
-    {"name": "THE BLUE NOTE", "seed": 105, "feature": "bluenote_row", "start": 0.6, "end": 0.85, "boss": "teague", "boss_room": "club",
+    {"name": "THE BLUE NOTE", "seed": 105, "feature": "bluenote_row", "neon_street": True,   # (its landmark: the night street full of neon, QUEUE §12)
+     "start": 0.6, "end": 0.85, "boss": "teague", "boss_room": "club",
      "fixed": ["fire_escape", "crate_cover", "breather", "warehouse_arena", "rush"],
      "intro": ["Mickey 'Canvas' Teague. Forty fights, and he lost every one he was paid to lose.", "Tonight nobody was paying."],
      "diary": "Dec 17. Meeting a guy from the Blue Note tonight. Says he'll sell me the name of who paid. If I'm wrong about this, I'll buy Frank a drink and tell him everything.",
@@ -1437,7 +1438,7 @@ def gd(campaign):
             if lv.get("memory"): out.append('\t\t\t"memory": true,')
             if lv.get("el"): out.append('\t\t\t"el": true,')
             if lv.get("fog"): out.append('\t\t\t"fog": true,')
-            for flag in ["storm", "rock", "steam", "sea", "rats", "flood", "neon_drop", "freight"]:
+            for flag in ["storm", "rock", "steam", "sea", "rats", "flood", "neon_drop", "freight", "neon_street"]:
                 if lv.get(flag): out.append('\t\t\t"%s": true,' % flag)
             if lv.get("moving"): out.append(f'\t\t\t"moving": {lv["moving"]},')
             if lv.get("cops"): out.append('\t\t\t"cops": true,')

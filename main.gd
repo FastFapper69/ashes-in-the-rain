@@ -1066,6 +1066,55 @@ func _build_street() -> void:
 		return
 	if level.has("street") and level["street"].size() > 0:
 		_build_segments()
+		if level.get("neon_street", false):   # the night street round the club (QUEUE §12): neon signs on brackets over the doors
+			var signs := [["hotel", Color(1.0, 0.22, 0.16)], ["bar", Color(0.6, 0.8, 1.0)], ["dancing", Color(1.0, 0.42, 0.8)],
+				["cafe", Color(0.35, 1.0, 0.5)], ["liquors", Color(1.0, 0.7, 0.3)]]
+			var keep := _sign_scale
+			_sign_scale = 0.62
+			var sx := 1400.0
+			var k := 0
+			var halo_tex := _soft_glow()
+			while sx < level_end - 600.0:
+				var ok := _room_at(sx) == "" and not _under_front(sx, "")
+				for sp in _front_spans:
+					if sx > sp.x - 300.0 and sx < sp.y + 300.0:
+						ok = false
+				for seg in level["street"]:   # (the Blue Note's own drawing has its own neon)
+					if String(seg[0]) == "bluenote_row" and sx > float(seg[1]) - 200.0 and sx < float(seg[1]) + 3168.0 * 1.52 + 200.0:
+						ok = false
+				if ok:
+					var nm: String = signs[k % signs.size()][0]
+					_sign_scale = 0.46 if nm in ["hotel", "liquors"] else 0.6   # (the tall ones smaller: their top stays in the picture)
+					var tex: Texture2D = load("res://art/props/sign_%s.png" % nm)
+					var size := tex.get_size() * _sign_scale
+					var tl := Vector2(sx, -650.0 - size.y)
+					var base := Sprite2D.new()   # the enamel box and its bracket, lit by the night like the wall
+					base.texture = tex
+					base.centered = false
+					base.scale = Vector2.ONE * _sign_scale
+					base.position = tl
+					base.z_index = -9
+					base.modulate = Color(0.78, 0.78, 0.78)   # (the painted tubes are bright already: the box at night tone)
+					add_child(base)
+					_add_sign("res://art/props/sign_%s_glow.png" % nm, tl, signs[k % signs.size()][1], "buzz" if k % 3 == 1 else "steady", halo_tex, false, 0.25)
+					if not neons.is_empty() and neons[neons.size() - 1]["light"] != null:
+						(neons[neons.size() - 1]["light"] as PointLight2D).energy *= 0.55   # (a soft wash on the wall, not a blot)
+					k += 1
+					sx += 1500.0 + float((k * 397) % 700)
+				else:
+					sx += 300.0
+			_sign_scale = keep
+		if level.get("steam", false) and not level.get("under", false):   # the steam district (QUEUE §12): a grate every block, each breathing
+			var gx := 700.0
+			while gx < level_end - 300.0:
+				var free := _room_at(gx) == "" and not _under_front(gx, "")
+				for sp in _front_spans:
+					if gx > sp.x - 200.0 and gx < sp.y + 200.0:
+						free = false
+				if free and manholes.all(func(m: float) -> bool: return absf(m - gx) > 900.0):
+					_manhole(gx, Color.WHITE * SEGMENT_MOON)
+					atmo.add_steam(self, Vector2(gx, -20.0))
+				gx += 1700.0
 		for th in level.get("things", []):   # free-standing things to shoot (gen/levels.py Chunk.thing), toned like the drawing behind
 			var like: Sprite2D = null
 			for fc in _facades:
@@ -9534,7 +9583,9 @@ func _add_rope(ro: Array) -> void:
 ## A manhole cover in the pavement (art_src 247), where the street's steam comes up: flat on the stones, toned like
 ## the drawing behind it.
 const MANHOLE_W := 380.0
+var manholes: Array[float] = []   # (mapfx: the steam bursts out of these in a street)
 func _manhole(x: float, tone: Color) -> void:
+	manholes.append(x)
 	var tex: Texture2D = load("res://art/props/manhole.png")
 	var k := MANHOLE_W / tex.get_width()
 	var sp := Sprite2D.new()

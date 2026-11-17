@@ -398,6 +398,16 @@ func _tick_steam(delta: float) -> void:
 	if ahead == INF:
 		return
 	var at := Vector2(lerpf(px, ahead, 0.55), 0.0)
+	if not game.level.get("under", false):   # in a street the steam comes out of a manhole between them (rule 22), not a pipe overhead
+		var best := INF
+		for m in game.manholes:
+			if m > px + 300.0 and m < px + 1500.0 and absf(m - at.x) < absf(best - at.x) and game._room_at(m) == "":
+				best = m
+		if best == INF:
+			return
+		at.x = best
+		game.sets.smoke(at, true)
+		return
 	game.sets.smoke(at, true)
 	game.fx.spark(at + Vector2(0.0, -900.0))
 

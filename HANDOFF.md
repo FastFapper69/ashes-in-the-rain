@@ -494,3 +494,10 @@ Read `.claude/skills/ashes-znalosti/SKILL.md` first (stable rules + topic index,
 - Packs download in 4 MB chunks (HTTPRequest default 64 KB a frame took ~17 s for 68 MB).
 - Next: chapter I maps as graphs (each map's rooms as nodes), then chapter II.
 - (52b) Chapter I under the graph rules: fixed lists may not put two rooms back to back (chapter I and lab; docks/underground later), a front that cannot be placed is a build error now. THE ALLEY and BACK STREETS got a back yard (through the carriage passages); THE BLUE NOTE's warehouse now has its front (fire_escape moved first). The HOTEL neon never hangs inside a room. Audit ignores a room's own furniture.
+
+## (53) Chapter I: each map its own district + landmark (QUEUE §12), 2026-11-17 evening
+- User: maps look the same; then "the shops forcibly stuck onto each other" (memory no-forced-shop-rows): no more shop-row pieces. market_row out of the pools (only in TEST LAB); 262 diner/pawn and 263 barber/cigars drawn but NOT used; workshops sheet never saved.
+- Plain pieces: apartment (264, one stoop door), factory (265, steel door, poster scraps). levels.py DISTRICT per chapter I map, each piece once a map, least used in the chapter first (CHAPTER_USED, reset per chapter).
+- Landmarks: THE LAUNDRY "steam": steam bursts out of the nearest street manhole ahead (mapfx _tick_steam in streets), extra steaming grates every ~1700 px (main.gd, never at fronts/rooms). THE BLUE NOTE "neon_street": signs HOTEL/BAR/DANCING/CAFE/LIQUORS (art_src 266, gen/neon_signs.py -> art/props/sign_*.png + _glow) on brackets over doors every ~1500-2200 px, _add_sign with gain. BACK STREETS has the El, TENEMENTS the storm, THE ALLEY the HOTEL drop.
+- Fronts: firewall piers at both ends, process_art TONE lifts dark fronts, doors lit from inside in their own shape.
+- Next: THE ALLEY's landmark (washing lines across between fire escapes), then the hk_tailor split (awning apart from the fire escape + washing line) as own layers (rule 27).
