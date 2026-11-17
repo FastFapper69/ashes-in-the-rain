@@ -1225,6 +1225,7 @@ var moonlight: DirectionalLight2D   # stronger up on the roofs, under the open s
 # it as the camera moves, most in the middle and not at all at its edges: the far end of the view
 # moves slower than the wall, so it reads as depth. Blood does not splash onto these.
 const SEGMENT_DEEP := {
+	"alley_mouth": [Rect2(0.425, 0.22, 0.155, 0.71)],
 	"alley": [Rect2(0.465, 0.22, 0.11, 0.64)], "bluenote": [Rect2(0.665, 0.3, 0.16, 0.38)],
 	"warehouse": [Rect2(0.45, 0.32, 0.2, 0.56)], "laundry": [Rect2(0.455, 0.32, 0.1, 0.54)],
 	"subway": [Rect2(0.5, 0.25, 0.095, 0.63)], "church": [Rect2(0.432, 0.4, 0.125, 0.4)],
@@ -1253,7 +1254,7 @@ const SEGMENT_KIT := {"walkway_b": "walkway", "signal_b": "signal", "arches_b": 
 	"yard_b": "yard", "tunnel_b": "tunnel", "sheds_b": "sheds", "pier17_b": "pier17", "shipping_b": "shipping", "quay_b": "quay",
 	"laundry_b": "laundry", "alley_b": "alley", "warehouse_b": "warehouse", "warehouse_c": "warehouse", "church_b": "church", "subway_b": "subway", "market_b": "market", "market_c": "market", "yard_c": "yard", "tunnel_c": "tunnel",
 	"fire_d": "fire_a", "fire_e": "fire_b", "fire_f": "fire_c", "fire_g": "fire_a"}
-const SEGMENT_SIZE := {"front_laundry": 0.8, "front_warehouse": 0.8, "front_club": 0.8, "front_tenement": 0.8, "hk_tailor": 0.8, "hk_grocery": 0.8, "hk_saloon": 0.8, "hk_laundry": 0.8, "deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
+const SEGMENT_SIZE := {"alley_mouth": 0.8, "front_laundry": 0.8, "front_warehouse": 0.8, "front_club": 0.8, "front_tenement": 0.8, "hk_tailor": 0.8, "hk_grocery": 0.8, "hk_saloon": 0.8, "hk_laundry": 0.8, "deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
 	"signal": 0.52, "arches": 0.52, "sheds": 0.55, "fire_a": 0.605, "fire_b": 0.605, "fire_c": 0.605}
 # A drawing whose floor runs into the depth: where on it a man's feet go, as a share of its height (the
 # street drawings stand at the back of the pavement at SEGMENT_BASE instead).

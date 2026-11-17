@@ -28,8 +28,8 @@ SEG_SIZE = {"deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.
             "signal": SUB, "arches": SUB, "sheds": 0.55, "fire_a": 0.605, "fire_b": 0.605, "fire_c": 0.605}
 UNDER_ROOF = ["tenrow_a", "tenrow_c", "tenrow_b", "tenrow_d"]   # the facades under the rooftops: their cornice meets the roof drawings   # shown smaller: see main.gd SEGMENT_SIZE
 STREET_POOL = ["hk_tailor", "hk_grocery", "hk_saloon", "hk_laundry",   # (the kit: gen/kit.py)
-               "alley", "warehouse", "laundry", "subway", "church", "market",
-               "alley_b", "warehouse_b", "laundry_b", "subway_b", "church_b", "market_b", "market_c"]
+               "alley_mouth", "warehouse", "laundry", "subway", "church", "market",   # (chapter I on one kit, 17. 11.: alley/alley_b -> alley_mouth)
+               "warehouse_b", "laundry_b", "subway_b", "church_b", "market_b", "market_c"]
 DOCKS_POOL = ["pier17", "cranes", "shipping", "quay", "sheds", "pier17_b", "shipping_b", "quay_b", "sheds_b"]   # (the harbor with its lighthouse: only the Harbor Master's own)
 # variants (2026-11-15): the same kit redrawn with other details over the same floor, rails, edges and lamps,
 # so a map does not show one drawing again and again; everything about them but the picture is the kit's
@@ -735,6 +735,10 @@ def cover_men(m, mp):
 
 def _cover_spot(m, e, bx, w, by):
     lo, hi = bx - 270, bx + w + 270   # a man's width clear of anything else on the ground
+    for n, x0, *_ in m.street:   # nothing in front of a kit piece's door, gate or painted thing
+        p = KIT_CAT.PIECES.get(n)
+        if p and any(x0 + a * 1.9 * p["size"] - 120 < bx + w and bx < x0 + b * 1.9 * p["size"] + 120 for a, b in p.get("clear", [])):
+            return False
     for a, b, n, st in m.sections:   # nothing in front of a door or the stairs painted in the building's ground floor
         if any(a + c0 - 60 < bx + w and bx < a + c1 + 60 for c0, c1 in SEC_CLEAR):
             return False
@@ -778,6 +782,8 @@ for _n, _p in KIT_CAT.PIECES.items():
     SEG_SIZE[_n] = _p["size"]
     TRIM[_n] = 0
 def street_props(m):
+    every = [(x0 + a * 1.9 * KIT_CAT.PIECES[n]["size"] - 120, x0 + b * 1.9 * KIT_CAT.PIECES[n]["size"] + 120)   # every piece's
+             for n, x0, *_ in m.street if n in KIT_CAT.PIECES for a, b in KIT_CAT.PIECES[n].get("clear", [])]   # clear ground
     for name, x0 in m.street:
         piece = KIT_CAT.PIECES.get(name)
         if not piece:
@@ -787,7 +793,7 @@ def street_props(m):
         top = KIT_CAT.TOP(piece["size"])
         blocked = [(wx(a) - 120, wx(b) + 120) for a, b in piece.get("clear", [])]
         def free(x, w, me):
-            if any(a < x + w and x < b for a, b in blocked):
+            if any(a < x + w and x < b for a, b in every):   # (a crate moved off one piece's clear ground never onto another's)
                 return False
             if any(r[0] - 250 < x + w and x < r[1] + 250 for r in m.rooms):
                 return False   # (not in front of a room's door either)
@@ -1158,7 +1164,7 @@ PROLOGUE = {"name": "THE LAST NOTE", "seed": 1, "feature": "bluenote", "pool": [
 CAMPAIGN = [
   {"title": "PROLOGUE", "name": "EDDIE DOYLE", "ready": True, "hero": "eddie", "ambient": [0.2, 0.21, 0.27], "rain": 1.2, "maps": [PROLOGUE]},
   {"title": "CHAPTER I", "name": "RAIN ON HELL'S KITCHEN", "ready": True, "hero": "frank", "ambient": [0.2, 0.21, 0.27], "rain": 1.0, "maps": [
-    {"name": "THE ALLEY", "seed": 101, "neon_drop": True, "feature": "alley", "start": 0.0, "end": 0.35,
+    {"name": "THE ALLEY", "seed": 101, "neon_drop": True, "feature": "alley_mouth", "start": 0.0, "end": 0.35,
      "fixed": ["crate_cover", "drum_duo", "dumpster_alley", "fire_escape", "barrel_trap", "crate_cover", "pistols_cache", "ambush_behind", "gauntlet"],
      "intro": ["The shooters hadn't gone far. Rain doesn't wash a trail away that fast.", "Eddie had left a trail too: pages torn from his diary, nailed up where only I would look."],
      "diary": "Nov 3. Rosie showed me Tommy's photo again. Eleven men burned in '39 and the papers called it bad wiring. Bad wiring doesn't lock doors from the outside.",
@@ -1350,7 +1356,7 @@ SANDBOX = [
     {"name": "TEST LAB", "seed": 902, "start": 0.3, "end": 0.3, "fixed": ["lab", "laundry", "club", "section"], "intro": [], "outro": [],
      "roof": True, "kit": "troof", "roofs": ["roof_b", "roof_a"],   # (rule 25, 17. 11.: the flat is in a whole house: in at
      # its street door, up its stairs, the door kick and the window onto its own fire escape, up to its roof)
-     "street_fixed": ["hk_laundry", "hk_tailor", "hk_grocery", "hk_saloon", "hk_laundry", "warehouse", "alley", "market"]},
+     "street_fixed": ["hk_laundry", "hk_tailor", "hk_grocery", "hk_saloon", "hk_laundry", "warehouse", "alley_mouth", "market"]},
 ]
 
 SEEN = set()   # a rope hint is shown once in the whole story, on the first map that has that rope

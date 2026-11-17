@@ -121,6 +121,13 @@ def joins(mp):
         esc = [p for p in mp.get("floors", []) if p[3] == "fescape" and abs(p[0] - win_out) < 400]
         if not esc:
             errs.append(f"flat window at {win_out:.0f} (storey {y:.0f}) opens onto no fire escape of its own house")
+    for n, x0, *_ in st:   # nothing standing in front of a kit piece's door, gate or painted thing
+        p = KITCAT.PIECES.get(n)
+        for a, b in (p or {}).get("clear", []):
+            ca, cb = x0 + a * 1.9 * p["size"], x0 + b * 1.9 * p["size"]
+            for bx in mp.get("boxes", []):
+                if (len(bx) < 5 or bx[4] == 0.0) and bx[1] < cb and bx[1] + bx[2] > ca:
+                    errs.append(f"{bx[0]} at {bx[1]:.0f} stands in front of {n}'s clear ground {ca:.0f}-{cb:.0f}")
     for r in plain:   # no fight across an interior's door (research ch15: transitions only without enemies on)
         for door in (r[0], r[1]):
             for e in mp.get("enemies", []):
