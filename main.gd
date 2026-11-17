@@ -180,7 +180,7 @@ const WEAPONS := {
 # own feel. dmg = body damage (a man takes mob_hp; a head shot always kills). In code the side gun is
 # always the weapon "revolver"; `side` says which it is.
 const SIDE_STATS := {
-	"revolver": [{"mag": 6, "reload": 0.7, "cool": 0.22, "spread": 0.0, "dmg": 2.0, "kick": 0.24, "sound": "shot_player", "name": "REVOLVER"},
+	"revolver": [{"mag": 6, "reload": 0.7, "cool": 0.22, "spread": 0.0, "dmg": 1.5, "kick": 0.24, "sound": "shot_player", "name": "REVOLVER"},
 			{"mag": 12, "reload": 1.35, "cool": 0.14, "spread": 0.03, "dmg": 1.0, "kick": 0.2, "sound": "shot_player", "name": "TWO REVOLVERS"}],
 	"beretta": [{"mag": 8, "life": 0.55, "reload": 0.6, "cool": 0.16, "spread": 0.012, "dmg": 1.0, "kick": 0.12, "sound": "shot_enemy", "name": "BERETTA"},
 			{"mag": 16, "life": 0.5, "reload": 1.1, "cool": 0.1, "spread": 0.07, "dmg": 0.75, "kick": 0.1, "sound": "shot_enemy", "name": "TWO BERETTAS"}],
@@ -5123,8 +5123,20 @@ func _enemy_fire(e: Dictionary) -> void:
 			_throw_stick(m)
 			e["cool"] = randf_range(2.6, 3.4)
 		_:
+			# (user 17. 11.: "dumb robots - a long gap between shots; sometimes a bigger salvo; when they shout they'll bust
+			# the cover I'd expect them to empty a magazine into it fast") a man shooting up a crate empties his gun into it;
+			# otherwise one shot, a double tap, or now and then a salvo of three or four, like a player would
+			var left := int(e.get("mag", ENEMY_MAG.get(String(e["type"]), 6)))
+			var n := left if e.get("at_crate", false) else mini(left, [1, 1, 2, 2, 3, 4][randi() % 6])
+			var gap := 0.13 if e.get("at_crate", false) else 0.17
 			_fire(m, false)
-			e["cool"] = randf_range(1.4, 2.3)
+			for k in range(1, n):
+				get_tree().create_timer(gap * k, false).timeout.connect(func() -> void:
+					if e["alive"] and not over and not cleared:
+						e["aim_off"] = float(e["aim_off"]) + randf_range(-45.0, 45.0) * _aim_spread()   # (each shot of a salvo kicks a bit off)
+						_fire(m, false))
+			e["mag"] = left - (n - 1)   # (the last one is counted below)
+			e["cool"] = randf_range(0.8, 1.5) + gap * n
 	_shots_at[int(e["id"])] = _ai_t
 	e["cool"] = float(e["cool"]) * _ease_off() * float(diff["pause"]) * (1.35 if e.get("shaken", false) else 1.0)
 	# They run dry too: a click, a few seconds fumbling with rounds, a chance to rush them.
@@ -7176,8 +7188,8 @@ func _swap_boxes() -> void:
 ## body hits per mobster, aim spread, pause between shots, men firing at once, share of plain gunmen
 ## swapped for a Tommy gun or a shotgun.
 const CURVE := [
-	[0, {"density": 4.7, "mob_hp": 2, "aim": 1.45, "pause": 1.35, "shooters": 1, "heavy": 0.0}],
-	[2, {"density": 6.0, "mob_hp": 2, "aim": 1.3, "pause": 1.2, "shooters": 2, "heavy": 0.0}],
+	[0, {"density": 4.7, "mob_hp": 3, "aim": 1.45, "pause": 1.35, "shooters": 1, "heavy": 0.0}],
+	[2, {"density": 6.0, "mob_hp": 3, "aim": 1.3, "pause": 1.2, "shooters": 2, "heavy": 0.0}],
 	[4, {"density": 7.2, "mob_hp": 3, "aim": 1.15, "pause": 1.1, "shooters": 2, "heavy": 0.0}],
 	[7, {"density": 9.0, "mob_hp": 3, "aim": 1.0, "pause": 1.0, "shooters": 2, "heavy": 0.1}],
 	[10, {"density": 11.0, "mob_hp": 3, "aim": 0.92, "pause": 0.92, "shooters": 3, "heavy": 0.2}],
@@ -8672,7 +8684,7 @@ func _on_screen(p: Vector2) -> bool:
 func _slot_free(e: Dictionary) -> bool:
 	var busy := 0
 	for k in _shots_at:
-		if int(k) != int(e["id"]) and _ai_t - float(_shots_at[k]) < 1.1:
+		if int(k) != int(e["id"]) and _ai_t - float(_shots_at[k]) < 0.7:
 			busy += 1
 	return busy < int(diff["shooters"])
 
@@ -9133,6 +9145,7 @@ func _enemies(delta: float) -> void:
 		# a wooden crate he hides behind is shot to pieces: two men at most, once he has sat there a moment
 		var crate_i: int = _covering_crate(side) if _cover_t > 1.0 and e["type"] in ["post", "tommy", "shotgun"] and not over_cover else -1
 		var at_crate: bool = crate_i >= 0 and (_crate_shooters < 2 or at_cover) and _can_see(m)
+		e["at_crate"] = at_crate
 		if at_crate:
 			_crate_shooters += 1
 			if not _crate_called and e["type"] == "post":
@@ -9140,7 +9153,7 @@ func _enemies(delta: float) -> void:
 				_bark(m, "crate")
 		var reach: float = 1500.0 if e["type"] == "shotgun" else 2450.0   # (inside their guns' range: WEAPONS life)
 		var may_fire: bool = not over and not cleared and _grace <= 0.0 and absf(to_player.x) < minf(reach, SIGHT * 1.3) * (1.0 - 0.6 * mapfx.fog) \
-				and (not _player_covered(side) or over_cover or at_cover or at_crate) and _can_see(m) and _slot_free(e)
+				and (not _player_covered(side) or over_cover or at_cover or at_crate) and _can_see(m) and (_slot_free(e) or at_crate)
 		var aim_vec: Vector2 = to_player
 		if at_crate and _player_covered(side):   # his gun on the boards, chest high on the crate
 			var cb: Rect2 = boxes[crate_i]
