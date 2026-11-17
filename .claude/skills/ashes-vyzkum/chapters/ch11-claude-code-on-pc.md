@@ -25,3 +25,9 @@ Development moved to Claude Code on the user's Windows PC (claude.ai chat still 
 1. A runtime Godot MCP gives Claude eyes and hands on the real game.
 2. Hooks turn "remember to test" into "always tested".
 3. Unit tests for numbers, screenshot tests for looks.
+
+## Graphify (checked 2026-11-17) – not now, optional trial later
+- What it is: safishamsi/graphify (MIT; PyPI package `graphifyy` – other `graphify*` packages are not the project). Parses code locally with tree-sitter into a graph (graph.json + GRAPH_REPORT.md); `graphify claude install` adds a PreToolUse hook so Claude reads the graph before Glob/Grep. Docs/markdown go through an LLM once at build time.
+- The viral claim "every session rereads the whole codebase" is false – Claude Code searches and reads only what a task needs. The 71.5x figure is from a mixed corpus (code + papers + images); an independent test saw ~5–10x on structural questions in pure-code repos, nothing for editing (files still have to be read), and says below ~20k lines the build cost can outweigh savings.
+- Us: ~21k lines GDScript (main.gd 10.2k) + ~9k Python. GDScript is NOT in the core language list – needs the unofficial add-on `graphify-godot` (codeberg Drathal, adds .gd/.tscn/.tres). Our project map is already hand-made (ashes-znalosti index + chapters, ch07 code patterns).
+- Verdict: skip for now. If token use on the PC becomes a problem, trial it on a branch: build once, compare a few "where is X / what calls Y" questions with and without, keep only if clearly cheaper; ask the user before installing (pip + hook).
