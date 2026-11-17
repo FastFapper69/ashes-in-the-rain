@@ -383,3 +383,7 @@ Read `.claude/skills/ashes-znalosti/SKILL.md` first (stable rules + topic index,
 - Zip line (catwalk chunk: BACK STREETS, ch II): a timber mast with a pulley block stands on the walkway, the cable runs over its wheel down to an iron hand winch on the street (art_src 240 -> art/props/zip_mast.png, zip_winch.png via gen/street_props.py `cut_pair`; painted loose cable cut off the winch). main.gd ZIP_* constants; the drum box at its foot is gone.
 - Falling through: (1) one pull down on a landing (a crouch behind the rail) dropped him through – now it takes two pulls within 0.4 s (`_drop_tap`); (2) a fast fall could pass a thin landing between two frames – the catch reaches as far as he falls in a frame.
 - Cover moved off a kit piece's clear zone no longer lands in front of a room's door.
+
+## (34) Kegs burst animation, 2026-11-17
+- art_src 238 = Gemini 3x2 sheet (new chat, "Create image" tool on; plain chat with 4 Hydrogen refuses to draw). `gen/street_props.py`: kegs anim rows=2, SHRINK 0.5; `kegs_still()` makes the street kegs (hk_kegs.png) from the first cell with the spark/bullet removed, so the stack does not change when shot. props.gd `ANIM_X0` lines the strip up with the still; the drawn burst gets 3 dust puffs instead of 14 (smoke hid the foam).
+- propshot test: teleport by flag (the first frame after loading is long), prints `PROP kind (x, y)` for every street thing. Lab kegs at 13277,-173.

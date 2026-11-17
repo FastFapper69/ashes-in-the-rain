@@ -2845,13 +2845,16 @@ func _auto_step(delta: float) -> void:
 		return
 	elif _auto.begins_with("propshot"):   # --test=propshot:x,y : Frank a step left of x, a bullet into the street thing at (x, y), frames
 		var at := _auto.trim_prefix("propshot:").split(",")
-		if _at < 0.05:
+		if _auto_done & (1 << 21) == 0:   # (a flag, not _at: the first frame after loading can be long)
+			_auto_done |= 1 << 21
 			player.position = Vector2(float(at[0]) - 700.0, 0.0)
 			_grace = 99.0
 			for e in enemies:
 				e["seen"] = false
 		if _at > 0.5 and _auto_done & (1 << 20) == 0:
 			_auto_done |= 1 << 20
+			for it in props.items:   # where the street things stand (their rect centres: the x,y to aim at)
+				print("PROP ", it["kind"], " ", Vector2i((it["rect"] as Rect2).get_center()))
 			props.shot(Vector2(float(at[0]), float(at[1])))
 		var kf := int((_at - 0.4) / 0.12)
 		if kf >= 0 and kf < 16 and _auto_done & (1 << kf) == 0:

@@ -49,8 +49,8 @@ if __name__ == "__main__":
 # the same place in each. Keyed and cut into six equal cells, all cropped by the SAME box (the union over the frames,
 # aligned on the cells' foot) so the thing does not jump: art/props/hk_<kind>_anim.png, a strip of 6 cells
 # (props.gd splits it by width / 6; ANIM_W there = the thing's width share of a cell). A grid sheet (rows > 1) reads row by row.
-ANIMS = {"hydrant": ("237.jpg", 1), "kegs": ("238.jpg", 1), "steampipe": ("239.jpg", 2)}   # (file, rows of 6 frames)
-SHRINK = {"hydrant": 0.72}   # drawn bigger than shown: a hydrant cell is ~360 px wide on the street
+ANIMS = {"hydrant": ("237.jpg", 1), "kegs": ("238.jpg", 2), "steampipe": ("239.jpg", 2)}   # (file, rows of 6 frames)
+SHRINK = {"hydrant": 0.72, "kegs": 0.5}   # drawn bigger than shown: a hydrant cell is ~360 px wide on the street
 def anim(kind, f, n=6, rows=1):
     a = np.asarray(Image.open(os.path.join(SRC, f)).convert("RGB")).astype(float)
     r, g, b = a[..., 0], a[..., 1], a[..., 2]
@@ -73,6 +73,30 @@ if __name__ == "__main__":
     for kind, (f, rows) in ANIMS.items():
         if os.path.exists(os.path.join(SRC, f)):
             anim(kind, f, 6, rows)
+    if os.path.exists(os.path.join(SRC, "238.jpg")):
+        kegs_still()
+
+
+# The kegs on the street are the animation's first frame (user 17. 11.: the stack must not change when shot), its
+# bullet spark, splinters and the shell off: cut right of the hit barrel above the standing one, the star on the lid
+# covered by the same spot of the left barrel's lid. Cropped to the stack: props.gd ANIM_W/ANIM_X0 = its share/left in a cell.
+def kegs_still():
+    a = np.asarray(Image.open(os.path.join(ROOT, "art", "props", "hk_kegs_anim.png"))).astype(float)
+    cw = a.shape[1] // 6
+    c = a[:, :cw].copy()
+    k = cw / 875.0   # the numbers below were measured on the full-size cell (875 px)
+    yy, xx = np.mgrid[:c.shape[0], :c.shape[1]]
+    sx, sy = xx / k - 98, yy / k - 76
+    c[..., 3] = np.where((sx > 536) & (sy < 304), 0, c[..., 3])
+    m = np.clip((44 - np.sqrt((sx - 500) ** 2 + (sy - 245) ** 2)) / 10, 0, 1) * (c[..., 3] > 0)
+    d = np.roll(c, (-round(5 * k), round(280 * k)), axis=(0, 1))
+    for i in range(3):
+        c[..., i] = c[..., i] * (1 - m) + d[..., i] * m
+    c = c.astype(np.uint8)
+    ys, xs = np.where(c[..., 3] > 20)
+    x0, x1, y0, y1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1
+    Image.fromarray(c[y0:y1, x0:x1]).save(os.path.join(ROOT, "art", "props", "hk_kegs.png"))
+    print("kegs still", (x1 - x0, y1 - y0), "ANIM_W %.3f ANIM_X0 %.3f foot gap %d" % ((x1 - x0) / cw, x0 / cw, c.shape[0] - y1))
 
 
 # The zip line's two ends (art_src 240, user 17. 11.: "a cable tied to a barrel on the ground is random – it wants an
