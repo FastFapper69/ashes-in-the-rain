@@ -5,6 +5,8 @@ extends RefCounted
 
 const ENTRIES := [
 	["17 NOV 2026", [
+		"Gunsmith: the cylinder swings open again, every upgrade shown in action",
+		"Steam jets straight out of the manholes, the cover jumps",
 		"Each chapter I map has its own district and buildings",
 		"A pawnshop and an all-night diner, one shop to a building",
 		"The Alley: washing lines strung from window to window",

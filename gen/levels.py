@@ -365,10 +365,10 @@ def chunk(name, hard, rng=None):
         furnish(c, "laundry", rng, ["post", "shotgun", "post"], flask=True)
     elif name == "warehouse_arena":   # a locked room: waves through both doors
         c = (Chunk(2400).room(0, 2400, "warehouse").lamp(700).lamp(1700)
-             .runner(2050, 300, 2900).runner(2250, 300, 3100)
-             .runner(300, 300, -900, delay=5.0).runner(1400, 300, 3000, kind="tommy", delay=9.0)
-             .runner(150, 300, -1100, kind="shotgun", delay=13.0).pick("tommy", 1000))
-        furnish(c, "warehouse", rng, [])
+             .runner(1500, 500, 2900, delay=1.5).runner(1700, 500, 3100, delay=2.5)   # (user 17. 11.: no empty room - men in it from
+             .runner(300, 500, -900, delay=6.0).runner(1400, 500, 3000, kind="tommy", delay=10.0)   # the start, the waves soon after)
+             .runner(150, 500, -1100, kind="shotgun", delay=14.0).pick("tommy", 1000))
+        furnish(c, "warehouse", rng, ["post", "post"])
     elif name == "tenement":   # the third-floor hallway: the drawing has no landing, so the fight is on its boards
         c = Chunk(2300).room(0, 2300, "tenement")
         furnish(c, "tenement", rng, ["post", "shotgun" if hard > 0.5 else "post", "post"], flask=True)

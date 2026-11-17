@@ -132,6 +132,48 @@ func lit(p: Vector2) -> bool:
 
 
 ## Kessler's smoke: a grey wall rolling out over the quay for a few seconds.
+## Steam out of a street manhole (THE LAUNDRY's grates): a white jet straight up out of the cover, spreading into a
+## cloud once it has risen - it always comes out of the iron in the stones, never out of the air.
+func steam_jet(at: Vector2) -> void:
+	var p := CPUParticles2D.new()
+	p.texture = load("res://art/fx/puff3.png")
+	p.angle_min = 0.0
+	p.angle_max = 360.0
+	var grow := Curve.new()
+	grow.add_point(Vector2(0.0, 0.25))
+	grow.add_point(Vector2(0.35, 0.9))
+	grow.add_point(Vector2(1.0, 1.8))
+	p.scale_amount_curve = grow
+	p.amount = 70
+	p.lifetime = 3.2
+	p.explosiveness = 0.15
+	p.position = at + Vector2(0.0, -14.0)
+	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	p.emission_rect_extents = Vector2(55.0, 6.0)
+	p.direction = Vector2(0.0, -1.0)
+	p.spread = 9.0
+	p.gravity = Vector2(25.0, 0.0)
+	p.initial_velocity_min = 700.0
+	p.initial_velocity_max = 1050.0
+	p.damping_min = 420.0
+	p.damping_max = 560.0   # (shot up fast, slowing as it rises: it piles up into a cloud overhead and drifts)
+	p.scale_amount_min = 1.0
+	p.scale_amount_max = 1.7
+	var g := Gradient.new()
+	g.set_color(0, Color(0.95, 0.95, 0.93, 0.9))
+	g.add_point(0.6, Color(0.9, 0.9, 0.88, 0.6))
+	g.set_color(g.get_point_count() - 1, Color(0.85, 0.85, 0.85, 0.0))
+	p.color_ramp = g
+	p.modulate = game._undo_night(0.6)
+	p.z_index = 4
+	add_child(p)
+	game.sfx.play("steam", 2.0, at.x, 0.1)
+	_smokes.append([at, _t + 6.0])
+	game.hop_manhole(at.x)
+	get_tree().create_timer(3.6, false).timeout.connect(func() -> void: p.emitting = false)
+	get_tree().create_timer(7.5, false).timeout.connect(p.queue_free)
+
+
 func smoke(at: Vector2, steam := false) -> void:
 	var p := CPUParticles2D.new()
 	p.texture = load("res://art/fx/puff3.png")   # inked puffs, the same as the street's steam (the round flame blob read as white discs)

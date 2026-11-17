@@ -473,7 +473,7 @@ func _tick_steam(delta: float) -> void:
 		if best == INF:
 			return
 		at.x = best
-		game.sets.smoke(at, true)
+		game.sets.steam_jet(at)
 		return
 	game.sets.smoke(at, true)
 	game.fx.spark(at + Vector2(0.0, -900.0))

@@ -9608,6 +9608,23 @@ func _add_rope(ro: Array) -> void:
 ## the drawing behind it.
 const MANHOLE_W := 380.0
 var manholes: Array[float] = []   # (mapfx: the steam bursts out of these in a street)
+var _manhole_sprites := {}
+## The steam blows the cover: it jumps, rattles and drops back.
+func hop_manhole(x: float) -> void:
+	for k in _manhole_sprites:
+		if absf(float(k) - x) < 30.0:
+			var sp: Sprite2D = _manhole_sprites[k]
+			var y := sp.position.y
+			var tw := sp.create_tween()
+			tw.tween_property(sp, "position:y", y - 70.0, 0.12).set_ease(Tween.EASE_OUT)
+			tw.parallel().tween_property(sp, "rotation", 0.25, 0.12)
+			tw.tween_property(sp, "position:y", y, 0.18).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+			tw.parallel().tween_property(sp, "rotation", 0.0, 0.18)
+			for j in 3:
+				tw.tween_property(sp, "position:y", y - 8.0, 0.05)
+				tw.tween_property(sp, "position:y", y, 0.05)
+			sfx.play("hammer", -10.0, x, 0.1)
+			return
 func _manhole(x: float, tone: Color) -> void:
 	manholes.append(x)
 	var tex: Texture2D = load("res://art/props/manhole.png")
@@ -9616,6 +9633,7 @@ func _manhole(x: float, tone: Color) -> void:
 	sp.texture = tex
 	sp.scale = Vector2(k, k * 0.42)   # (laid flatter: the pavement is seen from low down)
 	sp.position = Vector2(x, -12.0)
+	_manhole_sprites[x] = sp
 	sp.modulate = tone * 0.9
 	sp.z_index = -6
 	add_child(sp)
