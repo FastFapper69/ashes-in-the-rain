@@ -47,7 +47,7 @@ STREET = {
     'front_club': ('251.jpg', 0, False), 'front_tenement': ('252.jpg', 0, False),
     # chapter I on one kit (17. 11.): an alley's mouth with its gate between two row houses, rendered in Blender at a man's eye
     'alley_mouth': ('253.jpg', 0, False), 'market_row': ('254.jpg', 0, False), 'church_row': ('255.jpg', 0, False),
-    'subway_entrance': ('256.jpg', 0, False), 'warehouse_row': ('257.jpg', 0, False), 'bluenote_row': ('258.jpg', 0, False), 'row_house': ('259.jpg', 0, False),
+    'subway_entrance': ('256.jpg', 0, False), 'warehouse_row': ('257.jpg', 0, False), 'bluenote_row': ('258.jpg', 0, False), 'row_house': ('259.jpg', 0, False), 'front_yard': ('260.jpg', 0, False),
 }
 KIT = {'yard_c': 'yard', 'tunnel_c': 'tunnel', 'walkway_b': 'walkway', 'signal_b': 'signal', 'arches_b': 'arches', 'yard_b': 'yard', 'tunnel_b': 'tunnel', 'tunnel_lo_b': 'tunnel_lo',
        'sheds_b': 'sheds', 'pier17_b': 'pier17', 'shipping_b': 'shipping', 'quay_b': 'quay',
@@ -76,7 +76,7 @@ DEEP = {'subway_entrance': [(0.445, 0.6, 0.113, 0.33)], 'alley_mouth': [(0.425, 
         'platform': [_sc((0.1, 0.31, 0.13, 0.38))], 'tunnel': [_sc((0.79, 0.33, 0.12, 0.38))], 'yard': [_sc((0.47, 0.45, 0.13, 0.3))]}
 # parts of a drawing taken out of it to come alive in the game (the crate on the crane's chains)
 CUT = {'cranes': [_sc((0.37, 0.2, 0.075, 0.255))]}
-ROOMS = {'laundry': '29.png', 'warehouse': '30.png', 'tenement': '31.png', 'club': '245b.png', 'hold': '47.png', 'office': '48.png', 'catacombs': '69.png', 'cityhall': '73.png'}
+ROOMS = {'yard': '261.jpg', 'laundry': '29.png', 'warehouse': '30.png', 'tenement': '31.png', 'club': '245b.png', 'hold': '47.png', 'office': '48.png', 'catacombs': '69.png', 'cityhall': '73.png'}
 
 
 def sky_alpha(rgb, pockets=False):

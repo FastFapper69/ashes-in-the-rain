@@ -176,7 +176,8 @@ class Chunk:
 #   fuel is kept (BARREL_OK);
 # - the men stand behind the cover, on its far side from the door (Frank comes in from the left).
 ROOM_PIC_W, ROOM_SCALE = 3168, 0.75
-ROOM_CLEAR = {"laundry": [(1630, 1915), (1975, 2345)],   # the EXIT door, the doorway to the back
+ROOM_CLEAR = {"yard": [(1460, 1720)],   # the tenement's back door
+              "laundry": [(1630, 1915), (1975, 2345)],   # the EXIT door, the doorway to the back
               "warehouse": [(1750, 2395)],                # the loading bay with the truck
               "club": [(90, 1317), (1380, 1810)],         # the bar counter (BAR_PX), the arch to the back (art_src 245)
               "hold": [(1670, 1925)],                     # the ladder up to the hatch
@@ -184,7 +185,7 @@ ROOM_CLEAR = {"laundry": [(1630, 1915), (1975, 2345)],   # the EXIT door, the do
               "cityhall": [(1230, 1830)],                 # the two tunnel mouths
               "catacombs": [(2230, 2960)],                # the stage under the arch
               "tenement": [(970, 1370), (1770, 2210)]}    # the open door of 3B, the stairs
-ROOM_KINDS = {"laundry": ["machine", "crate", "crate_long", "drum"], "warehouse": ["crate", "crate_long", "barrel", "drum"],
+ROOM_KINDS = {"yard": ["crate", "drum", "dumpster", "crate_long"], "laundry": ["machine", "crate", "crate_long", "drum"], "warehouse": ["crate", "crate_long", "barrel", "drum"],
               "club": ["crate", "crate_long"], "hold": ["crate", "crate_long", "drum", "barrel"],
               "office": ["crate_long", "machine", "crate"], "cityhall": ["crate", "machine", "crate_long"],
               "catacombs": ["crate", "crate_long"], "tenement": ["crate", "crate_long"]}
@@ -349,6 +350,9 @@ def chunk(name, hard, rng=None):
         c = Chunk(run + 900).foe(300).foe(run * 0.35, kind="shotgun" if hard > 0.5 else "post")
         c.ramps.append([0.0, 0.0, run, KITS["mezz"]["y"], "station"])
         c.up_end = run + 300.0
+    elif name == "yard":   # a tenement's back yard through the passage: bins, crates, washing (a space seen only from inside)
+        c = Chunk(2600).room(0, 2600, "yard")
+        furnish(c, "yard", rng, ["post", "tommy" if hard > 0.5 else "post"])
     elif name == "laundry":   # an interior: machines for cover, steam, a shotgunner in the back
         c = Chunk(2700).room(0, 2700, "laundry").lamp(400).lamp(1250).lamp(2150)
         furnish(c, "laundry", rng, ["post", "shotgun", "post"], flask=True)
@@ -405,6 +409,8 @@ def chunk(name, hard, rng=None):
         c = Chunk(1800).foe(300).runner(1200, 100, 2900).runner(1500, 200, 3200, kind="shotgun").runner(-200, 600, -1400)
     elif name == "breather":
         c = Chunk(700)
+    elif name == "between":   # (graph: the street between two buildings with fronts - each front reaches ~1100 past its room)
+        c = Chunk(1700).foe(850)
     # the nightmare (2026-11-15): Pier 17's warehouse burning in 1939. The men are shadows of the ones who
     # set it; the fire itself does the rest: beams come down out of the roof, the floor burns in strips.
     elif name == "arsonists":
@@ -527,7 +533,7 @@ def place_fronts(m):
         m.street[:] = sorted(out, key=lambda s: s[1] + (s[2] if len(s) > 3 else 0.0))
         # never the old drawing of the same kind right beside it (an old laundry next to the new one): a drawing of the
         # same width and size takes its place, so nothing moves (kit pieces and the hoisted warehouse stay: things hang on them)
-        same = {"laundry": ("laundry",), "warehouse": ("warehouse", "warehouse_row"), "club": ("bluenote", "bluenote_row"), "tenement": ()}[r[2]]
+        same = {"laundry": ("laundry",), "warehouse": ("warehouse", "warehouse_row"), "club": ("bluenote", "bluenote_row"), "tenement": ()}.get(r[2], ())
         i = next(n for n, g in enumerate(m.street) if g[0] == f and g[1] == fx)
         for j in (i - 1, i + 1):
             if not 0 <= j < len(m.street):
@@ -546,11 +552,33 @@ def place_fronts(m):
                 m.street[j] = [min(cands, key=lambda c: used.count(c))] + list(g[1:])
 
 
+# A map as a graph of spaces (QUEUE_doma §10.4, research ch15 "level graph"): a list of nodes, each a kind of space
+# (street, yard, room:<style>, house) and what it holds. Between two nodes of different kinds there must be a drawn
+# threshold - an interior's or a yard's building front (gen/kit.py PIECES "front"), a house's street door in the
+# facade (the cross-section) - or the map is refused. The nodes become the map's chunks in order; rule 25 holds by
+# construction and the audit only double-checks.
+SPACE_CHUNK = {"street": "lab", "yard": "yard", "house": "section"}   # node kind -> chunk (room:<style> -> <style>)
+def graph_chunks(graph):
+    fronts = {p["front"] for p in KIT_CAT.PIECES.values() if p.get("front")}
+    out, last = [], "street"
+    for node in graph:
+        kind = node.split(":")[0]
+        style = node.split(":")[1] if ":" in node else kind
+        if kind != "street":
+            if last != "street":
+                raise ValueError(f"graph: {last} -> {node} with no street between (no drawn way from one to the other)")
+            if kind in ("room", "yard") and style not in fronts:
+                raise ValueError(f"graph: {node} has no drawn building front (gen/kit.py PIECES 'front': {style!r})")
+        out.append("between" if kind == "street" and "lab" in out else SPACE_CHUNK.get(kind, style))   # (the lab's long street once, then a stretch between fronts)
+        last = kind
+    return out
+
+
 def _build(mp, nudge):
     rng = random.Random(mp["seed"])
     x = 1900.0   # the first of them out of sight of the start
     out = Chunk(0)
-    picks = list(mp["fixed"])
+    picks = graph_chunks(mp["graph"]) if mp.get("graph") else list(mp["fixed"])
     n = len(picks)
     for i, name in enumerate(picks):
         hard = mp["start"] + (mp["end"] - mp["start"]) * i / max(1, n - 1)
@@ -1425,10 +1453,12 @@ SANDBOX = [
     # THE TEST LAB (--sandbox=1, user 16. 11.: one map where every new mechanic is, right from the start):
     # the street kit's awning + fire escape, hydrant, kegs, steam pipe, the hoist rope, then the flat (door kick,
     # window). Few men: only those the kit stands by its hazards and the flat's two. Add each new thing here.
-    {"name": "TEST LAB", "seed": 902, "start": 0.3, "end": 0.3, "fixed": ["lab", "laundry", "club", "section"], "intro": [], "outro": [],
+    {"name": "TEST LAB", "seed": 902, "start": 0.3, "end": 0.3, "intro": [], "outro": [],
+     # (QUEUE §10.4: the map as a graph of spaces - each change of kind of space through a drawn door or passage)
+     "graph": ["street", "yard", "street", "room:laundry", "street", "room:club", "street", "house"],
      "roof": True, "kit": "troof", "roofs": ["roof_b", "roof_a"],   # (rule 25, 17. 11.: the flat is in a whole house: in at
      # its street door, up its stairs, the door kick and the window onto its own fire escape, up to its roof)
-     "street_fixed": ["hk_laundry", "hk_tailor", "hk_grocery", "hk_saloon", "hk_laundry", "warehouse", "alley_mouth", "market"]},
+     "street_fixed": ["hk_laundry", "hk_tailor", "hk_grocery", "hk_saloon", "hk_laundry", "warehouse", "alley_mouth", "market_row"]},
 ]
 
 SEEN = set()   # a rope hint is shown once in the whole story, on the first map that has that rope

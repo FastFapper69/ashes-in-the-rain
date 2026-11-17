@@ -22,7 +22,7 @@ PAVE = 1250               # the row where the front stands on the pavement
 TOP = 96                  # the cornice's top
 PIER = 124                # the dark party wall down each edge
 # the interiors (gen/levels.py chunk widths): the doors' middles this far apart, the room's middle at the picture's
-ROOM_W = {"tenement": 2300, "laundry": 2700, "warehouse": 2400, "club": 2600}
+ROOM_W = {"tenement": 2300, "laundry": 2700, "warehouse": 2400, "club": 2600, "yard": 2600}
 # plain street pieces (no interior behind): their ground-floor bays (shop door middles), spread along the front
 SHOPS = {"shops": [700, 1584, 2468], "church": [1584], "warehouse_row": [900, 2268]}
 if STYLE in SHOPS:
@@ -30,7 +30,7 @@ if STYLE in SHOPS:
 else:
     span = ROOM_W[STYLE] / PX
     DOORS = [W / 2 - span / 2, W / 2 + span / 2]   # picture px: the street door (the room's left end), the side door (its right)
-DOOR_W, DOOR_H = {"warehouse": (230, 400), "church": (280, 470), "warehouse_row": (300, 420)}.get(STYLE, (150, 360))
+DOOR_W, DOOR_H = {"warehouse": (230, 400), "church": (280, 470), "warehouse_row": (300, 420), "yard": (270, 450)}.get(STYLE, (150, 360))
 
 def z(r): return (H - r) / 100.0
 def x(c): return c / 100.0
@@ -122,6 +122,10 @@ elif STYLE == "warehouse":   # a loading door between, shut, and a plain board o
     mid = (DOORS[0] + DOORS[1]) / 2
     box(mid - 260, mid + 260, PAVE - 420, PAVE, -0.04, -0.01, DARK)
     box(mid - 300, mid + 300, PAVE - 520, PAVE - 440, -0.14, 0.0, TRIM)
+elif STYLE == "yard":   # carriage passages through the building into its back yard: a few barred windows between
+    for c in cols:
+        if all(abs(c - d) > 260 for d in DOORS):
+            window(c, 900, 90, 120)
 elif STYLE == "tenement":   # tenement ground floor: windows between the stoops
     for c in cols:
         if all(abs(c - d) > 200 for d in DOORS):

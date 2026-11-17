@@ -93,6 +93,9 @@ PIECES = {
     "bluenote_row": {"size": 0.8, "edge": "partywall", "props": [], "clear": [(1440, 1730)]},
     # a plain walk-up row house (two stoops; art_src 259): under the roofs and anywhere in chapter I
     "row_house": {"size": 0.8, "edge": "partywall", "props": [], "clear": [(620, 900), (2290, 2560)]},
+    # the passages through a tenement block into its back yard (art_src 260): in by one, out by the other
+    "front_yard": {"size": 0.8, "edge": "partywall", "front": "yard", "doors": [810, 2320], "props": [],
+                   "clear": [(560, 1060), (2070, 2570)]},
 }
 # Edge types (QUEUE_doma §10.2, research ch15 "edge contracts"): what each street drawing's VISIBLE left and right edge
 # ends in (after main.gd trims its frame). Two drawings may stand side by side only where the right edge of the first
@@ -117,7 +120,7 @@ EDGES = {
     "tenrow_d": ("party_wall", "party_wall"), "warehouse": ("party_wall", "party_wall"), "warehouse_b": ("open_lot", "party_wall"),
     "warehouse_c": ("party_wall", "party_wall"), "yard": ("fence", "fence"), "yard_b": ("fence", "fence"), "yard_c": ("fence", "fence"),
 }
-EDGES["front_laundry"] = EDGES["front_warehouse"] = EDGES["front_club"] = EDGES["front_tenement"] = EDGES["alley_mouth"] = EDGES["market_row"] = EDGES["church_row"] = EDGES["subway_entrance"] = EDGES["warehouse_row"] = EDGES["bluenote_row"] = EDGES["row_house"] = ("party_wall", "party_wall")
+EDGES["front_laundry"] = EDGES["front_warehouse"] = EDGES["front_club"] = EDGES["front_tenement"] = EDGES["alley_mouth"] = EDGES["market_row"] = EDGES["church_row"] = EDGES["subway_entrance"] = EDGES["warehouse_row"] = EDGES["bluenote_row"] = EDGES["row_house"] = EDGES["front_yard"] = ("party_wall", "party_wall")
 for _n in ("arches", "arches_b", "bowery", "platform", "pump", "signal", "signal_b", "station14", "tunnel", "tunnel_b", "tunnel_c",
            "tunnel_lo", "tunnel_lo_b", "walkway", "walkway_b"):
     EDGES[_n] = ("girder", "girder")

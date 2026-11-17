@@ -486,3 +486,10 @@ Read `.claude/skills/ashes-znalosti/SKILL.md` first (stable rules + topic index,
 - Retired from chapter I's pool: alley/_b, market/_b/_c, church/_b, subway/_b, warehouse/_b/_c, laundry/_b, bluenote (the prologue's pool is the kit too). Chapter II's 1931 map still uses the old ones (memory) - leave.
 - Rules in code: street() never puts a kit piece with things where an interior's front will lie (front_spans); cover and moved crates never on any kit piece's clear ground (audit checks); manholes never in front of a kit door; signs scale with their drawing (_sign_scale).
 - Left in chapter I: deadend (the prologue's last stand: its STAGE DOOR text is real) and the tenrow facades under the roofs (size 0.675 - a different scale next to the kit; redraw needs the roof drawings matched). THE BLUE NOTE's warehouse room still without a front (a kit piece's things would be covered).
+
+## (52) TEST LAB as a graph of spaces (QUEUE §10.4), prologue gate, 2026-11-17
+- gen/levels.py `graph_chunks`: a map may be `"graph": [...]` of spaces (street, yard, room:<style>, house); each non-street node must sit between streets and have a drawn front (kit PIECES "front") or a facade door (house), else the build fails. TEST LAB: street -> yard -> street -> room:laundry -> street -> room:club -> street -> house. "between" chunk (1700, one man) keeps fronts from overlapping.
+- New: yard room (art_src 261, the tenement back yard; ROOM_CLEAR back door, a bulb) behind front_yard (260, two arched carriage passages in and out).
+- Prologue: stand_at_gate moves the last stand to the dead end's chained gate wherever the street puts it (main.gd computes STAND_GATE_X from the level); the dumpster off the gate, row houses past the dead end. User had got stuck at the cellar stairs (old hard-coded x).
+- Packs download in 4 MB chunks (HTTPRequest default 64 KB a frame took ~17 s for 68 MB).
+- Next: chapter I maps as graphs (each map's rooms as nodes), then chapter II.
