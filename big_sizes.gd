@@ -217,6 +217,7 @@ const SIZES := {
 	"res://art/street/church_b_lit.png": Vector2i(1554, 672),
 	"res://art/street/church_b_solid.png": Vector2i(1554, 672),
 	"res://art/street/church_lit.png": Vector2i(1554, 672),
+	"res://art/street/church_row.png": Vector2i(3168, 1344),
 	"res://art/street/church_solid.png": Vector2i(1554, 672),
 	"res://art/street/cranes.png": Vector2i(3034, 1344),
 	"res://art/street/cranes_lit.png": Vector2i(1517, 672),

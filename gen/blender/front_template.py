@@ -24,13 +24,13 @@ PIER = 124                # the dark party wall down each edge
 # the interiors (gen/levels.py chunk widths): the doors' middles this far apart, the room's middle at the picture's
 ROOM_W = {"tenement": 2300, "laundry": 2700, "warehouse": 2400, "club": 2600}
 # plain street pieces (no interior behind): their ground-floor bays (shop door middles), spread along the front
-SHOPS = {"shops": [700, 1584, 2468]}
+SHOPS = {"shops": [700, 1584, 2468], "church": [1584]}
 if STYLE in SHOPS:
     DOORS = SHOPS[STYLE]
 else:
     span = ROOM_W[STYLE] / PX
     DOORS = [W / 2 - span / 2, W / 2 + span / 2]   # picture px: the street door (the room's left end), the side door (its right)
-DOOR_W, DOOR_H = {"warehouse": (230, 400)}.get(STYLE, (150, 360))
+DOOR_W, DOOR_H = {"warehouse": (230, 400), "church": (280, 470)}.get(STYLE, (150, 360))
 
 def z(r): return (H - r) / 100.0
 def x(c): return c / 100.0
@@ -74,6 +74,8 @@ cols = [PIER + 170 + k * 236 for k in range(12)]
 cols = [c for c in cols if c < W - PIER - 150]
 for r0 in (190, 530):
     for c in cols:
+        if STYLE == "church" and 650 < c < 2520:
+            continue   # (the church's nave: its own tall windows, no storeys)
         window(c, r0)
 
 def door(cx, kind):
@@ -90,7 +92,12 @@ kind = {"tenement": "stoop"}.get(STYLE, "plain")
 for cx in DOORS:
     door(cx, kind)
 # the ground floor between the doors: by the style
-if STYLE in SHOPS:   # a shop each side of every door: windows, a sign board over the bay, an awning frame
+if STYLE == "church":   # a church squeezed into the row: tall lancet windows either side of the portal, a rose window over it
+    for c in (900, 1180, 1988, 2268):
+        box(c - 60, c + 60, PAVE - 760, PAVE - 120, -0.04, -0.01, GLASS)
+    box(1584 - 150, 1584 + 150, 330, 630, -0.04, -0.01, GLASS)
+    box(1584 - 200, 1584 + 200, PAVE - DOOR_H - 140, PAVE - DOOR_H - 50, -0.2, 0.0, TRIM)
+elif STYLE in SHOPS:   # a shop each side of every door: windows, a sign board over the bay, an awning frame
     for d in DOORS:
         for side in (-1, 1):
             a0, b0 = sorted((d + side * 110, d + side * 400))

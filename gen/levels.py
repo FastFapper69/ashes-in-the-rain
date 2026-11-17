@@ -28,8 +28,8 @@ SEG_SIZE = {"deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.
             "signal": SUB, "arches": SUB, "sheds": 0.55, "fire_a": 0.605, "fire_b": 0.605, "fire_c": 0.605}
 UNDER_ROOF = ["tenrow_a", "tenrow_c", "tenrow_b", "tenrow_d"]   # the facades under the rooftops: their cornice meets the roof drawings   # shown smaller: see main.gd SEGMENT_SIZE
 STREET_POOL = ["hk_tailor", "hk_grocery", "hk_saloon", "hk_laundry",   # (the kit: gen/kit.py)
-               "alley_mouth", "warehouse", "laundry", "subway", "church", "market_row",   # (chapter I on one kit, 17. 11.: alley/alley_b -> alley_mouth,
-               "warehouse_b", "laundry_b", "subway_b", "church_b"]                      # market/_b/_c -> market_row)
+               "alley_mouth", "warehouse", "laundry", "subway", "church_row", "market_row",   # (chapter I on one kit, 17. 11.: alley/alley_b -> alley_mouth,
+               "warehouse_b", "laundry_b", "subway_b"]                      # market/_b/_c -> market_row, church/_b -> church_row)
 DOCKS_POOL = ["pier17", "cranes", "shipping", "quay", "sheds", "pier17_b", "shipping_b", "quay_b", "sheds_b"]   # (the harbor with its lighthouse: only the Harbor Master's own)
 # variants (2026-11-15): the same kit redrawn with other details over the same floor, rails, edges and lamps,
 # so a map does not show one drawing again and again; everything about them but the picture is the kit's
@@ -462,11 +462,27 @@ def build(mp):
         if [(xa2, xb2) for i, xa2, xb2, ya, yb in v.iron if facade(v.street, xa2, xb2, ya, yb) < 0.93] == bad:
             break
     place_fronts(v)
+    door_clear(v)   # (again: the kit and the cover moved men about after the first time)
     return v
 
 
 def seg_w(name):
     return SEGMENTS[name] * 1.9 * SEG_SIZE.get(name, 1.0)
+
+
+def front_spans(m):
+    """Where place_fronts will lay the interiors' fronts: [(x0, x1)] in the world."""
+    out = []
+    for p_name, p in KIT_CAT.PIECES.items():
+        if not p.get("front"):
+            continue
+        k = 1.9 * p["size"]
+        d0, d1 = p["doors"]
+        for r in m.rooms:
+            if str(r[2]) == p["front"]:
+                fx = (r[0] + r[1]) / 2 - (d0 + d1) / 2 * k
+                out.append((fx, fx + seg_w(p_name)))
+    return out
 
 
 def place_fronts(m):
@@ -517,8 +533,7 @@ def place_fronts(m):
             if KIT.get(g[0], g[0]) not in same or g[0] == "warehouse_c" or g[0] in KIT_CAT.PIECES:
                 continue
             near = [m.street[n][0] for n in (j - 1, j + 1) if 0 <= n < len(m.street)]
-            cands = [c for c in ("alley", "alley_b", "bluenote", "warehouse", "warehouse_b", "laundry", "laundry_b", "church", "church_b",
-                                 "subway", "subway_b", "market", "market_b", "market_c")
+            cands = [c for c in ("warehouse", "warehouse_b", "laundry", "laundry_b", "subway", "subway_b")   # (not the ones the kit retired, nor the Blue Note: a place in the story)
                      if KIT.get(c, c) not in same and c not in near and c in SEGMENTS or KIT.get(c) in SEGMENTS]
             cands = [c for c in cands if KIT.get(c, c) not in same and c not in near
                      and seg_w(KIT.get(c, c)) == seg_w(KIT.get(g[0], g[0]))]
@@ -1000,6 +1015,10 @@ def street(mp, m, rng):
             cand = [s for s in cand if KIT.get(s, s) != KIT.get(last, last)] or cand   # nor a kit next to its own variant
             if last is not None:   # only a drawing whose left edge is the same kind as the last one's right edge (gen/kit.py EDGES)
                 cand = [s for s in cand if KIT_CAT.joins(last, s)] or cand
+            # where an interior's front will be laid (place_fronts), no kit piece with things to play with: the front would hide them
+            fronts = front_spans(m)
+            busy = lambda s: s in KIT_CAT.PIECES and (KIT_CAT.PIECES[s]["props"] or KIT_CAT.PIECES[s].get("floors"))
+            cand = [s for s in cand if not (busy(s) and any(a < x + seg_w(s) and x < b for a, b in fronts))] or cand
             if i == 0:   # nor the one the feature is about to show next to it
                 cand = [s for s in cand if s != mp.get("feature")] or cand
                 if mp.get("feature"):   # and its right edge must meet the feature's left one (he starts right by that join)
