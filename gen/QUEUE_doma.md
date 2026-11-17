@@ -154,7 +154,10 @@ Uživatel (fotky z monitoru, art_src/ ne – v chatu): „prostory jako uličky 
 To samé návaznosti scén. Nemůžu jít přeci z okna do otevřené uličky.“ Nová tvrdá pravidla 24 a 25 v `ashes-znalosti` §1 + ch05.
 Viděno: (a) ulička s párou – dveře a zdi v hloubce jsou zkosené do kosodélníku (DEEP_PERSPECTIVE posouvá vzdálený konec),
 (b) chodba činžáku (dveře 3C, schody) stojí hned vedle ulice s krejčím (TAILOR) a mezi nimi tmavá díra – interiér nalepený vedle ulice,
-(c) cedulka na dveřích 3C je nečitelná AI „glyph soup“ (pravidlo 1 – `gen/fix_cut_text.py` nebo přemalovat).
+(c) cedulky na dveřích 3C i 3A jsou nečitelná AI „glyph soup“ (pravidlo 1 – `gen/fix_cut_text.py` nebo přemalovat),
+(d) uživatel 10:47: z ulice (cihly, chodník) rovnou do chodby se dveřmi 3A – „hnusný tvrdý předěl, žádné vstupní dveře“: tvrdý svislý řez
+   mezi kresbami, podlaha chodby jinak vysoko než chodník, žádná fasáda ani vchod. Do domu se vchází jen namalovanými vstupními dveřmi
+   ve fasádě (dveře se otevřou / fasáda se rozpustí), chodba je uvnitř téže fasády – nikdy kresba chodby položená na konec ulice.
 1. **Hloubkové pohledy stojí**: vypnout posun/smyk úplně (DEEP_SLIDE = 0, DEEP_LIFT = 0, pak DEEP_PERSPECTIVE a `_tick_deep` smazat jako mrtvý kód,
    pokud nic jiného nepotřebují). `--test=deep:<art>` u KAŽDÉ položky DEEP_SPLIT ze 3 poloh kamery → snímky musí být pixelově stejné jako kresba.
    Žádný nový efekt hloubky bez ukázky v TEST LAB a souhlasu uživatele.
