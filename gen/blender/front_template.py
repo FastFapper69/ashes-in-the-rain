@@ -24,13 +24,13 @@ PIER = 124                # the dark party wall down each edge
 # the interiors (gen/levels.py chunk widths): the doors' middles this far apart, the room's middle at the picture's
 ROOM_W = {"tenement": 2300, "laundry": 2700, "warehouse": 2400, "club": 2600}
 # plain street pieces (no interior behind): their ground-floor bays (shop door middles), spread along the front
-SHOPS = {"shops": [700, 1584, 2468], "church": [1584]}
+SHOPS = {"shops": [700, 1584, 2468], "church": [1584], "warehouse_row": [900, 2268]}
 if STYLE in SHOPS:
     DOORS = SHOPS[STYLE]
 else:
     span = ROOM_W[STYLE] / PX
     DOORS = [W / 2 - span / 2, W / 2 + span / 2]   # picture px: the street door (the room's left end), the side door (its right)
-DOOR_W, DOOR_H = {"warehouse": (230, 400), "church": (280, 470)}.get(STYLE, (150, 360))
+DOOR_W, DOOR_H = {"warehouse": (230, 400), "church": (280, 470), "warehouse_row": (300, 420)}.get(STYLE, (150, 360))
 
 def z(r): return (H - r) / 100.0
 def x(c): return c / 100.0
@@ -75,7 +75,9 @@ cols = [c for c in cols if c < W - PIER - 150]
 for r0 in (190, 530):
     for c in cols:
         if STYLE == "church" and 650 < c < 2520:
-            continue   # (the church's nave: its own tall windows, no storeys)
+            continue
+        if STYLE == "warehouse_row" and abs(c - 1584) < 200:
+            continue   # (the loading doors' column)   # (the church's nave: its own tall windows, no storeys)
         window(c, r0)
 
 def door(cx, kind):
@@ -92,7 +94,15 @@ kind = {"tenement": "stoop"}.get(STYLE, "plain")
 for cx in DOORS:
     door(cx, kind)
 # the ground floor between the doors: by the style
-if STYLE == "church":   # a church squeezed into the row: tall lancet windows either side of the portal, a rose window over it
+HOIST = (1584, 464)   # (warehouse_row) the pulley's bottom, picture px: the game hangs its swinging rope from it
+if STYLE == "warehouse_row":   # loading doors on every floor up the middle, the hoist beam over the top one, the pulley under it
+    box(1584 - 115, 1584 + 115, 480, 760, -0.04, -0.01, DARK)
+    box(1584 - 115, 1584 + 115, 140, 400, -0.04, -0.01, DARK)
+    box(1584 - 20, 1584 + 20, 400, 430, -1.6, 0.0, IRON if False else TRIM)   # the beam, sticking out from the wall
+    box(1584 - 34, 1584 + 34, 430, HOIST[1], -1.5, -1.3, DARK)               # the pulley block hanging under its end
+    for c in (500, 1300, 1868, 2668):
+        box(c - 70, c + 70, PAVE - 300, PAVE - 120, -0.04, -0.01, GLASS)
+elif STYLE == "church":   # a church squeezed into the row: tall lancet windows either side of the portal, a rose window over it
     for c in (900, 1180, 1988, 2268):
         box(c - 60, c + 60, PAVE - 760, PAVE - 120, -0.04, -0.01, GLASS)
     box(1584 - 150, 1584 + 150, 330, 630, -0.04, -0.01, GLASS)

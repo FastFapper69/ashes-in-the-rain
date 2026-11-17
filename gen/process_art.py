@@ -47,7 +47,7 @@ STREET = {
     'front_club': ('251.jpg', 0, False), 'front_tenement': ('252.jpg', 0, False),
     # chapter I on one kit (17. 11.): an alley's mouth with its gate between two row houses, rendered in Blender at a man's eye
     'alley_mouth': ('253.jpg', 0, False), 'market_row': ('254.jpg', 0, False), 'church_row': ('255.jpg', 0, False),
-    'subway_entrance': ('256.jpg', 0, False),
+    'subway_entrance': ('256.jpg', 0, False), 'warehouse_row': ('257.jpg', 0, False),
 }
 KIT = {'yard_c': 'yard', 'tunnel_c': 'tunnel', 'walkway_b': 'walkway', 'signal_b': 'signal', 'arches_b': 'arches', 'yard_b': 'yard', 'tunnel_b': 'tunnel', 'tunnel_lo_b': 'tunnel_lo',
        'sheds_b': 'sheds', 'pier17_b': 'pier17', 'shipping_b': 'shipping', 'quay_b': 'quay',

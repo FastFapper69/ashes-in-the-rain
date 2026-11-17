@@ -28,8 +28,8 @@ SEG_SIZE = {"deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.
             "signal": SUB, "arches": SUB, "sheds": 0.55, "fire_a": 0.605, "fire_b": 0.605, "fire_c": 0.605}
 UNDER_ROOF = ["tenrow_a", "tenrow_c", "tenrow_b", "tenrow_d"]   # the facades under the rooftops: their cornice meets the roof drawings   # shown smaller: see main.gd SEGMENT_SIZE
 STREET_POOL = ["hk_tailor", "hk_grocery", "hk_saloon", "hk_laundry",   # (the kit: gen/kit.py)
-               "alley_mouth", "warehouse", "subway_entrance", "church_row", "market_row",   # (chapter I on one kit, 17. 11.: alley/_b -> alley_mouth,
-               "warehouse_b"]                      # market/_b/_c -> market_row, church/_b -> church_row, subway/_b -> subway_entrance; laundry/_b: the laundry's front)
+               "alley_mouth", "warehouse_row", "subway_entrance", "church_row", "market_row"]   # (chapter I on one kit, 17. 11.: alley/_b -> alley_mouth,
+               # market/_b/_c -> market_row, church/_b -> church_row, subway/_b -> subway_entrance, warehouse/_b/_c -> warehouse_row; laundry: its front)
 DOCKS_POOL = ["pier17", "cranes", "shipping", "quay", "sheds", "pier17_b", "shipping_b", "quay_b", "sheds_b"]   # (the harbor with its lighthouse: only the Harbor Master's own)
 # variants (2026-11-15): the same kit redrawn with other details over the same floor, rails, edges and lamps,
 # so a map does not show one drawing again and again; everything about them but the picture is the kit's
@@ -524,16 +524,17 @@ def place_fronts(m):
         m.street[:] = sorted(out, key=lambda s: s[1] + (s[2] if len(s) > 3 else 0.0))
         # never the old drawing of the same kind right beside it (an old laundry next to the new one): a drawing of the
         # same width and size takes its place, so nothing moves (kit pieces and the hoisted warehouse stay: things hang on them)
-        same = {"laundry": ("laundry",), "warehouse": ("warehouse",), "club": ("bluenote",), "tenement": ()}[r[2]]
+        same = {"laundry": ("laundry",), "warehouse": ("warehouse", "warehouse_row"), "club": ("bluenote",), "tenement": ()}[r[2]]
         i = next(n for n, g in enumerate(m.street) if g[0] == f and g[1] == fx)
         for j in (i - 1, i + 1):
             if not 0 <= j < len(m.street):
                 continue
             g = m.street[j]
-            if KIT.get(g[0], g[0]) not in same or g[0] == "warehouse_c" or g[0] in KIT_CAT.PIECES:
-                continue
+            hoisted = any(ro[0] == "swing" and g[1] <= ro[1] <= g[1] + seg_w(g[0]) for ro in m.ropes)
+            if KIT.get(g[0], g[0]) not in same or hoisted or (g[0] in KIT_CAT.PIECES and g[0] != "warehouse_row"):
+                continue   # (a warehouse whose hoist carries the swing rope stays)
             near = [m.street[n][0] for n in (j - 1, j + 1) if 0 <= n < len(m.street)]
-            cands = [c for c in ("warehouse", "warehouse_b")   # (not the ones the kit retired, nor the Blue Note: a place in the story)
+            cands = [c for c in ("warehouse_row", "market_row", "church_row", "subway_entrance")   # (on the kit; nor the Blue Note: a place in the story)
                      if KIT.get(c, c) not in same and c not in near and c in SEGMENTS or KIT.get(c) in SEGMENTS]
             cands = [c for c in cands if KIT.get(c, c) not in same and c not in near
                      and seg_w(KIT.get(c, c)) == seg_w(KIT.get(g[0], g[0]))]
@@ -883,8 +884,21 @@ def kit_pieces(m):
 
 
 def hoist_ropes(m):
-    k = 1.9 * SEG_SIZE.get("warehouse", 1.0)
-    off = (HOIST_PX[0] - TRIM["warehouse"]) * k * SEGMENTS["warehouse"] / (SEGMENTS["warehouse"] - TRIM["warehouse"])
+    # chapter I's warehouse on the kit (17. 11., gen/kit.py warehouse_row: its painted hoist pulley, empty) where the
+    # street is chapter I's; elsewhere the old warehouse_c
+    kit_w = "warehouse_row" in KIT_CAT.PIECES and any(s[0] in KIT_CAT.PIECES for s in m.street)
+    piece = "warehouse_row" if kit_w else "warehouse_c"
+    if kit_w:
+        k = 1.9 * KIT_CAT.PIECES[piece]["size"]
+        px, py = KIT_CAT.PIECES[piece]["hoist"]
+        off = px * k
+        width = KIT_CAT.WIDTH * k
+        y_of = lambda: KIT_CAT.TOP(KIT_CAT.PIECES[piece]["size"]) + py * k
+    else:
+        k = 1.9 * SEG_SIZE.get("warehouse", 1.0)
+        off = (HOIST_PX[0] - TRIM["warehouse"]) * k * SEGMENTS["warehouse"] / (SEGMENTS["warehouse"] - TRIM["warehouse"])
+        width = SEGMENTS["warehouse"] * k
+        y_of = lambda: -1344 * 1.9 * 0.92 - 60.0 + HOIST_PX[1] * 1.9   # (main.gd: the drawing's top, WALL_SCALE, SEGMENT_BASE, WALL_LIFT)
     for want in m.hoists:
         # the first segment whose pulley would fall at or past the wanted x becomes the hoisted warehouse; the
         # segments after it move by the difference in width, so the drawings still meet edge to edge
@@ -892,12 +906,12 @@ def hoist_ropes(m):
         if i is None:
             raise ValueError(f"no street under the hoist rope near {want:.0f}")
         old = SEGMENTS[m.street[i][0]] * 1.9 * SEG_SIZE.get(m.street[i][0], 1.0)
-        m.street[i][0] = "warehouse_c"
-        delta = SEGMENTS["warehouse"] * k - old
+        m.street[i][0] = piece
+        delta = width - old
         for seg in m.street[i + 1:]:
             seg[1] += delta
         x = m.street[i][1] + off
-        y = -1344 * 1.9 * 0.92 - 60.0 + HOIST_PX[1] * 1.9   # (main.gd: the drawing's top, WALL_SCALE, SEGMENT_BASE, WALL_LIFT)
+        y = y_of()
         m.ropes.append(["swing", x, y, 0.0, 0.0])
         m.boxes[:] = [o for o in m.boxes if not (len(o) == 2 and x + 220 < o[1] + BOX[o[0]][0] and o[1] < x + 520 + BOX["stack"][0] + 300)]
         m.boxes.append(["stack", x + 520])
