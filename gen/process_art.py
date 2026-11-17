@@ -68,7 +68,7 @@ DEEP = {'alley': [(0.465, 0.22, 0.11, 0.64)], 'bluenote': [(0.665, 0.3, 0.16, 0.
         'platform': [_sc((0.1, 0.31, 0.13, 0.38))], 'tunnel': [_sc((0.79, 0.33, 0.12, 0.38))], 'yard': [_sc((0.47, 0.45, 0.13, 0.3))]}
 # parts of a drawing taken out of it to come alive in the game (the crate on the crane's chains)
 CUT = {'cranes': [_sc((0.37, 0.2, 0.075, 0.255))]}
-ROOMS = {'laundry': '29.png', 'warehouse': '30.png', 'tenement': '31.png', 'club': '245.jpg', 'hold': '47.png', 'office': '48.png', 'catacombs': '69.png', 'cityhall': '73.png'}
+ROOMS = {'laundry': '29.png', 'warehouse': '30.png', 'tenement': '31.png', 'club': '245b.png', 'hold': '47.png', 'office': '48.png', 'catacombs': '69.png', 'cityhall': '73.png'}
 
 
 def sky_alpha(rgb, pockets=False):
