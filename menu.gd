@@ -1019,17 +1019,17 @@ const SMITH_ART := {"gun": ["revolver", "revolver_open"], "beretta": ["revolver"
 # ("" closed, "alt" the second), the word that pops, the sound, and an extra: shells fly in, a second gun
 const SMITH_PARTS := {
 	"gun": [
-		[Vector2(620, 185), 1.0, "THE CYLINDER", "", "", "cyl_open", ""],
-		[Vector2(1030, 120), 1.0, "THE BARREL", "", "", "cyl_spin", ""],
-		[Vector2(200, 480), 1.0, "THE GRIPS", "", "", "click", ""],
-		[Vector2(420, 230), 0.95, "THE FRAME", "", "", "hammer", ""],
+		[Vector2(620, 220), 1.6, "THE CYLINDER", "", "", "cyl_open", ""],
+		[Vector2(1000, 120), 1.45, "THE BARREL", "", "", "cyl_spin", ""],
+		[Vector2(240, 470), 1.55, "THE GRIPS", "", "", "click", ""],
+		[Vector2(500, 260), 1.15, "THE FRAME", "", "", "hammer", ""],
 		[Vector2(650, 380), 0.8, "A SECOND REVOLVER", "", "", "reload_done", "second"],
 	],
 	"beretta": [
-		[Vector2(560, 300), 0.95, "THE FRAME", "", "", "reload_mag", ""],
-		[Vector2(700, 120), 1.0, "THE SLIDE", "", "", "hammer", ""],
-		[Vector2(280, 420), 1.0, "THE GRIPS", "", "", "click", ""],
-		[Vector2(280, 650), 1.1, "THE MAGAZINE", "", "", "reload_mag", ""],
+		[Vector2(560, 300), 1.15, "THE FRAME", "", "", "reload_mag", ""],
+		[Vector2(700, 120), 1.45, "THE SLIDE", "", "", "hammer", ""],
+		[Vector2(280, 420), 1.55, "THE GRIPS", "", "", "click", ""],
+		[Vector2(280, 650), 1.5, "THE MAGAZINE", "", "", "reload_mag", ""],
 		[Vector2(650, 380), 0.8, "A SECOND BERETTA", "", "", "reload_done", "second"],
 	],
 	"shotgun": [
@@ -1249,7 +1249,37 @@ func _smith_show(part: Array, fitted: bool) -> void:
 	holder.scale = Vector2.ONE * _smith_fit * 0.92
 	tw.tween_property(holder, "scale", Vector2.ONE * s, 0.55)
 	tw.tween_property(holder, "position", goal, 0.55)
-	# the ring
+	# the part itself picked out: a pale ink line drawn round its own shape (user 17. 11.: not a ring round it)
+	var piece_name := String(SMITH_PIECES[_smith_gun][_smith_pick][0]) if SMITH_PIECES.has(_smith_gun) and _smith_pick < (SMITH_PIECES[_smith_gun] as Array).size() else ""
+	var outlined: Sprite2D = _smith_pieces.get(piece_name)
+	if outlined != null:   # lifted over the gun for a look, a gold line round its own shape, pulsing
+		var ol := Node2D.new()
+		ol.position = outlined.position
+		ol.modulate.a = 0.0
+		for k in 12:
+			var rim := Sprite2D.new()
+			rim.texture = outlined.texture
+			rim.material = _outline_mat()
+			rim.position = Vector2.from_angle(TAU * k / 12.0) * 9.0
+			ol.add_child(rim)
+		var top := Sprite2D.new()
+		top.texture = outlined.texture
+		ol.add_child(top)
+		holder.add_child(ol)
+		outlined.set_meta("outline", ol)
+		var ot := ol.create_tween()
+		ot.tween_interval(0.45)
+		ot.tween_property(ol, "modulate:a", 1.0, 0.25)
+		ot.tween_callback(func() -> void:
+			var pulse := ol.create_tween().set_loops()
+			for rim2 in ol.get_children():
+				if rim2 != top:
+					pulse.parallel().tween_property(rim2, "modulate:a", 0.45, 0.7).set_trans(Tween.TRANS_SINE)
+			pulse.chain().tween_interval(0.0)
+			for rim3 in ol.get_children():
+				if rim3 != top:
+					pulse.parallel().tween_property(rim3, "modulate:a", 1.0, 0.7).set_trans(Tween.TRANS_SINE))
+	# the ring (guns not built of parts)
 	var ring := Node2D.new()
 	ring.position = hot
 	ring.set_meta("p", 0.0)
@@ -1262,6 +1292,7 @@ func _smith_show(part: Array, fitted: bool) -> void:
 		ring.draw_arc(Vector2.ZERO, rad, a0, a0 + TAU * p, 48, INK, 22.0 / z, true)
 		ring.draw_arc(Vector2.ZERO, rad, a0, a0 + TAU * p, 48, PAPER, 10.0 / z, true))
 	holder.add_child(ring)
+	ring.visible = outlined == null
 	var rt := ring.create_tween()
 	rt.tween_interval(0.45)
 	rt.tween_method(func(v: float) -> void:
@@ -1323,16 +1354,35 @@ func _smith_flash() -> void:
 	sh.tween_property(h, "position", at, 0.04)
 
 
+var _outline: ShaderMaterial
+func _outline_mat() -> ShaderMaterial:
+	if _outline == null:
+		var sh := Shader.new()
+		sh.code = OUTLINE_SHADER
+		_outline = ShaderMaterial.new()
+		_outline.shader = sh
+	return _outline
+const OUTLINE_SHADER := "shader_type canvas_item;
+void fragment() {
+	COLOR = vec4(0.98, 0.84, 0.42, texture(TEXTURE, UV).a);
+}
+"
+
+
 func _smith_word(w: String, at: Vector2) -> void:
 	var path := "res://art/fx/word_%s.png" % w
 	if not ResourceLoader.exists(path):
 		return
 	var s := Sprite2D.new()
 	s.texture = load(path)
+	var half := Vector2(150.0, 150.0 * s.texture.get_height() / s.texture.get_width()) * 0.62   # (kept whole inside the panel)
+	var room := _smith_panel.size
+	at.x = clampf(at.x, half.x + 12.0, room.x - half.x - 12.0)
+	at.y = clampf(at.y - 40.0, half.y + 12.0, room.y - half.y - 12.0) + 40.0
 	s.position = at + Vector2(0.0, -40.0)
 	s.rotation = deg_to_rad(-8.0)
 	s.scale = Vector2.ONE * 0.05
-	s.z_index = 5
+	s.z_index = 60   # (over the gun, never behind its frame)
 	_smith_panel.add_child(s)
 	var k := 150.0 / s.texture.get_width()
 	var tw := s.create_tween()
@@ -1358,43 +1408,117 @@ func _smith_swap(part: String) -> void:
 		return
 	var holder := _smith_stage
 	var at := old.position
-	var away := (at.normalized() if at.length() > 1.0 else Vector2(0.0, 1.0))
 	var fresh := _smith_piece(part, true)
-	fresh.position = at + away * 900.0 + Vector2(0.0, -200.0)
 	fresh.modulate.a = 0.0
 	holder.add_child(fresh)
+	holder.move_child(fresh, old.get_index())
+	if old.has_meta("outline"):   # (the outline goes with the old part)
+		(old.get_meta("outline") as Node).queue_free()
+	var t := create_tween()
+	match part:
+		"cylinder":   # it swings out on its crane, the old one slides off, the new one on, it swings shut and spins
+			var out := at + Vector2(0.0, 170.0)
+			fresh.position = out + Vector2(560.0, 0.0)   # (off along the crane's axis, forward, the way the old one went)
+			_snd("cyl_open")
+			t.tween_property(old, "position", out, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			t.tween_interval(0.15)
+			t.tween_property(old, "position", out + Vector2(520.0, 60.0), 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+			t.parallel().tween_property(old, "modulate:a", 0.0, 0.35)
+			t.tween_callback(_show_fresh.bind(fresh))
+			t.tween_property(fresh, "position", out, 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+			t.tween_interval(0.15)
+			t.tween_callback(_snd.bind("cyl_spin"))
+			t.tween_property(fresh, "position", at, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+			t.tween_callback(_smith_seat.bind(at))
+			for k in 3:   # spun round once seated: the chambers flick by
+				t.tween_property(fresh, "scale", Vector2(0.94, 1.0), 0.06)
+				t.tween_property(fresh, "scale", Vector2(1.0, 1.0), 0.06)
+		"barrel":   # unscrewed along its axis in turns, the new one screwed home
+			for k in 4:
+				t.tween_property(old, "position", at + Vector2(60.0 * (k + 1), 0.0), 0.12)
+				t.parallel().tween_property(old, "rotation", deg_to_rad(4.0 if k % 2 == 0 else -4.0), 0.12)
+			t.tween_callback(_snd.bind("cyl_open"))
+			t.tween_property(old, "position", at + Vector2(700.0, 260.0), 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+			t.parallel().tween_property(old, "rotation", deg_to_rad(30.0), 0.35)
+			t.parallel().tween_property(old, "modulate:a", 0.0, 0.35)
+			t.tween_callback(_place_fresh.bind(fresh, at + Vector2(240.0, 0.0), 1.0))
+			for k in 4:
+				t.tween_property(fresh, "position", at + Vector2(60.0 * (3 - k), 0.0), 0.12)
+				t.parallel().tween_property(fresh, "rotation", deg_to_rad(-4.0 if k % 2 == 0 else 4.0), 0.12)
+				t.tween_callback(_snd.bind("click"))
+			t.tween_property(fresh, "rotation", 0.0, 0.05)
+			t.tween_callback(_smith_seat.bind(at))
+		"grip", "plate":   # the screw out, the old panel springs off, the new one pressed on
+			_snd("click")
+			t.tween_property(old, "position", at + Vector2(-30.0, 20.0), 0.12)
+			t.tween_property(old, "position", at + Vector2(-260.0, 520.0), 0.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+			t.parallel().tween_property(old, "rotation", deg_to_rad(-70.0), 0.4)
+			t.parallel().tween_property(old, "modulate:a", 0.0, 0.4)
+			t.tween_callback(_place_fresh.bind(fresh, at + Vector2(-60.0, 90.0), 1.08))
+			t.tween_property(fresh, "position", at, 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+			t.parallel().tween_property(fresh, "scale", Vector2.ONE, 0.18)
+			t.tween_callback(_smith_seat.bind(at))
+		_:   # the frame (or a slide): everything on it lifts, the frame is changed under them, they settle back
+			var others: Array = []
+			for k in _smith_pieces:
+				if k != part:
+					others.append(_smith_pieces[k])
+			_snd("cyl_open")
+			var lift := create_tween().set_parallel()
+			for o in others:
+				var on: Node2D = o
+				lift.tween_property(on, "position", on.position + Vector2(0.0, -140.0), 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+				lift.tween_property(on, "position", on.position, 0.3).set_delay(1.15).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+			t.tween_interval(0.3)
+			t.tween_property(old, "position", at + Vector2(0.0, 600.0), 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+			t.parallel().tween_property(old, "modulate:a", 0.0, 0.35)
+			t.tween_callback(_place_fresh.bind(fresh, at + Vector2(0.0, 600.0), 1.0))
+			t.tween_property(fresh, "position", at, 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+			t.tween_interval(0.2)
+			t.tween_callback(_smith_seat.bind(at))
+	t.tween_interval(0.35)
+	t.tween_callback(_smith_stamp)
+
+
+func _snd(n: String) -> void:
 	if sound.is_valid():
-		sound.call("cyl_open")
-	var tw := old.create_tween().set_parallel()
-	tw.tween_property(old, "position", at + Vector2(away.x * 260.0, 900.0), 0.6).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	tw.tween_property(old, "rotation", deg_to_rad(randf_range(-40.0, 40.0)), 0.6)
-	tw.tween_property(old, "modulate", Color(0.6, 0.55, 0.5, 0.0), 0.6).set_delay(0.2)
-	var tn := fresh.create_tween()
-	tn.tween_interval(0.45)
-	tn.tween_property(fresh, "modulate:a", 1.0, 0.1)
-	tn.parallel().tween_property(fresh, "position", at, 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tn.tween_callback(func() -> void:
-		if sound.is_valid():
-			sound.call("hammer")
-		_smith_sparks(holder.position + at.rotated(holder.rotation) * holder.scale.x)
-		_smith_flash()
-		_smith_word("kachak", holder.position + (at + Vector2(0.0, -120.0)).rotated(holder.rotation) * holder.scale.x))
-	tn.tween_interval(0.25)
-	tn.tween_callback(func() -> void:
-		var st := _label("FITTED", _font_head, 64, CRIMSON, 0)
-		st.size = Vector2(320.0, 80.0)
-		st.pivot_offset = st.size * 0.5
-		st.position = _smith_c - st.size * 0.5 + Vector2(0.0, 150.0)
-		st.rotation = deg_to_rad(-9.0)
-		st.scale = Vector2.ONE * 2.6
-		st.modulate.a = 0.0
-		st.z_index = 6
-		_smith_panel.add_child(st)
-		var ts := st.create_tween().set_parallel()
-		ts.tween_property(st, "scale", Vector2.ONE, 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-		ts.tween_property(st, "modulate:a", 1.0, 0.1)
-		ts.chain().tween_interval(0.9)
-		ts.chain().tween_callback(_gunsmith))
+		sound.call(n)
+
+
+func _show_fresh(fresh: Sprite2D) -> void:
+	fresh.modulate.a = 1.0
+
+
+func _place_fresh(fresh: Sprite2D, where: Vector2, k: float) -> void:
+	fresh.position = where
+	fresh.scale = Vector2.ONE * k
+	fresh.modulate.a = 1.0
+
+
+## The new part home: a jolt, sparks at the joint, the word.
+func _smith_seat(at: Vector2) -> void:
+	var holder := _smith_stage
+	_snd("hammer")
+	_smith_sparks(holder.position + at.rotated(holder.rotation) * holder.scale.x)
+	_smith_flash()
+	_smith_word("kachak", holder.position + (at + Vector2(0.0, -120.0)).rotated(holder.rotation) * holder.scale.x)
+
+
+func _smith_stamp() -> void:
+	var st := _label("FITTED", _font_head, 64, CRIMSON, 0)
+	st.size = Vector2(320.0, 80.0)
+	st.pivot_offset = st.size * 0.5
+	st.position = _smith_c - st.size * 0.5 + Vector2(0.0, 150.0)
+	st.rotation = deg_to_rad(-9.0)
+	st.scale = Vector2.ONE * 2.6
+	st.modulate.a = 0.0
+	st.z_index = 6
+	_smith_panel.add_child(st)
+	var ts := st.create_tween().set_parallel()
+	ts.tween_property(st, "scale", Vector2.ONE, 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	ts.tween_property(st, "modulate:a", 1.0, 0.1)
+	ts.chain().tween_interval(0.9)
+	ts.chain().tween_callback(_gunsmith)
 
 
 ## Sparks off the joint where a new part seats: the game's own drawn sparks (fx.gd INK_SPARKS).

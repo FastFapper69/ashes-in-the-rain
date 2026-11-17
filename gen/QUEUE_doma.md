@@ -208,3 +208,9 @@ Každá mapa = vlastní pool budov (čtvrť) + jedna velká dominanta, kterou ne
 - TENEMENTS: obytné činžáky | střechy + bouřka s blesky, které na okamžik odhalí nepřátele
 - THE BLUE NOTE: noční čtvrť: hotel, bar, kino | ulice plná neonů, projíždějící auta se světly, vchod do klubu
 Pravidla: díl nejvýš jednou na mapu, pool mapy z její čtvrti (gen/levels.py "pool"), nové díly přes Blender šablonu + Gemini.
+
+## 13. Zpětná vazba 17. 11. večer (snímky z iPhonu)
+1. Zbrojíř: výměna dílu = jen razítko FITTED, nuda -> animace výměny dílu (starý díl vyletí, nový zajede/zacvakne). 2. Komiksové slovo (KA-CHUNK) useknuté. 3. Místo kroužku zvýraznit/obtáhnout samotný díl.
+4. Pára vychází z náhodného místa uprostřed (mrak bez zdroje) -> sloupec z poklopu, poklop nadskočí.
+5. THE LAUNDRY: velký industriální interiér prádelny (první velký interiér hry, zapamatovatelný): bubny, mandly, páry, dopravníky, prádlo na kolejnicích.
+6. Interiéry, ve kterých nic není (sklad: jen Frank) -> vybavit kryty a muži.
