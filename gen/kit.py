@@ -43,7 +43,8 @@ PIECES = {
         # a washing line from the top landing to the pulley on the next house's window (the stunt list: a washing line
         # as a rope): he rides it down like a zip line, tearing the laundry off. (x, y) of its start on the landing's
         # floor, (x, y) of the pulley.
-        "lines": [(2316, 318, 2822, 532, 389)],   # rail post top, the window's left jamb, the landing it is ridden from
+        "lines": [],   # (user 17. 11.: awning, ladder and washing line side by side felt forced - the washing line is THE ALLEY's
+        # own stunt now, across the alley mouth: gen/kit.py alley_wash. Here: the awning that throws him up the fire escape.)
         # men up on the fire escape: they only fire at a Frank on their own landing (the floor rule), so the way to
         # them is the ladder or a bounce off the awning; the awning is how you get the drop on them
         "men": [(2230, 389, "post"), (1960, 693, "shotgun")],

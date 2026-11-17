@@ -198,6 +198,11 @@ Případně krátký záblesk/pohup žebříku, když je Frank blízko. Ověřit
 Uživatel hned potom: „to samé ty balkónky, na které jde vylézt, vlastně všechny tyhle typy interaktivních věcí to musí mít“ (pravidlo 27).
 Postup: Gemini – kresba bez požárního schodiště + schodiště (podesty, schody, žebřík) na zeleném (jako markýza/hydrant, street_props.py);
 pak projít všechny „drawn“ podlahy ve všech kresbách (catwalk_style drawn) a udělat totéž. Pokus s výřezem přímo z malby (17. 11.) byl špinavý – zahozen.
+17. 11. večer 2. pokus: Gemini umí ulici BEZ schodiště (art_src 276, sedí na 233 s chybou ~26) i bez markýzy (277 – ale ořízl na 16:9,
+nepoužitelné), schodiště samotné na zeleném (278) ale kreslí jinak (posun/tvar) → jako maska nesedí; maska z rozdílu 233 vs 276 tahá
+kusy oken a nechává zbytky schodů na zdi. Zahozeno. Další cesta: schodiště postavit v Blenderu (jednoduchá geometrie: 2 podesty,
+zábradlí, schody, žebřík; tuš shader jako front_template) a vyrenderovat do vrstvy, zeď pod ním = 276 slícovaná na 233.
+Pračka šňůra u krejčího zrušena (17. 11.): šňůra je teď jen kousek THE ALLEY přes uličku (alley_wash).
 
 ## 12. Kapitola I: každá mapa jiná – čtvrť + dominanta (uživatel 17. 11. odpoledne, „jeď takhle")
 Uživatel: „přijde mi že lehce koukám na to samé v každé mapě… mapy v 1. kapitole by měly být víc jiné… např. jako ve druhé je nadzemka, to je super věc".
