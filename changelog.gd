@@ -5,6 +5,10 @@ extends RefCounted
 
 const ENTRIES := [
 	["17 NOV 2026", [
+		"Through the window head first, out over the door and over the shoulder on the stones",
+		"A kill: the gun flies from his hand, a head shot takes the hat",
+		"The El's train is seen going over: the camera pulls back for it",
+		"Steam, sheets and the HOTEL sign reworked to read better",
 		"The hallway window glints in the moonlight and tells you to jump; out of it you come from the window over the door",
 		"Mobsters fire double taps and salvos, and empty their guns into your cover",
 		"A body shot no longer drops a man at once: two to the body, or one to the head",

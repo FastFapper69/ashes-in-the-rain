@@ -173,6 +173,7 @@ func _silhouette(n: CanvasItem) -> void:
 
 func _tick_el(delta: float) -> void:
 	_el_loud = maxf(0.0, _el_loud - delta)
+	game.wide_shot = move_toward(game.wide_shot, 0.0, delta * 0.8)
 	if game.over or game.cleared:
 		return
 	_el_t -= delta
@@ -189,6 +190,11 @@ func _tick_el(delta: float) -> void:
 		if near > 0.0:
 			game._shake = maxf(game._shake, 0.22 * near)
 			_el_loud = maxf(_el_loud, 0.6)
+			# (audit 17. 11.: the train went over above the picture, unseen) the camera pulls back and looks up while it passes
+			game.wide_shot = maxf(game.wide_shot, smoothstep(0.0, 0.5, near))
+			if near > 0.3 and not t[0].has_meta("cued"):
+				t[0].set_meta("cued", true)
+				game.cue(Vector2(game.player.position.x, EL_TOP - 250.0), 2.2, 0.9)
 		(t[1] as PointLight2D).position.x = game.cam.position.x + (mid - game.cam.position.x)
 		(t[1] as PointLight2D).energy = 0.55 * near * (0.7 + 0.3 * sin(Time.get_ticks_msec() * 0.03))
 		if (float(t[2]) > 0.0 and root.position.x - fx_x > game.cam.position.x + view_w * 1.5) \
@@ -278,7 +284,7 @@ func _hang_sheets(x: float) -> void:
 	s.scale = Vector2.ONE * SHEET_SCALE
 	s.position = Vector2(x, -680.0)   # from the pipe under the ceiling down to his knees
 	s.z_index = 4   # in front of the men: whoever is behind them is a shape through the cloth
-	s.modulate = Color(game._undo_night(0.95), 0.74)
+	s.modulate = Color(game._undo_night(0.8), 0.58)   # (audit 17. 11.: the men behind were gone - now dark shapes through the cloth)
 	game.add_child(s)
 	var size: Vector2 = tex.get_size() * SHEET_SCALE
 	for cx in [x + 30.0, x + size.x - 30.0]:   # (hung on two cords from the hall's trusses: nothing hangs from nothing)
@@ -642,7 +648,22 @@ func _hang_neon() -> void:
 	glow.offset = spr.offset
 	glow.scale = spr.scale
 	glow.material = add
+	glow.modulate = Color(1.7, 1.5, 1.6)   # (audit 17. 11.: it read pale and unlit - the tubes burn)
 	root.add_child(glow)
+	var halo := Sprite2D.new()   # the pink haze round the tubes in the rain
+	halo.texture = game._soft_glow()
+	halo.material = add
+	halo.position = Vector2(0.0, h * 0.5)
+	halo.scale = Vector2(w / 180.0, h / 150.0) * 1.6
+	halo.modulate = Color(1.0, 0.3, 0.45, 0.55)
+	halo.show_behind_parent = true
+	root.add_child(halo)
+	var ft := halo.create_tween().set_loops()   # a tube that stutters now and then
+	ft.tween_interval(randf_range(2.0, 4.0))
+	ft.tween_property(glow, "modulate:a", 0.25, 0.04)
+	ft.tween_property(glow, "modulate:a", 1.0, 0.05)
+	ft.tween_property(glow, "modulate:a", 0.4, 0.03)
+	ft.tween_property(glow, "modulate:a", 1.0, 0.06)
 	var light := PointLight2D.new()   # its pink on the wet street under it: the tubes are the source
 	light.texture = game._soft_glow()
 	light.texture_scale = 6.0

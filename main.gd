@@ -2088,6 +2088,7 @@ void fragment() {
 	under.position.y = sky.position.y + sky_tex.get_height() * 1.1 - 2.0
 	under.material = _sky_mat
 	cam.add_child(under)
+	_sky_nodes = [sky, under]
 	# the moon: just over the roofs, seen through the gaps between buildings and from the rooftops
 	var moon_tex: Texture2D = load("res://art/bg/moon.png")
 	var additive := CanvasItemMaterial.new()
@@ -2820,7 +2821,16 @@ func _process(delta: float) -> void:
 	var in_sec := _section_at(player.position) >= 0
 	if in_sec:   # in a building: the street's zoom, the storey he stands on held where the pavement is
 		want_zoom = ZOOM
+	if wide_shot > 0.0:   # a set piece bigger than the picture (the El's train over the street): the camera pulls back for it
+		want_zoom *= 1.0 - 0.28 * wide_shot
+	if Engine.time_scale < 0.8 and not over:   # (audit 17. 11.) slowed time leans in a little: the moment fills the picture
+		want_zoom *= 1.0 + 0.08 * clampf((0.8 - Engine.time_scale) / 0.5, 0.0, 1.0)
 	cam.zoom = Vector2.ONE * lerpf(cam.zoom.x, want_zoom, 1.0 - exp(-3.0 * real))
+	for sk in _sky_nodes:   # (the sky hangs off the camera: pulled back wider than the street zoom, it widens with it)
+		if is_instance_valid(sk):
+			var sks := sk as Sprite2D
+			sks.scale.x = 1.1 * maxf(1.0, ZOOM / cam.zoom.x)
+			sks.position.x = -sks.texture.get_width() * sks.scale.x * 0.5
 	var near := ZOOM / cam.zoom.x   # the pavement stays four fifths down the screen at any zoom
 	fore.modulate.a = move_toward(fore.modulate.a, 0.0 if _room != "" or player.position.y < -900.0 else 1.0, real * 3.0)   # no street furniture indoors, nor up on the scaffold
 	var want_y := CAM_Y * near + (_ground_y if in_sec else _cam_rise(_snap_y(player.position.y))) + clampf(aim_n.y, -0.6, 0.6) * 90.0 * near 			- (120.0 if _steps_above > 0.0 else 0.0)   # steps on the storey above: the camera looks up at them
@@ -2868,8 +2878,15 @@ func _process(delta: float) -> void:
 
 
 ## Scripted checks, run headless-with-a-screen on the build machine. Each saves pictures and quits.
+var _film_i := 0
 func _auto_step(delta: float) -> void:
 	_at += delta
+	for a in OS.get_cmdline_user_args():   # --film=start,step,count: a strip of frames of any test, for review (film_00..)
+		if a.begins_with("--film="):
+			var f := a.trim_prefix("--film=").split(",")
+			if _film_i < int(f[2]) and _at >= float(f[0]) + float(f[1]) * _film_i:
+				_shot("film_%02d" % _film_i)
+				_film_i += 1
 	var shots: Array = []
 	if _auto == "dive":   # run at the first crate with the stick and tap the dive button right in front of it
 		if _at < 0.05:
@@ -4218,10 +4235,10 @@ func _auto_step(delta: float) -> void:
 			cam.position.x = player.position.x + _lead
 		if _at > 0.6 and _auto_done & 1 == 0:
 			_auto_done |= 1
-			for i in 2:
-				enemies[i]["alive"] = false
-				fx.blood(enemies[i]["node"].position + Vector2(0.0, -300.0), Vector2(1.0, 0.0))
-				_drop(enemies[i]["node"], 1.0, true)
+			for i in 2:   # (through the real kill now: the gun out of his hand, the hat off a head shot)
+				var en: Dictionary = enemies[i]
+				fx.blood(en["node"].position + Vector2(0.0, -300.0), Vector2(1.0, 0.0))
+				_kill(en, i == 0, false, "head" if i == 0 else "torso")
 		if _at > 2.2 and _auto_done & 2 == 0:
 			_auto_done |= 2
 			_player_down()
@@ -4472,6 +4489,10 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			glide *= 0.8
 			move_state = "ground"
 			fx.dust(player.position + Vector2(0.0, -DIVE_LAND), 0.6)
+			_impact(0.04, 0.12)   # (audit 17. 11.) the weight of him hitting the stones: a beat, a jolt, sparks off the buttons
+			_shake = maxf(_shake, 0.16)
+			for k in 4:
+				fx.chip(player.position + Vector2(randf_range(-60.0, 60.0), -DIVE_LAND + 6.0))
 			steps.restart()
 			sfx.play("land", -4.0)
 			sfx.play("skid", -5.0, INF, 0.1)
@@ -5528,6 +5549,9 @@ func _knocked(e: Dictionary, delta: float) -> void:
 ## A mobster goes down: counted for the score, his gun left on the pavement.
 func _kill(e: Dictionary, head: bool, quiet := false, part := "") -> void:
 	e["alive"] = false
+	var mk = e["node"].get_meta("mark", null)
+	if mk != null and is_instance_valid(mk):
+		mk.queue_free()
 	_buzz(25 if head else 18)
 	_score(e, head, part)
 	var m = e["node"]
@@ -5540,6 +5564,37 @@ func _kill(e: Dictionary, head: bool, quiet := false, part := "") -> void:
 		_shake = maxf(_shake, 0.12)
 	elif not quiet:
 		_impact(0.07 if head else 0.045, 0.05)
+	# (audit 17. 11.: a kill felt weightless - the gun went down with the drawing) the gun leaves his hand, spinning,
+	# and clatters on the stones; a head shot takes the hat off with it
+	if e["type"] == "post" and not m.disarmed and m._gun != null and m._gun.visible and part != "blast":
+		var src: Sprite2D = m._gun
+		var gg := Sprite2D.new()
+		gg.texture = src.texture
+		gg.offset = src.offset
+		gg.global_scale = src.global_scale.abs()
+		gg.flip_h = src.global_scale.x < 0.0
+		gg.global_position = src.global_position
+		gg.global_rotation = src.global_rotation
+		gg.modulate = _undo_night(0.55)
+		gg.z_index = 1
+		add_child(gg)
+		src.visible = false
+		var away2 := signf(m.position.x - player.position.x)
+		_flying_guns.append({"node": gg, "v": Vector2(away2 * randf_range(160.0, 320.0), -randf_range(420.0, 640.0)),
+			"spin": away2 * randf_range(8.0, 14.0), "ground": m.position.y - 10.0, "bounce": 0, "kind": "post"})
+	if head and not m.hat_lost and m.hat_path() != "":
+		var info: Dictionary = m.lose_hat()
+		var hh := Sprite2D.new()
+		hh.texture = info["tex"]
+		hh.centered = false
+		hh.offset = info["offset"]
+		hh.modulate = _undo_night(0.5)
+		hh.z_index = 1
+		add_child(hh)
+		hh.global_transform = info["xform"]
+		var away3 := signf(m.position.x - player.position.x)
+		_flying_guns.append({"node": hh, "v": Vector2(away3 * randf_range(300.0, 450.0), -randf_range(700.0, 900.0)),
+			"spin": away3 * randf_range(9.0, 13.0), "ground": m.position.y - 6.0, "bounce": 0, "kind": "hat"})
 	_drop(m, signf(m.position.x - player.position.x), true, how)
 	if not quiet and (head or _all_down() or slow_on):   # a headshot, the last man, or a kill in slowed time
 		var at: Vector2 = _hit_at if part not in ["", "blast"] and _hit_at != Vector2.INF and _hit_at.distance_to(m.position) < 700.0 else m.position + Vector2(0.0, -420.0)
@@ -8291,6 +8346,8 @@ func _intro_pan() -> void:
 ## Cue focus (ch14): something that matters (a boss stepping out, a hazard going off, a crate coming down) pulls the
 ## camera part of the way toward it for a moment, easing in and out: attention without a word of text.
 var _cue_at := Vector2.ZERO
+var _sky_nodes: Array = []
+var wide_shot := 0.0   # 0..1, set by mapfx while something big goes by (eased back each frame there)
 var _cue_t := 0.0
 var _cue_len := 1.0
 var _cue_w := 0.0
@@ -8687,15 +8744,24 @@ func _say(m, text: String) -> void:
 	l.add_theme_constant_override("outline_size", 12)
 	var font: Font = l.get_theme_font("font")
 	var tw_w: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 72).x
-	var lift := 0.0
-	for o in get_children():   # a line still up over a man nearby: this one goes above it
-		if o is Label and o.has_meta("say") and absf(float(o.get_meta("say")) - m.position.x) < 700.0 and o.modulate.a > 0.3:
-			lift = maxf(lift, 90.0)
 	l.set_meta("say", m.position.x)
-	l.position = m.position + Vector2(-tw_w * 0.5, -640.0 - lift)
+	l.position = m.position + Vector2(-tw_w * 0.5, -640.0)
 	if m != player and cam != null:   # a shout from beyond the picture: at its edge, toward him
 		var half: float = get_viewport().get_visible_rect().size.x * 0.5 / cam.zoom.x
 		l.position.x = clampf(l.position.x, cam.position.x - half + 140.0, cam.position.x + half - 140.0 - tw_w)
+	# (audit 17. 11.: two shouts printed over each other) a line still up where this one would go: this one goes above it
+	var moved := true
+	var guard := 0
+	while moved and guard < 6:
+		moved = false
+		guard += 1
+		for o in get_children():
+			if o is Label and o != l and o.has_meta("say") and o.modulate.a > 0.2:
+				var r1 := Rect2(l.position, Vector2(tw_w, 80.0)).grow(16.0)
+				var r2 := Rect2((o as Label).position, (o as Label).size)
+				if r1.intersects(r2):
+					l.position.y = (o as Label).position.y - 95.0
+					moved = true
 	l.z_index = 20
 	add_child(l)
 	var tw := l.create_tween()
@@ -8895,6 +8961,11 @@ func _mark(m, text: String) -> void:
 	l.position = m.position + Vector2(-26.0, -640.0)
 	l.z_index = 20
 	add_child(l)
+	if m != player:   # (audit 17. 11.: a "!" left floating over a man already falling dead)
+		var old = m.get_meta("mark", null)
+		if old != null and is_instance_valid(old):
+			old.queue_free()
+		m.set_meta("mark", l)
 	var tw := l.create_tween()
 	tw.tween_property(l, "position:y", l.position.y - 40.0, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.tween_interval(0.5)
@@ -10292,7 +10363,7 @@ func _disarm(e: Dictionary, at: Vector2) -> void:
 	g.flip_h = src.global_scale.x < 0.0
 	g.global_position = src.global_position
 	g.global_rotation = src.global_rotation
-	g.modulate = _undo_night(0.32)   # as dark as it was in his hand
+	g.modulate = _undo_night(0.55)   # (audit: lit like the figures, or nobody saw it fly)
 	g.z_index = 1
 	add_child(g)
 	src.visible = false

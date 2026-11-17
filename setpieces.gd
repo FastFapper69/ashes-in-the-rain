@@ -144,29 +144,52 @@ func steam_jet(at: Vector2) -> void:
 	grow.add_point(Vector2(0.35, 0.9))
 	grow.add_point(Vector2(1.0, 1.8))
 	p.scale_amount_curve = grow
-	p.amount = 70
-	p.lifetime = 3.2
-	p.explosiveness = 0.15
+	# (audit 17. 11.: a hard pillar of cotton balls) a roaring jet that is see-through at its root, billows out wide as it
+	# slows and thins away overhead, turning as it goes
+	p.angular_velocity_min = -40.0
+	p.angular_velocity_max = 40.0
+	p.amount = 90
+	p.lifetime = 2.6
+	p.explosiveness = 0.1
 	p.position = at + Vector2(0.0, -14.0)
 	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
-	p.emission_rect_extents = Vector2(55.0, 6.0)
+	p.emission_rect_extents = Vector2(45.0, 6.0)
 	p.direction = Vector2(0.0, -1.0)
-	p.spread = 9.0
-	p.gravity = Vector2(25.0, 0.0)
+	p.spread = 14.0
+	p.gravity = Vector2(60.0, 40.0)
 	p.initial_velocity_min = 700.0
 	p.initial_velocity_max = 1050.0
 	p.damping_min = 420.0
 	p.damping_max = 560.0   # (shot up fast, slowing as it rises: it piles up into a cloud overhead and drifts)
-	p.scale_amount_min = 1.0
-	p.scale_amount_max = 1.7
+	p.scale_amount_min = 1.1
+	p.scale_amount_max = 2.2
 	var g := Gradient.new()
-	g.set_color(0, Color(0.95, 0.95, 0.93, 0.9))
-	g.add_point(0.6, Color(0.9, 0.9, 0.88, 0.6))
+	g.set_color(0, Color(0.95, 0.95, 0.93, 0.35))
+	g.add_point(0.15, Color(0.95, 0.95, 0.93, 0.7))
+	g.add_point(0.55, Color(0.9, 0.9, 0.88, 0.38))
 	g.set_color(g.get_point_count() - 1, Color(0.85, 0.85, 0.85, 0.0))
 	p.color_ramp = g
 	p.modulate = game._undo_night(0.6)
 	p.z_index = 4
+	p.amount = 22   # (the inked puffs only at its edge now: piled up they read as cauliflower)
+	p.scale_amount_min = 0.8
+	p.scale_amount_max = 1.3
 	add_child(p)
+	var body := p.duplicate() as CPUParticles2D   # the jet itself: soft, see-through, no ink lines
+	body.texture = game._soft_glow()
+	body.amount = 110
+	body.scale_amount_min = 1.6
+	body.scale_amount_max = 2.6
+	var gb := Gradient.new()
+	gb.set_color(0, Color(0.9, 0.92, 0.95, 0.0))
+	gb.add_point(0.08, Color(0.9, 0.92, 0.95, 0.24))
+	gb.add_point(0.5, Color(0.85, 0.87, 0.9, 0.12))
+	gb.set_color(gb.get_point_count() - 1, Color(0.8, 0.82, 0.85, 0.0))
+	body.color_ramp = gb
+	body.z_index = 4
+	add_child(body)
+	get_tree().create_timer(3.6, false).timeout.connect(func() -> void: body.emitting = false)
+	get_tree().create_timer(7.5, false).timeout.connect(body.queue_free)
 	game.sfx.play("steam", 2.0, at.x, 0.1)
 	_smokes.append([at, _t + 6.0])
 	game.hop_manhole(at.x)
