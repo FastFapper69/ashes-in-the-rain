@@ -1412,6 +1412,11 @@ func _build_segments() -> void:
 		if floored:   # its own floor under his feet: no pavement in front of it
 			w.position.y = -diffuse.get_height() * ws * float(SEGMENT_FLOOR[seg_name])
 		w.z_index = -6 if art.begins_with("front_") else -10   # (a front over the drawings, their lamps and glow under it)
+		if art.begins_with("front_") and not floored:
+			# (user 17. 11.: "suddenly a completely different pavement") a front stops at the back of the pavement: the
+			# street's own slabs (_pavement, under the front) run on in front of it like everywhere else
+			var foot_row := (-WALL_LIFT - 4.0 - w.position.y) / ws
+			w.region_rect.size.y = foot_row
 		w.material = atmo.blur_material(1.4)
 		w.modulate = Color.WHITE * SEGMENT_MOON * float(SEGMENT_GAIN.get(seg_name, 1.0)) * (BG_DIM if LOOK2 else 1.0)   # a moonlit wash, so the drawing reads between the lamps
 		add_child(w)
@@ -1442,6 +1447,8 @@ func _build_segments() -> void:
 		glow.region_rect = Rect2(trim * 0.5, 0.0, glow.texture.get_width() - trim * 0.5, glow.texture.get_height())
 		glow.scale = Vector2(ws * 2.0 * sx, ws * 2.0)
 		glow.position = w.position
+		if art.begins_with("front_") and not floored:
+			glow.region_rect.size.y = w.region_rect.size.y * 0.5
 		glow.material = additive
 		glow.modulate = _undo_night(0.55)   # added on top of the drawing: big lit shopfronts would burn out at more
 		glow.z_index = -5 if art.begins_with("front_") else -9   # (a front's own lit windows over the front)
@@ -1584,8 +1591,8 @@ func _build_segments() -> void:
 				var fp := Sprite2D.new()
 				fp.texture = BigTex.get_tex("res://art/street/pier.png")
 				fp.centered = false
-				fp.scale = Vector2.ONE * WALL_SCALE
-				fp.position = Vector2(px - fp.texture.get_width() * WALL_SCALE * 0.5, -WALL_LIFT - (diffuse.get_height() * SEGMENT_BASE - (diffuse.get_height() - fp.texture.get_height())) * WALL_SCALE)
+				fp.scale = Vector2.ONE * ws   # (at the front's own scale, its foot at the back of the pavement: not down over the slabs)
+				fp.position = Vector2(px - fp.texture.get_width() * ws * 0.5, -WALL_LIFT - 4.0 - fp.texture.get_height() * ws)
 				fp.modulate = Color.WHITE * SEGMENT_MOON * 0.85 * (BG_DIM if LOOK2 else 1.0)
 				fp.material = w.material
 				fp.z_index = -5
