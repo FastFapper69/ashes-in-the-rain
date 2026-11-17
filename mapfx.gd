@@ -423,11 +423,13 @@ func _tick_fog(delta: float) -> void:
 
 # ---- the storm ---------------------------------------------------------------------------------
 
+var _storm_veil: ColorRect   # the flash over the whole picture (QUEUE §12: TENEMENTS, the storm that shows the men)
 func _tick_storm(delta: float) -> void:
 	_storm_t -= delta
 	if _storm_t <= 0.0 and not game.over:
-		_storm_t = randf_range(9.0, 16.0)
+		_storm_t = randf_range(7.0, 12.0)
 		game._lightning_t = 0.0   # main.gd's own lightning, only close and often
+		_strike()
 		get_tree().create_timer(0.25, false).timeout.connect(func() -> void:
 			game.sfx.play("thunder", 2.0, INF, 0.1)
 			game._shake = maxf(game._shake, 0.18))
@@ -444,6 +446,74 @@ func _tick_storm(delta: float) -> void:
 				tw.tween_property(n, "modulate", Color(2.6, 2.6, 2.8, was.a), 0.04)
 				tw.tween_property(n, "modulate", was, 0.45)
 	_flash_seen = game._flash
+
+
+## Close lightning: the whole picture goes cold white twice (a flicker, then the full flash) and a bolt forks down
+## the sky over the roofs - the street, the men in the doorways and on the fire escapes stand out for that moment.
+func _strike() -> void:
+	if _storm_veil == null or not is_instance_valid(_storm_veil):
+		var lay := CanvasLayer.new()
+		lay.layer = 2   # (over the world, under the HUD)
+		game.add_child(lay)
+		_storm_veil = ColorRect.new()
+		_storm_veil.color = Color(0.82, 0.88, 1.0, 0.0)
+		_storm_veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_storm_veil.set_anchors_preset(Control.PRESET_FULL_RECT)
+		var add := CanvasItemMaterial.new()
+		add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		_storm_veil.material = add
+		lay.add_child(_storm_veil)
+	var tw := _storm_veil.create_tween()
+	tw.tween_property(_storm_veil, "color:a", 0.13, 0.03)   # (short and sharp: held longer it reads as fog, not light)
+	tw.tween_property(_storm_veil, "color:a", 0.0, 0.06)
+	tw.tween_property(_storm_veil, "color:a", 0.28, 0.02)
+	tw.tween_interval(0.04)
+	tw.tween_property(_storm_veil, "color:a", 0.0, 0.28).set_ease(Tween.EASE_OUT)
+	# the bolt: from the top of the sky down to the roofline somewhere ahead of him, forking once or twice
+	var vp: Vector2 = game.get_viewport().get_visible_rect().size / game.cam.zoom
+	var x0: float = game.cam.position.x + randf_range(-0.35, 0.35) * vp.x
+	var top: float = game.cam.position.y - vp.y * 0.5 - 200.0
+	var bottom: float = minf(game.cam.position.y - vp.y * 0.12, -1500.0)
+	var bolt := Node2D.new()
+	bolt.z_index = -19   # (in the sky, behind the buildings)
+	game.add_child(bolt)
+	var main := _bolt_line(Vector2(x0, top), Vector2(x0 + randf_range(-260.0, 260.0), bottom), 14.0)
+	bolt.add_child(main)
+	for k in randi_range(1, 2):
+		var pts: PackedVector2Array = main.points
+		var from: Vector2 = pts[randi_range(2, pts.size() - 3)]
+		bolt.add_child(_bolt_line(from, from + Vector2(randf_range(-380.0, 380.0), randf_range(260.0, 520.0)), 7.0))
+	var bt := bolt.create_tween()
+	bt.tween_property(bolt, "modulate:a", 0.15, 0.06)
+	bt.tween_property(bolt, "modulate:a", 1.0, 0.03)
+	bt.tween_property(bolt, "modulate:a", 0.0, 0.4)
+	bt.tween_callback(bolt.queue_free)
+
+
+func _bolt_line(a: Vector2, b: Vector2, w: float) -> Line2D:
+	var l := Line2D.new()
+	var n := 12
+	var pts := PackedVector2Array()
+	for i in n + 1:
+		var t := float(i) / n
+		var jag := 0.0 if i == 0 or i == n else randf_range(-1.0, 1.0) * a.distance_to(b) * 0.06
+		pts.append(a.lerp(b, t) + (b - a).orthogonal().normalized() * jag)
+	l.points = pts
+	l.width = w
+	l.default_color = Color(2.2, 2.3, 2.6)   # (over 1: it glows through the night grade)
+	l.joint_mode = Line2D.LINE_JOINT_SHARP
+	var taper := Curve.new()
+	taper.add_point(Vector2(0.0, 1.0))
+	taper.add_point(Vector2(1.0, 0.35))
+	l.width_curve = taper
+	var glow := Line2D.new()   # a soft halo round it
+	glow.points = pts
+	glow.width = w * 5.0
+	glow.default_color = Color(0.6, 0.7, 1.0, 0.25)
+	glow.width_curve = taper
+	glow.show_behind_parent = true
+	l.add_child(glow)
+	return l
 
 
 # ---- the ship ----------------------------------------------------------------------------------

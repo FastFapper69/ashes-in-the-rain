@@ -3648,7 +3648,7 @@ func _auto_step(delta: float) -> void:
 		shots = {"el": [[1.6, "el_0"], [2.4, "el_1"], [3.2, "el_2"]], "fog": [[1.2, "fog_0"], [2.5, "fog_1"]],
 			"oncoming": [[1.2, "onc_0"], [2.3, "onc_1"], [2.7, "onc_2"], [3.3, "onc_3"]], "sheets": [[0.6, "sheets_0"], [1.05, "sheets_m"], [2.0, "sheets_1"]],
 			"girder": [[0.9, "girder_0"], [1.3, "girder_1"], [1.7, "girder_2"]],
-			"storm": [[0.36, "storm_0"], [0.5, "storm_1"]], "rock": [[1.0, "rock_0"], [4.0, "rock_1"]], "steam": [[1.2, "steam_0"], [2.4, "steam_1"]],
+			"storm": [[0.36, "storm_0"], [0.42, "storm_1"], [0.5, "storm_2"], [0.75, "storm_3"]], "rock": [[1.0, "rock_0"], [4.0, "rock_1"]], "steam": [[1.2, "steam_0"], [2.4, "steam_1"]],
 			"rats": [[0.5, "rats_0"], [1.0, "rats_1"]], "freight": [[3.0, "freight_0"], [5.0, "freight_1"]], "sea": [[0.95, "sea_0"], [1.3, "sea_1"]],
 			"flood": [[1.0, "flood_0"]], "neondrop": [[0.95, "neon_0"], [1.5, "neon_1"], [2.6, "neon_2"]], "levelup": [[0.6, "levelup_0"], [2.2, "levelup_1"]],
 			"searchlight": [[0.4, "sl_0"], [1.3, "sl_1"], [2.2, "sl_2"], [2.9, "sl_3"]]}[_auto]
