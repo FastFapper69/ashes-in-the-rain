@@ -628,8 +628,7 @@ func _title() -> void:
 	tag.rotation = deg_to_rad(1.2)
 	_page.add_child(tag)
 	Paper.write(tag, "WHAT'S NEW", _font_head, 22, CRIMSON, HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0, 1, 0.5), 6.0)
-	var built := String(load("res://version.gen.gd").DATE)
-	Paper.write(tag, WN.build_text() + ("" if built == "DEV" else "  " + built), _font_type, 14, INK, HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0.5, 1, 0.5), 6.0)
+	Paper.write(tag, WN.build_text(), _font_type, 16, INK, HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0.5, 1, 0.5), 6.0)   # (the date is on the card)
 
 
 var _cap_font: Font
