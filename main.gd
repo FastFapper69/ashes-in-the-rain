@@ -3153,7 +3153,7 @@ func _auto_step(delta: float) -> void:
 		if _at > 1.5 and _at < 1.55:
 			_jump_buf = 0.15
 		for k in 16:
-			if _at > 1.0 + k * 0.1 and _auto_done & (1 << k) == 0:
+			if _at > 1.5 + k * 0.09 and _auto_done & (1 << k) == 0:
 				_auto_done |= 1 << k
 				print("WIN t ", snappedf(_at, 0.01), " x ", int(player.position.x), " y ", int(player.position.y), " ", move_state, " room ", _room)
 				_shot("win_%d" % k)
@@ -4455,6 +4455,13 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 		elif dive_rolls and fall > 0.0 and player.position.y >= floor_y + 30.0 and not _over_bar():   # fast and forward: over the shoulder (onto a bar: on his back, skidding)
 			move_state = "roll"
 			roll_done = 0.0
+			if _win_landing:   # down from the window: the stones shake, glass and dust round the roll
+				_win_landing = false
+				_shake = maxf(_shake, 0.45)
+				fx.dust(player.position, 0.8)
+				_word(["thud"], player.position + Vector2(80.0, -170.0), 0.18)
+				sfx.play("land", 0.0)
+				_buzz(30)
 			player.roll = 1.35 * player.dive * player.dive_side
 			player.position.y = minf(player.position.y, floor_y)   # the origin moves up to his feet: on a crate he rolls along its top, not inside it
 			player.dive = 0.0
@@ -6092,12 +6099,14 @@ func _map_events(delta: float) -> void:
 					_ground_cp = checkpoint   # where he would come back if he ends up down in the street again
 				checkpoint = float(cx)
 				checkpoint_y = float(roof["y"])
-				hud.toast("CHECKPOINT")
+				if not _win_landing:   # (not over a stunt in mid air: Gemini review 17. 11.)
+					hud.toast("CHECKPOINT")
 	var cps: Array = level["checkpoints"]
 	while _check_i < cps.size() and player.position.x > float(cps[_check_i]) and checkpoint_y >= 0.0:
 		if float(cps[_check_i]) > checkpoint and not over and checkpoint_y >= 0.0:
 			checkpoint = float(cps[_check_i])
-			hud.toast("CHECKPOINT")
+			if not _win_landing:   # (not over a stunt in mid air)
+				hud.toast("CHECKPOINT")
 		_check_i += 1
 	var hints: Array = level["hints"]
 	while _hint_i < hints.size() and player.position.x > float(hints[_hint_i][0]):
@@ -6860,7 +6869,12 @@ func _room_window_block(_before_x: float) -> void:
 			continue
 		var face := opening.position.x - 20.0   # his front against the glass
 		var stand := opening.position.x - 60.0
+		var near_glass := opening.position.x - 420.0   # (on foot he is stopped back here, the window ahead: room for the leap)
 		if move_state == "ground" or player.position.y > -40.0:
+			if player.position.x > near_glass and player.position.x < stand + 1.0 and hud.move > 0.3:
+				if _ai_t - _win_hint_t > 6.0:   # walking up to it: the hint, early
+					_win_hint_t = _ai_t
+					hud.toast("JUMP THROUGH THE WINDOW")
 			if player.position.x > stand:
 				player.position.x = stand   # on foot the glass stops him
 				run = 0.0
@@ -6870,6 +6884,15 @@ func _room_window_block(_before_x: float) -> void:
 					hud.toast("JUMP THROUGH THE WINDOW")
 			continue
 		if player.position.x < face:
+			# (user 17. 11.: a new pose) close to the glass in the air he throws himself at it head first: the dive
+			if move_state == "jump" and player.position.x > face - 330.0:
+				move_state = "dive"
+				player.dive_side = signf(player.scale.x) if player.scale.x != 0.0 else 1.0
+				glide = 720.0
+				fall = minf(fall, -140.0)
+				dive_rolls = true
+				_kicked_this_dive = true
+				sfx.play("dive", -2.0)
 			continue
 		_room_windows_broken[x0] = true
 		_crash_out(r, opening)
@@ -6882,7 +6905,7 @@ func _crash_out(r: Array, opening: Rect2) -> void:
 	_impact(0.09, 0.02)   # on the glass: a beat of stillness
 	_shake = 0.35
 	sfx.play("glass", 4.0, opening.get_center().x, 0.05)
-	_clip("window", 1.0)
+	player.dive = 1.0   # (on the glass he is laid out flat, head first)
 	glide = 0.0
 	fall = 0.0
 	var inside := opening.get_center()   # the glass gives inside first: a spray of it back into the hall
@@ -6921,19 +6944,51 @@ func _crash_out_street(r: Array) -> void:
 			edge = Vector2(o.position.x, o.end.y).lerp(o.position, (t - 0.75) * 4.0)
 		pts.append(edge.lerp(o.get_center(), randf_range(0.0, 0.18)))
 	hole.polygon = pts
-	hole.color = Color(0.02, 0.02, 0.03)
+	hole.color = _undo_night(0.5) * Color(0.55, 0.62, 0.8)   # the hallway's light behind him: he comes out as a dark shape
 	hole.z_index = -5   # (over the front's drawing)
 	add_child(hole)
+	hole.create_tween().tween_property(hole, "color", Color(0.03, 0.03, 0.05), 1.6).set_delay(0.6)   # and it goes dark behind him
+	var glow := Sprite2D.new()
+	glow.texture = _soft_glow()
+	glow.position = out_rect.get_center()
+	glow.scale = Vector2(3.0, 3.0)
+	glow.modulate = _undo_night(0.4) * Color(0.6, 0.7, 1.0, 0.7)
+	var addm := CanvasItemMaterial.new()
+	addm.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	glow.material = addm
+	glow.z_index = -4
+	add_child(glow)
+	var gt := glow.create_tween()
+	gt.tween_property(glow, "modulate:a", 0.0, 1.2).set_delay(0.3)
+	gt.tween_callback(glow.queue_free)
+	# the cut: a white frame and a held beat, then the fall
+	var lay := CanvasLayer.new()
+	lay.layer = 3
+	add_child(lay)
+	var white := ColorRect.new()
+	white.color = Color(1.0, 1.0, 1.0, 0.35)
+	white.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	white.set_anchors_preset(Control.PRESET_FULL_RECT)
+	lay.add_child(white)
+	var wt := white.create_tween()
+	wt.tween_property(white, "color:a", 0.0, 0.12)
+	wt.tween_callback(lay.queue_free)
+	_impact(0.06, 0.02)
 	# a hard cut: he is out there, head first through it, the glass going with him
 	_win_cut = true
 	_cam_snap = true
-	player.position = Vector2(maxf(out_rect.get_center().x + 30.0, float(r[1]) + 30.0), out_rect.end.y - 30.0)   # (past the room's end: on the street side)
+	player.position = Vector2(maxf(out_rect.end.x + 40.0, float(r[1]) + 30.0), out_rect.end.y - 30.0)   # (already half out of the frame)   # (past the room's end: on the street side)
 	_tick_rooms()   # (the hallway goes the same frame: never a frame of it without him)
 	_ground_y = 0.0
-	glide = 640.0
+	move_state = "dive"   # head first out of the frame, laid out flat, and over the shoulder on the stones
+	player.dive = 1.0
+	player.dive_side = signf(player.scale.x) if player.scale.x != 0.0 else 1.0
+	dive_rolls = true
+	_kicked_this_dive = true
+	glide = 680.0
 	run = 0.0
-	fall = -260.0
-	fx.burst_window(out_rect, Vector2(700.0, -150.0), 0.0, Vector2(-INF, INF), 0.0)
+	fall = -220.0
+	fx.burst_window(out_rect, Vector2(1000.0, -260.0), 0.0, Vector2(-INF, INF), 0.0)   # (fast and wide: clear of him at once)
 	fx.shatter(out_rect.get_center())
 	_word(["crash", "smash"], out_rect.get_center() + Vector2(170.0, -150.0), 0.26, Vector2.RIGHT)
 	sfx.play("glass", 2.0, out_rect.get_center().x, 0.08)
