@@ -46,6 +46,16 @@ for g, lst in EXTRA.items():
 # never needed in the build: the old painted-wall street (main.gd _build_street's fallback when a map has
 # no drawn street; every map has one) and a foreground layer nothing loads
 NEVER = ['art/bg/far.png', 'art/bg/mid.png', 'art/bg/fore.png', 'art/bg/wall2.png', 'art/bg/wall2_n.png', 'art/bg/wall2_lit.png']
+# the title screen of a page with no pack yet (main.gd stand_in: the "1931" map) loads before any pack is mounted:
+# every drawing it names stays in the base pack (17. 11.: market_b left chapter I's maps, went into pack b, and a
+# fresh page died on "No loader found ... market_b.png")
+_i = src.index('"name": "1931"')
+_j = src.find('{"name": "', _i + 10)
+_stand = src[_i:_j if _j > 0 else len(src)]
+for f in list(files):
+    stem = re.sub(r'_(lit|solid|neon\d|n)$', '', os.path.basename(f)[:-4])
+    if re.search(r'"%s"' % re.escape(stem), _stand):
+        files[f] = set()
 groups = collections.defaultdict(list)
 for f, g in sorted(files.items()):
     if len(g) == 1:
