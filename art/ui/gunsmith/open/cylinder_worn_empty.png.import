@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://w83mmj1n57d7"
-path="res://.godot/imported/revolver_open_worn.png-bd20a5b4df6bc543209fa25ff7739a53.ctex"
+uid="uid://cisrx7osldne"
+path="res://.godot/imported/cylinder_worn_empty.png-b11d4fc0404d39da5a9b896d5faec88a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/ui/gunsmith/revolver_open_worn.png"
-dest_files=["res://.godot/imported/revolver_open_worn.png-bd20a5b4df6bc543209fa25ff7739a53.ctex"]
+source_file="res://art/ui/gunsmith/open/cylinder_worn_empty.png"
+dest_files=["res://.godot/imported/cylinder_worn_empty.png-b11d4fc0404d39da5a9b896d5faec88a.ctex"]
 
 [params]
 

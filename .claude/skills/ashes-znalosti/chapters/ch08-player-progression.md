@@ -20,6 +20,7 @@ Fixed sticks (no floating joysticks), jump right beside the aim stick, dive and 
 ## Guns
 - Revolver always + ONE big gun (shotgun ch II, tommy ch III: `GUN_FROM`, `_gun_open()`). Pickups never auto-equip; swap by tapping the gun card at the gun on the ground. GTA-style card right of the health bar (`hud.set_guns`), switch animation `puppet.switch_to()` 0.3 s.
 - Gunsmith (`menu._gunsmith`): rows gun/shotgun/tommy, `SMITH_PARTS`. Two pistols via TWO GUNS.
+- Gunsmith acts (`SMITH_ACTS`, `_smith_act`, 17. 11.): each upgrade shows what it does on the gun (revolver: cylinder opens, cases out, rounds in; recoil; steady; last round. Beretta: magazine out/in, long mag). Rule 28: the open revolver is composed per part from worn/new x loaded/empty drawings (`art/ui/gunsmith/open/`, gen/open_revolver.py) so it always matches the closed gun's parts. Words go through LowRes on their own CanvasLayer; tweens live on the gun node (quick taps). Test: `--test=gunsmith --gun=gun --pick=N [--buy] [--mash]`.
 
 ## Key Takeaways
 1. Reward style, not grind: every multiplier is a skill expression.

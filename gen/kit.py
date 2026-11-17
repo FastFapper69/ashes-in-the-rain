@@ -27,13 +27,17 @@ KINDS = {
     "windlass":  {"shot": True,  "floor": None,     "depth": 0.01},   # free-standing (levels "things"), docks
     "trolley":   {"shot": True,  "floor": None,     "depth": 0.0},    # free-standing: a trolley pole over a puddle (ch III)
     "thirdrail": {"shot": True,  "floor": None,     "depth": 0.0},    # free-standing: the subway's third rail and its junction box (ch III)
+    # a fire escape: its own layer over the wall it climbs (QUEUE §11, rule 27), its landings are the piece's floors
+    "fescape":   {"shot": False, "floor": None,     "depth": 0.0},
 }
 
 # The chapter I modular street (art_src 228-236): the same dark party wall down both edges.
 PIECES = {
     "hk_tailor": {
         "size": 0.8, "edge": "partywall",
-        "props": [{"kind": "awning", "box": (975, 752, 1732, 958), "anchor": "top", "walk_y": 914}],
+        "props": [{"kind": "awning", "box": (975, 752, 1732, 958), "anchor": "top", "walk_y": 914},
+                  # the fire escape (gen/blender/fire_escape.py + art_src 280: gen/fire_escape_layer.py), off the wall
+                  {"kind": "fescape", "box": (1880, 250, 2360, 930), "anchor": "top"}],
         # the fire escape beside it, all painted: its landings, the stairs between them, the drop ladder (its foot
         # hangs ~590 px over the pavement: reached with a jump). Up it, then off a landing onto the awning: it
         # throws him up for a slowed beat in the air.

@@ -202,6 +202,8 @@ pak projít všechny „drawn“ podlahy ve všech kresbách (catwalk_style draw
 nepoužitelné), schodiště samotné na zeleném (278) ale kreslí jinak (posun/tvar) → jako maska nesedí; maska z rozdílu 233 vs 276 tahá
 kusy oken a nechává zbytky schodů na zdi. Zahozeno. Další cesta: schodiště postavit v Blenderu (jednoduchá geometrie: 2 podesty,
 zábradlí, schody, žebřík; tuš shader jako front_template) a vyrenderovat do vrstvy, zeď pod ním = 276 slícovaná na 233.
+HOTOVO 17. 11. večer (hk_tailor): Blender gen/blender/fire_escape.py -> Gemini přemaloval render (art_src 280) -> art/props/hk_fescape.png,
+zeď 279 (233 + 276 slícovaná, gen/fire_escape_layer.py); kit.py prop "fescape" (stín na zdi). Zbývá: ostatní „drawn“ podesty stejně.
 Pračka šňůra u krejčího zrušena (17. 11.): šňůra je teď jen kousek THE ALLEY přes uličku (alley_wash).
 
 ## 12. Kapitola I: každá mapa jiná – čtvrť + dominanta (uživatel 17. 11. odpoledne, „jeď takhle")

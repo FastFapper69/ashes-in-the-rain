@@ -1060,6 +1060,7 @@ func _gunsmith(gun := "", pick := -1) -> void:
 	if not Instincts.reached(int(Instincts.GUN_FROM[_smith_gun])):
 		_smith_gun = "gun"
 	_smith_pick = clampi(_smith_pick, 0, Instincts.tiers(_smith_gun) - 1)
+	_smith_swapping = false
 	if _word_layer != null and is_instance_valid(_word_layer):   # (a quick tap to another card: last card's words go)
 		for w in _word_layer.get_children():
 			w.queue_free()
@@ -1280,6 +1281,8 @@ func _smith_show(part: Array, fitted: bool) -> void:
 	t2.tween_interval(0.6)
 	t2.tween_callback(func() -> void:
 		if SMITH_ACTS.has(_smith_gun) and String(SMITH_ACTS[_smith_gun][_smith_pick]) != "":
+			if _smith_swapping:
+				return   # (bought while the camera was still closing in: the fitted part's own act plays instead)
 			_smith_act(String(SMITH_ACTS[_smith_gun][_smith_pick]))
 			return
 		if alt and second != null and not second.visible:
@@ -1384,7 +1387,25 @@ func _smith_piece(part: String, new: bool) -> Sprite2D:
 
 ## A part is fitted: the old one is knocked off the gun and falls away turning, the new one slides in
 ## from the other side and seats with a jolt, sparks fly at the joint, and the stamp comes down.
+var _act_open: Node2D   # the open revolver of the act running now, and its tween
+var _act_t: Tween
+func _smith_act_stop() -> void:
+	if _act_t != null and _act_t.is_valid():
+		_act_t.kill()
+	if _act_open != null and is_instance_valid(_act_open):
+		_act_open.queue_free()
+	_act_open = null
+	for pk in _smith_pieces:
+		if is_instance_valid(_smith_pieces[pk]):
+			(_smith_pieces[pk] as CanvasItem).visible = true
+	if _smith_cap != null and is_instance_valid(_smith_cap):
+		_smith_cap.visible = true
+
+
+var _smith_swapping := false
 func _smith_swap(part: String) -> void:
+	_smith_swapping = true
+	_smith_act_stop()
 	var old: Sprite2D = _smith_pieces.get(part)
 	if old == null:
 		_gunsmith()
@@ -1412,6 +1433,10 @@ func _smith_swap(part: String) -> void:
 ## What each upgrade does, shown on the gun (user 17. 11.: "every upgrade shown nicely, even a tiny animation"): the
 ## revolver's cylinder swings out (the drawn open revolver, as in the first gunsmith), a heavy load kicks with a flash,
 ## a steady hand stops shaking, the last round cocks and booms, the Beretta drops and slams its magazine.
+# the open revolver's parts (gen/open_revolver.py prints these): where each cut sits on the 1300 x 678 open drawing
+const SMITH_OPEN := {"frame_new": Vector2(83, 57), "frame_worn": Vector2(13, 38), "barrel_new": Vector2(794, 48), "barrel_worn": Vector2(794, 44),
+		"grip_new": Vector2(83, 286), "grip_worn": Vector2(84, 286), "cylinder_new_loaded": Vector2(460, 203), "cylinder_new_empty": Vector2(460, 203),
+		"cylinder_worn_loaded": Vector2(460, 203), "cylinder_worn_empty": Vector2(460, 203)}
 const SMITH_ACTS := {"gun": ["open", "recoil", "steady", "lastround", ""], "beretta": ["mag", "recoil", "steady", "magfull", ""]}
 const SMITH_MUZZLE := {"gun": Vector2(1285, 112), "beretta": Vector2(1190, 110)}
 func _smith_act(kind: String) -> void:
@@ -1420,10 +1445,27 @@ func _smith_act(kind: String) -> void:
 	match kind:
 		"open", "lastround":   # the cylinder swings out (the drawn open revolver); a speedloader puts six rounds in at once
 			# (FAST HANDS), or one round is thumbed into the last chamber (LAST ROUND) - then it snaps shut
-			var worn := not Instincts.owned(_smith_gun, _smith_pick)   # (the open gun as worn as the closed one shown)
-			var open := Sprite2D.new()
-			open.texture = load("res://art/ui/gunsmith/revolver_open%s.png" % ("_worn" if worn else ""))
-			var empty_tex: Texture2D = load("res://art/ui/gunsmith/revolver_open_empty.png") if worn else null
+			# (rule 28: the open gun is the same gun - each part worn or new exactly as on the closed one, the cylinder
+			# loaded or empty as the moment says; gen/open_revolver.py cut the open drawings into the same parts)
+			_smith_act_stop()   # (one act at a time: the preview's own, then the fitted part's - never both at once)
+			var open := Node2D.new()
+			_act_open = open
+			var cyl_sp: Sprite2D = null
+			var cyl_state := "worn"
+			for part in ["frame", "barrel", "grip", "cylinder"]:
+				var piece: Sprite2D = _smith_pieces.get(part)
+				var st := "new" if piece != null and piece.texture.resource_path.ends_with("_new.png") else "worn"
+				var nm := "%s_%s%s" % [part, st, "_loaded" if part == "cylinder" else ""]
+				var sp := Sprite2D.new()
+				sp.centered = false
+				sp.texture = load("res://art/ui/gunsmith/open/%s.png" % nm)
+				sp.position = (SMITH_OPEN[nm] as Vector2) - Vector2(650.0, 339.0)
+				open.add_child(sp)
+				if part == "cylinder":
+					cyl_sp = sp
+					cyl_state = st
+			var set_cyl := func(load_state: String) -> void:
+				cyl_sp.texture = load("res://art/ui/gunsmith/open/cylinder_%s_%s.png" % [cyl_state, load_state])
 			open.visible = false
 			holder.add_child(open)
 			# (user 17. 11.: the spent cases are flung out, then new rounds pushed into the empty chambers one by one)
@@ -1432,6 +1474,7 @@ func _smith_act(kind: String) -> void:
 			var one := kind == "lastround"
 			var kc := 0.14
 			var t := _smith_stage.create_tween()   # (on the gun: a page rebuilt by a quick tap kills it with the gun)
+			_act_t = t
 			t.tween_callback(func() -> void:
 				for pk in _smith_pieces:
 					(_smith_pieces[pk] as CanvasItem).visible = false
@@ -1460,8 +1503,8 @@ func _smith_act(kind: String) -> void:
 					tw.tween_property(cs, "position", out + Vector2(randf_range(-40.0, 80.0), 560.0), 0.55).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 					tw.parallel().tween_property(cs, "rotation", randf_range(-9.0, 9.0), 0.55)
 					tw.tween_callback(cs.queue_free)
-				if empty_tex != null and not one:
-					open.texture = empty_tex)   # (the drawn empty chambers)
+				if not one:
+					set_cyl.call("empty"))   # (the drawn empty chambers)
 			t.tween_interval(0.55)
 			for i in (1 if one else rims.size()):   # a new round pushed into each empty chamber, nose first
 				var rd := Sprite2D.new()
@@ -1478,8 +1521,8 @@ func _smith_act(kind: String) -> void:
 				var last := i == (0 if one else rims.size() - 1)
 				t.tween_callback(func() -> void:
 					_snd("click")
-					if last and empty_tex != null:
-						open.texture = load("res://art/ui/gunsmith/revolver_open_worn.png"))   # (all home: the loaded drawing)
+					if last and not one:
+						set_cyl.call("loaded"))   # (all home: the loaded drawing)
 				t.tween_property(rd, "modulate:a", 0.0, 0.05)
 				t.tween_callback(rd.queue_free)
 				t.tween_interval(0.04)
