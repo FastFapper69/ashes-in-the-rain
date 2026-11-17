@@ -95,6 +95,18 @@ void fragment() {
 }
 """
 
+var _outline_mat: ShaderMaterial
+var _outline_w := 1.8
+var _rim := 0.0
+## In slowed time the figures' contour thickens and brightens (audit 17. 11., Gemini: dark coats lost on dark walls).
+func set_rim(k: float) -> void:
+	if _outline_mat == null or absf(k - _rim) < 0.02:
+		return
+	_rim = k
+	_outline_mat.set_shader_parameter("width", _outline_w * (1.0 + 0.7 * k))
+	_outline_mat.set_shader_parameter("line", Vector3(0.8, 0.77, 0.7).lerp(Vector3(0.97, 0.95, 0.9), k))
+
+
 var _spr := {}
 var _ang := {}
 var _len := {}
@@ -160,6 +172,11 @@ const CLIPS := {
 		[0.2, {"fa": Vector2(0.28, -0.62), "fb": Vector2(0.18, -0.6), "legs": 0.0, "lean": 0.45, "drop": 0.3, "spin": 0.2, "far": Vector2(0.25, 0.3)}],
 		[0.75, {"fa": Vector2(0.28, -0.62), "fb": Vector2(0.18, -0.6), "legs": 0.0, "lean": 0.45, "drop": 0.3, "spin": 0.95, "far": Vector2(0.25, 0.3)}],
 		[1.0, {"fa": Vector2(0.12, -0.15), "fb": Vector2(-0.1, -0.05), "legs": 0.0, "lean": 0.05, "drop": 0.08, "spin": 1.0, "far": Vector2(-0.2, -0.1)}]]},
+	# into a dive: a beat of push-off - leaning hard forward, the back leg driving, the free hand reaching (audit 17. 11.)
+	"dive_push": {"len": 0.2, "keys": [
+		[0.0, {"fa": Vector2(0.28, -0.12), "fb": Vector2(-0.42, -0.05), "legs": 0.0, "lean": 0.9, "drop": 0.22, "far": Vector2(0.35, 0.05)}],
+		[0.6, {"fa": Vector2(0.35, -0.3), "fb": Vector2(-0.55, -0.2), "legs": -0.1, "lean": 1.1, "drop": 0.15, "far": Vector2(0.4, 0.0)}],
+		[1.0, {"fa": Vector2(0.3, -0.35), "fb": Vector2(-0.5, -0.3), "legs": -0.1, "lean": 1.0, "drop": 0.1, "far": Vector2(0.38, 0.0)}]]},
 	# through a window: the free arm over the face against the glass, knees up, curled
 	"window": {"len": 0.5, "keys": [
 		[0.0, {"fa": Vector2(0.25, -0.5), "fb": Vector2(0.02, -0.42), "legs": 0.1, "lean": 0.3, "drop": 0.2, "far": Vector2(0.3, -0.12)}],
@@ -230,6 +247,8 @@ func _ready() -> void:
 	mat.set_shader_parameter("width", 1.8 if look2 else 2.8)   # the cream contour keeps a dark coat apart from a dark wall
 	mat.set_shader_parameter("boost", Vector3(body_boost.r, body_boost.g, body_boost.b))
 	_body.material = mat
+	_outline_mat = mat
+	_outline_w = 1.8 if look2 else 2.8
 	add_child(_body)
 	var parts: Dictionary = cfg["parts"]
 	for key in parts:

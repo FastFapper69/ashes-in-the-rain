@@ -2821,6 +2821,11 @@ func _process(delta: float) -> void:
 	var in_sec := _section_at(player.position) >= 0
 	if in_sec:   # in a building: the street's zoom, the storey he stands on held where the pavement is
 		want_zoom = ZOOM
+	var rim := clampf((0.85 - Engine.time_scale) / 0.5, 0.0, 1.0) if not over else 0.0
+	player.set_rim(rim)
+	for e in enemies:
+		if e["alive"] and is_instance_valid(e["node"]):
+			e["node"].set_rim(rim)
 	if wide_shot > 0.0:   # a set piece bigger than the picture (the El's train over the street): the camera pulls back for it
 		want_zoom *= 1.0 - 0.28 * wide_shot
 	if Engine.time_scale < 0.8 and not over:   # (audit 17. 11.) slowed time leans in a little: the moment fills the picture
@@ -4778,6 +4783,9 @@ func _dive_g() -> float:
 
 func _start_dive(way: float, facing: float, up: float, from_run: bool) -> void:
 	sfx.play("dive", -2.0)
+	if player.dive < 0.3:   # (audit 17. 11.: it snapped from upright to flat) the push-off, then the flight
+		_clip("dive_push", way)
+		fx.dust(player.position, 0.3)
 	move_state = "dive"
 	_kicked_this_dive = false
 	glide = DIVE_SPEED.x * way
