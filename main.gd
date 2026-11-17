@@ -161,6 +161,10 @@ var _stand_spawn := 0.0
 var _shake := 0.0
 static var checkpoint := -1.0   # where a death sends him back to on this map; -1 = the start
 static var checkpoint_y := 0.0   # and how high: up on the roof he comes back on the roof
+# which map the checkpoint belongs to (user 17. 11.: "the fifth map loaded oddly, then crashed" - the crash report showed him
+# put down at the old map's checkpoint near the new map's end, the map at once cleared and the boss cut started: the old
+# scene still ran ~2 s after the travel reset and set its checkpoint again). A checkpoint from another map is dropped.
+static var checkpoint_map := ""
 static var _ground_cp := -1.0   # the last checkpoint down in the street, kept while he is up on the roof
 # the guns (range = life x BULLET_SPEED 4200: a side gun about one screen, 2600 px; the shotgun two
 # thirds of one, its pellets spreading; 2026-11-16, they used to cross the whole map): seconds between shots, rounds when picked up, pellets per shot, spread (radians), how long a
@@ -685,9 +689,10 @@ func _ready() -> void:
 	level_end = level["end"]
 	_set_difficulty(String(ch["hero"]))
 	rooms = level["rooms"]
-	if _auto_arg() != "":
+	if _auto_arg() != "" or checkpoint_map != "%d:%d" % [chapter, map]:
 		checkpoint = -1.0
 		checkpoint_y = 0.0
+	checkpoint_map = "%d:%d" % [chapter, map]
 	ambient = ch["ambient"]
 	atmo = AtmosphereScript.new()
 	add_child(atmo)
@@ -3124,6 +3129,27 @@ func _auto_step(delta: float) -> void:
 		if _at > 2.6:
 			get_tree().quit()
 		return
+	elif _auto.begins_with("winexit"):   # --test=winexit:x (in a room with ROOM_EXIT_WINDOW): walk into the glass, then jump through it
+		var wx := float(_auto.trim_prefix("winexit:"))
+		if _auto_done & (1 << 21) == 0:
+			_auto_done |= 1 << 21
+			player.position = Vector2(wx, 0.0)
+			_ground_y = 0.0
+			_grace = 99.0
+			for e in enemies:
+				e["node"].position.x += 90000.0
+				e["goal"] = e["node"].position.x
+		hud.move = 1.0 if _at > 0.4 else 0.0
+		if _at > 1.5 and _at < 1.55:
+			_jump_buf = 0.15
+		for k in 8:
+			if _at > 0.9 + k * 0.2 and _auto_done & (1 << k) == 0:
+				_auto_done |= 1 << k
+				print("WIN t ", snappedf(_at, 0.01), " x ", int(player.position.x), " y ", int(player.position.y), " ", move_state, " room ", _room)
+				_shot("win_%d" % k)
+		if _at > 3.0:
+			get_tree().quit()
+		return
 	elif _auto.begins_with("awning"):   # --test=awning:x,y (a fire escape landing): off it to the left onto the awning
 		var at := _auto.trim_prefix("awning:").split(",")
 		if _auto_done & (1 << 21) == 0:
@@ -4557,6 +4583,7 @@ func _block(before_x: float) -> void:
 		if player.position.y < -40.0:
 			player.position.x = maxf(player.position.x, float(sec[0]) + 70.0)
 	_flat_door_block(before_x)
+	_room_window_block(before_x)
 	for c in level["floors"]:   # a fire escape landing's railing (drawn at its outer end) stops him: no flying off it
 		if String(c[3]) != "fescape":
 			continue
@@ -6019,6 +6046,9 @@ func _map_events(delta: float) -> void:
 	if room != _room:   # through a door: a cut through black, no rain indoors
 		var sec_door := room.begins_with("section_") or _room.begins_with("section_")
 		_room = room
+		# (user 17. 11.: "the smoke in the flat makes no sense") the street's steam stays out on the street
+		for st in get_tree().get_nodes_in_group("street_steam"):
+			(st as CanvasItem).visible = room == ""
 		if not sec_door:   # into a building in cross-section there is no cut: its storeys open up round him
 			hud.flash(1.0, 0.5)   # through a doorway: a dip through full black, the other side comes up out of it
 		pass
@@ -6703,6 +6733,57 @@ func _knock_down(e: Dictionary, push: float) -> void:
 	e["node"].duck = 0.0
 	e["node"].slide_side = 1.0
 	_word(["thud"], e["node"].position + Vector2(0.0, -380.0), 0.18)
+
+
+## A room whose way out at its far end is a window (user 17. 11.: the tenement hallway "can be a way out through the
+## window, but you must jump through it, as in the test level"): the drawn window's glass (picture px of its frame,
+## sill and lintel rows) stops him on foot; jumping or diving into it, it bursts out with him.
+const ROOM_EXIT_WINDOW := {"tenement": [2850.0, 3040.0, 920.0, 280.0]}
+var _room_windows_broken := {}
+func _room_window_block(before_x: float) -> void:
+	for r in rooms:
+		var style := String(r[2])
+		if not ROOM_EXIT_WINDOW.has(style) or (r as Array).size() > 3:
+			continue
+		var x0 := float(r[0])
+		var x1 := float(r[1])
+		if player.position.x < x0 or player.position.x > x1 + 40.0 or player.position.y < -400.0:
+			continue
+		var tex: Texture2D = BigTex.get_tex("res://art/rooms/%s.png" % style)
+		var rs: float = ROOM_SCALES.get(style, ROOM_SCALE)
+		var w: Array = ROOM_EXIT_WINDOW[style]
+		var at := func(px: float) -> float: return x0 + (x1 - x0) * 0.5 + (px - tex.get_width() * 0.5) * rs
+		var row := func(py: float) -> float: return -tex.get_height() * rs * SEGMENT_BASE + py * rs
+		var wx0: float = at.call(float(w[0]))
+		var wx1: float = at.call(float(w[1]))
+		if _room_windows_broken.has(x0) or before_x > wx0 - 59.0 or player.position.x <= wx0 - 60.0:
+			continue
+		if move_state == "ground" or player.position.y > -40.0:
+			player.position.x = wx0 - 60.0   # on foot: the glass stops him
+			run = 0.0
+			glide = 0.0
+			continue
+		_room_windows_broken[x0] = true
+		var sill: float = row.call(float(w[2]))
+		var lintel: float = row.call(float(w[3]))
+		var opening := Rect2(wx0, lintel, wx1 - wx0, sill - lintel)
+		var hole := ColorRect.new()   # the frame left empty: the night outside
+		hole.position = opening.position + Vector2(8.0, 8.0)
+		hole.size = opening.size - Vector2(16.0, 16.0)
+		hole.color = Color(0.03, 0.035, 0.05)
+		var into: Node = self
+		for ra in _room_art:   # (in the room's own holder: seen only from inside, like the room)
+			if absf(float(ra[0]) - x0) < 1.0:
+				into = ra[2]
+		into.add_child(hole)
+		hole.z_index = 1
+		_impact(0.06, 0.05)
+		_word(["crash", "smash"], opening.get_center() + Vector2(60.0, -200.0), 0.24, Vector2.RIGHT)
+		fx.burst_window(opening, Vector2(glide + run, fall), 0.0, Vector2(-INF, INF), 0.0)
+		fx.shatter(opening.get_center())
+		_clip("window", glide + run)
+		sfx.play("glass", 3.0, opening.get_center().x, 0.05)
+		_free_slow = maxf(_free_slow, 0.5)
 
 
 ## Through the flat's window: only in the air (the sill is above the boards); the glass bursts out with him.

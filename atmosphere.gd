@@ -311,6 +311,7 @@ func _fade(c: Color) -> Gradient:
 ## Slow plumes of steam out of the street, lit by whatever lamp is near.
 func add_steam(parent: Node, at: Vector2) -> void:
 	var p := CPUParticles2D.new()
+	p.add_to_group("street_steam")   # (hidden while he is inside a room: main.gd)
 	p.texture = load("res://art/fx/puff3.png")
 	p.amount = 9
 	p.lifetime = 5.0

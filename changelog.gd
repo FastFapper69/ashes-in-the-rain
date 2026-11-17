@@ -5,6 +5,9 @@ extends RefCounted
 
 const ENTRIES := [
 	["17 NOV 2026", [
+		"Fixed: a new map could start at the last map's checkpoint (and crash)",
+		"Tenements: out of the hallway by jumping through the window",
+		"No street steam inside rooms",
 		"The Alley's fire escape stands out from the wall too",
 		"Tenements: the storm strikes close - a white flash over everything and a bolt over the roofs",
 		"No more white spot on the coat when a knee bends hard",
