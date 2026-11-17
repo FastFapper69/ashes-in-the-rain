@@ -49,8 +49,11 @@ if __name__ == "__main__":
 # the same place in each. Keyed and cut into six equal cells, all cropped by the SAME box (the union over the frames,
 # aligned on the cells' foot) so the thing does not jump: art/props/hk_<kind>_anim.png, a strip of 6 cells
 # (props.gd splits it by width / 6; ANIM_W there = the thing's width share of a cell). A grid sheet (rows > 1) reads row by row.
-ANIMS = {"hydrant": ("237.jpg", 1), "kegs": ("238.jpg", 2), "steampipe": ("239.jpg", 2), "windlass": ("241.jpg", 2)}   # (file, rows of 6 frames)
-SHRINK = {"hydrant": 0.72, "kegs": 0.5, "windlass": 0.5}   # drawn bigger than shown: a hydrant cell is ~360 px wide on the street
+ANIMS = {"hydrant": ("237.jpg", 1), "kegs": ("238.jpg", 2), "steampipe": ("239.jpg", 2), "windlass": ("241.jpg", 2), "trolley": ("242.jpg", 2)}   # (file, rows of 6 frames)
+SHRINK = {"hydrant": 0.72, "kegs": 0.5, "windlass": 0.5, "trolley": 0.6}
+# The trolley wire's far piece wanders a little near the cell's edge: cut it off at the same x in every cell (dark
+# pixels only, in a band round it, so smoke there stays), the game draws it on from there (props.gd TROLLEY_WIRE).
+WIRE_CUT = {"trolley": (705, 140, 240)}   # x, rows y0..y1 in the cell, full size   # drawn bigger than shown: a hydrant cell is ~360 px wide on the street
 def anim(kind, f, n=6, rows=1):
     a = np.asarray(Image.open(os.path.join(SRC, f)).convert("RGB")).astype(float)
     r, g, b = a[..., 0], a[..., 1], a[..., 2]
@@ -59,9 +62,15 @@ def anim(kind, f, n=6, rows=1):
     rgba = np.dstack([np.clip(a, 0, 255), alpha * 255]).astype(np.uint8)
     cols = n // rows
     W, H = rgba.shape[1] // cols, rgba.shape[0] // rows
-    cells = [rgba[(i // cols) * H:(i // cols + 1) * H, (i % cols) * W:(i % cols + 1) * W] for i in range(n)]
+    cells = [rgba[(i // cols) * H:(i // cols + 1) * H, (i % cols) * W:(i % cols + 1) * W].copy() for i in range(n)]
     ys, xs = np.where(np.max([c[..., 3] for c in cells], axis=0) > 20)
     x0, x1, y0, y1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1
+    if kind in WIRE_CUT:   # (measured on the crop, the same in every cell)
+        wx, wy0, wy1 = WIRE_CUT[kind]
+        for c in cells:
+            band = c[y0 + wy0:y0 + wy1, x0 + wx:]
+            dark = band[..., :3].mean(axis=2) < 110
+            band[..., 3] = np.where(dark, 0, band[..., 3])
     strip = Image.fromarray(np.concatenate([c[y0:y1, x0:x1] for c in cells], axis=1))
     if kind in SHRINK:   # no more pixels than the game shows it at (props.gd scales the cell to the thing on the street)
         strip = strip.resize((round(strip.width * SHRINK[kind] / 6) * 6, round(strip.height * SHRINK[kind])), Image.LANCZOS)
@@ -77,6 +86,8 @@ if __name__ == "__main__":
         kegs_still()
     if os.path.exists(os.path.join(SRC, "241.jpg")):
         still("windlass")
+    if os.path.exists(os.path.join(SRC, "242.jpg")):
+        still("trolley")
 
 
 # The kegs on the street are the animation's first frame (user 17. 11.: the stack must not change when shot), its

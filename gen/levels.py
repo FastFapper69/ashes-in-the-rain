@@ -326,6 +326,7 @@ def chunk(name, hard, rng=None):
         c.hint(300, "TEST LAB")
         c.box("stack", 1300).hint(800, "JUMP INTO THE STACK, JUMP AGAIN TO KICK OFF IT")   # the wall kick (ch II stunt)
         c.thing("windlass", 8500).foe(9150).hint(7900, "SHOOT THE WINDLASS")   # the docks' anchor windlass (ch II hazard)
+        c.thing("trolley", 14600).foe(15300).hint(14000, "SHOOT THE INSULATOR")   # the trolley wire into a puddle (ch III hazard)
         c.hoists.append(19400)   # the hoist rope: the warehouse near the end of the lab street (before the flat)
     elif name == "stairs_up":   # the end of the platform: the stairs up to the mezzanine, the way out
         k = -KITS["mezz"]["y"] / (STAIR_FOOT[1] - STAIR_TOP[1])
@@ -349,6 +350,8 @@ def chunk(name, hard, rng=None):
         c = Chunk(2600).room(0, 2600, "club").lamp(500).lamp(1400).lamp(2300).runner(1100, 900, -800, delay=2.0)
         furnish(c, "club", rng, ["post", "shotgun", "tommy"])
     # ---- the docks -------------------------------------------------------------------------------
+    elif name == "live_wire":   # a trolley pole over a puddle, two of them standing in it (ch III hazard, art_src 242)
+        c = Chunk(2300).box("crate", 0).thing("trolley", 700).foe(1100).foe(1450, kind="tommy" if hard > 0.5 else "post").foe(2150)
     elif name == "dock_crates":   # cargo waiting on the quay, and them behind it
         # the anchor windlass (ch II hazard, art_src 241): shot, its brake snaps and the chain lashes out to the right
         c = Chunk(1700).box("crate_long", 0).box("crate", 700).thing("windlass", 1180).foe(500).foe(1100).foe(1700, kind="tommy" if hard > 0.5 else "post")
@@ -607,7 +610,7 @@ def check_props(m):
     return errs
 
 
-THING_W = 520   # = props.gd THING_W (the windlass)
+THING_W = 960   # = props.gd THING_W (the widest: the trolley pole; the windlass 520)
 def cover_men(m, mp):
     """Men who wait for Frank in the open street would just be targets (2026-11-16): about half of them
     get something to stand behind, a crate or a drum on their side of the fight, a step in front of
@@ -1119,7 +1122,7 @@ CAMPAIGN = [
      "diary": "Dec 14. Found a fireman's helmet in a pawnshop on Ninth. Engine 54. Same company as Frank's old man. The pawnbroker said a cop sold it. Years ago.",
      "outro": ["Briggs was counting his shells out loud somewhere behind me. A man who counts like that has never missed."]},
     {"name": "TRAIN YARD", "seed": 303, "freight": True, "feature": "yard", "pool": ["yard", "yard_b", "yard_c"], "cops": True, "rain": 1.6, "start": 0.55, "end": 0.8, "ash": 0.4,
-     "fixed": ["drum_duo", "car_ambush", "searchlight_yard", "crane_swing", "crate_cover", "blackout", "gauntlet"],
+     "fixed": ["drum_duo", "car_ambush", "searchlight_yard", "crane_swing", "crate_cover", "live_wire", "blackout", "gauntlet"],
      "intro": ["The yard was the only way out that didn't have a badge standing in it."],
      "diary": "Dec 15. 1931. A tenement on West 47th burned with nine families inside. Engine 54 got there first. One fireman went in for the kids and didn't come out. Patrick Malone.",
      "outro": ["The last train out of the yard was an empty one. I've never been so glad of an empty thing."]},

@@ -31,13 +31,42 @@ func build(art: String, w: Sprite2D, ws: float, sx: float, trim: float) -> void:
 
 ## A free-standing thing on the street (levels "things"): its foot on the stones at x (its left edge), as wide as THING_W
 ## says, toned like the drawings behind it (the facade's material and moonlit wash).
-const THING_W := {"windlass": 520.0}
+const THING_W := {"windlass": 520.0, "trolley": 960.0}
 func place(kind: String, x: float, like: Sprite2D) -> void:
 	var tex: Texture2D = load("res://art/props/hk_%s.png" % kind)
 	var bw: float = THING_W.get(kind, 400.0)
 	var k := bw / tex.get_width()
 	_add(kind, tex, x, -tex.get_height() * k, bw, k, 0.0, like.material if like else null,
 			Color.WHITE * float(game.SEGMENT_MOON) * 0.9 if like == null else like.modulate, like.light_mask if like else 1)
+	if kind == "trolley":   # the overhead wire goes on from where the drawing cuts it, to a rosette on the next wall
+		var p: Dictionary = items[items.size() - 1]
+		var a := _cell_point(p, TROLLEY_WIRE)
+		var wire := Line2D.new()
+		var b := a + Vector2(1300.0, -60.0)
+		wire.points = PackedVector2Array([a, a.lerp(b, 0.5) + Vector2(0.0, 26.0), b])
+		wire.width = 6.0
+		wire.default_color = Color(0.06, 0.06, 0.07)
+		wire.z_index = -8
+		add_child(wire)
+		var rosette := Sprite2D.new()
+		rosette.texture = game._soft_glow()
+		rosette.scale = Vector2.ONE * 0.22
+		rosette.position = b
+		rosette.modulate = Color(0, 0, 0, 0.95)
+		rosette.z_index = -8
+		add_child(rosette)
+
+
+## A point of a thing's drawn animation cell (shares of the cell) in the world, where the cell sits over its still.
+const TROLLEY_WIRE := Vector2(0.81, 0.263)   # where the drawing cuts the trolley wire (gen/street_props.py WIRE_CUT)
+func _cell_point(p: Dictionary, at: Vector2) -> Vector2:
+	var tex: Texture2D = load("res://art/props/hk_%s_anim.png" % String(p["kind"]))
+	var cw := tex.get_width() / 6.0
+	var ch := float(tex.get_height())
+	var r: Rect2 = p["rect"]
+	var k: float = r.size.x / (cw * float(ANIM_W.get(String(p["kind"]), 1.0)))
+	var o := Vector2(r.position.x - cw * k * float(ANIM_X0.get(p["kind"], 0.0)), r.end.y - ch * k * (1.0 - float(ANIM_GAP.get(p["kind"], 0.0))))
+	return o + at * Vector2(cw * k, ch * k)
 
 
 func _add(kind: String, tex: Texture2D, x: float, top: float, bw: float, k: float, y_foot: float, mat: Material, tone: Color, lmask: int) -> void:
@@ -119,8 +148,8 @@ func landed_on(pos: Vector2) -> void:
 ## Play a kind's drawn animation (art/props/hk_<kind>_anim.png, 6 equal cells, gen/street_props.py) over the thing:
 ## (cells 0-2 the hit, `loop` repeated for `hold` seconds, 4-5 the end) - the strip's cells are scaled so the thing in them matches the thing on the street (its width share ANIM_W), the
 ## foot on the same line; `hold` (seconds) on the given loop cells, then it ends on the last cell and stays there.
-const ANIM_W := {"hydrant": 0.5, "kegs": 0.849, "steampipe": 0.91, "windlass": 0.869}   # the thing's width in a cell, as a share of the cell
-const ANIM_X0 := {"kegs": 0.112, "windlass": 0.061}   # where the thing starts in a cell (its still IS the first cell, cropped); else centred
+const ANIM_W := {"hydrant": 0.5, "kegs": 0.849, "steampipe": 0.91, "windlass": 0.869, "trolley": 0.902}   # the thing's width in a cell, as a share of the cell
+const ANIM_X0 := {"kegs": 0.112, "windlass": 0.061, "trolley": 0.054}   # where the thing starts in a cell (its still IS the first cell, cropped); else centred
 const ANIM_GAP := {"windlass": 0.055}   # empty cell below its foot, as a share of the cell's height (gen/street_props.py still())
 func _animate(p: Dictionary, loop: Array, hold: float) -> bool:
 	var path := "res://art/props/hk_%s_anim.png" % String(p["kind"])
@@ -255,6 +284,29 @@ func _shot_windlass(p: Dictionary, _pos: Vector2) -> void:
 			var dx: float = e["node"].position.x - foot.x
 			if e["alive"] and dx > -160.0 and dx < 700.0 and absf(float(e["node"].position.y) - foot.y) < 120.0 and String(e["state"]) in ["post", "run", "move", "hop"]:
 				game._knock_down(e, 750.0))
+
+
+## The insulator shatters, the live wire drops into the puddle at the pole's foot: arcs over the water for two
+## seconds, and whoever stands in it is done for (ch III hazard: "trolley wire in a puddle").
+const TROLLEY_PUDDLE := Vector2(0.3, 0.97)   # the puddle's left and right ends, shares of the cell
+func _shot_trolley(p: Dictionary, _pos: Vector2) -> void:
+	var foot := _foot(p)
+	var r: Rect2 = p["rect"]
+	game._impact(0.08, 0.05)
+	game._word(["crack", "zing"], _cell_point(p, TROLLEY_WIRE) + Vector2(-80.0, -60.0), 0.18)
+	game.sfx.play("glass", -2.0, foot.x, 0.05)
+	if not _animate(p, [3, 4], 2.0):
+		return
+	(p["shadow"] as Sprite2D).visible = false
+	var x0 := _cell_point(p, Vector2(TROLLEY_PUDDLE.x, 1.0)).x
+	var x1 := _cell_point(p, Vector2(TROLLEY_PUDDLE.y, 1.0)).x
+	for i in 9:   # live: every quarter second while the arcs run
+		get_tree().create_timer(0.27 + i * 0.25, false).timeout.connect(func() -> void:
+			game.sfx.play("zap", -4.0, (x0 + x1) * 0.5, 0.2)
+			for e in game.enemies:
+				var ex: float = e["node"].position.x
+				if e["alive"] and ex > x0 - 40.0 and ex < x1 + 40.0 and absf(float(e["node"].position.y) - foot.y) < 60.0:
+					game._kill(e, false))
 
 
 func _knock_round(at: Vector2, reach: float, push: float) -> void:

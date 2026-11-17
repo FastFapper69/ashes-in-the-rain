@@ -397,3 +397,9 @@ Read `.claude/skills/ashes-znalosti/SKILL.md` first (stable rules + topic index,
 ## (36) Wall kick (ch II stunt), 2026-11-17
 - main.gd `_wall_kick`: in the air into a crate's side standing >= WALL_KICK_MIN (110) above his feet, jump within 0.25 s: he kicks off it, back the way he came, high (1.05 jump), 0.5 s free slow, a "thud/wham". Stick held into the wall: he runs up its face (1.22 jump, drifting in) and over the top - a "stack" (too tall to jump) is passable now. TEST LAB has a stack at the start with a hint; `--test=wallkick[:up] --sandbox=1` films it. Bot clears the lab.
 - Not yet in the campaign maps: place by the docks chunks (dock_crates / crane_swing stacks) next.
+
+## (37) Free-standing hazards: anchor windlass (ch II), trolley wire in a puddle (ch III), 2026-11-17
+- gen/levels.py `Chunk.thing(kind, x)` -> levels.gd "things" -> main.gd places them (props.gd `place`, toned like the facade behind: `_facades`). cover_men keeps crates off them (THING_W) and counts them as cover.
+- Art: art_src 241 windlass, 242 trolley pole (Gemini 3x2 sheets in the "Noir Beer Barrel Sprite Prompt" chat, image tool on). gen/street_props.py `still(kind)` = the first cell without the bullet/spark (largest piece, yellow/green filled); `WIRE_CUT` cuts the trolley's far wire at one x in every cell, props.gd draws it on to a wall rosette (TROLLEY_WIRE).
+- windlass (dock_crates, all docks maps using it + lab): chain lashes right 0.25 s after the hit, knocks down men -160..+700. trolley (new chunk live_wire in TRAIN YARD + lab): arcs over the puddle 2 s, kills men standing in it (TROLLEY_PUDDLE).
+- Stunt list status: ch II wall kick + windlass (+ crane crate, swing, zip already); ch III trolley; still open: third rail, jump onto the moving El, washing line as a rope, bar slide.
