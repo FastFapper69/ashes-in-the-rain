@@ -10,7 +10,12 @@ from PIL import Image
 from scipy import ndimage
 from paths import SRC, REPO
 
-BOX = (1880, 250, 2360, 930)   # = gen/blender/fire_escape.py BOX (processed px, 3168 x 1344)
+import sys
+# per piece: (gen/blender/fire_escape.py box, the street drawing, Gemini's repaint on green, Gemini's street without it,
+# the clean street written, the layer's name)
+PIECES = {"hk_tailor": ((1880, 250, 2360, 930), "233.jpg", "280.jpg", "276.jpg", "279.jpg", "hk_fescape"),
+          "alley_wash": ((810, 260, 1340, 1030), "269.jpg", "283.jpg", "282.jpg", "284.jpg", "hk_fescape_alley")}
+BOX, STREET, PAINT, CLEAN, OUT, LAYER = PIECES[sys.argv[1] if len(sys.argv) > 1 else "hk_tailor"]
 
 
 def gray(im):
@@ -34,21 +39,21 @@ def register(mov, ref_g, region, ks=(0.97, 0.975, 0.98, 0.985, 0.99, 0.995, 1.0)
 
 
 # the layer
-a = np.asarray(Image.open(SRC + "280.jpg").convert("RGB").resize(((BOX[2] - BOX[0]) * 2, (BOX[3] - BOX[1]) * 2), Image.LANCZOS)).astype(np.float32)
+a = np.asarray(Image.open(SRC + PAINT).convert("RGB").resize(((BOX[2] - BOX[0]) * 2, (BOX[3] - BOX[1]) * 2), Image.LANCZOS)).astype(np.float32)
 r, g, b = a[..., 0], a[..., 1], a[..., 2]
 alpha = 1.0 - np.clip((g - np.maximum(r, b) - 30.0) / 60.0, 0.0, 1.0)
 alpha = ndimage.grey_opening(alpha, size=(2, 2))
 a[..., 1] = np.minimum(g, np.maximum(r, b))   # (no green left in the iron or its hatching)
-Image.fromarray(np.dstack([a, alpha * 255]).clip(0, 255).astype(np.uint8), "RGBA").save(os.path.join(REPO, "art", "props", "hk_fescape.png"))
+Image.fromarray(np.dstack([a, alpha * 255]).clip(0, 255).astype(np.uint8), "RGBA").save(os.path.join(REPO, "art", "props", LAYER + ".png"))
 
 # the wall behind it
-street = Image.open(SRC + "233.jpg").convert("RGB")
+street = Image.open(SRC + STREET).convert("RGB")
 W, H = street.size
 sx, sy = W / 3168.0, H / 1344.0
-reg = (int(1700 * sx), int(150 * sy), int(2600 * sx), int(1050 * sy))
-clean = Image.open(SRC + "276.jpg").convert("RGB")
+reg = (int((BOX[0] - 180) * sx), int(150 * sy), int((BOX[2] + 240) * sx), int(1050 * sy))
+clean = Image.open(SRC + CLEAN).convert("RGB")
 e, k, dx, dy = register(gray(clean), gray(street), reg)
-print("276 onto 233: err", round(e, 1), "k", k, "dx", dx, "dy", dy)
+print(CLEAN, "onto", STREET, ": err", round(e, 1), "k", k, "dx", dx, "dy", dy)
 cs = clean.resize((int(clean.width * k), int(clean.height * k)), Image.LANCZOS)
 on = Image.new("RGB", (W, H))
 on.paste(cs, (dx, dy))
@@ -56,5 +61,5 @@ m = np.zeros((H, W), np.float32)
 m[int((BOX[1] - 25) * sy):int((BOX[3] + 25) * sy), int((BOX[0] - 30) * sx):int((BOX[2] + 30) * sx)] = 1.0
 m = ndimage.gaussian_filter(m, 14.0)
 out = np.asarray(street).astype(np.float32) * (1 - m[..., None]) + np.asarray(on).astype(np.float32) * m[..., None]
-Image.fromarray(out.clip(0, 255).astype(np.uint8)).save(SRC + "279.jpg", quality=95)
+Image.fromarray(out.clip(0, 255).astype(np.uint8)).save(SRC + OUT, quality=95)
 print("ok")

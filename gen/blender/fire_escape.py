@@ -10,9 +10,14 @@ Units: 1 Blender unit = 100 picture px; x right, z up, picture row r -> z = (134
 import sys
 import bpy
 
-OUT = sys.argv[sys.argv.index("--") + 1] if "--" in sys.argv else "/tmp/fescape.png"
+ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else ["/tmp/fescape.png"]
+OUT = ARGS[0]
 H = 1344
-BOX = (1880, 250, 2360, 930)   # the render's window on the street drawing (picture px)
+# per street piece (gen/kit.py): the render window, the landings' span and rows, the stairs, the drop ladder x and foot
+FE = {"hk_tailor": {"box": (1880, 250, 2360, 930), "x": (1909, 2321), "floors": (389, 693), "ramp": ((2013, 693), (2239, 390)), "ladder": (2020, 902)},
+      "alley_wash": {"box": (810, 260, 1340, 1030), "x": (840, 1303), "floors": (400, 747), "ramp": ((950, 747), (1200, 400)), "ladder": (1260, 1010)}}
+P = FE[ARGS[1] if len(ARGS) > 1 else "hk_tailor"]
+BOX = P["box"]   # the render's window on the street drawing (picture px)
 RES = 2                        # render px per picture px (drawn bigger, shown smaller: crisp lines)
 
 
@@ -39,8 +44,9 @@ def box(name, x0, x1, r_top, r_bot, d0, d1, mat=iron):
     return o
 
 
-X0, X1, DEPTH = 1909, 2321, 70          # the landings' span, how far they stand out of the wall
-for fy in (389, 693):
+(X0, X1), DEPTH = P["x"], 70          # the landings' span, how far they stand out of the wall
+LOW = P["floors"][1]
+for fy in P["floors"]:
     box("floor", X0, X1, fy - 4, fy + 14, 0, DEPTH, iron_top)          # the grating
     box("rail_top", X0, X1, fy - 112, fy - 104, DEPTH - 8, DEPTH)      # the hand rail
     box("rail_mid", X0, X1, fy - 20, fy - 14, DEPTH - 6, DEPTH)
@@ -60,7 +66,7 @@ for fy in (389, 693):
 
 # the stairs: two stringers and the treads, from the lower landing up to the upper
 import math
-(ax, ar), (bx_, br) = (2013, 693), (2239, 390)
+(ax, ar), (bx_, br) = P["ramp"]
 L = math.hypot(bx_ - ax, br - ar)
 ang = math.atan2(ar - br, bx_ - ax)
 for d0, d1 in ((DEPTH - 50, DEPTH - 42), (DEPTH - 12, DEPTH - 4)):
@@ -84,11 +90,11 @@ o.scale = (L / 100.0, 0.06, 0.06)
 o.rotation_euler = (0.0, -ang, 0.0)
 
 # the drop ladder: two rails and rungs, hanging under the lower landing (its foot ~590 px over the pavement)
-LX, LW = 2020, 64
+(LX, FOOT), LW = P["ladder"], 64
 for rx in (LX - LW / 2, LX + LW / 2 - 7):
-    box("ladder_rail", rx, rx + 7, 693, 902, DEPTH - 30, DEPTH - 22)
-r = 712
-while r < 900:
+    box("ladder_rail", rx, rx + 7, LOW, FOOT, DEPTH - 30, DEPTH - 22)
+r = LOW + 19
+while r < FOOT - 2:
     box("rung", LX - LW / 2, LX + LW / 2, r, r + 5, DEPTH - 29, DEPTH - 23, iron_top)
     r += 28
 

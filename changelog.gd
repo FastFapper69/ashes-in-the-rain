@@ -5,6 +5,7 @@ extends RefCounted
 
 const ENTRIES := [
 	["17 NOV 2026", [
+		"The Alley's fire escape stands out from the wall too",
 		"Tenements: the storm strikes close - a white flash over everything and a bolt over the roofs",
 		"No more white spot on the coat when a knee bends hard",
 		"Fire escapes stand out from the wall: you can see you can climb them",

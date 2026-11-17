@@ -29,6 +29,7 @@ KINDS = {
     "thirdrail": {"shot": True,  "floor": None,     "depth": 0.0},    # free-standing: the subway's third rail and its junction box (ch III)
     # a fire escape: its own layer over the wall it climbs (QUEUE §11, rule 27), its landings are the piece's floors
     "fescape":   {"shot": False, "floor": None,     "depth": 0.0},
+    "fescape_alley": {"shot": False, "floor": None, "depth": 0.0},   # (alley_wash's: same build, its own drawing)
 }
 
 # The chapter I modular street (art_src 228-236): the same dark party wall down both edges.
@@ -106,7 +107,8 @@ PIECES = {
     # rail down across the alley to a pulley on the far house's second-floor window - ridden over the men below in a free
     # slowed beat. Measured on art_src 269 (picture px).
     "alley_wash": {
-        "size": 0.8, "edge": "partywall", "props": [],
+        "size": 0.8, "edge": "partywall",
+        "props": [{"kind": "fescape_alley", "box": (810, 260, 1340, 1030), "anchor": "top"}],   # (gen/fire_escape_layer.py)
         "floors": [(840, 1300, 400, "drawn"), (840, 1305, 747, "drawn")],
         "ramps": [(950, 747, 1200, 400)],
         "ladders": [(1260, 747, 1010)],

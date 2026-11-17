@@ -203,7 +203,9 @@ nepoužitelné), schodiště samotné na zeleném (278) ale kreslí jinak (posun
 kusy oken a nechává zbytky schodů na zdi. Zahozeno. Další cesta: schodiště postavit v Blenderu (jednoduchá geometrie: 2 podesty,
 zábradlí, schody, žebřík; tuš shader jako front_template) a vyrenderovat do vrstvy, zeď pod ním = 276 slícovaná na 233.
 HOTOVO 17. 11. večer (hk_tailor): Blender gen/blender/fire_escape.py -> Gemini přemaloval render (art_src 280) -> art/props/hk_fescape.png,
-zeď 279 (233 + 276 slícovaná, gen/fire_escape_layer.py); kit.py prop "fescape" (stín na zdi). Zbývá: ostatní „drawn“ podesty stejně.
+zeď 279 (233 + 276 slícovaná, gen/fire_escape_layer.py); kit.py prop "fescape" (stín na zdi). 17. 11. noc: i alley_wash (art_src 282 zeď, 283 přemalba, 284 čistá ulice; prop fescape_alley). Kapitola I hotová –
+další „drawn“ podesty jsou jen v kapitolách II/III (mezz, catwalk) – při jejich převodu na sadu stejným postupem:
+py gen/fire_escape_layer.py <díl> (+ řádek v PIECES a v gen/blender/fire_escape.py FE).
 Pračka šňůra u krejčího zrušena (17. 11.): šňůra je teď jen kousek THE ALLEY přes uličku (alley_wash).
 
 ## 12. Kapitola I: každá mapa jiná – čtvrť + dominanta (uživatel 17. 11. odpoledne, „jeď takhle")
