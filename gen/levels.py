@@ -322,6 +322,7 @@ def chunk(name, hard, rng=None):
     elif name == "lab":   # SANDBOX LAB: a long empty street for the street kit's things, set by the LAB's fixed street
         c = Chunk(25500)
         c.hint(300, "TEST LAB")
+        c.box("stack", 1300).hint(800, "JUMP INTO THE STACK, JUMP AGAIN TO KICK OFF IT")   # the wall kick (ch II stunt)
         c.hoists.append(19400)   # the hoist rope: the warehouse near the end of the lab street (before the flat)
     elif name == "stairs_up":   # the end of the platform: the stairs up to the mezzanine, the way out
         k = -KITS["mezz"]["y"] / (STAIR_FOOT[1] - STAIR_TOP[1])

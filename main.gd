@@ -363,6 +363,8 @@ var _stop_t := 0.0            # real seconds of an impact freeze or a final-shot
 var _stop_scale := 1.0        # how slow time runs during it
 var _slow_base := false       # slowed time proper (the stopwatch or a dive), not an impact freeze
 var _jump_buf := 0.0          # a jump pressed a moment too early still counts when he lands
+var _wall_t := 0.0            # in the air against a tall crate's side a moment ago: a jump now kicks off it (a stunt)
+var _wall_away := 0.0         # which way off it
 var _sprint := 0.0            # how long the stick has been held hard one way: only a committed run vaults
 var _sprint_side := 0.0
 var _coyote := 0.0            # and one pressed a moment after he stepped off an edge
@@ -2846,6 +2848,32 @@ func _auto_step(delta: float) -> void:
 					print("  left: ", int(e["node"].position.x), " ", e["state"], " y ", int(e["node"].position.y))
 			get_tree().quit()
 		return
+	elif _auto.begins_with("wallkick"):   # --test=wallkick[:up] --sandbox=1: a run at the lab's crate stack, a jump into it, a jump off it (:up = onto it), frames
+		var bx := -1.0
+		for k in boxes.size():
+			if box_info[k]["kind"] == "stack":
+				bx = boxes[k].position.x
+				break
+		if _auto_done & (1 << 21) == 0:
+			_auto_done |= 1 << 21
+			player.position = Vector2(bx - 520.0, 0.0)
+			_grace = 99.0
+		hud.move = 1.0 if _at > 0.3 and (_at < 1.2 or _auto.ends_with(":up")) else 0.0
+		if bx - player.position.x < 330.0 and _auto_done & (1 << 20) == 0:
+			_auto_done |= 1 << 20
+			hud.jump_tapped = true
+		if _wall_t > 0.0 and _auto_done & (1 << 19) == 0:
+			_auto_done |= 1 << 19
+			hud.jump_tapped = true
+			print("WALLKICK at y ", int(player.position.y))
+		var kf := int((_at - 0.6) / 0.1)
+		if kf >= 0 and kf < 16 and _auto_done & (1 << kf) == 0:
+			_auto_done |= 1 << kf
+			_shot("film_%02d" % kf)
+		if _at > 2.4:
+			print("WALLKICK end x ", int(player.position.x - bx), " state ", move_state)
+			get_tree().quit()
+		return
 	elif _auto.begins_with("propshot"):   # --test=propshot:x,y : Frank a step left of x, a bullet into the street thing at (x, y), frames
 		var at := _auto.trim_prefix("propshot:").split(",")
 		if _auto_done & (1 << 21) == 0:   # (a flag, not _at: the first frame after loading can be long)
@@ -4069,7 +4097,10 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 		player.position.x += run * delta
 		player.air = move_toward(player.air, 1.0, delta * 8.0)
 		player.air_v = move_toward(player.air_v, clampf(fall / JUMP_SPEED, -1.0, 1.0), delta * 6.0)
-		if jump and _coyote > 0.0:
+		_wall_t = maxf(0.0, _wall_t - delta)
+		if jump and _wall_t > 0.0 and _coyote <= 0.0:   # off the wall (the stunt list, ch II): up and back the other way, a slowed beat
+			_wall_kick(dir)
+		elif jump and _coyote > 0.0:
 			fall = -JUMP_SPEED
 			_coyote = 0.0
 			_jump_buf = 0.0
@@ -4283,8 +4314,30 @@ func _block(before_x: float) -> void:
 				fall = minf(fall, 0.0)
 				continue
 			player.position.x = left if before_x <= left + 1.0 else (right if before_x >= right - 1.0 else (left if player.position.x < b.get_center().x else right))
+			if move_state == "jump" and b.position.y < feet - WALL_KICK_MIN:   # flying into a tall one's side: he can kick off it
+				_wall_t = 0.25
+				_wall_away = -1.0 if player.position.x <= b.get_center().x else 1.0
 			run = 0.0
 			glide = 0.0
+
+
+## Off a wall: flying into a tall crate stack's side, jump again and he plants a foot on it and kicks off, up and
+## back the way he came, half a second of slowed time for free (user rule: stunts give slow time). The stick still
+## held into the wall: he runs up its face instead and over the top onto it (a stack too tall to jump).
+const WALL_KICK_MIN := 110.0   # how much of the side must stand above his feet to kick off it
+func _wall_kick(stick: float) -> void:
+	_wall_t = 0.0
+	_jump_buf = 0.0
+	var up := stick * _wall_away < -0.3
+	fall = -JUMP_SPEED * (1.22 if up else 1.05)
+	run = _wall_away * RUN_SPEED * (-0.4 if up else 1.15)
+	_fling = 0.3   # keeps the kick's speed a moment against the stick
+	player.air_v = -1.0
+	player.air = 1.0
+	_free_slow = maxf(_free_slow, 0.5)
+	sfx.play("land", -3.0)
+	_word(["thud", "wham"], player.position + Vector2(-_wall_away * 60.0, -140.0), 0.14)
+	fx.dust(player.position + Vector2(-_wall_away * 50.0, -120.0), 0.3)
 
 
 ## A dive that carries him just over a crate: his hands touch its top and he pushes off it, a

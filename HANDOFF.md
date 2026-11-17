@@ -393,3 +393,7 @@ Read `.claude/skills/ashes-znalosti/SKILL.md` first (stable rules + topic index,
 - high_ground (ch II): a ladder up the gantry trestle instead of a rope knotted to its rail. Gantry trestles stay (they stand on legs).
 - DEEP_SPLIT/DEEP_VP: deadend, shipping, harbor, tunnel, platform, yard now slide in perspective. `--test=deep:<art>` (deeps carry "art") shoots both sides.
 - Stunts per chapter: list in the story doc tab "Řez domem a kamera" (table: Snadné/Střední/Těžké). Next: ch II crane net, anchor chain, wall bounce; ch III trolley wire in a puddle, third rail, jump onto the moving El.
+
+## (36) Wall kick (ch II stunt), 2026-11-17
+- main.gd `_wall_kick`: in the air into a crate's side standing >= WALL_KICK_MIN (110) above his feet, jump within 0.25 s: he kicks off it, back the way he came, high (1.05 jump), 0.5 s free slow, a "thud/wham". Stick held into the wall: he runs up its face (1.22 jump, drifting in) and over the top - a "stack" (too tall to jump) is passable now. TEST LAB has a stack at the start with a hint; `--test=wallkick[:up] --sandbox=1` films it. Bot clears the lab.
+- Not yet in the campaign maps: place by the docks chunks (dock_crates / crane_swing stacks) next.
