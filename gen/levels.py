@@ -237,12 +237,20 @@ def furnish(c, style, rng, foes, flask=False):
         opts = [k for k in kinds if k != last and not (k in BIG and any(p[0] == k for p in put))
                 and not (k == "barrel" and any(p[0] == "barrel" for p in put))]
         kind = rng.choice(opts)
-        bw = BOX[kind][0]
-        tries = 0
-        while not _room_free(style, w, x, x + bw) and tries < 60:
-            x += 40; tries += 1
-        if x + bw > w - 380:
+        # (17. 11.: a room left bare when the first piece did not fit between its doors) the chosen piece, else a smaller one
+        found = None
+        for kd in [kind] + sorted([k for k in opts if k != kind], key=lambda k: BOX[k][0]):
+            bw = BOX[kd][0]
+            xx = x
+            while xx + bw <= w - 300 and not _room_free(style, w, xx, xx + bw):
+                xx += 40
+            if xx + bw <= w - 300:
+                found = (kd, xx)
+                break
+        if found is None:
             break
+        kind, x = found
+        bw = BOX[kind][0]
         put.append((kind, x))
         last = kind
         x += bw + rng.uniform(430, 680)
@@ -881,6 +889,8 @@ def street_props(m):
         for bx in list(m.boxes):
             if len(bx) != 2 or not any(a < bx[1] + BOX[bx[0]][0] and bx[1] < b for a, b in blocked):
                 continue
+            if any(r[0] <= bx[1] <= r[1] for r in m.rooms):
+                continue   # (a room's furniture is behind its wall: the street drawing's doorways are not in there)
             w = BOX[bx[0]][0]
             spot = next((x for d in range(0, 2400, 60) for x in (bx[1] + d, bx[1] - d) if free(x, w, bx)), None)
             if spot is None:
