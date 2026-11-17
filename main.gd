@@ -2839,6 +2839,9 @@ func _process(delta: float) -> void:
 		want_y = lerpf(want_y, _cue_at.y, k * 0.5)
 	cam.position = Vector2(lerpf(cam.position.x, want_x, 1.0 - exp(-5.5 * real)),
 			lerpf(cam.position.y, want_y, 1.0 - exp(-3.0 * real)))
+	if _cam_snap:   # a hard cut (out through a window): the camera is simply there
+		_cam_snap = false
+		cam.position = Vector2(want_x, want_y)
 	if _auto == "tops" and not boxes.is_empty():   # the test frames each crate close up
 		var tb: Rect2 = boxes[mini(int(_at / 1.2) / 2, boxes.size() - 1)]
 		cam.position = Vector2(tb.get_center().x, tb.position.y - 120.0)
@@ -3149,8 +3152,8 @@ func _auto_step(delta: float) -> void:
 		hud.move = 1.0 if _at > 0.4 else 0.0
 		if _at > 1.5 and _at < 1.55:
 			_jump_buf = 0.15
-		for k in 8:
-			if _at > 0.9 + k * 0.2 and _auto_done & (1 << k) == 0:
+		for k in 16:
+			if _at > 1.0 + k * 0.1 and _auto_done & (1 << k) == 0:
 				_auto_done |= 1 << k
 				print("WIN t ", snappedf(_at, 0.01), " x ", int(player.position.x), " y ", int(player.position.y), " ", move_state, " room ", _room)
 				_shot("win_%d" % k)
@@ -4427,6 +4430,13 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			move_state = "ground"
 			steps.restart()
 			sfx.play("land", -4.0)
+			if _win_landing:   # down from the window: a heavy landing, deep in the knees, the street shakes
+				_win_landing = false
+				player.crouch = 1.0
+				_shake = maxf(_shake, 0.4)
+				fx.dust(player.position, 0.7)
+				_word(["thud"], player.position + Vector2(60.0, -160.0), 0.18)
+				glide = 260.0
 	elif move_state == "dive":
 		_kick_check()
 		fall += _dive_g() * delta
@@ -6068,7 +6078,9 @@ func _map_events(delta: float) -> void:
 		# (user 17. 11.: "the smoke in the flat makes no sense") the street's steam stays out on the street
 		for st in get_tree().get_nodes_in_group("street_steam"):
 			(st as CanvasItem).visible = room == ""
-		if not sec_door:   # into a building in cross-section there is no cut: its storeys open up round him
+		if _win_cut:
+			_win_cut = false   # (out through the window: a hard cut, the street is simply there)
+		elif not sec_door:   # into a building in cross-section there is no cut: its storeys open up round him
 			hud.flash(1.0, 0.5)   # through a doorway: a dip through full black, the other side comes up out of it
 		pass
 		if atmo.splashes:
@@ -6758,51 +6770,176 @@ func _knock_down(e: Dictionary, push: float) -> void:
 ## window, but you must jump through it, as in the test level"): the drawn window's glass (picture px of its frame,
 ## sill and lintel rows) stops him on foot; jumping or diving into it, it bursts out with him.
 const ROOM_EXIT_WINDOW := {"tenement": [2850.0, 3040.0, 920.0, 280.0]}
+# (user 17. 11.: "the jump through the window is cheap... he comes out of the door... the player doesn't know to do it, it
+# blends into the background"; reviewed with Gemini) - the window is lit and glints so it reads as the way out; on foot it
+# stops him and says so; a jump into it: a beat of stillness on the glass, then a hard cut (no fade) to the same window
+# seen from the street, high in the front over the side door, and he comes out of it head first in slowed time in a cloud
+# of glass, falls to the pavement and lands heavy.
+const FRONT_EXIT_WINDOW := {"tenement": Rect2(2258.0, 560.0, 102.0, 168.0)}   # the window over the front's side door (front picture px)
 var _room_windows_broken := {}
-func _room_window_block(before_x: float) -> void:
+var _room_windows_lit := {}
+var _win_hint_t := -99.0
+var _win_cut := false   # (the room change it makes is a hard cut, not the dip through black)
+var _win_landing := false
+var _cam_snap := false
+func _room_window_rect(r: Array) -> Rect2:
+	var style := String(r[2])
+	var x0 := float(r[0])
+	var x1 := float(r[1])
+	var tex: Texture2D = BigTex.get_tex("res://art/rooms/%s.png" % style)
+	var rs: float = ROOM_SCALES.get(style, ROOM_SCALE)
+	var w: Array = ROOM_EXIT_WINDOW[style]
+	var cx := x0 + (x1 - x0) * 0.5
+	var top := -tex.get_height() * rs * SEGMENT_BASE
+	var a := cx + (float(w[0]) - tex.get_width() * 0.5) * rs
+	var b := cx + (float(w[1]) - tex.get_width() * 0.5) * rs
+	return Rect2(a, top + float(w[3]) * rs, b - a, (float(w[2]) - float(w[3])) * rs)
+
+
+func _light_room_window(r: Array, opening: Rect2) -> void:
+	# cold moonlight and rain in the glass, a soft pool of it on the boards: the way out shows at the dark end of the hall
+	var into: Node = self
+	for ra in _room_art:
+		if absf(float(ra[0]) - float(r[0])) < 1.0:
+			into = ra[2]
+	var add := CanvasItemMaterial.new()
+	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	var holder := Node2D.new()
+	holder.z_index = 1
+	into.add_child(holder)
+	var o := opening.grow(-10.0)
+	var glass := Polygon2D.new()
+	glass.polygon = PackedVector2Array([o.position, Vector2(o.end.x, o.position.y), o.end, Vector2(o.position.x, o.end.y)])
+	glass.vertex_colors = PackedColorArray([Color(0.35, 0.45, 0.65), Color(0.3, 0.4, 0.6), Color(0.12, 0.16, 0.25), Color(0.14, 0.18, 0.28)])
+	glass.material = add
+	holder.add_child(glass)
+	for k in 7:   # rain running down the pane
+		var l := Line2D.new()
+		var x := o.position.x + o.size.x * (k + 0.5) / 7.0 + randf_range(-6.0, 6.0)
+		l.points = PackedVector2Array([Vector2(x, o.position.y + randf_range(0.0, 60.0)), Vector2(x + randf_range(-4.0, 4.0), o.end.y - randf_range(0.0, 50.0))])
+		l.width = 2.0
+		l.default_color = Color(0.5, 0.6, 0.8, 0.35)
+		l.material = add
+		holder.add_child(l)
+	var pool := Sprite2D.new()
+	pool.texture = _soft_glow()
+	pool.position = Vector2(o.get_center().x - 120.0, -10.0)
+	pool.scale = Vector2(3.2, 0.35)
+	pool.modulate = Color(0.35, 0.45, 0.7, 0.5)
+	pool.material = add
+	holder.add_child(pool)
+	var glint := Sprite2D.new()   # a glint that runs over the glass now and then
+	glint.texture = _soft_glow()
+	glint.material = add
+	glint.scale = Vector2(0.35, 1.2)
+	glint.rotation = 0.5
+	glint.modulate = Color(0.8, 0.9, 1.0, 0.0)
+	holder.add_child(glint)
+	var tw := glint.create_tween().set_loops()
+	tw.tween_callback(func() -> void: glint.position = Vector2(o.position.x, o.position.y + o.size.y * 0.3))
+	tw.tween_property(glint, "modulate:a", 0.8, 0.15)
+	tw.parallel().tween_property(glint, "position", Vector2(o.end.x, o.position.y + o.size.y * 0.7), 0.5)
+	tw.tween_property(glint, "modulate:a", 0.0, 0.15)
+	tw.tween_interval(2.2)
+	_room_windows_lit[float(r[0])] = holder
+
+
+func _room_window_block(_before_x: float) -> void:
 	for r in rooms:
 		var style := String(r[2])
 		if not ROOM_EXIT_WINDOW.has(style) or (r as Array).size() > 3:
 			continue
 		var x0 := float(r[0])
 		var x1 := float(r[1])
-		if player.position.x < x0 or player.position.x > x1 + 40.0 or player.position.y < -400.0:
+		if _room_windows_broken.has(x0):
 			continue
-		var tex: Texture2D = BigTex.get_tex("res://art/rooms/%s.png" % style)
-		var rs: float = ROOM_SCALES.get(style, ROOM_SCALE)
-		var w: Array = ROOM_EXIT_WINDOW[style]
-		var at := func(px: float) -> float: return x0 + (x1 - x0) * 0.5 + (px - tex.get_width() * 0.5) * rs
-		var row := func(py: float) -> float: return -tex.get_height() * rs * SEGMENT_BASE + py * rs
-		var wx0: float = at.call(float(w[0]))
-		var wx1: float = at.call(float(w[1]))
-		if _room_windows_broken.has(x0) or before_x > wx0 - 59.0 or player.position.x <= wx0 - 60.0:
+		var opening := _room_window_rect(r)
+		if not _room_windows_lit.has(x0):
+			_light_room_window(r, opening)
+		if player.position.x < x0 or player.position.x > x1 + 40.0 or player.position.y < GROUND_STOREY:
 			continue
+		var face := opening.position.x - 20.0   # his front against the glass
+		var stand := opening.position.x - 60.0
 		if move_state == "ground" or player.position.y > -40.0:
-			player.position.x = wx0 - 60.0   # on foot: the glass stops him
-			run = 0.0
-			glide = 0.0
+			if player.position.x > stand:
+				player.position.x = stand   # on foot the glass stops him
+				run = 0.0
+				glide = 0.0
+				if _ai_t - _win_hint_t > 6.0:
+					_win_hint_t = _ai_t
+					hud.toast("JUMP THROUGH THE WINDOW")
+			continue
+		if player.position.x < face:
 			continue
 		_room_windows_broken[x0] = true
-		var sill: float = row.call(float(w[2]))
-		var lintel: float = row.call(float(w[3]))
-		var opening := Rect2(wx0, lintel, wx1 - wx0, sill - lintel)
-		var hole := ColorRect.new()   # the frame left empty: the night outside
-		hole.position = opening.position + Vector2(8.0, 8.0)
-		hole.size = opening.size - Vector2(16.0, 16.0)
-		hole.color = Color(0.03, 0.035, 0.05)
-		var into: Node = self
-		for ra in _room_art:   # (in the room's own holder: seen only from inside, like the room)
-			if absf(float(ra[0]) - x0) < 1.0:
-				into = ra[2]
-		into.add_child(hole)
-		hole.z_index = 1
-		_impact(0.06, 0.05)
-		_word(["crash", "smash"], opening.get_center() + Vector2(60.0, -200.0), 0.24, Vector2.RIGHT)
-		fx.burst_window(opening, Vector2(glide + run, fall), 0.0, Vector2(-INF, INF), 0.0)
-		fx.shatter(opening.get_center())
-		_clip("window", glide + run)
-		sfx.play("glass", 3.0, opening.get_center().x, 0.05)
-		_free_slow = maxf(_free_slow, 0.5)
+		_crash_out(r, opening)
+
+
+func _crash_out(r: Array, opening: Rect2) -> void:
+	var lit = _room_windows_lit.get(float(r[0]))
+	if lit != null and is_instance_valid(lit):
+		(lit as Node).queue_free()
+	_impact(0.09, 0.02)   # on the glass: a beat of stillness
+	_shake = 0.35
+	sfx.play("glass", 4.0, opening.get_center().x, 0.05)
+	_clip("window", 1.0)
+	glide = 0.0
+	fall = 0.0
+	var inside := opening.get_center()   # the glass gives inside first: a spray of it back into the hall
+	for k in 8:
+		fx.chip(inside + Vector2(randf_range(-30.0, 10.0), randf_range(-120.0, 120.0)))
+	get_tree().create_timer(0.14, true, false, true).timeout.connect(_crash_out_street.bind(r))
+
+
+func _crash_out_street(r: Array) -> void:
+	# the same window from the street: over the front's side door (the front whose span holds the room's right end)
+	var style := String(r[2])
+	var out_rect := Rect2(float(r[1]) - 60.0, -1080.0, 160.0, 250.0)
+	for seg in level["street"]:
+		var art := String(seg[0])
+		if art.begins_with("front_") and art.trim_prefix("front_") == style:
+			var fx0 := float(seg[1])
+			var ws: float = WALL_SCALE * float(SEGMENT_SIZE.get(art, 1.0))
+			if float(r[1]) > fx0 and float(r[1]) < fx0 + 3168.0 * ws:
+				var fr: Rect2 = FRONT_EXIT_WINDOW.get(style, Rect2())
+				var top := -1344.0 * ws * SEGMENT_BASE - WALL_LIFT
+				out_rect = Rect2(fx0 + fr.position.x * ws, top + fr.position.y * ws, fr.size.x * ws, fr.size.y * ws)
+	var hole := Polygon2D.new()   # the frame left empty, jagged teeth of glass round it
+	var pts := PackedVector2Array()
+	var o := out_rect.grow(-6.0)
+	var n := 22
+	for k in n:
+		var t := float(k) / n
+		var edge: Vector2
+		if t < 0.25:
+			edge = o.position.lerp(Vector2(o.end.x, o.position.y), t * 4.0)
+		elif t < 0.5:
+			edge = Vector2(o.end.x, o.position.y).lerp(o.end, (t - 0.25) * 4.0)
+		elif t < 0.75:
+			edge = o.end.lerp(Vector2(o.position.x, o.end.y), (t - 0.5) * 4.0)
+		else:
+			edge = Vector2(o.position.x, o.end.y).lerp(o.position, (t - 0.75) * 4.0)
+		pts.append(edge.lerp(o.get_center(), randf_range(0.0, 0.18)))
+	hole.polygon = pts
+	hole.color = Color(0.02, 0.02, 0.03)
+	hole.z_index = -5   # (over the front's drawing)
+	add_child(hole)
+	# a hard cut: he is out there, head first through it, the glass going with him
+	_win_cut = true
+	_cam_snap = true
+	player.position = Vector2(maxf(out_rect.get_center().x + 30.0, float(r[1]) + 30.0), out_rect.end.y - 30.0)   # (past the room's end: on the street side)
+	_tick_rooms()   # (the hallway goes the same frame: never a frame of it without him)
+	_ground_y = 0.0
+	glide = 640.0
+	run = 0.0
+	fall = -260.0
+	fx.burst_window(out_rect, Vector2(700.0, -150.0), 0.0, Vector2(-INF, INF), 0.0)
+	fx.shatter(out_rect.get_center())
+	_word(["crash", "smash"], out_rect.get_center() + Vector2(170.0, -150.0), 0.26, Vector2.RIGHT)
+	sfx.play("glass", 2.0, out_rect.get_center().x, 0.08)
+	_free_slow = maxf(_free_slow, 1.1)   # out of the window in slowed time, the shards round him
+	_grace = maxf(_grace, 1.6)
+	_win_landing = true
 
 
 ## Through the flat's window: only in the air (the sill is above the boards); the glass bursts out with him.

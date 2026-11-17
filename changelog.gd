@@ -5,6 +5,7 @@ extends RefCounted
 
 const ENTRIES := [
 	["17 NOV 2026", [
+		"The hallway window glints in the moonlight and tells you to jump; out of it you come from the window over the door",
 		"Mobsters fire double taps and salvos, and empty their guns into your cover",
 		"A body shot no longer drops a man at once: two to the body, or one to the head",
 		"The street's pavement runs on unbroken in front of every house with a way in",
