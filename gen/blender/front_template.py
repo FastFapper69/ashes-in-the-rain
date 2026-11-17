@@ -24,7 +24,7 @@ PIER = 124                # the dark party wall down each edge
 # the interiors (gen/levels.py chunk widths): the doors' middles this far apart, the room's middle at the picture's
 ROOM_W = {"tenement": 2300, "laundry": 2700, "warehouse": 2400, "club": 2600, "yard": 2600}
 # plain street pieces (no interior behind): their ground-floor bays (shop door middles), spread along the front
-SHOPS = {"shops": [700, 1584, 2468], "church": [1584], "warehouse_row": [900, 2268]}
+SHOPS = {"shops": [700, 1584, 2468], "two_shops": [1000, 2168], "plain_a": [1180], "factory": [2380], "church": [1584], "warehouse_row": [900, 2268]}
 if STYLE in SHOPS:
     DOORS = SHOPS[STYLE]
 else:
@@ -94,8 +94,17 @@ kind = {"tenement": "stoop"}.get(STYLE, "plain")
 for cx in DOORS:
     door(cx, kind)
 # the ground floor between the doors: by the style
+PLAIN = ("plain_a", "factory")
 HOIST = (1584, 464)   # (warehouse_row) the pulley's bottom, picture px: the game hangs its swinging rope from it
-if STYLE == "warehouse_row":   # loading doors on every floor up the middle, the hoist beam over the top one, the pulley under it
+if STYLE == "plain_a":   # a walk-up: ground-floor windows either side of its one stoop
+    for c in cols:
+        if abs(c - DOORS[0]) > 200:
+            window(c, 880, 118, 170)
+elif STYLE == "factory":   # a factory's long wall: tall barred windows high up, blank brick below, one pair of doors
+    for c in cols[::2]:
+        if abs(c - DOORS[0]) > 300:
+            window(c, 820, 150, 200)
+elif STYLE == "warehouse_row":   # loading doors on every floor up the middle, the hoist beam over the top one, the pulley under it
     box(1584 - 115, 1584 + 115, 480, 760, -0.04, -0.01, DARK)
     box(1584 - 115, 1584 + 115, 140, 400, -0.04, -0.01, DARK)
     box(1584 - 20, 1584 + 20, 400, 430, -1.6, 0.0, IRON if False else TRIM)   # the beam, sticking out from the wall
@@ -107,7 +116,9 @@ elif STYLE == "church":   # a church squeezed into the row: tall lancet windows 
         box(c - 60, c + 60, PAVE - 760, PAVE - 120, -0.04, -0.01, GLASS)
     box(1584 - 150, 1584 + 150, 330, 630, -0.04, -0.01, GLASS)
     box(1584 - 200, 1584 + 200, PAVE - DOOR_H - 140, PAVE - DOOR_H - 50, -0.2, 0.0, TRIM)
-elif STYLE in SHOPS:   # a shop each side of every door: windows, a sign board over the bay, an awning frame
+elif STYLE in PLAIN:
+    pass
+elif STYLE in SHOPS and STYLE not in PLAIN:   # a shop each side of every door: windows, a sign board over the bay, an awning frame
     for d in DOORS:
         for side in (-1, 1):
             a0, b0 = sorted((d + side * 110, d + side * 400))

@@ -198,3 +198,13 @@ Případně krátký záblesk/pohup žebříku, když je Frank blízko. Ověřit
 Uživatel hned potom: „to samé ty balkónky, na které jde vylézt, vlastně všechny tyhle typy interaktivních věcí to musí mít“ (pravidlo 27).
 Postup: Gemini – kresba bez požárního schodiště + schodiště (podesty, schody, žebřík) na zeleném (jako markýza/hydrant, street_props.py);
 pak projít všechny „drawn“ podlahy ve všech kresbách (catwalk_style drawn) a udělat totéž. Pokus s výřezem přímo z malby (17. 11.) byl špinavý – zahozen.
+
+## 12. Kapitola I: každá mapa jiná – čtvrť + dominanta (uživatel 17. 11. odpoledne, „jeď takhle")
+Uživatel: „přijde mi že lehce koukám na to samé v každé mapě… mapy v 1. kapitole by měly být víc jiné… např. jako ve druhé je nadzemka, to je super věc".
+Každá mapa = vlastní pool budov (čtvrť) + jedna velká dominanta, kterou nemá žádná jiná:
+- THE ALLEY: zadní uličky, dvory, sklady | šňůry s prádlem a požární schodiště přes celou ulici, padající neon HOTEL
+- BACK STREETS: trh, jídelna/zastavárna, holič/trafika | nadzemka (je), stánky trhu
+- THE LAUNDRY: dílny, prádelny, garáž | pára z mřížek a potrubí, výpadek proudu (ulice do tmy)
+- TENEMENTS: obytné činžáky | střechy + bouřka s blesky, které na okamžik odhalí nepřátele
+- THE BLUE NOTE: noční čtvrť: hotel, bar, kino | ulice plná neonů, projíždějící auta se světly, vchod do klubu
+Pravidla: díl nejvýš jednou na mapu, pool mapy z její čtvrti (gen/levels.py "pool"), nové díly přes Blender šablonu + Gemini.

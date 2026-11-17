@@ -27,9 +27,16 @@ SUB = 0.52
 SEG_SIZE = {"deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": SUB, "walkway": SUB, "bowery": SUB, "tunnel_lo": SUB,
             "signal": SUB, "arches": SUB, "sheds": 0.55, "fire_a": 0.605, "fire_b": 0.605, "fire_c": 0.605}
 UNDER_ROOF = ["tenrow_a", "tenrow_c", "tenrow_b", "tenrow_d"]   # the facades under the rooftops: their cornice meets the roof drawings   # shown smaller: see main.gd SEGMENT_SIZE
-STREET_POOL = ["hk_tailor", "hk_grocery", "hk_saloon", "hk_laundry",   # (the kit: gen/kit.py)
-               "alley_mouth", "warehouse_row", "subway_entrance", "church_row", "market_row"]   # (chapter I on one kit, 17. 11.: alley/_b -> alley_mouth,
-               # market/_b/_c -> market_row, church/_b -> church_row, subway/_b -> subway_entrance, warehouse/_b/_c -> warehouse_row; laundry: its front)
+STREET_POOL = ["hk_grocery", "hk_saloon", "hk_laundry", "row_house", "apartment", "factory",   # (the kit: gen/kit.py; hk_tailor only where a map
+               "alley_mouth", "warehouse_row", "subway_entrance", "church_row"]   # asks for its fire escape; no rows of shops, user 17. 11.)
+# chapter I: every map its own district (QUEUE §12, user 17. 11.: "I don't want to feel I walk the same map again")
+DISTRICT = {
+    "THE ALLEY": ["alley_mouth", "warehouse_row", "row_house", "factory", "hk_laundry", "apartment"],           # back alleys, yards, stores
+    "BACK STREETS": ["hk_grocery", "hk_saloon", "apartment", "church_row", "subway_entrance", "row_house"],      # the street under the El
+    "THE LAUNDRY": ["factory", "warehouse_row", "hk_laundry", "alley_mouth", "row_house"],                      # workshops, laundries, steam
+    "TENEMENTS": ["row_house", "apartment", "church_row", "hk_grocery", "alley_mouth"],                         # where people live
+    "THE BLUE NOTE": ["hk_saloon", "apartment", "subway_entrance", "alley_mouth", "church_row", "row_house"],    # the night street round the club
+}
 DOCKS_POOL = ["pier17", "cranes", "shipping", "quay", "sheds", "pier17_b", "shipping_b", "quay_b", "sheds_b"]   # (the harbor with its lighthouse: only the Harbor Master's own)
 # variants (2026-11-15): the same kit redrawn with other details over the same floor, rails, edges and lamps,
 # so a map does not show one drawing again and again; everything about them but the picture is the kit's
@@ -64,7 +71,7 @@ KITS = {
     # the roof over a building seen in cross-section (2026-11-16): three storeys of SEC_H, the roof on the third
     "troof": {"scale": 0.95, "line": 0.828, "stub": 190, "y": -2100.0, "deco": None, "goal": None, "under": True},
     "roof": {"scale": 0.95, "line": 0.828, "stub": 190, "y": ROOF_Y, "deco": None, "goal": None, "under": True,
-             "ledge": 95, "row": ["row_house", "market_row", "hk_grocery", "warehouse_row", "hk_saloon"]},
+             "ledge": 95, "row": ["row_house", "apartment", "hk_grocery", "factory", "hk_saloon"]},
     # (17. 11.: under the roofs chapter I's kit pieces - their cornice top is exactly ROOF_Y - and of the roof drawing only
     # its ledge's top (95 rows below the walked line) shows, so the kit's own windows are never covered)
     # the mezzanine over the platforms: the subway drawings at their half size; its floor on their ceiling
@@ -472,6 +479,10 @@ def build(mp):
             break
     place_fronts(v)
     door_clear(v)   # (again: the kit and the cover moved men about after the first time)
+    inside = lambda x: any(len(o) == 2 and o[1] - 50 < x < o[1] + BOX[o[0]][0] + 50 for o in v.boxes)
+    for e in v.enemies:   # and nobody it moved stands inside a crate
+        if e["y"] == 0.0 and inside(e["x"]):
+            e["x"] = next(x for d in range(0, 3000, 40) for x in (e["x"] + d, e["x"] - d) if not inside(x))
     return v
 
 
@@ -672,6 +683,9 @@ def _build(mp, nudge):
     out.checks = sorted(set(round(c) for c in out.checks if 800 < c < out.end - 500))
     door_clear(out)
     out.street = street(mp, out, rng)
+    if not mp.get("plain"):
+        for g in out.street:
+            CHAPTER_USED[g[0]] = CHAPTER_USED.get(g[0], 0) + 1
     stand_at_gate(out)
     kit_pieces(out)
     hoist_ropes(out)
@@ -1004,6 +1018,9 @@ def door_clear(m):
                         e["from"] = door + away * (DOOR_CLEAR + 200.0)
 
 
+CHAPTER_USED = {}   # how often each street piece was laid in the chapter so far (maps are built in order)
+
+
 def street(mp, m, rng):
     """The run of drawn segments under the map: the map's own feature segment early on, no segment twice
     in a row, and (in the prologue) the dead-end alley under the last stand."""
@@ -1038,9 +1055,10 @@ def street(mp, m, rng):
             seq.append([name, x])
             x += SEGMENTS[name] * 1.9 * SEG_SIZE[name]
             k += 1
-    pool = [s for s in mp.get("pool", STREET_POOL) if s != mp.get("feature") and not (mp.get("plain") and s in KIT)] or [mp["feature"]]
+    base_pool = mp.get("pool", DISTRICT.get(mp.get("name"), STREET_POOL))
+    pool = [s for s in base_pool if s != mp.get("feature") and not (mp.get("plain") and s in KIT)] or [mp["feature"]]
     if len(pool) < 2:   # a map of one kit and its variant: the feature takes its turns too
-        pool = [s for s in mp.get("pool", STREET_POOL) if not (mp.get("plain") and s in KIT)]
+        pool = [s for s in base_pool if not (mp.get("plain") and s in KIT)]
     last = None
     i = 0
     roof_a = m.roof[2][0][1] - 4000 if m.roof else None
@@ -1082,7 +1100,8 @@ def street(mp, m, rng):
             fuel = [b[1] for b in m.boxes if b[0] == "barrel" and not any(a <= b[1] < c for a, c, st in m.rooms)]
             if any(x <= f < x + w_here(cand[0]) for f in fuel):   # a red barrel here: a place where fuel is kept
                 cand = [s for s in cand if barrel_ok(s)] or cand
-            cand = sorted(cand, key=lambda s: used.count(s))   # and the least used first
+            cand = [s for s in cand if s not in used] or cand   # (user 17. 11.: the same street in every map) each piece once a map
+            cand = sorted(cand, key=lambda s: (used.count(s), CHAPTER_USED.get(s, 0)))   # the least used, in this map and then the chapter
             least = [s for s in cand if used.count(s) == used.count(cand[0])]
             # the joins must look right (user 16. 11.: a wall begun mid-air, smoke cut off at a drawing's end):
             # among the least used, those whose left edge meets the last one's right edge; if none does, the
@@ -1472,6 +1491,7 @@ if __name__ == "__main__":
     bad = False
     for ch in CAMPAIGN:
         maps = []
+        CHAPTER_USED.clear()   # (each chapter spreads its own pieces)
         for mp in ch["maps"]:
             if "seed" not in mp:   # written up, not yet built: a name in the case file
                 maps.append({"name": mp["name"]}); continue
