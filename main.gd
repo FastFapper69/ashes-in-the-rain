@@ -1229,34 +1229,7 @@ const SEGMENT_DEEP := {
 	"platform": [Rect2(0.1044, 0.31, 0.1357, 0.38)], "tunnel": [Rect2(0.8249, 0.33, 0.1253, 0.38)], "tunnel_lo": [Rect2(0.8249, 0.33, 0.1253, 0.38)], "yard": [Rect2(0.4908, 0.45, 0.1357, 0.3)],
 }
 const CRANE_CUT := Rect2(0.3863, 0.2, 0.0783, 0.255)   # the hanging crate taken out of the crane yard drawing (setpieces.gd)
-## A street opening into depth (an alley, a passage, the far end of a station) seen in true perspective (user 16. 11.:
-## "it only stretches oddly; it should have real depth"): the opening is a corridor running to a vanishing point.
-## A pixel's depth follows from where it lies between the mouth (depth 0: the box's border, fixed to the world like
-## the facade round it) and the vanishing point (far away): p = 1 - its distance to the vanishing point over the
-## mouth's distance on that side (walls by x, floor and ceiling by y, as in a box corridor). As the camera moves,
-## the far part lags behind (moves with the camera) by p: straight lines stay straight, verticals stay vertical,
-## nothing stretches, and the border never moves.
-const DEEP_PERSPECTIVE := """
-shader_type canvas_item;
-uniform vec4 box;       // the opening, in the texture's UV: x, y, width, height
-uniform vec2 vp;        // its vanishing point, in the box (0..1)
-uniform vec2 shift;     // how far the farthest part lags behind the camera, in UV
-varying vec4 tint;
-void vertex() { tint = COLOR; }
-void fragment() {
-	vec2 l = (UV - box.xy) / box.zw;
-	vec2 d = l - vp;
-	vec2 half_ = vec2(d.x < 0.0 ? vp.x : 1.0 - vp.x, d.y < 0.0 ? vp.y : 1.0 - vp.y);
-	float p = 1.0 - clamp(max(abs(d.x) / max(half_.x, 0.01), abs(d.y) / max(half_.y, 0.01)), 0.0, 1.0);
-	vec4 t = texture(TEXTURE, UV - shift * p);
-	COLOR = t * t * tint;   // the facade's blur shader also multiplies the picture in twice: match its tone
-	COLOR.a = t.a * tint.a;
-}
-"""
-const DEEP_VP := {"alley": Vector2(0.52, 0.55), "laundry": Vector2(0.6, 0.5), "subway": Vector2(0.62, 0.5),
-		"deadend": Vector2(0.6, 0.5), "shipping": Vector2(0.5, 0.55), "harbor": Vector2(0.65, 0.72), "tunnel": Vector2(0.25, 0.45),
-		"platform": Vector2(0.65, 0.5), "yard": Vector2(0.5, 0.45)}   # in the opening
-var deeps: Array = []   # {sprite, center (world), box (UV)}
+var deeps: Array = []   # {world, center, art}: the deep openings in the street drawings (they stand still, rule 24)
 var _deep_rects: Array[Rect2] = []
 var _facades: Array = []   # [x0, x1, sprite] of each street drawing (a free-standing thing takes the tone of the one behind it)
 var _stain_hosts: Array = []   # [x0, x1, node]: the masks blood on each drawing is clipped to   # the same in world space, for the blood
@@ -1480,61 +1453,15 @@ func _build_segments() -> void:
 			add_child(pier)
 
 
-## Where an alley's side walls end and its far end begins, as shares of the deep view's width:
-## [left wall's inner edge, right wall's inner edge]; 0 or 1 where that side has no wall.
-# Only views whose ground ends inside the cut-out (a closed alley, a yard): where a road or tram tracks
-# run on out of it (warehouse, market), a sliding far end breaks them at the cut, so those stay put.
-const DEEP_SPLIT := {"alley": [0.3, 0.74], "laundry": [0.42, 1.0], "subway": [0.32, 1.0],
-		"deadend": [0.3, 0.8], "shipping": [0.25, 0.75], "harbor": [0.25, 0.9], "tunnel": [0.0, 0.6], "platform": [0.3, 1.0], "yard": [0.2, 0.85]}
-const DEEP_SLIDE := 0.17   # how far the far end slides per pixel the camera stands off the alley's mouth
-const DEEP_LIFT := 0.02     # and how much it rises and falls with the camera
-
+## A deep opening in a street drawing (an alley, a passage, a platform's far end). It stands still with its wall
+## exactly as painted (user 17. 11., rule 24: the stretch, then the perspective slide were both rejected - no
+## shear, no slide, no lift). Kept only so blood never lands in the air over it and the deep test finds it.
 func _add_deep(tex: Texture2D, facade: Sprite2D, r: Rect2, trim: float, seg_name := "") -> void:
 	var size := Vector2(tex.get_size())
 	var px := Rect2(r.position * size, r.size * size)
 	var world := Rect2(facade.position + (px.position - Vector2(trim, 0.0)) * facade.scale, px.size * facade.scale)
 	_deep_rects.append(world)
-	# An alley in depth (2026-11-14): its far end slides against the wall as the camera passes and its
-	# side walls stretch and lean to follow, the way they would. Each piece is moved as one flat plane
-	# (an even stretch, a shear), so a straight line in it stays straight: no warp bends a lamp post.
-	if not DEEP_SPLIT.has(seg_name):
-		return
-	var poly := Polygon2D.new()
-	poly.texture = tex
-	poly.uv = PackedVector2Array([px.position, Vector2(px.end.x, px.position.y), px.end, Vector2(px.position.x, px.end.y)])
-	poly.polygon = PackedVector2Array([world.position, Vector2(world.end.x, world.position.y), world.end, Vector2(world.position.x, world.end.y)])
-	var mat := ShaderMaterial.new()
-	var sh := Shader.new()
-	sh.code = DEEP_PERSPECTIVE
-	mat.shader = sh
-	mat.set_shader_parameter("box", Vector4(r.position.x, r.position.y, r.size.x, r.size.y))
-	var cut: Array = DEEP_SPLIT[seg_name]
-	mat.set_shader_parameter("vp", DEEP_VP.get(seg_name, Vector2((float(cut[0]) + float(cut[1])) * 0.5, 0.5)))
-	mat.set_shader_parameter("shift", Vector2.ZERO)
-	poly.material = mat
-	poly.modulate = facade.modulate
-	poly.z_index = facade.z_index
-	add_child(poly)
-	deeps.append({"mat": mat, "world": world, "center": world.get_center(), "uv": r.size, "size": size, "art": seg_name})
-	_tick_one_deep(deeps[deeps.size() - 1], Vector2.ZERO)
-
-
-## Slide the far end of every deep view against its wall, by where the camera is.
-func _tick_deep() -> void:
-	var half := 2000.0
-	for dp in deeps:
-		var c: Vector2 = dp["center"]
-		if absf(cam.position.x - c.x) > half * 1.6:
-			continue
-		_tick_one_deep(dp, cam.position - Vector2(c.x, c.y + 300.0))
-
-
-func _tick_one_deep(dp: Dictionary, off: Vector2) -> void:
-	# the far end lags behind the camera: in world px, then into the texture's UV (at most a third of the opening)
-	var w: Rect2 = dp["world"]
-	var lag := Vector2(clampf(off.x * DEEP_SLIDE, -w.size.x * 0.33, w.size.x * 0.33), clampf(off.y * DEEP_LIFT, -w.size.y * 0.1, w.size.y * 0.1))
-	var uv: Vector2 = dp["uv"]
-	(dp["mat"] as ShaderMaterial).set_shader_parameter("shift", Vector2(lag.x / w.size.x * uv.x, lag.y / w.size.y * uv.y))
+	deeps.append({"world": world, "center": world.get_center(), "art": seg_name})
 
 
 ## The drawing under a point, whose solid parts a stain there is clipped to (null: none).
@@ -2687,7 +2614,6 @@ func _process(delta: float) -> void:
 	_tick_birds(delta)
 	_tick_hat_rain()
 	_tick_aim_line()
-	_tick_deep()
 	_tick_sections(real)
 	moonlight.energy = lerpf(0.35, 0.62, clampf(-player.position.y / 650.0, 0.0, 1.0))
 	_tick_sky(delta)
@@ -3129,18 +3055,27 @@ func _auto_step(delta: float) -> void:
 			for i in 14:
 				fx.blood(Vector2(sx0 - 200.0 + i * 150.0, -200.0 - (i % 4) * 90.0), Vector2(1.0 if i % 2 == 0 else -1.0, 0.0))
 		shots = [[0.5, "stains_1"], [2.2, "stains_2"]]
-	elif _auto.begins_with("deep"):   # --test=deep[:art]: the camera either side of a deep view (that drawing's, else the first): the far end should slide
-		var want := _auto.trim_prefix("deep").trim_prefix(":")
+	elif _auto.begins_with("deep"):   # --test=deep[:art]: the camera left of, on and right of a deep view (that drawing's, else the first): it must not move against its wall
+		var want := _auto.trim_prefix("deep").trim_prefix(":")   # (deep:all - every deep view on the map, three shots each)
 		var cx: float = deeps[0]["center"].x if not deeps.is_empty() else 3000.0
-		for dp in deeps:
-			if want == "" or String(dp["art"]) == want:
-				cx = dp["center"].x
-				break
-		var k := 0 if _at < 1.0 else 1
-		player.position.x = cx + (-700.0 if k == 0 else 700.0)
+		var j := mini(int(_at / 3.0), maxi(deeps.size() - 1, 0)) if want == "all" else 0
+		if want == "all" and not deeps.is_empty():
+			cx = deeps[j]["center"].x
+		else:
+			for dp in deeps:
+				if want == "" or String(dp["art"]) == want:
+					cx = dp["center"].x
+					break
+		var k := int(fmod(_at, 3.0))
+		player.position.x = cx + [-700.0, 0.0, 700.0][k]
 		cam.position.x = player.position.x + 200.0
 		_grace = 99.0
-		shots = [[0.9, "deep_1"], [1.9, "deep_2"]]
+		if want == "all":
+			for d in deeps.size():
+				for kk in 3:
+					shots.append([d * 3.0 + kk + 0.9, "deep_%d_%s_%d" % [d, deeps[d]["art"], kk + 1]])
+		else:
+			shots = [[0.9, "deep_1"], [1.9, "deep_2"], [2.9, "deep_3"]]
 	elif _auto == "vault":   # running at a low crate: the speed vault over it, frame by frame
 		var bi := -1
 		for k in boxes.size():
@@ -5917,12 +5852,13 @@ func _map_events(delta: float) -> void:
 		dry = maxf(dry, 1.0 - clampf(gap / 450.0, 0.0, 1.0))
 	for rn in [atmo.rain_far, atmo.rain_near, atmo.splashes]:
 		rn.modulate.a = 1.0 - dry
+	_tick_rooms()
 	var room := _room_at(player.position.x, player.position.y)
 	if room != _room:   # through a door: a cut through black, no rain indoors
 		var sec_door := room.begins_with("section_") or _room.begins_with("section_")
 		_room = room
 		if not sec_door:   # into a building in cross-section there is no cut: its storeys open up round him
-			hud.flash()
+			hud.flash(1.0, 0.5)   # through a doorway: a dip through full black, the other side comes up out of it
 		pass
 		if atmo.splashes:
 			atmo.splashes.visible = room == ""
@@ -7524,9 +7460,67 @@ func _tick_fire(t: float) -> void:
 		(l[0] as PointLight2D).energy = float(l[1]) * (0.78 + 0.22 * sin(t * 9.0 + l[2]) * sin(t * 4.3 + l[2] * 1.7))
 
 
-## An interior: its drawn back wall in front of the street (the middle of the drawing, where the
-## depth is), black above its ceiling, and a doorway at each end.
+## An interior seen only from inside (user 17. 11., rule 25: "I can't go from a window into an open alley" -
+## a room pasted on the street beside other houses, a dark hole between them, was rejected). From the street
+## nothing of it shows: the street drawing runs on. Stepping in is a dip through black, and inside the street
+## round it is black (walls): its men, crates and lamps are seen only from in there (`_tick_rooms`).
+var _room_art: Array = []   # [x0, x1, holder] per interior (not the storeys of a building in cross-section)
 func _build_room(x0: float, x1: float, style: String) -> void:
+	var first := get_child_count()
+	_build_room_art(x0, x1, style)
+	var holder := Node2D.new()
+	holder.visible = false
+	var made: Array = get_children().slice(first)
+	add_child(holder)
+	for n in made:
+		(n as Node).reparent(holder)
+	for side in [Rect2(x0 - 8000.0, -6000.0, 8000.0, 12000.0), Rect2(x1, -6000.0, 8000.0, 12000.0)]:   # the walls: nothing outside is seen
+		var cover := Polygon2D.new()
+		var r: Rect2 = side
+		cover.polygon = PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)])
+		cover.color = Color(0.0, 0.0, 0.0, 1.0)
+		cover.z_index = 9
+		holder.add_child(cover)
+	_room_art.append([x0, x1, holder])
+
+
+## Which interior (index into _room_art) a point is in, or -1 out in the street.
+func _plain_room_at(p: Vector2) -> int:
+	if p.y <= GROUND_STOREY:
+		return -1
+	for i in _room_art.size():
+		if p.x > float(_room_art[i][0]) and p.x < float(_room_art[i][1]):
+			return i
+	return -1
+
+
+## Inside an interior only it is seen; from the street nothing of it (its men and things hidden with it).
+func _tick_rooms() -> void:
+	if _room_art.is_empty():
+		return
+	var here := _plain_room_at(player.position)
+	for i in _room_art.size():
+		(_room_art[i][2] as Node2D).visible = i == here
+	for e in enemies:   # (only what this hid is shown again: other things hide men for their own reasons)
+		if e["state"] == "wait" or _section_at(e["node"].position) >= 0:
+			continue
+		var apart := _plain_room_at(e["node"].position) != here
+		if apart and e["node"].visible:
+			e["node"].visible = false
+			e["room_hid"] = true
+		elif not apart and e.get("room_hid", false):
+			e["node"].visible = true
+			e["room_hid"] = false
+	for bi in box_info.size():
+		var spr = box_info[bi]["sprite"]
+		if spr != null and is_instance_valid(spr):
+			(spr as CanvasItem).visible = _plain_room_at(boxes[bi].get_center()) == here
+	for pk in pickups:
+		if pk.has("node") and is_instance_valid(pk["node"]):
+			(pk["node"] as CanvasItem).visible = _plain_room_at(pk["node"].position + Vector2(0.0, 60.0)) == here
+
+
+func _build_room_art(x0: float, x1: float, style: String) -> void:
 	var sky_top := -4200.0   # the dark over a room reaches up out of the picture; under the roofs only to their cornice
 	if not roof.is_empty():
 		var pics: Array = roof["pics"]
@@ -7559,7 +7553,7 @@ func _build_room(x0: float, x1: float, style: String) -> void:
 	add_child(wall)
 	var roof := Polygon2D.new()   # above the ceiling: the storeys over the room, the facade seen dim through the cut
 	roof.polygon = PackedVector2Array([Vector2(x0, sky_top), Vector2(x1, sky_top), Vector2(x1, top + 2.0), Vector2(x0, top + 2.0)])
-	roof.color = Color(0.0, 0.0, 0.0, 0.6)
+	roof.color = Color(0.0, 0.0, 0.0, 1.0)   # (only seen from inside: above the ceiling the floors over it, dark)
 	roof.z_index = 9
 	add_child(roof)
 	var fade := Polygon2D.new()   # the top of the drawing dissolves into the dark ceiling, no hard edge
@@ -8367,6 +8361,8 @@ func _can_see(m) -> bool:
 	if not _on_screen(m.position):
 		return false
 	if _section_at(m.position) != _section_at(player.position):   # a building's walls between them
+		return false
+	if _plain_room_at(m.position) != _plain_room_at(player.position):   # an interior's walls
 		return false
 	if _flat_closed_between(m.position, player.position):   # the flat's door is shut between them
 		return false

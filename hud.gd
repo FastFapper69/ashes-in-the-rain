@@ -640,15 +640,15 @@ func hurt(health: float) -> void:
 	_hurt_rim.modulate.a = 1.0
 
 
-func flash() -> void:
+func flash(strength := 0.85, length := 0.35) -> void:
 	var r := ColorRect.new()
-	r.color = Color(0.0, 0.0, 0.0, 0.85)
+	r.color = Color(0.0, 0.0, 0.0, strength)
 	r.size = get_viewport().get_visible_rect().size
 	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(r)
 	move_child(r, 0)
 	var tw := create_tween()
-	tw.tween_property(r, "color:a", 0.0, 0.35)
+	tw.tween_property(r, "color:a", 0.0, length).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)   # (black a moment, then up)
 	tw.tween_callback(r.queue_free)
 
 
