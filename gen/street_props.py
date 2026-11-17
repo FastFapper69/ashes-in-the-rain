@@ -189,6 +189,34 @@ def cut_set(f, prefix, rows=2):
     print(prefix, len(objs), "pieces")
 
 
+# The Blue Note's bar counter (art_src 246, user 17. 11.: "the bar should run along the room, not stand into the
+# depth"): drawn on green in front elevation, stood in the club room in front of its painted back bar (art_src 245
+# is the room without one). Its top is a floor (style "bar") he dives onto and skids along. Prints where the top is.
+def cut_one(f, name, scale=0.5):
+    a = np.asarray(Image.open(os.path.join(SRC, f)).convert("RGB")).astype(float)
+    r, g, b = a[..., 0], a[..., 1], a[..., 2]
+    alpha = ndimage.grey_opening(1 - np.clip((g - np.maximum(r, b) - 40) / 50, 0, 1), size=(3, 3))
+    a[..., 1] = np.minimum(a[..., 1], (a[..., 0] + a[..., 2]) / 2 + 6)
+    rgba = np.dstack([np.clip(a, 0, 255), alpha * 255]).astype(np.uint8)
+    lab, n = ndimage.label(ndimage.binary_dilation(alpha > 0.5, iterations=6))
+    sizes = ndimage.sum(np.ones_like(lab), lab, range(1, n + 1))
+    keep = lab == (np.argmax(sizes) + 1)
+    ys, xs = np.where(keep & (alpha > 0.5))
+    y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
+    piece = rgba[y0:y1, x0:x1].copy()
+    piece[..., 3] = np.where(keep[y0:y1, x0:x1], piece[..., 3], 0)
+    rows = (piece[..., 3] > 128).mean(axis=1)   # the counter's top: the first row solid across most of the width
+    top = int(np.argmax(rows > 0.8))
+    im = Image.fromarray(piece)
+    im = im.resize((round(im.width * scale), round(im.height * scale)), Image.LANCZOS)
+    im.save(os.path.join(ROOT, "art", "props", f"{name}.png"))
+    print(name, im.size, "top of the counter at %.3f of its height" % (top / piece.shape[0]))
+
+
+if __name__ == "__main__" and os.path.exists(os.path.join(SRC, "246.jpg")):
+    cut_one("246.jpg", "bar_counter")
+
+
 if __name__ == "__main__" and os.path.exists(os.path.join(SRC, "243.jpg")):
     cut_set("243.jpg", "laundry")
 

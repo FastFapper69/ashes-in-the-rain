@@ -175,7 +175,7 @@ class Chunk:
 ROOM_PIC_W, ROOM_SCALE = 3168, 0.75
 ROOM_CLEAR = {"laundry": [(1630, 1915), (1975, 2345)],   # the EXIT door, the doorway to the back
               "warehouse": [(1750, 2395)],                # the loading bay with the truck
-              "club": [(1130, 1570)],                     # the arch to the back
+              "club": [(90, 1317), (1380, 1810)],         # the bar counter (BAR_PX), the arch to the back (art_src 245)
               "hold": [(1670, 1925)],                     # the ladder up to the hatch
               "office": [(90, 230)],                      # the door
               "cityhall": [(1230, 1830)],                 # the two tunnel mouths
@@ -186,6 +186,17 @@ ROOM_KINDS = {"laundry": ["machine", "crate", "crate_long", "drum"], "warehouse"
               "office": ["crate_long", "machine", "crate"], "cityhall": ["crate", "machine", "crate_long"],
               "catacombs": ["crate", "crate_long"], "tenement": ["crate", "crate_long"]}
 BIG = ("machine",)
+
+
+# The Blue Note's bar counter (art/props/bar_counter.png, main.gd draws it for a floor of style "bar"): in front of the
+# room drawing's back bar, drawing px BAR_PX; its top (24 % down the sprite) is the floor, BAR_TOP above the boards.
+BAR_PX = (90, 1317)
+BAR_TOP = 175.0   # (low enough to jump onto: a plain jump lifts his feet ~200; the drawing is stretched along to fit)
+def bar_floor(x0, w):
+    pic = ROOM_PIC_W * ROOM_SCALE
+    off = (w - pic) / 2
+    a, b = BAR_PX[0] * ROOM_SCALE + off, BAR_PX[1] * ROOM_SCALE + off
+    return [x0 + a, -BAR_TOP, b - a, "bar"]
 
 
 def _room_src(style, w, x):
@@ -349,7 +360,7 @@ def chunk(name, hard, rng=None):
         furnish(c, "tenement", rng, ["post", "shotgun" if hard > 0.5 else "post", "post"], flask=True)
     elif name == "club":   # the Blue Note: the bar for cover, tables, a stage at the back
         c = Chunk(2600).room(0, 2600, "club").lamp(500).lamp(1400).lamp(2300).runner(1100, 900, -800, delay=2.0)
-        c.plat(487, -305, 435, "bar")   # the painted bar counter's top (drawing x 500-1080, y ~830): dive onto it and skid its length
+        c.plats.append(bar_floor(0, 2600))   # the bar counter along the back bar: dive onto it and skid its length
         furnish(c, "club", rng, ["post", "shotgun", "tommy"])
     # ---- the docks -------------------------------------------------------------------------------
     elif name == "live_wire":   # a trolley pole over a puddle, two of them standing in it (ch III hazard, art_src 242)
@@ -516,9 +527,9 @@ def _build(mp, nudge):
         if mp.get("boss_room"):   # the fight in a room of its own
             out.rooms.append([x - 200, x + 2700, mp["boss_room"]])
             out.lamps += [[x + 400, -760.0], [x + 1400, -760.0], [x + 2300, -760.0]]
-            if mp["boss_room"] == "club":   # the painted bar counter's top: dive onto it and skid its length (room x = px * 0.75 + 262)
-                out.plats.append([x - 200 + 637, -305.0, 435.0, "bar"])
-        first, second = ("bar", "crate_long") if mp.get("boss_room") == "club" else ("crate", "crate_long" if mp.get("boss_room") else "dumpster")
+            if mp["boss_room"] == "club":   # the bar counter along the back bar: dive onto it and skid its length
+                out.plats.append(bar_floor(x - 200, 2900))
+        first, second = ("crate", "crate_long") if mp.get("boss_room") == "club" else ("crate", "crate_long" if mp.get("boss_room") else "dumpster")
         a, b = x + 300, x + 1500
         if mp.get("boss_room"):   # nothing in front of the room's doors (ROOM_CLEAR): along to the nearest clear floor
             st, r0, rw = mp["boss_room"], x - 200, 2900
@@ -528,7 +539,7 @@ def _build(mp, nudge):
             for d in range(0, 900, 20):
                 if _room_free(st, rw, b - d - r0, b - d - r0 + BOX[second][0]):
                     b -= d; break
-        out.boxes += [[first, a], [second, b]]
+        out.boxes += [[second, b]] if mp.get("boss_room") == "club" else [[first, a], [second, b]]   # (in the club the bar counter is the cover by the door)
         out.enemies += [{"x": x + 1050, "y": 0.0, "kind": "post", "trig": None, "from": None, "delay": 0.0, "run": False},
                         {"x": x + 2050, "y": 0.0, "kind": "boss", "trig": None, "from": None, "delay": 0.0, "run": False}]
         out.checks.append(x - 100)
@@ -972,8 +983,8 @@ def check(m):
         if not any(a - 1 <= b[1] and b[1] + BOX[b[0]][0] <= c + 1 and abs(y - by(b)) < 1 for a, c, y in floors):
             errs.append(f"box at {b[1]:.0f},{by(b):.0f} floats")
     for px, py, pw, st in m.plats:
-        if st in ("awning", "drawn"):
-            continue   # the street kit's awning and fire escape: reached by jumping off the awning
+        if st in ("awning", "drawn") or (st == "bar" and -py < 190):
+            continue   # the street kit's awning and fire escape: reached by jumping off the awning; a bar counter: a jump
         # reachable: a ramp ends on it, a ladder comes up onto it, or something within jumping reach stands under its near end
         ok = any(abs(r[3] - py) < 1 and px - 20 <= r[2] <= px + pw + 20 for r in m.ramps)
         ok = ok or any(abs(r[1] - py) < 1 and px - 20 <= r[0] <= px + pw + 20 for r in m.ramps)

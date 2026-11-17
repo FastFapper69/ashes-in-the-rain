@@ -2872,6 +2872,30 @@ func _auto_step(delta: float) -> void:
 					print("  left: ", int(e["node"].position.x), " ", e["state"], " y ", int(e["node"].position.y))
 			get_tree().quit()
 		return
+	elif _auto.begins_with("clip:"):   # --test=clip:<name> --sandbox=1: Frank plays one move-sheet clip (puppet.gd CLIPS), frame by frame, in the air
+		if _auto_done & (1 << 21) == 0:
+			_auto_done |= 1 << 21
+			player.position = Vector2(1200.0, -260.0)
+			move_state = "jump"   # (held where he is, every frame)
+			_grace = 99.0
+			for e in enemies:
+				e["node"].position.x += 60000.0
+		player.position = Vector2(1200.0, -260.0)
+		fall = 0.0
+		cam.position = player.position + Vector2(0.0, -150.0)
+		cam.zoom = Vector2.ONE * 0.85
+		var cl := _auto.trim_prefix("clip:")
+		var ln := float(player.CLIPS[cl]["len"])
+		if _at > 0.3 and _auto_done & (1 << 20) == 0:
+			_auto_done |= 1 << 20
+			player.play_clip(cl, 1.0)
+		var kf := int((_at - 0.3) / (ln / 7.0))
+		if kf >= 0 and kf < 8 and _auto_done & (1 << kf) == 0:
+			_auto_done |= 1 << kf
+			_shot("clip_%d" % kf)
+		if _at > 0.4 + ln * 1.2:
+			get_tree().quit()
+		return
 	elif _auto == "intro":   # --test=intro --chapter=c --map=m: the opening look along the way up, four frames
 		if _at < 0.05:
 			print("INTRO pan to ", Vector2i(_pan_to), " for ", snappedf(_pan_t, 0.1), " from x ", int(player.position.x))
@@ -2971,7 +2995,8 @@ func _auto_step(delta: float) -> void:
 		return
 	elif _auto.begins_with("awning"):   # --test=awning:x,y (a fire escape landing): off it to the left onto the awning
 		var at := _auto.trim_prefix("awning:").split(",")
-		if _at < 0.05:
+		if _auto_done & (1 << 21) == 0:
+			_auto_done |= 1 << 21
 			player.position = Vector2(float(at[0]), float(at[1]))
 			_ground_y = player.position.y
 			_grace = 99.0
@@ -4107,6 +4132,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			player.dive = 1.0
 			player.dive_side = dir if dir != 0.0 else facing
 			glide = player.dive_side * DIVE_SPEED.x
+			player.position.y += DIVE_LAND   # (lying flat: the origin goes down as when he lands prone)
 			sfx.play("skid", -5.0, INF, 0.1)
 		elif can_act and dive:
 			_start_dive(dir if dir != 0.0 else facing, facing, DIVE_SPEED.y, absf(run) > 300.0)
@@ -4170,7 +4196,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			move_state = "jump"
 			fall = 0.0
 			_coyote = 0.12   # a jump a beat late still goes
-		elif floor_y > player.position.y + 100.0 and player.dive > 0.9 and absf(glide) > 300.0:   # skidded off the end of a bar: flying on, flat out
+		elif floor_y > player.position.y - DIVE_LAND * player.dive + 60.0 and player.dive > 0.9 and absf(glide) > 300.0:   # skidded off the end of a bar: flying on, flat out
 			move_state = "dive"
 			fall = 0.0
 			player.position.y -= DIVE_LAND
@@ -4200,6 +4226,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			sfx.play("land", -2.0)
 			_word(["thud"], player.position + Vector2(0.0, -80.0), 0.14)
 			_free_slow = maxf(_free_slow, 0.6)
+			_clip("flip", run if absf(run) > 50.0 else signf(player.scale.x))   # thrown up: once over, tucked
 			if props:
 				props.landed_on(player.position)
 		elif fall > 0.0 and player.position.y >= floor_y:
@@ -4411,6 +4438,12 @@ func _block(before_x: float) -> void:
 
 ## Down the bar on his back (the stunt list): a dive onto the club's counter skids him its whole length, glasses and
 ## bottles flying off ahead of him, a slowed beat for free the first moment.
+## A move-sheet clip (puppet.gd CLIPS) toward world direction `way` (+1 right): the puppet's own frame is mirrored
+## when he faces left.
+func _clip(name: String, way: float) -> void:
+	player.play_clip(name, signf(way) * signf(player.scale.x) if way != 0.0 else 1.0)
+
+
 var _bar_t := 0.0
 func _over_bar() -> bool:
 	for k in catwalks.size():
@@ -4447,6 +4480,7 @@ func _wall_kick(stick: float) -> void:
 	player.air_v = -1.0
 	player.air = 1.0
 	_free_slow = maxf(_free_slow, 0.5)
+	_clip("wall_kick", -_wall_away)   # (toward the wall: the foot on it, then the push)
 	sfx.play("land", -3.0)
 	_word(["thud", "wham"], player.position + Vector2(-_wall_away * 60.0, -140.0), 0.14)
 	fx.dust(player.position + Vector2(-_wall_away * 50.0, -120.0), 0.3)
@@ -5142,6 +5176,18 @@ func _inner_voice() -> void:
 ## bullet finishes him; left alone he either gets up again or, shaken, gives up where he lies.
 ## Frank's move (not the prologue's, not a boss, not a shield).
 func _kick_check() -> void:
+	if player.clip == "" and absf(glide) > 400.0 and not _kicked_this_dive:   # a man or a shut door just ahead: the boot comes up
+		var ahead := false
+		for e in enemies:
+			var ddx: float = e["node"].position.x - player.position.x
+			if e["alive"] and not e["boss"] and signf(ddx) == signf(glide) and absf(ddx) < 330.0 and absf(float(e["node"].position.y) - player.position.y) < 260.0 and String(e["state"]) in ["post", "run", "move", "hop"]:
+				ahead = true
+		var fd := _flat_at_storey(_ground_y)
+		if not fd.is_empty() and not fd["open"] and glide > 0.0 and absf(player.position.y - float(fd["y"])) < 80.0:
+			var face := float(fd["hinge"]) - float(fd["dw"]) - 30.0
+			ahead = ahead or (face - player.position.x > 0.0 and face - player.position.x < 330.0)
+		if ahead:
+			_clip("fly_kick", glide)
 	if diff_step < 0 or _kicked_this_dive:
 		return
 	for e in enemies:
@@ -6513,6 +6559,7 @@ func _through_window() -> bool:
 				deck = Vector2(float(c[0]), float(c[0]) + float(c[2]))
 		fx.burst_window(opening, Vector2(glide + run, fall), float(f["y"]), deck, 0.0)   # out with him
 		fx.shatter(mid)
+		_clip("window", glide + run)   # an arm over his face against the glass, knees up
 		sfx.play("glass", 3.0, float(f["gx"]), 0.05)
 		_free_slow = maxf(_free_slow, 0.5)
 	return true
@@ -6745,8 +6792,21 @@ func _build_level() -> void:
 		catwalks.append(r)
 		catwalk_style.append(String(c[3]))
 		catwalk_solid.append(String(c[3]) in ["roof", "section", "fescape"])   # a storey's floor, a fire escape's deck: no dropping through it
-		if String(c[3]) in ["section", "fescape", "drawn", "awning", "bar"]:
-			continue   # the storey's drawing (or the fire escape's, the club's bar counter) is the floor
+		if String(c[3]) == "bar":   # the club's bar counter (art_src 246), standing on the boards, its top the floor
+			var bt: Texture2D = load("res://art/props/bar_counter.png")
+			var bh := (-r.position.y + 6.0) / (1.0 - 0.238)   # its top (24 % down the drawing) is the floor
+			var bar := Sprite2D.new()
+			bar.texture = bt
+			bar.centered = false
+			bar.scale = Vector2(r.size.x / bt.get_width(), bh / bt.get_height())   # (stretched along: a long bar, a man's waist high)
+			bar.position = Vector2(r.position.x, -bh)
+			bar.z_index = -2
+			bar.modulate = Color(0.84, 0.82, 0.79)
+			add_child(bar)
+			_ground_shadow(r.position.x + r.size.x * 0.5, r.size.x, 0.0)
+			continue
+		if String(c[3]) in ["section", "fescape", "drawn", "awning"]:
+			continue   # the storey's drawing (or the fire escape's) is the floor
 		if String(c[3]) == "floor":
 			_slab(r)
 			continue

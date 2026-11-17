@@ -135,6 +135,70 @@ var size := 1.0   # a boss is drawn a little bigger
 static var fig_scale := -1.0   # test comparison (--figscale=): every figure drawn bigger
 var _dead := false   # set by die_pose: the arms hang straight from the shoulders, no aiming, no IK twists
 var roll := 0.0      # extra turn of the whole body, radians: a tumble out of a dive
+
+# The move sheet (user 17. 11.: "the new moves borrow the old poses - give him animations for them"): each new stunt
+# is a short clip of hand-set key poses, blended over whatever the code pose is (in at the start, out at the end),
+# so a kick is a kick and not a dive. A key: t (0..1 of the clip), fa / fb = the near / far foot (metres from the
+# figure's origin, x forward, before the legs' turn), legs = the legs' turn about the hip, lean = the torso's,
+# drop = how far the hips sink, spin = whole turns of the body (a flip), far = the free hand off its shoulder.
+# Angles and x are in the clip's own forward (clip_side: +1 = the way he faces). Played by main.gd (play_clip).
+const CLIPS := {
+	# a dive at a door or a man ahead turns into a flying kick: feet first, the body laid back behind the boot
+	"fly_kick": {"len": 0.42, "keys": [
+		[0.0, {"fa": Vector2(0.3, -0.62), "fb": Vector2(-0.12, -0.3), "legs": -0.2, "lean": -0.35, "drop": 0.12, "far": Vector2(-0.25, -0.1)}],
+		[0.35, {"fa": Vector2(0.88, -0.78), "fb": Vector2(0.18, -0.42), "legs": -0.15, "lean": -1.0, "drop": 0.05, "far": Vector2(-0.3, -0.2)}],
+		[0.8, {"fa": Vector2(0.88, -0.78), "fb": Vector2(0.14, -0.38), "legs": -0.15, "lean": -0.95, "drop": 0.05, "far": Vector2(-0.3, -0.2)}],
+		[1.0, {"fa": Vector2(0.35, -0.45), "fb": Vector2(-0.1, -0.2), "legs": -0.15, "lean": -0.25, "drop": 0.1, "far": Vector2(-0.22, -0.05)}]]},
+	# off a wall (clip_side = toward the wall): a foot planted on it, the knee folded, then the leg drives him off
+	"wall_kick": {"len": 0.42, "keys": [
+		[0.0, {"fa": Vector2(0.45, -0.78), "fb": Vector2(-0.05, -0.2), "legs": 0.05, "lean": 0.3, "drop": 0.2, "far": Vector2(0.28, 0.05)}],
+		[0.35, {"fa": Vector2(0.55, -0.35), "fb": Vector2(-0.2, -0.3), "legs": -0.1, "lean": -0.35, "drop": 0.05, "far": Vector2(-0.25, -0.3)}],
+		[1.0, {"fa": Vector2(0.15, -0.4), "fb": Vector2(-0.25, -0.12), "legs": 0.0, "lean": -0.15, "drop": 0.05, "far": Vector2(-0.22, -0.12)}]]},
+	# thrown up by an awning: tucked tight, once over forward, opening to land
+	"flip": {"len": 0.75, "keys": [
+		[0.0, {"fa": Vector2(0.18, -0.45), "fb": Vector2(-0.02, -0.4), "legs": 0.0, "lean": 0.2, "drop": 0.25, "spin": 0.0, "far": Vector2(0.15, 0.15)}],
+		[0.2, {"fa": Vector2(0.28, -0.62), "fb": Vector2(0.18, -0.6), "legs": 0.0, "lean": 0.45, "drop": 0.3, "spin": 0.2, "far": Vector2(0.25, 0.3)}],
+		[0.75, {"fa": Vector2(0.28, -0.62), "fb": Vector2(0.18, -0.6), "legs": 0.0, "lean": 0.45, "drop": 0.3, "spin": 0.95, "far": Vector2(0.25, 0.3)}],
+		[1.0, {"fa": Vector2(0.12, -0.15), "fb": Vector2(-0.1, -0.05), "legs": 0.0, "lean": 0.05, "drop": 0.08, "spin": 1.0, "far": Vector2(-0.2, -0.1)}]]},
+	# through a window: the free arm over the face against the glass, knees up, curled
+	"window": {"len": 0.5, "keys": [
+		[0.0, {"fa": Vector2(0.25, -0.5), "fb": Vector2(0.02, -0.42), "legs": 0.1, "lean": 0.3, "drop": 0.2, "far": Vector2(0.3, -0.12)}],
+		[0.7, {"fa": Vector2(0.28, -0.55), "fb": Vector2(0.05, -0.48), "legs": 0.15, "lean": 0.35, "drop": 0.22, "far": Vector2(0.32, -0.15)}],
+		[1.0, {"fa": Vector2(0.15, -0.3), "fb": Vector2(-0.12, -0.15), "legs": 0.0, "lean": 0.1, "drop": 0.1, "far": Vector2(-0.2, -0.1)}]]},
+}
+var clip := ""
+var clip_t := 0.0     # seconds into it
+var clip_side := 1.0
+func play_clip(name: String, side := 1.0) -> void:
+	if not CLIPS.has(name):
+		return
+	clip = name
+	clip_t = 0.0
+	clip_side = side
+
+
+## The clip's pose now (its keys eased into each other) and how much of it shows (eased in and out).
+func _clip_now() -> Array:
+	var c: Dictionary = CLIPS[clip]
+	var u := clampf(clip_t / float(c["len"]), 0.0, 1.0)
+	var keys: Array = c["keys"]
+	var a: Array = keys[0]
+	var b: Array = keys[keys.size() - 1]
+	for i in keys.size() - 1:
+		if u >= float(keys[i][0]) and u <= float(keys[i + 1][0]):
+			a = keys[i]
+			b = keys[i + 1]
+			break
+	var span := maxf(0.0001, float(b[0]) - float(a[0]))
+	var e := smoothstep(0.0, 1.0, (u - float(a[0])) / span)
+	var ka: Dictionary = a[1]
+	var kb: Dictionary = b[1]
+	var out := {}
+	for key in ka:
+		out[key] = lerp(ka[key], kb.get(key, ka[key]), e)
+	var w := smoothstep(0.0, 0.12, u) if clip != "flip" else 1.0
+	w *= 1.0 - smoothstep(0.85, 1.0, u)
+	return [out, w]
 var ground := 0.0    # where the pavement is below the figure's origin, in pixels (0 when standing on it)
 var reload := 0.0    # 0: not reloading; else how far through it (0..1): the gun comes in to the chest
 var recoil := 0.0    # set after a shot: the gun arm kicks up by this many radians and settles back
@@ -522,6 +586,10 @@ func set_state(dir: float, aim: Vector2, delta: float) -> void:
 	_hit_dip = move_toward(_hit_dip, 0.0, delta * 2.5)
 
 	_aim = Vector2.from_angle(_aim_angle - recoil)
+	if clip != "":
+		clip_t += delta
+		if clip_t >= float(CLIPS[clip]["len"]):
+			clip = ""
 	if _switch_p >= 0.0:   # down to the coat pocket and back up: the new gun swaps in at the bottom
 		_switch_p += delta / SWITCH_TIME
 		if _switch_to != "" and _switch_p >= 0.5:
@@ -598,7 +666,17 @@ func _pose() -> void:
 			fb_h = Vector2(0.02, -0.06 - 0.34 * (1.0 - c))
 		foot_a = foot_a.lerp(fa_h, hang)
 		foot_b = foot_b.lerp(fb_h, hang)
+	var cl := {}
+	var cw := 0.0
+	if clip != "" and not _dead:
+		var now := _clip_now()
+		cl = now[0]
+		cw = float(now[1])
+		var sd := Vector2(clip_side, 1.0)
+		foot_a = foot_a.lerp((cl["fa"] as Vector2) * sd, cw)
+		foot_b = foot_b.lerp((cl["fb"] as Vector2) * sd, cw)
 	var drop := minf(0.62, crouch * 0.3 + slide * 0.5 + duck * 0.58 + _hit_dip * 0.16)   # how far the hips sink
+	drop = lerpf(drop, float(cl.get("drop", drop)), cw)
 	var hip := Vector2(-0.1 * slide * slide_side, -(l1 + l2) * 0.985 - ankle + drop + lerpf(0.01, 0.04 + 0.035 * cos(th * 2.0), t))
 	var legs_lean := dive * 1.35 * dive_side + roll        # the legs follow a dive or a tumble
 	if not _dead:   # the whole body pitches into the leap and settles back for the landing
@@ -613,6 +691,10 @@ func _pose() -> void:
 		lean -= sin(_flinch * PI) * 0.12 * _hit_dip              # a leg hit folds him forward a moment
 		lean += clampf(_aim.angle(), -0.9, 0.6) * 0.08   # the body follows the gun up or down a little
 	lean = lerpf(lean, 0.0, hang)   # hanging straight down from the hands
+	if cw > 0.0:   # the clip's body: the legs and the torso turned as set, and a flip turns the lot
+		var spin := float(cl.get("spin", 0.0)) * TAU * clip_side
+		legs_lean = lerpf(legs_lean, float(cl["legs"]) * clip_side, cw) + spin
+		lean = lerpf(lean, float(cl["lean"]) * clip_side, cw) + spin
 	var breath := sin(_clock * 1.7) * 0.006 * (1.0 - t) * (0.0 if _dead else 1.0)   # breathing, standing still
 	var neck := hip + Vector2(lerpf(0.03, 0.15, t), -float(_len["torso"]) - breath).rotated(lean)
 	# Joints that are drawn on the torso (armholes, the bottom of the collar, the belt) are given in
@@ -683,6 +765,8 @@ func _pose() -> void:
 		far_target = far_target.lerp(hand + Vector2(0.06, 0.03 + 0.03 * sin(reload * 40.0)), rl)
 	if hands_up > 0.0 and not _dead:
 		far_target = far_target.lerp(far_shoulder + Vector2(0.06, -(ua + fa) * 0.84), hands_up)
+	if cw > 0.0 and cl.has("far") and not long_gun and not (weapon == "pistols" or (dual and weapon == "revolver")):
+		far_target = far_target.lerp(far_shoulder + (cl["far"] as Vector2) * Vector2(clip_side, 1.0), cw)
 	if hang > 0.0 and not _dead:
 		var low := 0.2 * (1.0 - climb_c) if hang_cycle >= 0.0 else (0.0 if hang_one else 0.13)
 		far_target = far_target.lerp(Vector2(0.06, hang_top + low), hang)
