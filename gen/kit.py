@@ -26,6 +26,7 @@ KINDS = {
     "steampipe": {"shot": True,  "floor": None,     "depth": 0.0},
     "windlass":  {"shot": True,  "floor": None,     "depth": 0.01},   # free-standing (levels "things"), docks
     "trolley":   {"shot": True,  "floor": None,     "depth": 0.0},    # free-standing: a trolley pole over a puddle (ch III)
+    "thirdrail": {"shot": True,  "floor": None,     "depth": 0.0},    # free-standing: the subway's third rail and its junction box (ch III)
 }
 
 # The chapter I modular street (art_src 228-236): the same dark party wall down both edges.

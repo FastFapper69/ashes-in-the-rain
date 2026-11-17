@@ -513,6 +513,7 @@ func _crate_drop(c: Dictionary) -> void:
 	c["sprite"].z_index = 1
 	game.sfx.play("chain", 0.0, c["sprite"].position.x, 0.05)
 	game.fx.spark((c["chains"] as Rect2).get_center())
+	game.cue(c["sprite"].position + Vector2(0.0, 300.0), 1.1, 0.3)
 	game._word(["clink"], (c["chains"] as Rect2).get_center() + Vector2(0.0, -80.0), 0.18)
 
 

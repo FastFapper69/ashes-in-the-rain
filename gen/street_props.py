@@ -49,20 +49,26 @@ if __name__ == "__main__":
 # the same place in each. Keyed and cut into six equal cells, all cropped by the SAME box (the union over the frames,
 # aligned on the cells' foot) so the thing does not jump: art/props/hk_<kind>_anim.png, a strip of 6 cells
 # (props.gd splits it by width / 6; ANIM_W there = the thing's width share of a cell). A grid sheet (rows > 1) reads row by row.
-ANIMS = {"hydrant": ("237.jpg", 1), "kegs": ("238.jpg", 2), "steampipe": ("239.jpg", 2), "windlass": ("241.jpg", 2), "trolley": ("242.jpg", 2)}   # (file, rows of 6 frames)
-SHRINK = {"hydrant": 0.72, "kegs": 0.5, "windlass": 0.5, "trolley": 0.6}
+ANIMS = {"hydrant": ("237.jpg", 1), "kegs": ("238.jpg", 2), "steampipe": ("239.jpg", 2), "windlass": ("241.jpg", 2), "trolley": ("242.jpg", 2),
+         "thirdrail": ("244.jpg", 4, 8, [0, 1, 2, 4, 5, 7])}   # (file, rows(, frames drawn, the six used))   # (file, rows of 6 frames)
+SHRINK = {"hydrant": 0.72, "kegs": 0.5, "windlass": 0.5, "trolley": 0.6, "thirdrail": 0.8}
 # The trolley wire's far piece wanders a little near the cell's edge: cut it off at the same x in every cell (dark
 # pixels only, in a band round it, so smoke there stays), the game draws it on from there (props.gd TROLLEY_WIRE).
 WIRE_CUT = {"trolley": (705, 140, 240)}   # x, rows y0..y1 in the cell, full size   # drawn bigger than shown: a hydrant cell is ~360 px wide on the street
-def anim(kind, f, n=6, rows=1):
+DESPILL = {"thirdrail"}
+def anim(kind, f, n=6, rows=1, pick=None):
     a = np.asarray(Image.open(os.path.join(SRC, f)).convert("RGB")).astype(float)
     r, g, b = a[..., 0], a[..., 1], a[..., 2]
     alpha = ndimage.grey_opening(1 - np.clip((g - np.maximum(r, b) - 40) / 50, 0, 1), size=(3, 3))
     a[..., 1] -= np.maximum(g - np.maximum(r, b), 0) * (1 - alpha * 0.5)
+    if kind in DESPILL:   # smoke and haze are see-through: what is left green in them goes grey
+        a[..., 1] = np.minimum(a[..., 1], (a[..., 0] + a[..., 2]) / 2 + 6)
     rgba = np.dstack([np.clip(a, 0, 255), alpha * 255]).astype(np.uint8)
     cols = n // rows
     W, H = rgba.shape[1] // cols, rgba.shape[0] // rows
     cells = [rgba[(i // cols) * H:(i // cols + 1) * H, (i % cols) * W:(i % cols + 1) * W].copy() for i in range(n)]
+    if pick:
+        cells = [cells[i] for i in pick]
     ys, xs = np.where(np.max([c[..., 3] for c in cells], axis=0) > 20)
     x0, x1, y0, y1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1
     if kind in WIRE_CUT:   # (measured on the crop, the same in every cell)
@@ -79,15 +85,17 @@ def anim(kind, f, n=6, rows=1):
 
 
 if __name__ == "__main__":
-    for kind, (f, rows) in ANIMS.items():
+    for kind, (f, rows, *more) in ANIMS.items():
         if os.path.exists(os.path.join(SRC, f)):
-            anim(kind, f, 6, rows)
+            anim(kind, f, more[0] if more else 6, rows, more[1] if more else None)
     if os.path.exists(os.path.join(SRC, "238.jpg")):
         kegs_still()
     if os.path.exists(os.path.join(SRC, "241.jpg")):
         still("windlass")
     if os.path.exists(os.path.join(SRC, "242.jpg")):
         still("trolley")
+    if os.path.exists(os.path.join(SRC, "244.jpg")):
+        still("thirdrail")
 
 
 # The kegs on the street are the animation's first frame (user 17. 11.: the stack must not change when shot), its
@@ -124,7 +132,7 @@ def still(kind):
         sizes = ndimage.sum(np.ones_like(lab), lab, range(1, n + 1))
         c[..., 3] = np.where(lab == np.argmax(sizes) + 1, c[..., 3], 0)
     r, g, b = [c[..., i].astype(float) for i in range(3)]
-    spark = ndimage.binary_dilation((((r > 170) & (g > 150) & (b < 0.7 * g)) | ((g > r + 18) & (g > b + 18))) & (c[..., 3] > 0), iterations=2) & (c[..., 3] > 0)   # (yellow spark, green spill)
+    spark = ndimage.binary_dilation((((r > 170) & (g > 150) & (b < 0.7 * g)) | ((g > r + 18) & (g > b + 18)) | ((r + g + b) / 3 > 215)) & (c[..., 3] > 0), iterations=2) & (c[..., 3] > 0)   # (yellow or white spark, green spill)
     ok = (~spark) & (c[..., 3] > 0)
     for i in range(3):
         ch = c[..., i].astype(float)

@@ -31,7 +31,7 @@ func build(art: String, w: Sprite2D, ws: float, sx: float, trim: float) -> void:
 
 ## A free-standing thing on the street (levels "things"): its foot on the stones at x (its left edge), as wide as THING_W
 ## says, toned like the drawings behind it (the facade's material and moonlit wash).
-const THING_W := {"windlass": 520.0, "trolley": 960.0}
+const THING_W := {"windlass": 520.0, "trolley": 960.0, "thirdrail": 1300.0}
 func place(kind: String, x: float, like: Sprite2D) -> void:
 	var tex: Texture2D = load("res://art/props/hk_%s.png" % kind)
 	var bw: float = THING_W.get(kind, 400.0)
@@ -148,9 +148,9 @@ func landed_on(pos: Vector2) -> void:
 ## Play a kind's drawn animation (art/props/hk_<kind>_anim.png, 6 equal cells, gen/street_props.py) over the thing:
 ## (cells 0-2 the hit, `loop` repeated for `hold` seconds, 4-5 the end) - the strip's cells are scaled so the thing in them matches the thing on the street (its width share ANIM_W), the
 ## foot on the same line; `hold` (seconds) on the given loop cells, then it ends on the last cell and stays there.
-const ANIM_W := {"hydrant": 0.5, "kegs": 0.849, "steampipe": 0.91, "windlass": 0.869, "trolley": 0.902}   # the thing's width in a cell, as a share of the cell
-const ANIM_X0 := {"kegs": 0.112, "windlass": 0.061, "trolley": 0.054}   # where the thing starts in a cell (its still IS the first cell, cropped); else centred
-const ANIM_GAP := {"windlass": 0.055}   # empty cell below its foot, as a share of the cell's height (gen/street_props.py still())
+const ANIM_W := {"hydrant": 0.5, "kegs": 0.849, "steampipe": 0.91, "windlass": 0.869, "trolley": 0.902, "thirdrail": 0.925}   # the thing's width in a cell, as a share of the cell
+const ANIM_X0 := {"kegs": 0.112, "windlass": 0.061, "trolley": 0.054, "thirdrail": 0.05}   # where the thing starts in a cell (its still IS the first cell, cropped); else centred
+const ANIM_GAP := {"windlass": 0.055, "thirdrail": 0.052}   # empty cell below its foot, as a share of the cell's height (gen/street_props.py still())
 func _animate(p: Dictionary, loop: Array, hold: float) -> bool:
 	var path := "res://art/props/hk_%s_anim.png" % String(p["kind"])
 	if not ResourceLoader.exists(path):
@@ -301,6 +301,28 @@ func _shot_trolley(p: Dictionary, _pos: Vector2) -> void:
 	var x0 := _cell_point(p, Vector2(TROLLEY_PUDDLE.x, 1.0)).x
 	var x1 := _cell_point(p, Vector2(TROLLEY_PUDDLE.y, 1.0)).x
 	for i in 9:   # live: every quarter second while the arcs run
+		get_tree().create_timer(0.27 + i * 0.25, false).timeout.connect(func() -> void:
+			game.sfx.play("zap", -4.0, (x0 + x1) * 0.5, 0.2)
+			for e in game.enemies:
+				var ex: float = e["node"].position.x
+				if e["alive"] and ex > x0 - 40.0 and ex < x1 + 40.0 and absf(float(e["node"].position.y) - foot.y) < 60.0:
+					game._kill(e, false))
+
+
+## The junction box by the tracks bursts: the third rail arcs along its whole length for two seconds and whoever
+## stands on the track bed beside it is done for (ch III hazard, the stunt list's "third rail").
+const RAIL_SPAN := Vector2(0.2, 0.97)   # the live rail's ends, shares of the cell (the box stands left of it)
+func _shot_thirdrail(p: Dictionary, _pos: Vector2) -> void:
+	var foot := _foot(p)
+	game._impact(0.1, 0.06)
+	game._word(["crack", "zing"], _cell_point(p, Vector2(0.08, 0.1)) + Vector2(0.0, -80.0), 0.18)
+	game.sfx.play("zap", 2.0, foot.x, 0.1)
+	if not _animate(p, [2, 3], 2.0):
+		return
+	(p["shadow"] as Sprite2D).visible = false
+	var x0 := _cell_point(p, Vector2(RAIL_SPAN.x, 1.0)).x
+	var x1 := _cell_point(p, Vector2(RAIL_SPAN.y, 1.0)).x
+	for i in 9:
 		get_tree().create_timer(0.27 + i * 0.25, false).timeout.connect(func() -> void:
 			game.sfx.play("zap", -4.0, (x0 + x1) * 0.5, 0.2)
 			for e in game.enemies:

@@ -408,3 +408,10 @@ Read `.claude/skills/ashes-znalosti/SKILL.md` first (stable rules + topic index,
 - Washing line: gen/kit.py hk_tailor "lines" (top landing 2290,389 -> window pulley 2830,600) -> ropes "wash" -> main.gd a zip (his hands on it, no hook), laundry pieces (art_src 243 -> art/props/laundry_0..8, gen/street_props.py cut_set) pinned along it, torn off and fluttering down as he passes. Every chapter I map with the tailor's fire escape has one. `--test=wash --sandbox=1`.
 - Bar slide: floor style "bar" (invisible: the painted counter is the floor) on the Blue Note boss room's bar (room x = px*0.75 + 262, y -305) and in the lab's new club room (lab fixed + "club"). A dive on the bar = straight onto his back skidding (glide friction 220 instead of 1500), glass shattering, 0.6 s free slow, men in his way knocked down; off the end he flies on flat out (move_state dive). A dive landing on it does not roll. `--test=barslide --sandbox=1`.
 - Stunt list left: third rail, jump onto the moving El.
+
+## (39) Third rail (ch III hazard), Gemini watermark check, 2026-11-17
+- art_src 244 (Gemini drew 8 frames, 2 cols x 4 rows, orthographic after two tries in perspective): gen/street_props.py ANIMS entries may carry (frames drawn, the six used); DESPILL greys the green left in smoke; still() also fills white spark pixels (the trolley's insulator went grey with it - fine).
+- props.gd `_shot_thirdrail`: the junction box bursts, arcs along the rail 2 s kill men within RAIL_SPAN. In every train_platform chunk (14TH STREET x2, THE TUNNELS, THE CATACOMBS) and the TEST LAB (after the hoist).
+- Gemini in a NEW chat refuses to draw ("no image tool") even with "Vytvořit obrázek" on: keep using the "Noir Beer Barrel Sprite Prompt" chat; a result can appear only after reloading the page.
+- Watermark check (task 6): bottom-right 160 px of all 253 art_src images looked at side by side (_shots/wm_corners.png): no visible Gemini sparkle anywhere. SynthID is invisible and stays.
+- Stunt list left: jump onto the moving El (big: a train passing below a platform/roof to land on and ride).

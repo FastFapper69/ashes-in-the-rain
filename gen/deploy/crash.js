@@ -81,6 +81,52 @@
     if (/SCRIPT ERROR|Failed loading|out of memory|OOM|Aborted/i.test(m)) send('error', { message: m.substr(0, 2000) });
     return err.apply(console, arguments);
   };
+  // Anonymous play data (telemetry, user's task list 17. 11.): where players die, which maps they finish, where they
+  // leave. One row per event in public.ashes_events (anon can only insert). No personal data: a random id per page
+  // load, the build, the map, a position. Off when the setting "SEND ANONYMOUS PLAY DATA" is off (ashes_telemetry=0).
+  var SESSION = Math.random().toString(36).substr(2, 10);
+  var EV_URL = 'https://mpxfppuigwvwlfhsnbgr.supabase.co/rest/v1/ashes_events';
+  var evSent = 0;
+  var lastMap = '', lastX = 0;
+  window.ashesEvent = function (kind, map, x, y, data) {
+    try {
+      if (localStorage.getItem('ashes_telemetry') === '0' || evSent >= 200) return;
+      evSent++;
+      if (map) { lastMap = String(map); lastX = +x || 0; }
+      fetch(EV_URL, { method: 'POST', keepalive: true, headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY,
+        'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ kind: kind, build: BUILD, session: SESSION, map: String(map || '').substr(0, 60),
+          x: +x || 0, y: +y || 0, data: data || null }) }).catch(function () {});
+    } catch (e) {}
+  };
+  window.ashesWhere = function (map, x) { lastMap = String(map || ''); lastX = +x || 0; };   // (every few seconds: where a quit happens)
+  window.addEventListener('pagehide', function () { if (lastMap) window.ashesEvent('quit', lastMap, lastX, 0, null); });
+  // Haptics (task 9, research ch13): a short buzz on a shot, a hit, a kill, a hard landing, a blast. Android: the
+  // Vibration API. iPhone Safari (17.4+) has none, but toggling a hidden <input type="checkbox" switch> ticks the
+  // Taptic Engine - only inside a touch handler, so a buzz the game asks for is played on the next touch (the
+  // player's thumbs are on the glass all the time). Off when the setting VIBRATION is off (ashes_haptics=0).
+  var buzzWant = 0, buzzAt = 0, sw = null;
+  function hapticsOn() { try { return localStorage.getItem('ashes_haptics') !== '0'; } catch (e) { return true; } }
+  window.ashesBuzz = function (ms) {
+    if (!hapticsOn()) return;
+    if (navigator.vibrate) { try { navigator.vibrate(Math.max(5, Math.min(60, ms | 0))); } catch (e) {} return; }
+    buzzWant = ms; buzzAt = Date.now();
+  };
+  function tick() {
+    if (!buzzWant || Date.now() - buzzAt > 250) { buzzWant = 0; return; }
+    buzzWant = 0;
+    try {
+      if (!sw) {
+        var lab = document.createElement('label');
+        lab.style.cssText = 'position:fixed;left:-100px;top:-100px;width:1px;height:1px;opacity:0;pointer-events:none';
+        sw = document.createElement('input'); sw.type = 'checkbox'; sw.setAttribute('switch', '');
+        lab.appendChild(sw); document.body.appendChild(lab); sw._lab = lab;
+      }
+      sw._lab.click();
+    } catch (e) {}
+  }
+  document.addEventListener('touchstart', tick, { passive: true, capture: true });
+  document.addEventListener('touchend', tick, { passive: true, capture: true });
   window.addEventListener('load', function () {
     var cv = document.getElementById('canvas');
     if (cv) cv.addEventListener('webglcontextlost', function () { crumb('WEBGL CONTEXT LOST'); send('error', { message: 'webgl context lost' }); });

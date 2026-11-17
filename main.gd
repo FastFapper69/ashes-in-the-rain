@@ -842,9 +842,11 @@ func _ready() -> void:
 			_in_cut = false
 			hud.visible = true
 			hud.title("%s  ·  %d / %d" % [String(ch["title"]), map + 1, ch["maps"].size()], String(level["name"]))
+			_intro_pan()
 			get_tree().create_timer(3.6).timeout.connect(hud.caption.bind(level["intro"])))
-	elif _auto_arg() == "" or _auto_arg() == "play":
+	elif _auto_arg() == "" or _auto_arg() == "play" or _auto_arg() == "intro":
 		hud.title("%s  ·  %d / %d" % [String(ch["title"]), map + 1, ch["maps"].size()], String(level["name"]))
+		_intro_pan()
 		get_tree().create_timer(3.6).timeout.connect(hud.caption.bind(level["intro"]))
 	if not OS.has_feature("web"):
 		DirAccess.make_dir_recursive_absolute("res://_shots")
@@ -2698,8 +2700,22 @@ func _process(delta: float) -> void:
 	cam.zoom = Vector2.ONE * lerpf(cam.zoom.x, want_zoom, 1.0 - exp(-3.0 * real))
 	var near := ZOOM / cam.zoom.x   # the pavement stays four fifths down the screen at any zoom
 	fore.modulate.a = move_toward(fore.modulate.a, 0.0 if _room != "" or player.position.y < -900.0 else 1.0, real * 3.0)   # no street furniture indoors, nor up on the scaffold
-	var want_y := CAM_Y * near + (_ground_y if in_sec else _cam_rise(player.position.y)) + clampf(aim_n.y, -0.6, 0.6) * 90.0 * near 			- (120.0 if _steps_above > 0.0 else 0.0)   # steps on the storey above: the camera looks up at them
-	cam.position = Vector2(lerpf(cam.position.x, player.position.x + _lead, 1.0 - exp(-5.5 * real)),
+	var want_y := CAM_Y * near + (_ground_y if in_sec else _cam_rise(_snap_y(player.position.y))) + clampf(aim_n.y, -0.6, 0.6) * 90.0 * near 			- (120.0 if _steps_above > 0.0 else 0.0)   # steps on the storey above: the camera looks up at them
+	var want_x: float = player.position.x + _lead
+	if _pan_t > 0.0:   # the map's opening look along the way up (_intro_pan); he moves: it hands back at once
+		_pan_t -= real
+		if absf(hud.move) > 0.3 or move_state != "ground":
+			_pan_t = minf(_pan_t, 0.6)
+		var pt := _pan_len - _pan_t
+		var w := smoothstep(0.0, _pan_ease, pt) * smoothstep(0.0, _pan_ease * 0.85, _pan_t)
+		want_x = lerpf(want_x, _pan_to.x, w)
+		want_y = lerpf(want_y, CAM_Y * near + _cam_rise(_pan_to.y), w)
+	if _cue_t > 0.0:   # cue focus: drawn toward what matters for a moment, never off him
+		_cue_t -= real
+		var k := _cue_w * clampf(_cue_t / 0.5, 0.0, 1.0) * clampf((_cue_len - _cue_t) / 0.35, 0.0, 1.0)
+		want_x = lerpf(want_x, _cue_at.x, k)
+		want_y = lerpf(want_y, _cue_at.y, k * 0.5)
+	cam.position = Vector2(lerpf(cam.position.x, want_x, 1.0 - exp(-5.5 * real)),
 			lerpf(cam.position.y, want_y, 1.0 - exp(-3.0 * real)))
 	if _auto == "tops" and not boxes.is_empty():   # the test frames each crate close up
 		var tb: Rect2 = boxes[mini(int(_at / 1.2) / 2, boxes.size() - 1)]
@@ -2856,6 +2872,12 @@ func _auto_step(delta: float) -> void:
 					print("  left: ", int(e["node"].position.x), " ", e["state"], " y ", int(e["node"].position.y))
 			get_tree().quit()
 		return
+	elif _auto == "intro":   # --test=intro --chapter=c --map=m: the opening look along the way up, four frames
+		if _at < 0.05:
+			print("INTRO pan to ", Vector2i(_pan_to), " for ", snappedf(_pan_t, 0.1), " from x ", int(player.position.x))
+		shots = [[1.0, "intro_1"], [2.5, "intro_2"], [4.0, "intro_3"], [7.5, "intro_4"]]
+		if _at > 7.8:
+			get_tree().quit()
 	elif _auto == "barslide":   # --test=barslide --sandbox=1: on the club's bar counter, a dive along it, frames
 		var bar := Rect2()
 		for k in catwalks.size():
@@ -4971,6 +4993,7 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 			_hit_box(i, pos)
 			return true
 	if from_player and props and props.shot(pos):
+		cue(pos, 1.3, 0.3)   # (what the shot set off: the camera leans that way a moment)
 		return true
 	if from_player and (sets.bullet(pos) or mapfx.bullet(pos)):
 		return true
@@ -7638,6 +7661,62 @@ func _scaffold(r: Rect2) -> void:
 
 ## How far the camera rises with him: a little on a landing, and all the way with him up the scaffold,
 ## so on the roof the roof sits where the pavement does.
+## Platform snapping (research ch14, Itay Keren): in the air the camera keeps the height of the floor he jumped from,
+## so a hop or a dive in a gunfight does not bob the picture; only past CAM_SNAP above or below it does it follow
+## (an awning's throw, a drop off a landing), smoothly, and on landing it settles on the new floor.
+const CAM_SNAP := 380.0
+## The map's opening (ch14, user's camera task): where the way goes up (a building in cross-section, the roofs, a fire
+## escape or a ladder) and it is near the start, the camera eases over to show it and back - no cut, and he can walk
+## off at once, which hands the camera straight back.
+var _pan_len := 3.4
+var _pan_ease := 1.3   # the way there (and, a little quicker, back): longer the further it is
+var _pan_t := 0.0
+var _pan_to := Vector2.ZERO
+func _intro_pan() -> void:
+	var px: float = player.position.x
+	var best := INF
+	var to := Vector2.ZERO
+	for sc in level.get("sections", []):
+		if float(sc[0]) - px < best:
+			best = float(sc[0]) - px
+			to = Vector2(float(sc[0]) + 600.0, -900.0)
+	if not roof.is_empty() and float(roof["x0"]) - px < best:
+		best = float(roof["x0"]) - px
+		to = Vector2(float(roof["x0"]), float(roof["y"]))
+	for ro in level.get("ropes", []):
+		if String(ro[0]) in ["ladder", "wash"] and float(ro[1]) - px < best and float(ro[1]) > px:
+			best = float(ro[1]) - px
+			to = Vector2(float(ro[1]) + 300.0, float(ro[2]))
+	if _auto == "intro" or _auto_arg() == "intro":
+		print("INTRO way up ", int(best), " px ahead at ", Vector2i(to))
+	if best < 300.0 or best > 26000.0:
+		return   # nothing up, or it is right here: no look ahead
+	_pan_to = to
+	_pan_ease = clampf(best / 5000.0, 1.3, 3.2)
+	_pan_len = _pan_ease * 1.85 + 0.9   # there, a moment on it, back
+	_pan_t = _pan_len
+
+
+## Cue focus (ch14): something that matters (a boss stepping out, a hazard going off, a crate coming down) pulls the
+## camera part of the way toward it for a moment, easing in and out: attention without a word of text.
+var _cue_at := Vector2.ZERO
+var _cue_t := 0.0
+var _cue_len := 1.0
+var _cue_w := 0.0
+func cue(at: Vector2, secs: float, weight: float) -> void:
+	if _cue_t > 0.0 and weight < _cue_w:
+		return
+	_cue_at = at
+	_cue_t = secs
+	_cue_len = secs
+	_cue_w = weight
+func _snap_y(y: float) -> float:
+	if move_state == "ground" or move_state == "climb" or move_state == "stairs":
+		return y
+	var d := y - _ground_y
+	return _ground_y + signf(d) * maxf(0.0, absf(d) - CAM_SNAP)
+
+
 func _cam_rise(y: float) -> float:
 	var low := clampf(y * 0.45, -330.0, 0.0)
 	if props and props.near_climb(player.position.x):   # up a street piece's fire escape / off its awning: the camera goes up with him
@@ -8605,6 +8684,7 @@ func _enemies(delta: float) -> void:
 		if absf(to_player.x) < sight and not e["seen"]:
 			if e["boss"]:
 				hud.boss_bar(BOSS_NAMES.get(String(level["boss"]), "BOSS"), 1.0)
+				cue(m.position + Vector2(0.0, -250.0), 1.6, 0.45)   # the camera looks at him as he steps out
 				if String(level["boss"]) == "kessler":
 					sets.smoke(m.position + Vector2(-500.0, 0.0))
 				e["seen"] = true

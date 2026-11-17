@@ -327,6 +327,7 @@ def chunk(name, hard, rng=None):
         c.box("stack", 1300).hint(800, "JUMP INTO THE STACK, JUMP AGAIN TO KICK OFF IT")   # the wall kick (ch II stunt)
         c.thing("windlass", 8500).foe(9150).hint(7900, "SHOOT THE WINDLASS")   # the docks' anchor windlass (ch II hazard)
         c.thing("trolley", 14600).foe(15300).hint(14000, "SHOOT THE INSULATOR")   # the trolley wire into a puddle (ch III hazard)
+        c.thing("thirdrail", 22300).foe(23000).hint(21700, "SHOOT THE JUNCTION BOX")   # the third rail (ch III hazard)
         c.hoists.append(19400)   # the hoist rope: the warehouse near the end of the lab street (before the flat)
     elif name == "stairs_up":   # the end of the platform: the stairs up to the mezzanine, the way out
         k = -KITS["mezz"]["y"] / (STAIR_FOOT[1] - STAIR_TOP[1])
@@ -377,7 +378,7 @@ def chunk(name, hard, rng=None):
     # ---- underground --------------------------------------------------------------------------------
     elif name == "train_platform":   # along the tracks under the platform edge; a train roars by on the far rails
         c = (Chunk(2400).box("drum", 250).box("crate_long", 1100).foe(700).foe(1650, kind="shotgun" if hard > 0.5 else "post").foe(2250)
-             .event("train_pass", 300))
+             .event("train_pass", 300).thing("thirdrail", 1480))   # the third rail behind the two by the far end (ch III hazard, art_src 244)
     elif name == "cityhall":   # the closed station: chandeliers, boarded booths, rain through the skylight
         c = Chunk(2600).room(0, 2600, "cityhall").lamp(700).lamp(1800)
         furnish(c, "cityhall", rng, ["post", "tommy" if hard > 0.4 else "post", "post"], flask=True)
@@ -613,7 +614,7 @@ def check_props(m):
     return errs
 
 
-THING_W = 960   # = props.gd THING_W (the widest: the trolley pole; the windlass 520)
+THING_W = 1300   # = props.gd THING_W (the widest: the third rail; the trolley pole 960, the windlass 520)
 def cover_men(m, mp):
     """Men who wait for Frank in the open street would just be targets (2026-11-16): about half of them
     get something to stand behind, a crate or a drum on their side of the fight, a step in front of
