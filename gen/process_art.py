@@ -47,7 +47,7 @@ STREET = {
     'front_club': ('251.jpg', 0, False), 'front_tenement': ('252.jpg', 0, False),
     # chapter I on one kit (17. 11.): an alley's mouth with its gate between two row houses, rendered in Blender at a man's eye
     'alley_mouth': ('253.jpg', 0, False), 'market_row': ('254.jpg', 0, False), 'church_row': ('255.jpg', 0, False),
-    'subway_entrance': ('256.jpg', 0, False), 'warehouse_row': ('257.jpg', 0, False),
+    'subway_entrance': ('256.jpg', 0, False), 'warehouse_row': ('257.jpg', 0, False), 'bluenote_row': ('258.jpg', 0, False),
 }
 KIT = {'yard_c': 'yard', 'tunnel_c': 'tunnel', 'walkway_b': 'walkway', 'signal_b': 'signal', 'arches_b': 'arches', 'yard_b': 'yard', 'tunnel_b': 'tunnel', 'tunnel_lo_b': 'tunnel_lo',
        'sheds_b': 'sheds', 'pier17_b': 'pier17', 'shipping_b': 'shipping', 'quay_b': 'quay',
@@ -58,6 +58,7 @@ def _sc(r, trim=134): k = FULL / (FULL - trim); return (r[0] * k, r[1], r[2] * k
 # neon and lit signs on the segments: (x0, x1, y0, y1) as fractions of the drawing, and 'letters'
 # (only the bright strokes glow) or 'wash' (the whole board is lit by lamps on it)
 NEONS = {
+    'bluenote_row': [(1545 / 3168, 1665 / 3168, 190 / 1344, 765 / 1344, 'letters')],   # the vertical BLUE NOTE
     'bluenote': [(0.232, 0.258, 0.335, 0.57, 'letters'), (0.128, 0.264, 0.565, 0.648, 'letters')],
     'warehouse': [(0.718, 0.822, 0.582, 0.668, 'letters')],
     'church': [(0.688, 0.727, 0.385, 0.705, 'letters'), (0.608, 0.737, 0.035, 0.285, 'wash')],

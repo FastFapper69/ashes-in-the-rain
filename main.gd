@@ -1207,6 +1207,7 @@ const LAMP_KINDS := {   # the drawn lamps: where the bulb is on the drawing, and
 # the signs that light up on each drawing: top-left of the glow picture (pixels of the drawing),
 # colour, and how it burns: steady, buzz (now and then a stutter) or dying (out as often as on)
 const SEGMENT_NEONS := {
+	"bluenote_row": [[Vector2(1545 - 24, 190 - 24), Color(0.45, 0.75, 1.0), "buzz", false, 0.3]],   # (neon_mask pads 24; the painted tubes are already bright: a light touch)
 	"bluenote": [[Vector2(678, 426), Color(1.0, 0.22, 0.18), "buzz"], [Vector2(363, 735), Color(0.42, 0.5, 0.62), "steady"]],
 	"warehouse": [[Vector2(2150, 758), Color(1.0, 0.2, 0.2), "dying"]],
 	"subway": [[Vector2(115, 728), Color(1.0, 0.8, 0.5), "steady"], [Vector2(591, 742), Color(1.0, 0.8, 0.5), "steady"]],
@@ -1255,7 +1256,7 @@ const SEGMENT_KIT := {"walkway_b": "walkway", "signal_b": "signal", "arches_b": 
 	"yard_b": "yard", "tunnel_b": "tunnel", "sheds_b": "sheds", "pier17_b": "pier17", "shipping_b": "shipping", "quay_b": "quay",
 	"laundry_b": "laundry", "alley_b": "alley", "warehouse_b": "warehouse", "warehouse_c": "warehouse", "church_b": "church", "subway_b": "subway", "market_b": "market", "market_c": "market", "yard_c": "yard", "tunnel_c": "tunnel",
 	"fire_d": "fire_a", "fire_e": "fire_b", "fire_f": "fire_c", "fire_g": "fire_a"}
-const SEGMENT_SIZE := {"alley_mouth": 0.8, "market_row": 0.8, "church_row": 0.8, "subway_entrance": 0.8, "warehouse_row": 0.8, "front_laundry": 0.8, "front_warehouse": 0.8, "front_club": 0.8, "front_tenement": 0.8, "hk_tailor": 0.8, "hk_grocery": 0.8, "hk_saloon": 0.8, "hk_laundry": 0.8, "deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
+const SEGMENT_SIZE := {"alley_mouth": 0.8, "market_row": 0.8, "church_row": 0.8, "subway_entrance": 0.8, "warehouse_row": 0.8, "bluenote_row": 0.8, "front_laundry": 0.8, "front_warehouse": 0.8, "front_club": 0.8, "front_tenement": 0.8, "hk_tailor": 0.8, "hk_grocery": 0.8, "hk_saloon": 0.8, "hk_laundry": 0.8, "deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
 	"signal": 0.52, "arches": 0.52, "sheds": 0.55, "fire_a": 0.605, "fire_b": 0.605, "fire_c": 0.605}
 # A drawing whose floor runs into the depth: where on it a man's feet go, as a share of its height (the
 # street drawings stand at the back of the pavement at SEGMENT_BASE instead).
@@ -1381,16 +1382,23 @@ func _build_segments() -> void:
 				_fire_life(w, glow, art, ws)
 		else:
 			atmo.add_mist(self, x0, seg_w, -WALL_LIFT, _undo_night(0.8))
-			if not _under_front(x0 + seg_w * 0.45, art):
-				_manhole(x0 + seg_w * 0.45, w.modulate)   # (the steam comes out of something: knowledge rule 22)
-				atmo.add_steam(self, Vector2(x0 + seg_w * 0.45, -20.0))
-				sfx.add_loop("steam", x0 + seg_w * 0.45, -20.0, 600.0, -20.0)
+			var mh := x0 + seg_w * 0.45
+			var piece: Dictionary = KitData.PIECES.get(art, {})
+			for c in piece.get("clear", []):   # never in front of a kit piece's door or gate: the steam would hide it
+				var ca: float = x0 + float(c[0]) * ws - 250.0
+				var cb: float = x0 + float(c[1]) * ws + 250.0
+				if mh > ca and mh < cb:
+					mh = ca if mh - ca < cb - mh else cb
+			if not _under_front(mh, art):
+				_manhole(mh, w.modulate)   # (the steam comes out of something: knowledge rule 22)
+				atmo.add_steam(self, Vector2(mh, -20.0))
+				sfx.add_loop("steam", mh, -20.0, 600.0, -20.0)
 		var signs: Array = SEGMENT_NEONS.get(art, [])
 		for k in signs.size():
 			var p0: Vector2 = signs[k][0]
 			if _under_front(w.position.x + (p0.x - trim) * sx * ws, art):
 				continue
-			_add_sign("res://art/street/%s_neon%d.png" % [art, k], w.position + Vector2((p0.x - trim) * sx, p0.y) * ws, signs[k][1], String(signs[k][2]), halo_tex, signs[k].size() > 3)
+			_add_sign("res://art/street/%s_neon%d.png" % [art, k], w.position + Vector2((p0.x - trim) * sx, p0.y) * ws, signs[k][1], String(signs[k][2]), halo_tex, signs[k].size() > 3 and bool(signs[k][3]), float(signs[k][4]) if signs[k].size() > 4 else 1.0)
 		for f in SEGMENT_LIGHTS.get(art, []):
 			if float(f[0]) < trim:   # cut off with the drawing's trimmed edge
 				continue
@@ -1517,7 +1525,7 @@ func _wall_at(p: Vector2) -> bool:
 
 ## A sign on a drawn street that burns in the dark: its strokes glow in their colour, a haze hangs
 ## round it, it throws coloured light on whoever passes and shines in the wet pavement below.
-func _add_sign(path: String, top_left: Vector2, col: Color, mode: String, halo_tex: Texture2D, wash := false) -> void:
+func _add_sign(path: String, top_left: Vector2, col: Color, mode: String, halo_tex: Texture2D, wash := false, gain := 1.0) -> void:
 	var tex: Texture2D = load(path)
 	var size := tex.get_size() * _sign_scale
 	var mid := top_left + size * 0.5
@@ -1536,9 +1544,9 @@ func _add_sign(path: String, top_left: Vector2, col: Color, mode: String, halo_t
 		glow.texture = tex
 		glow.centered = false
 		glow.position = top_left
-		glow.scale = Vector2.ONE * WALL_SCALE
+		glow.scale = Vector2.ONE * _sign_scale   # (the drawing's own scale: a kit piece is 0.8 of WALL_SCALE)
 		glow.material = unshaded if layer == 0 else additive
-		glow.modulate = col if layer == 0 else _undo_night(0.35 if wash else 0.22) * col.lerp(Color.WHITE, 0.55)
+		glow.modulate = Color(col * gain, 1.0) if layer == 0 else _undo_night((0.35 if wash else 0.22) * gain) * col.lerp(Color.WHITE, 0.55)
 		glow.z_index = -9
 		add_child(glow)
 		rec["nodes"].append(glow)
@@ -1547,7 +1555,7 @@ func _add_sign(path: String, top_left: Vector2, col: Color, mode: String, halo_t
 	haze.position = mid
 	haze.scale = Vector2(size.x, size.y) / 256.0 * 2.2 + Vector2.ONE * 1.2
 	haze.material = additive
-	haze.modulate = _undo_night(0.07) * col
+	haze.modulate = _undo_night(0.07 * gain) * col
 	haze.z_index = -8
 	add_child(haze)
 	rec["nodes"].append(haze)
@@ -4044,7 +4052,7 @@ func _auto_step(delta: float) -> void:
 		if _at > 3.0 and _auto_done & 8 == 0:
 			_auto_done |= 8
 			for seg in level["street"]:
-				if String(seg[0]) == "bluenote":
+				if String(seg[0]) in ["bluenote", "bluenote_row"]:
 					player.position.x = float(seg[1]) + 800.0
 					cam.position.x = player.position.x + _lead
 					break

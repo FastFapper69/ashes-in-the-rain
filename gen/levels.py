@@ -524,7 +524,7 @@ def place_fronts(m):
         m.street[:] = sorted(out, key=lambda s: s[1] + (s[2] if len(s) > 3 else 0.0))
         # never the old drawing of the same kind right beside it (an old laundry next to the new one): a drawing of the
         # same width and size takes its place, so nothing moves (kit pieces and the hoisted warehouse stay: things hang on them)
-        same = {"laundry": ("laundry",), "warehouse": ("warehouse", "warehouse_row"), "club": ("bluenote",), "tenement": ()}[r[2]]
+        same = {"laundry": ("laundry",), "warehouse": ("warehouse", "warehouse_row"), "club": ("bluenote", "bluenote_row"), "tenement": ()}[r[2]]
         i = next(n for n, g in enumerate(m.street) if g[0] == f and g[1] == fx)
         for j in (i - 1, i + 1):
             if not 0 <= j < len(m.street):
@@ -1189,7 +1189,7 @@ def draw(m, name, path):
     im.save(path)
 
 
-PROLOGUE = {"name": "THE LAST NOTE", "seed": 1, "feature": "bluenote", "pool": ["alley", "warehouse", "laundry", "subway", "church", "market"], "start": 0.0, "end": 0.2, "extra": last_stand,
+PROLOGUE = {"name": "THE LAST NOTE", "seed": 1, "feature": "bluenote_row", "pool": ["alley_mouth", "warehouse_row", "subway_entrance", "church_row", "market_row", "hk_tailor", "hk_grocery", "hk_saloon", "hk_laundry"], "start": 0.0, "end": 0.2, "extra": last_stand,
     "fixed": ["breather", "crate_cover", "drum_duo", "barrel_trap", "rush"],
     "hints": [[200, "DRAG THE STICK TO MOVE"], [1500, "TAP ANYWHERE TO SHOOT THERE"], [2700, "PULL THE STICK DOWN TO HIDE BEHIND COVER"],
               [4300, "THE RUNNING MAN BUTTON DIVES OVER CRATES"], [6100, "SHOOT THE RED BARREL"], [7900, "TAP THE STOPWATCH TO SLOW TIME"]],
@@ -1220,7 +1220,7 @@ CAMPAIGN = [
      "intro": ["Iron stairs, wet as a liar's palm."],
      "diary": "Dec 9. The precinct log says who walked the Pier 17 beat that night. I wish I hadn't read it. I need to hear it from him before I take it upstairs.",
      "outro": ["Below me the neon said JAZZ.", "Mickey Teague owned the Blue Note. Somebody else owned Mickey."]},
-    {"name": "THE BLUE NOTE", "seed": 105, "feature": "bluenote", "start": 0.6, "end": 0.85, "boss": "teague", "boss_room": "club",
+    {"name": "THE BLUE NOTE", "seed": 105, "feature": "bluenote_row", "start": 0.6, "end": 0.85, "boss": "teague", "boss_room": "club",
      "fixed": ["crate_cover", "fire_escape", "breather", "warehouse_arena", "rush"],
      "intro": ["Mickey 'Canvas' Teague. Forty fights, and he lost every one he was paid to lose.", "Tonight nobody was paying."],
      "diary": "Dec 17. Meeting a guy from the Blue Note tonight. Says he'll sell me the name of who paid. If I'm wrong about this, I'll buy Frank a drink and tell him everything.",
