@@ -49,8 +49,8 @@ if __name__ == "__main__":
 # the same place in each. Keyed and cut into six equal cells, all cropped by the SAME box (the union over the frames,
 # aligned on the cells' foot) so the thing does not jump: art/props/hk_<kind>_anim.png, a strip of 6 cells
 # (props.gd splits it by width / 6; ANIM_W there = the thing's width share of a cell). A grid sheet (rows > 1) reads row by row.
-ANIMS = {"hydrant": ("237.jpg", 1), "kegs": ("238.jpg", 2), "steampipe": ("239.jpg", 2)}   # (file, rows of 6 frames)
-SHRINK = {"hydrant": 0.72, "kegs": 0.5}   # drawn bigger than shown: a hydrant cell is ~360 px wide on the street
+ANIMS = {"hydrant": ("237.jpg", 1), "kegs": ("238.jpg", 2), "steampipe": ("239.jpg", 2), "windlass": ("241.jpg", 2)}   # (file, rows of 6 frames)
+SHRINK = {"hydrant": 0.72, "kegs": 0.5, "windlass": 0.5}   # drawn bigger than shown: a hydrant cell is ~360 px wide on the street
 def anim(kind, f, n=6, rows=1):
     a = np.asarray(Image.open(os.path.join(SRC, f)).convert("RGB")).astype(float)
     r, g, b = a[..., 0], a[..., 1], a[..., 2]
@@ -75,6 +75,8 @@ if __name__ == "__main__":
             anim(kind, f, 6, rows)
     if os.path.exists(os.path.join(SRC, "238.jpg")):
         kegs_still()
+    if os.path.exists(os.path.join(SRC, "241.jpg")):
+        still("windlass")
 
 
 # The kegs on the street are the animation's first frame (user 17. 11.: the stack must not change when shot), its
@@ -97,6 +99,31 @@ def kegs_still():
     x0, x1, y0, y1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1
     Image.fromarray(c[y0:y1, x0:x1]).save(os.path.join(ROOT, "art", "props", "hk_kegs.png"))
     print("kegs still", (x1 - x0, y1 - y0), "ANIM_W %.3f ANIM_X0 %.3f foot gap %d" % ((x1 - x0) / cw, x0 / cw, c.shape[0] - y1))
+
+
+# A free-standing thing (not cut out of a street drawing: placed by gen/levels.py Chunk.prop, docks and on) stands as
+# its animation's first cell: the bullet (a loose bit) dropped - only the biggest piece kept - and the spark's bright
+# yellow filled from the iron round it. props.gd ANIM_W/ANIM_X0 from the numbers printed.
+def still(kind):
+    a = np.asarray(Image.open(os.path.join(ROOT, "art", "props", f"hk_{kind}_anim.png"))).copy()
+    cw = a.shape[1] // 6
+    c = a[:, :cw].copy()
+    lab, n = ndimage.label(c[..., 3] > 40)
+    if n > 1:
+        sizes = ndimage.sum(np.ones_like(lab), lab, range(1, n + 1))
+        c[..., 3] = np.where(lab == np.argmax(sizes) + 1, c[..., 3], 0)
+    r, g, b = [c[..., i].astype(float) for i in range(3)]
+    spark = ndimage.binary_dilation((((r > 170) & (g > 150) & (b < 0.7 * g)) | ((g > r + 18) & (g > b + 18))) & (c[..., 3] > 0), iterations=2) & (c[..., 3] > 0)   # (yellow spark, green spill)
+    ok = (~spark) & (c[..., 3] > 0)
+    for i in range(3):
+        ch = c[..., i].astype(float)
+        num = ndimage.uniform_filter(np.where(ok, ch, 0), 15)
+        den = ndimage.uniform_filter(ok.astype(float), 15)
+        c[..., i] = np.where(spark, np.clip(num / np.maximum(den, 1e-3), 0, 255), ch).astype(np.uint8)
+    ys, xs = np.where(c[..., 3] > 20)
+    x0, x1, y0, y1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1
+    Image.fromarray(c[y0:y1, x0:x1]).save(os.path.join(ROOT, "art", "props", f"hk_{kind}.png"))
+    print(kind, "still", (x1 - x0, y1 - y0), "ANIM_W %.3f ANIM_X0 %.3f foot gap %d spark px %d" % ((x1 - x0) / cw, x0 / cw, c.shape[0] - y1, spark.sum()))
 
 
 # The zip line's two ends (art_src 240, user 17. 11.: "a cable tied to a barrel on the ground is random – it wants an

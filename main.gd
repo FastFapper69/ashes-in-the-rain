@@ -1048,6 +1048,12 @@ func _build_street() -> void:
 		return
 	if level.has("street") and level["street"].size() > 0:
 		_build_segments()
+		for th in level.get("things", []):   # free-standing things to shoot (gen/levels.py Chunk.thing), toned like the drawing behind
+			var like: Sprite2D = null
+			for fc in _facades:
+				if float(th[1]) >= float(fc[0]) and float(th[1]) < float(fc[1]):
+					like = fc[2]
+			props.place(String(th[0]), float(th[1]), like)
 		return
 	var wall_tex: Texture2D = load("res://art/bg/wall2.png")
 	var wall_n: Texture2D = load("res://art/bg/wall2_n.png")
@@ -1241,6 +1247,7 @@ const DEEP_VP := {"alley": Vector2(0.52, 0.55), "laundry": Vector2(0.6, 0.5), "s
 		"platform": Vector2(0.65, 0.5), "yard": Vector2(0.5, 0.45)}   # in the opening
 var deeps: Array = []   # {sprite, center (world), box (UV)}
 var _deep_rects: Array[Rect2] = []
+var _facades: Array = []   # [x0, x1, sprite] of each street drawing (a free-standing thing takes the tone of the one behind it)
 var _stain_hosts: Array = []   # [x0, x1, node]: the masks blood on each drawing is clipped to   # the same in world space, for the blood
 const SEGMENT_TRIM := {"alley": 134.0, "bluenote": 134.0, "warehouse": 133.0, "laundry": 133.0, "subway": 53.0, "church": 58.0, "market": 58.0, "deadend": 58.0,
 		"pier17": 132.0, "cranes": 132.0, "shipping": 132.0, "quay": 132.0, "harbor": 132.0, "sheds": 112.0,
@@ -1323,6 +1330,7 @@ func _build_segments() -> void:
 		w.modulate = Color.WHITE * SEGMENT_MOON * float(SEGMENT_GAIN.get(seg_name, 1.0))   # a moonlit wash, so the drawing reads between the lamps
 		add_child(w)
 		props.build(art, w, ws, sx, trim)   # (the kit's things: once the drawing stands where it goes)
+		_facades.append([x0, x0 + diffuse.get_width() * ws, w])
 		if level.get("under", false) and float(SEGMENT_SIZE.get(seg_name, 1.0)) < 0.6:
 			# a subway drawing at a man's scale is lower than the screen: its vault goes on up, the top of
 			# the drawing mirrored over it and sinking into the dark, so no edge shows when he jumps

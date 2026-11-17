@@ -140,8 +140,10 @@ class Chunk:
         self.stairdoors = []   # the stairs in a building's back wall: [x, storey y, the y they lead to]
         self.hoists = []       # where a swing rope is wanted from a warehouse hoist (hoist_ropes)
         self.kits = []         # (x, piece): a street-kit drawing wanted with its things at x (kit_pieces)
+        self.things = []       # [kind, x]: a free-standing thing to shoot (props.gd place: windlass...), its foot on the street
         self.flats = []        # a flat to kick into and jump out of: [door x, storey y, door h, window x0, x1, sill, lintel]
 
+    def thing(self, kind, x): self.things.append([kind, x]); return self
     def box(self, kind, x, y=0.0): self.boxes.append([kind, x, y] if y else [kind, x]); return self
     def plat(self, x, y, w, style="catwalk"): self.plats.append([x, y, w, style]); return self
     def ramp(self, x0, y0, x1, y1): self.ramps.append([x0, y0, x1, y1]); return self
@@ -323,6 +325,7 @@ def chunk(name, hard, rng=None):
         c = Chunk(25500)
         c.hint(300, "TEST LAB")
         c.box("stack", 1300).hint(800, "JUMP INTO THE STACK, JUMP AGAIN TO KICK OFF IT")   # the wall kick (ch II stunt)
+        c.thing("windlass", 8500).foe(9150).hint(7900, "SHOOT THE WINDLASS")   # the docks' anchor windlass (ch II hazard)
         c.hoists.append(19400)   # the hoist rope: the warehouse near the end of the lab street (before the flat)
     elif name == "stairs_up":   # the end of the platform: the stairs up to the mezzanine, the way out
         k = -KITS["mezz"]["y"] / (STAIR_FOOT[1] - STAIR_TOP[1])
@@ -347,7 +350,8 @@ def chunk(name, hard, rng=None):
         furnish(c, "club", rng, ["post", "shotgun", "tommy"])
     # ---- the docks -------------------------------------------------------------------------------
     elif name == "dock_crates":   # cargo waiting on the quay, and them behind it
-        c = Chunk(1700).box("crate_long", 0).box("crate", 700).box("drum", 1350).foe(500).foe(1150).foe(1650, kind="tommy" if hard > 0.5 else "post")
+        # the anchor windlass (ch II hazard, art_src 241): shot, its brake snaps and the chain lashes out to the right
+        c = Chunk(1700).box("crate_long", 0).box("crate", 700).thing("windlass", 1180).foe(500).foe(1100).foe(1700, kind="tommy" if hard > 0.5 else "post")
     elif name == "car_ambush":   # a sedan pulls up ahead and three of them pile out behind it
         c = Chunk(2700).box("crate", 0).foe(700).event("car", 350, 2000, 1, 3)
     elif name == "searchlight_yard":   # a searchlight on a pole sweeps the yard: in it, they do not miss
@@ -473,6 +477,7 @@ def _build(mp, nudge):
         for sx, sy, ty in c.stairdoors: out.stairdoors.append([x + sx, sy, ty])
         for hx in c.hoists: out.hoists.append(x + hx)
         for kx, kp in c.kits: out.kits.append((x + kx, kp))
+        for tk, tx in c.things: out.things.append([tk, x + tx])
         for fl in c.flats: out.flats.append([x + fl[0], fl[1], fl[2], x + fl[3], x + fl[4], fl[5], fl[6]])
         for lx, ly in c.lamps: out.lamps.append([x + lx, ly])
         for k, px, py in c.pickups: out.pickups.append([k, x + px, py])
@@ -602,6 +607,7 @@ def check_props(m):
     return errs
 
 
+THING_W = 520   # = props.gd THING_W (the windlass)
 def cover_men(m, mp):
     """Men who wait for Frank in the open street would just be targets (2026-11-16): about half of them
     get something to stand behind, a crate or a drum on their side of the fight, a step in front of
@@ -612,8 +618,9 @@ def cover_men(m, mp):
     rng = random.Random(mp["seed"] * 7 + 3)
     by = lambda b: b[2] if len(b) > 2 else 0.0
     in_room = lambda x: any(a - 300 < x < b + 300 for a, b, st in m.rooms)
-    def covered(x):
-        return any(by(b) == 0.0 and 30 < x - (b[1] + BOX[b[0]][0]) < 300 and BOX[b[0]][1] > 200 for b in m.boxes)
+    def covered(x):   # (a free-standing thing - the windlass - is his cover too, and nothing is put in front of it)
+        return (any(by(b) == 0.0 and 30 < x - (b[1] + BOX[b[0]][0]) < 300 and BOX[b[0]][1] > 200 for b in m.boxes)
+                or any(-100 < x - (t[1] + THING_W) < 300 for t in m.things))
     foes = sorted([e for e in m.enemies if not e["run"] and e["y"] == 0.0 and e["kind"] in ("post", "tommy", "shotgun")], key=lambda e: e["x"])
     for a, b in zip(foes, foes[1:]):   # shoulder to shoulder: the second steps back
         if b["x"] - a["x"] < 250 and not in_room(b["x"]):
@@ -636,6 +643,8 @@ def cover_men(m, mp):
             two_r = [b[0] for b in sorted(right, key=lambda b: b[1])[:2]]
             if two_l == [kind, kind] or two_r == [kind, kind] or (two_l[-1:] == [kind] and two_r[:1] == [kind]):
                 continue   # a third of the same in a row
+            if any(bx < t[1] + THING_W + 80 and bx + w > t[1] - 80 for t in m.things):
+                continue
             if _cover_spot(m, e, bx, w, by):
                 m.boxes.append([kind, bx])
                 break
@@ -1167,6 +1176,7 @@ def gd(campaign):
             fz = ", ".join("[" + ", ".join(f(v) for v in fl) + "]" for fl in m.flats)
             lp = ", ".join(f'[{f(l[0])}, {f(l[1])}]' for l in m.lamps)
             pk = ", ".join(f'["{p[0]}", {f(p[1])}, {f(p[2])}]' for p in m.pickups)
+            th = ", ".join(f'["{t[0]}", {f(t[1])}]' for t in m.things)
             hn = ", ".join(f'[{f(h[0])}, {q(h[1])}]' for h in m.hints)
             ck = ", ".join(f(c) for c in m.checks)
             ro = ", ".join(f'["{r[0]}", {f(r[1])}, {f(r[2])}, {f(r[3])}, {f(r[4])}' + (f', "{r[5]}"' if len(r) > 5 else "") + "]" for r in m.ropes)
@@ -1199,6 +1209,7 @@ def gd(campaign):
             out.append(f'\t\t\t"rooms": [{rm}],')
             out.append(f'\t\t\t"lamps": [{lp}],')
             out.append(f'\t\t\t"pickups": [{pk}],')
+            out.append(f'\t\t\t"things": [{th}],')
             out.append(f'\t\t\t"checkpoints": [{ck}],')
             if m.sections:
                 out.append(f'\t\t\t"sections": [{sc}], "section_h": {f(SEC_H)}, "xy_checks": [{xc}], "stairdoors": [{sd}], "flats": [{fz}],')

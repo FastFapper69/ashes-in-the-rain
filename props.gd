@@ -5,7 +5,8 @@ extends Node2D
 ## contact pool on the stones, so it reads 3D in 2D (user 16. 11.).
 ##
 ## A new kind: a line in gen/kit.py KINDS + a `_shot_<kind>` (or floor behaviour) here. main.gd only calls
-## build(), tick(), shot(), landed_on() and near_climb().
+## build(), place(), tick(), shot(), landed_on() and near_climb(). A thing not cut out of a street drawing (the docks'
+## windlass...) is placed free-standing on the street by the level (levels "things": place()).
 
 const Kit = preload("res://kit.gd")
 var game   # main.gd
@@ -25,35 +26,51 @@ func build(art: String, w: Sprite2D, ws: float, sx: float, trim: float) -> void:
 		var x := w.position.x + (float(box[0]) - trim) * ws * sx
 		var y_foot := w.position.y + float(box[3]) * ws
 		var top: float = w.position.y + float(box[1]) * ws if String(pr["anchor"]) == "top" else y_foot - h
-		var shadow := Sprite2D.new()   # on the wall and the stones behind it
-		shadow.texture = tex
-		shadow.centered = false
-		shadow.scale = Vector2(k, k * 0.97)
-		shadow.position = Vector2(x + 16.0, top + 14.0)
-		shadow.modulate = Color(0, 0, 0, 0.42)
-		shadow.z_index = -9
-		shadow.light_mask = 0
-		add_child(shadow)
-		var sp := Sprite2D.new()
-		sp.texture = tex
-		sp.centered = false
-		sp.scale = Vector2.ONE * k
-		sp.position = Vector2(x, top)
-		sp.material = w.material
-		sp.modulate = w.modulate
-		sp.z_index = -8
-		sp.light_mask = w.light_mask
-		add_child(sp)
-		if String(pr["anchor"]) == "foot":   # where it stands: a dark contact pool on the stones
-			var pool := Sprite2D.new()
-			pool.texture = game._soft_glow()
-			pool.scale = Vector2(bw / 90.0, 0.35)
-			pool.position = Vector2(x + bw * 0.5, y_foot + 4.0)
-			pool.modulate = Color(0, 0, 0, 0.55)
-			pool.z_index = -9
-			add_child(pool)
-		items.append({"kind": kind, "node": sp, "shadow": shadow, "base": sp.position, "sbase": shadow.position,
-				"rect": Rect2(x, top, bw, h), "used": false, "depth": float(Kit.KINDS[kind]["depth"])})
+		_add(kind, tex, x, top, bw, k, y_foot if String(pr["anchor"]) == "foot" else NAN, w.material, w.modulate, w.light_mask)
+
+
+## A free-standing thing on the street (levels "things"): its foot on the stones at x (its left edge), as wide as THING_W
+## says, toned like the drawings behind it (the facade's material and moonlit wash).
+const THING_W := {"windlass": 520.0}
+func place(kind: String, x: float, like: Sprite2D) -> void:
+	var tex: Texture2D = load("res://art/props/hk_%s.png" % kind)
+	var bw: float = THING_W.get(kind, 400.0)
+	var k := bw / tex.get_width()
+	_add(kind, tex, x, -tex.get_height() * k, bw, k, 0.0, like.material if like else null,
+			Color.WHITE * float(game.SEGMENT_MOON) * 0.9 if like == null else like.modulate, like.light_mask if like else 1)
+
+
+func _add(kind: String, tex: Texture2D, x: float, top: float, bw: float, k: float, y_foot: float, mat: Material, tone: Color, lmask: int) -> void:
+	var h := tex.get_height() * k
+	var shadow := Sprite2D.new()   # on the wall and the stones behind it
+	shadow.texture = tex
+	shadow.centered = false
+	shadow.scale = Vector2(k, k * 0.97)
+	shadow.position = Vector2(x + 16.0, top + 14.0)
+	shadow.modulate = Color(0, 0, 0, 0.42)
+	shadow.z_index = -9
+	shadow.light_mask = 0
+	add_child(shadow)
+	var sp := Sprite2D.new()
+	sp.texture = tex
+	sp.centered = false
+	sp.scale = Vector2.ONE * k
+	sp.position = Vector2(x, top)
+	sp.material = mat
+	sp.modulate = tone
+	sp.z_index = -8
+	sp.light_mask = lmask
+	add_child(sp)
+	if not is_nan(y_foot):   # where it stands: a dark contact pool on the stones
+		var pool := Sprite2D.new()
+		pool.texture = game._soft_glow()
+		pool.scale = Vector2(bw / 90.0, 0.35)
+		pool.position = Vector2(x + bw * 0.5, y_foot + 4.0)
+		pool.modulate = Color(0, 0, 0, 0.55)
+		pool.z_index = -9
+		add_child(pool)
+	items.append({"kind": kind, "node": sp, "shadow": shadow, "base": sp.position, "sbase": shadow.position,
+			"rect": Rect2(x, top, bw, h), "used": false, "depth": float(Kit.KINDS[kind]["depth"])})
 
 
 func tick(_delta: float) -> void:
@@ -102,8 +119,9 @@ func landed_on(pos: Vector2) -> void:
 ## Play a kind's drawn animation (art/props/hk_<kind>_anim.png, 6 equal cells, gen/street_props.py) over the thing:
 ## (cells 0-2 the hit, `loop` repeated for `hold` seconds, 4-5 the end) - the strip's cells are scaled so the thing in them matches the thing on the street (its width share ANIM_W), the
 ## foot on the same line; `hold` (seconds) on the given loop cells, then it ends on the last cell and stays there.
-const ANIM_W := {"hydrant": 0.5, "kegs": 0.849, "steampipe": 0.91}   # the thing's width in a cell, as a share of the cell
-const ANIM_X0 := {"kegs": 0.112}   # where the thing starts in a cell (its still IS the first cell, cropped); else centred
+const ANIM_W := {"hydrant": 0.5, "kegs": 0.849, "steampipe": 0.91, "windlass": 0.869}   # the thing's width in a cell, as a share of the cell
+const ANIM_X0 := {"kegs": 0.112, "windlass": 0.061}   # where the thing starts in a cell (its still IS the first cell, cropped); else centred
+const ANIM_GAP := {"windlass": 0.055}   # empty cell below its foot, as a share of the cell's height (gen/street_props.py still())
 func _animate(p: Dictionary, loop: Array, hold: float) -> bool:
 	var path := "res://art/props/hk_%s_anim.png" % String(p["kind"])
 	if not ResourceLoader.exists(path):
@@ -118,7 +136,7 @@ func _animate(p: Dictionary, loop: Array, hold: float) -> bool:
 	sp.region_enabled = true
 	sp.scale = Vector2.ONE * k
 	var x0: float = r.position.x - cw * k * float(ANIM_X0[p["kind"]]) if ANIM_X0.has(p["kind"]) else r.get_center().x - cw * k * 0.5
-	sp.position = Vector2(x0, r.end.y - ch * k)
+	sp.position = Vector2(x0, r.end.y - ch * k * (1.0 - float(ANIM_GAP.get(p["kind"], 0.0))))
 	p["base"] = sp.position
 	(p["shadow"] as Sprite2D).visible = false
 	var tw := sp.create_tween()
@@ -218,6 +236,25 @@ func _shot_steampipe(p: Dictionary, pos: Vector2) -> void:
 		if e["alive"] and absf(float(e["node"].position.x) - pos.x) < 520.0 and absf(float(e["node"].position.y) - foot.y) < 120.0:
 			e["cool"] = maxf(float(e["cool"]), 3.2)
 			game._mark(e["node"], "?")
+
+
+## The brake snaps, the drum spins and the anchor chain lashes out along the quay to the right: whoever stands
+## in its sweep goes down (ch II hazard, user's stunt list).
+func _shot_windlass(p: Dictionary, _pos: Vector2) -> void:
+	var foot := _foot(p)
+	var r: Rect2 = p["rect"]
+	game._impact(0.1, 0.05)
+	game._word(["kachak", "wham"], foot + Vector2(0.0, -r.size.y - 110.0), 0.2, Vector2.UP)
+	game.sfx.play("chain", 3.0, foot.x, 0.05)
+	if not _animate(p, [], 0.0):
+		game.fx.break_apart(p["node"], foot, foot.y)
+	(p["shadow"] as Sprite2D).visible = false
+	get_tree().create_timer(0.25, false).timeout.connect(func() -> void:   # the lash lands
+		game.fx.dust(foot + Vector2(r.size.x * 0.7, 0.0), 0.5)
+		for e in game.enemies:
+			var dx: float = e["node"].position.x - foot.x
+			if e["alive"] and dx > -160.0 and dx < 700.0 and absf(float(e["node"].position.y) - foot.y) < 120.0 and String(e["state"]) in ["post", "run", "move", "hop"]:
+				game._knock_down(e, 750.0))
 
 
 func _knock_round(at: Vector2, reach: float, push: float) -> void:
