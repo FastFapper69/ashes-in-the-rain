@@ -2690,14 +2690,13 @@ func _process(delta: float) -> void:
 	fore.modulate.a = move_toward(fore.modulate.a, 0.0 if _room != "" or player.position.y < -900.0 else 1.0, real * 3.0)   # no street furniture indoors, nor up on the scaffold
 	var want_y := CAM_Y * near + (_ground_y if in_sec else _cam_rise(_snap_y(player.position.y))) + clampf(aim_n.y, -0.6, 0.6) * 90.0 * near 			- (120.0 if _steps_above > 0.0 else 0.0)   # steps on the storey above: the camera looks up at them
 	var want_x: float = player.position.x + _lead
-	if _pan_t > 0.0:   # the map's opening look along the way up (_intro_pan); he moves: it hands back at once
+	if _pan_t > 0.0:   # the map's opening: the camera eases in onto him from a little way off (_intro_pan)
 		_pan_t -= real
 		if absf(hud.move) > 0.3 or move_state != "ground":
-			_pan_t = minf(_pan_t, 0.6)
-		var pt := _pan_len - _pan_t
-		var w := smoothstep(0.0, _pan_ease, pt) * smoothstep(0.0, _pan_ease * 0.85, _pan_t)
-		want_x = lerpf(want_x, _pan_to.x, w)
-		want_y = lerpf(want_y, CAM_Y * near + _cam_rise(_pan_to.y), w)
+			_pan_t = minf(_pan_t, 0.5)
+		var w := smoothstep(0.0, INTRO_LEN, _pan_t)
+		want_x += INTRO_FROM.x * w
+		want_y += INTRO_FROM.y * w
 	if _cue_t > 0.0:   # cue focus: drawn toward what matters for a moment, never off him
 		_cue_t -= real
 		var k := _cue_w * clampf(_cue_t / 0.5, 0.0, 1.0) * clampf((_cue_len - _cue_t) / 0.35, 0.0, 1.0)
@@ -2886,9 +2885,9 @@ func _auto_step(delta: float) -> void:
 		return
 	elif _auto == "intro":   # --test=intro --chapter=c --map=m: the opening look along the way up, four frames
 		if _at < 0.05:
-			print("INTRO pan to ", Vector2i(_pan_to), " for ", snappedf(_pan_t, 0.1), " from x ", int(player.position.x))
-		shots = [[1.0, "intro_1"], [2.5, "intro_2"], [4.0, "intro_3"], [7.5, "intro_4"]]
-		if _at > 7.8:
+			print("INTRO for ", snappedf(_pan_t, 0.1), " from x ", int(player.position.x))
+		shots = [[0.1, "intro_1"], [0.8, "intro_2"], [1.6, "intro_3"], [3.0, "intro_4"]]
+		if _at > 3.2:
 			get_tree().quit()
 	elif _auto == "barslide":   # --test=barslide --sandbox=1: on the club's bar counter, a dive along it, frames
 		var bar := Rect2()
@@ -7747,36 +7746,17 @@ func _scaffold(r: Rect2) -> void:
 ## so a hop or a dive in a gunfight does not bob the picture; only past CAM_SNAP above or below it does it follow
 ## (an awning's throw, a drop off a landing), smoothly, and on landing it settles on the new floor.
 const CAM_SNAP := 380.0
-## The map's opening (ch14, user's camera task): where the way goes up (a building in cross-section, the roofs, a fire
-## escape or a ladder) and it is near the start, the camera eases over to show it and back - no cut, and he can walk
-## off at once, which hands the camera straight back.
-var _pan_len := 3.4
-var _pan_ease := 1.3   # the way there (and, a little quicker, back): longer the further it is
+## The map's opening (user 17. 11.: "not a ride over the whole map - I don't want to see it before I walk it; a light
+## cinematic move in onto the hero that starts a little way from him"): the camera starts a little ahead of him,
+## higher and wider, and eases in onto him over INTRO_LEN; he can walk off at once, which hands it straight back.
+const INTRO_LEN := 2.4
+const INTRO_FROM := Vector2(520.0, -170.0)   # where the camera starts, off him
+const INTRO_WIDE := 0.84                     # and how much wider (the zoom eases back by itself)
 var _pan_t := 0.0
-var _pan_to := Vector2.ZERO
 func _intro_pan() -> void:
-	var px: float = player.position.x
-	var best := INF
-	var to := Vector2.ZERO
-	for sc in level.get("sections", []):
-		if float(sc[0]) - px < best:
-			best = float(sc[0]) - px
-			to = Vector2(float(sc[0]) + 600.0, -900.0)
-	if not roof.is_empty() and float(roof["x0"]) - px < best:
-		best = float(roof["x0"]) - px
-		to = Vector2(float(roof["x0"]), float(roof["y"]))
-	for ro in level.get("ropes", []):
-		if String(ro[0]) in ["ladder", "wash"] and float(ro[1]) - px < best and float(ro[1]) > px:
-			best = float(ro[1]) - px
-			to = Vector2(float(ro[1]) + 300.0, float(ro[2]))
-	if _auto == "intro" or _auto_arg() == "intro":
-		print("INTRO way up ", int(best), " px ahead at ", Vector2i(to))
-	if best < 300.0 or best > 26000.0:
-		return   # nothing up, or it is right here: no look ahead
-	_pan_to = to
-	_pan_ease = clampf(best / 5000.0, 1.3, 3.2)
-	_pan_len = _pan_ease * 1.85 + 0.9   # there, a moment on it, back
-	_pan_t = _pan_len
+	_pan_t = INTRO_LEN
+	cam.position = Vector2(player.position.x + _lead, cam.position.y) + INTRO_FROM
+	cam.zoom = Vector2.ONE * ZOOM * INTRO_WIDE
 
 
 ## Cue focus (ch14): something that matters (a boss stepping out, a hazard going off, a crate coming down) pulls the
