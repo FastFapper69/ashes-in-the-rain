@@ -148,3 +148,23 @@ Pokus (dvě malé věci, pak ukázat uživateli porovnání a čekat na verdikt)
 3. Volitelně, až 1–2 dopadnou dobře: normálová mapa z jednoduchého 3D tvaru jedné fasády/rekvizity pro světla v Godotu
    (porovnat s dnešní normálovou mapou na `--test=look`), a mechanické animace (jeřáb, cedule, ventilátor) jako 3D → snímky → přemalba.
 Výstup pokusu: screenshoty 1280 i 1560 před/po, 2–3 věty do HANDOFF, poznatky do `ashes-vyzkum` (nová kapitola 15, pokud se osvědčí).
+
+## 9. OPRAVA – uličky se kroutí a scény na sebe nenavazují – uživatel naštvaný 17. 11. dopoledne (PRIORITA, před vším ostatním)
+Uživatel (fotky z monitoru, art_src/ ne – v chatu): „prostory jako uličky se stále úplně kreténsky uhýbají, myslel jsem, že tohle už jsme si prošli.
+To samé návaznosti scén. Nemůžu jít přeci z okna do otevřené uličky.“ Nová tvrdá pravidla 24 a 25 v `ashes-znalosti` §1 + ch05.
+Viděno: (a) ulička s párou – dveře a zdi v hloubce jsou zkosené do kosodélníku (DEEP_PERSPECTIVE posouvá vzdálený konec),
+(b) chodba činžáku (dveře 3C, schody) stojí hned vedle ulice s krejčím (TAILOR) a mezi nimi tmavá díra – interiér nalepený vedle ulice,
+(c) cedulka na dveřích 3C je nečitelná AI „glyph soup“ (pravidlo 1 – `gen/fix_cut_text.py` nebo přemalovat).
+1. **Hloubkové pohledy stojí**: vypnout posun/smyk úplně (DEEP_SLIDE = 0, DEEP_LIFT = 0, pak DEEP_PERSPECTIVE a `_tick_deep` smazat jako mrtvý kód,
+   pokud nic jiného nepotřebují). `--test=deep:<art>` u KAŽDÉ položky DEEP_SPLIT ze 3 poloh kamery → snímky musí být pixelově stejné jako kresba.
+   Žádný nový efekt hloubky bez ukázky v TEST LAB a souhlasu uživatele.
+2. **Audit návazností** – rozšířit `gen/tests/audit_maps.py` o pravidla (exit 1 při chybě) a projet všechny mapy + SANDBOX:
+   - interiér/řez (rooms, sections, flats) nikdy přímo vedle uliční/uličkové kresby bez fasády téhož domu kolem (řez domem s dissolve);
+   - vstup/výstup z budovy jen namalovaným otvorem: dveře do ulice → chodník před TOUTÉŽ fasádou; okno → požární schodiště/římsa/střecha
+     TÉHOŽ domu (nebo pád na ulici před tou fasádou); nikdy z okna do uličky, jiného domu nebo jiné scény;
+   - každá změna druhu prostoru (interiér/ulice/ulička/střecha/podzemí) má namalovaný přechod (dveře, brána, schody, fasáda), jinak prolínačku.
+   Výpis: mapa, x, dvojice sousedů, proč. Opravit v gen/levels.py (chunk `section`/`stunts`/`lab`: dům s fasádou kolem chodby i bytu,
+   okno bytu ústí na jeho vlastní požární schodiště na fasádě), ne lepením kulis.
+3. Ověřit: boti na všech mapách, `--test=look` u KAŽDÉHO přechodu z auditu (1560 i 1280), prohlédnout zvětšené; přechody, které se změnily,
+   ukázat uživateli jako list snímků v TEST LAB (`--sandbox=1`). Až potom deploy + řádek do changelog.gd.
+4. HANDOFF: krátký záznam + co audit našel (počty po mapách).

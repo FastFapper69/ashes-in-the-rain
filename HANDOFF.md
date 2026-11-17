@@ -449,3 +449,7 @@ Read `.claude/skills/ashes-znalosti/SKILL.md` first (stable rules + topic index,
 
 ## (46) Renamed everywhere to Ashes in the Rain, 2026-11-17
 - User: drop every trace of the old project name. GitHub repo is now FastFapper69/ashes-in-the-rain (github redirects git URLs from the old name; the old Pages URL does not redirect). Web: https://fastfapper69.github.io/ashes-in-the-rain/ . Repo description updated. All files, deploy scripts and gen/paths.py use the new names; folders: repo `ashes-in-the-rain`, pages clone `ashes-in-the-rain-pages`, art `Ashes in the Rain/art_src`.
+
+## (47) Uživatel naštvaný: uličky se kroutí, scény nenavazují – NOVÁ PRIORITA, 2026-11-17 10:45
+- Fotky z monitoru: ulička s párou zkosená (DEEP_PERSPECTIVE slide), chodba činžáku (3C) nalepená vedle ulice TAILOR s tmavou dírou, z okna rovnou do otevřené uličky; cedulka na 3C je glyph soup.
+- Nová pravidla 24 (kresba se nikdy nedeformuje, hloubkové pohledy stojí) a 25 (prostory navazují jako ve skutečném městě) v `ashes-znalosti`. Úkol: `gen/QUEUE_doma.md` §9 – udělat PŘED vším ostatním.
