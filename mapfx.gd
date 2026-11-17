@@ -280,7 +280,13 @@ func _hang_sheets(x: float) -> void:
 	s.modulate = Color(game._undo_night(0.95), 0.74)
 	game.add_child(s)
 	var size: Vector2 = tex.get_size() * SHEET_SCALE
-	_sheets.append({"node": s, "rect": Rect2(s.position, size), "img": tex.get_image(), "sway": 0.0, "kick": 0.0, "phase": randf() * 10.0})
+	var img: Image = tex.get_image()
+	if img.is_compressed():
+		img.decompress()
+	img.convert(Image.FORMAT_RGBA8)
+	var live := ImageTexture.create_from_image(img)   # (its own copy: bullets punch real holes through it)
+	s.texture = live
+	_sheets.append({"node": s, "rect": Rect2(s.position, size), "img": img, "tex": live, "holes": [], "sway": 0.0, "kick": 0.0, "phase": randf() * 10.0})
 
 
 func _tick_sheets(delta: float) -> void:
@@ -316,16 +322,77 @@ func bullet_pass(b: Dictionary, from: Vector2, to: Vector2) -> void:
 			if img.get_pixelv(px).a < 0.5:   # between two sheets
 				continue
 			b[key] = true
-			var hole := Sprite2D.new()
-			hole.texture = load("res://art/fx/hole%d.png" % (randi() % 2 + 1))
-			hole.position = Vector2(u)
-			hole.scale = Vector2.ONE * 0.16 / SHEET_SCALE
-			hole.rotation = randf() * TAU
-			hole.modulate = Color(0.08, 0.07, 0.06, 0.9)
-			(sh["node"] as Sprite2D).add_child(hole)
-			sh["kick"] = maxf(float(sh["kick"]), 0.35)
-			game.sfx.play("cloth", -8.0, p.x, 0.15)
+			# a real hole through the cloth: ragged, its threads scorched dark round the edge, bigger where it meets
+			# another hole (two or three close together tear into a rip)
+			var holes: Array = sh["holes"]
+			var rad := 9.0
+			for h in holes:
+				if (h as Vector2).distance_to(u) < 40.0:
+					rad += 5.0
+			holes.append(u)
+			_punch(img, u, rad, (to - from).normalized())
+			(sh["tex"] as ImageTexture).update(img)
+			_shreds(sh, p, u, (to - from).normalized())
+			sh["kick"] = maxf(float(sh["kick"]), 0.8)
+			game.sfx.play("cloth", -6.0, p.x, 0.15)
 			break
+
+
+## Punch a ragged hole into the sheet's picture at u (picture px), the cloth round it frayed and darkened.
+func _punch(img: Image, u: Vector2, rad: float, dir: Vector2) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(u.x * 31.0 + u.y)
+	var lobes: Array[float] = []
+	for k in 9:
+		lobes.append(rng.randf_range(0.6, 1.35))
+	rad *= 2.4   # (big enough to read at the phone's size: a ragged tear, not a pinprick)
+	var ext := int(rad * 2.4)
+	for yy in range(-ext, ext + 1):
+		for xx in range(-ext, ext + 1):
+			var px := int(u.x) + xx
+			var py := int(u.y) + yy
+			if px < 0 or py < 0 or px >= img.get_width() or py >= img.get_height():
+				continue
+			var c := img.get_pixel(px, py)
+			if c.a < 0.05:
+				continue
+			var v := Vector2(xx, yy)
+			var ang := fposmod(v.angle(), TAU) / TAU * 9.0
+			var r := rad * lerpf(lobes[int(ang) % 9], lobes[(int(ang) + 1) % 9], ang - floorf(ang))
+			r *= 1.0 + 0.35 * maxf(0.0, v.normalized().dot(dir))   # (torn out a little more on the side the bullet left by)
+			var d := v.length()
+			if d < r:
+				img.set_pixel(px, py, Color(0, 0, 0, 0))
+			elif d < r + 8.0 + rng.randf() * 7.0:   # frayed threads, scorched and dirty: a dark ragged rim
+				var f := clampf(1.0 - (d - r) / 15.0, 0.0, 1.0)
+				f = f * f * 0.5 + f * 0.5
+				img.set_pixel(px, py, Color(c.r * (1.0 - 0.88 * f), c.g * (1.0 - 0.9 * f), c.b * (1.0 - 0.92 * f), c.a * (1.0 - 0.45 * f * rng.randf())))
+
+
+## Bits of the cloth torn out by the bullet: cut from the sheet's own picture, they fly on with it a little, then
+## flutter down turning, and are gone.
+func _shreds(sh: Dictionary, at: Vector2, u: Vector2, dir: Vector2) -> void:
+	var src: Texture2D = sh["tex"]
+	for k in 6:
+		var bit := Sprite2D.new()
+		bit.texture = load("res://art/props/sheets.png")
+		bit.region_enabled = true
+		var w := randf_range(5.0, 12.0)
+		bit.region_rect = Rect2(clampf(u.x + randf_range(-40.0, 40.0), 0.0, 900.0), clampf(u.y + randf_range(-40.0, 40.0), 0.0, 900.0), w, w * randf_range(0.6, 1.8))
+		bit.scale = Vector2.ONE * SHEET_SCALE * 1.4
+		bit.position = at
+		bit.rotation = randf() * TAU
+		bit.modulate = (sh["node"] as Sprite2D).modulate
+		bit.z_index = 4
+		game.add_child(bit)
+		var fly := dir * randf_range(60.0, 180.0) + Vector2(randf_range(-40.0, 40.0), randf_range(-70.0, 10.0))
+		var fall := randf_range(260.0, 520.0)
+		var tw := bit.create_tween().set_parallel(true)
+		tw.tween_property(bit, "position", at + fly, 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tw.tween_property(bit, "rotation", bit.rotation + randf_range(-6.0, 6.0), 1.6)
+		tw.chain().tween_property(bit, "position", at + fly + Vector2(randf_range(-60.0, 60.0), fall), 1.4).set_trans(Tween.TRANS_SINE)
+		tw.parallel().tween_property(bit, "modulate:a", 0.0, 1.4).set_delay(0.3)
+		tw.chain().tween_callback(bit.queue_free)
 
 
 # ---- the fog -----------------------------------------------------------------------------------

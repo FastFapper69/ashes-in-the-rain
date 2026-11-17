@@ -3627,16 +3627,20 @@ func _auto_step(delta: float) -> void:
 			elif _auto == "sheets" and not rooms.is_empty():
 				for r in rooms:
 					if String(r[2]) == "laundry":
-						player.position.x = float(r[0]) + 2250.0   # beyond the sheets, the men behind them
+						player.position.x = float(r[0]) + 1700.0   # beyond the sheets, the men behind them
 						for e in enemies:
 							if absf(e["node"].position.x - (float(r[0]) + 1300.0)) > 650.0:
 								e["alive"] = false
 								e["node"].visible = false
 						break
 		if _auto == "sheets" and _at > 0.8 and _at < 1.6 and fmod(_at, 0.25) < 0.04:   # a few shots through the sheets
+			if not mapfx._sheets.is_empty():
+				var sr: Rect2 = mapfx._sheets[0]["rect"]
+				_aim_point = sr.get_center() + Vector2(140.0 + randf_range(-50.0, 50.0), randf_range(-90.0, 40.0))   # (through the middle of the nearest sheet)
+				player.scale.x = -absf(player.scale.x)
 			_fire(player, true)
 		shots = {"el": [[1.6, "el_0"], [2.4, "el_1"], [3.2, "el_2"]], "fog": [[1.2, "fog_0"], [2.5, "fog_1"]],
-			"oncoming": [[1.2, "onc_0"], [2.3, "onc_1"], [2.7, "onc_2"], [3.3, "onc_3"]], "sheets": [[0.6, "sheets_0"], [2.0, "sheets_1"]],
+			"oncoming": [[1.2, "onc_0"], [2.3, "onc_1"], [2.7, "onc_2"], [3.3, "onc_3"]], "sheets": [[0.6, "sheets_0"], [1.05, "sheets_m"], [2.0, "sheets_1"]],
 			"girder": [[0.9, "girder_0"], [1.3, "girder_1"], [1.7, "girder_2"]],
 			"storm": [[0.36, "storm_0"], [0.5, "storm_1"]], "rock": [[1.0, "rock_0"], [4.0, "rock_1"]], "steam": [[1.2, "steam_0"], [2.4, "steam_1"]],
 			"rats": [[0.5, "rats_0"], [1.0, "rats_1"]], "freight": [[3.0, "freight_0"], [5.0, "freight_1"]], "sea": [[0.95, "sea_0"], [1.3, "sea_1"]],
