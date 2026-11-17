@@ -484,7 +484,7 @@ def _build(mp, nudge):
         for fl in c.flats: out.flats.append([x + fl[0], fl[1], fl[2], x + fl[3], x + fl[4], fl[5], fl[6]])
         for lx, ly in c.lamps: out.lamps.append([x + lx, ly])
         for k, px, py in c.pickups: out.pickups.append([k, x + px, py])
-        for k, a, b, cc, d, *rest in c.ropes: out.ropes.append([k, x + a, b, x + cc if k == "zip" else cc, d] + rest)
+        for k, a, b, cc, d, *rest in c.ropes: out.ropes.append([k, x + a, b, x + cc if k in ("zip", "wash") else cc, d] + rest)
         for hx, t in c.hints: out.hints.append([x + hx, t])
         for ev in c.events:
             ev = list(ev)
@@ -750,6 +750,8 @@ def street_props(m):
             m.enemies.append({"x": wx(mx), "y": top + my * k, "kind": kind, "trig": None, "from": None, "delay": 0.0, "run": False})
         for lx, ly, foot in piece.get("ladders", []):
             m.ropes.append(["ladder", wx(lx), top + ly * k, 0.0, top + foot * k, "drawn"])
+        for xa, ya, xb, yb in piece.get("lines", []):
+            m.ropes.append(["wash", wx(xa), top + ya * k, wx(xb), top + yb * k])
 
 
 def kit_pieces(m):

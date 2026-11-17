@@ -160,5 +160,30 @@ def cut_pair(f, names):
         print(name, im.size)
 
 
+# Laundry for the washing line (art_src 243): eight pieces on green in two rows, each hung from its top edge (clothespins)
+# -> art/props/laundry_0..7.png, read row by row; props pin them along the line by the top middle.
+def cut_set(f, prefix, rows=2):
+    a = np.asarray(Image.open(os.path.join(SRC, f)).convert("RGB")).astype(float)
+    r, g, b = a[..., 0], a[..., 1], a[..., 2]
+    alpha = ndimage.grey_opening(1 - np.clip((g - np.maximum(r, b) - 40) / 50, 0, 1), size=(3, 3))
+    a[..., 1] -= np.maximum(g - np.maximum(r, b), 0) * (1 - alpha * 0.5)
+    rgba = np.dstack([np.clip(a, 0, 255), alpha * 255]).astype(np.uint8)
+    lab, n = ndimage.label(ndimage.binary_dilation(alpha > 0.5, iterations=4))
+    objs = [(sl, i + 1) for i, sl in enumerate(ndimage.find_objects(lab)) if (lab[sl] == i + 1).sum() > 8000]
+    H = a.shape[0]
+    objs.sort(key=lambda o: (int(o[0][0].start > H / rows), o[0][1].start))
+    for k, (sl, idx) in enumerate(objs):
+        piece = rgba[sl].copy()
+        piece[..., 3] = np.where(lab[sl] == idx, piece[..., 3], 0)
+        im = Image.fromarray(piece)
+        im = im.resize((im.width // 2, im.height // 2), Image.LANCZOS)
+        im.save(os.path.join(ROOT, "art", "props", f"{prefix}_{k}.png"))
+    print(prefix, len(objs), "pieces")
+
+
+if __name__ == "__main__" and os.path.exists(os.path.join(SRC, "243.jpg")):
+    cut_set("243.jpg", "laundry")
+
+
 if __name__ == "__main__" and os.path.exists(os.path.join(SRC, "240.jpg")):
     cut_pair("240.jpg", ["zip_mast", "zip_winch"])

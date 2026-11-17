@@ -2856,6 +2856,29 @@ func _auto_step(delta: float) -> void:
 					print("  left: ", int(e["node"].position.x), " ", e["state"], " y ", int(e["node"].position.y))
 			get_tree().quit()
 		return
+	elif _auto == "wash":   # --test=wash --sandbox=1: from the fire escape's top landing a jump onto the washing line, the ride, frames
+		var wr: Dictionary = {}
+		for r in _ropes:
+			if r.has("laundry"):
+				wr = r
+				break
+		if _auto_done & (1 << 21) == 0 and not wr.is_empty():
+			_auto_done |= 1 << 21
+			player.position = Vector2((wr["a"] as Vector2).x - 90.0, float(wr["top"]))
+			_ground_y = player.position.y
+			_grace = 99.0
+		hud.move = 0.6 if _at > 0.5 and _at < 0.9 else 0.0
+		if _at > 0.55 and _auto_done & (1 << 20) == 0:
+			_auto_done |= 1 << 20
+			hud.jump_tapped = true
+		var kf := int((_at - 0.5) / 0.12)
+		if kf >= 0 and kf < 16 and _auto_done & (1 << kf) == 0:
+			_auto_done |= 1 << kf
+			_shot("film_%02d" % kf)
+			print("WASH ", kf, " ", move_state, " ", Vector2i(player.position))
+		if _at > 2.6:
+			get_tree().quit()
+		return
 	elif _auto.begins_with("wallkick"):   # --test=wallkick[:up] --sandbox=1: a run at the lab's crate stack, a jump into it, a jump off it (:up = onto it), frames
 		var bx := -1.0
 		for k in boxes.size():
@@ -8944,7 +8967,8 @@ const ZIP_WINCH_H := 250.0            # the zip line's winch on the street, its 
 const ZIP_DRUM := Vector2(0.29, 0.27)  # where the cable leaves the winch's drum, share of its picture
 const ZIP_WHEEL := Vector2(0.8, 0.13) # the mast's pulley wheel, share of its picture
 const ZIP_TINT := Color(0.6, 0.58, 0.56)   # the drawings came out paler than the street's crates
-const ZIP_PULLEY_BACK := 260.0        # the pulley stands this far back up the cable from where he grabs it
+const ZIP_PULLEY_BACK := 260.0
+const WASH_K := 0.55   # laundry on a washing line: its drawings' scale        # the pulley stands this far back up the cable from where he grabs it
 const SWING_ANCHOR := -1460.0   # the crane's jib, above the top of the picture
 const SWING_BOTTOM := -650.0 - 392.0 * (FIG - 1.0)   # the rope's end: within reach of a jump; higher by what his longer arms add, so his feet still clear the stacks
 const SWING_AMP := 1.33         # how far out he swings (radians)
@@ -9059,6 +9083,52 @@ func _add_rope(ro: Array) -> void:
 		r["hook"] = hook
 		r["rest"] = s0
 		hook.position = s0 + Vector2(0.0, 22.0)
+	elif kind == "wash":   # a washing line from a fire escape's top landing to a pulley at the next house's window:
+		# ridden down like a zip line (his hands on it), the laundry torn off as he passes (the stunt list)
+		r["kind"] = "zip"
+		var a := Vector2(float(ro[1]), float(ro[2]) - ROPE_REACH - 6.0)
+		var pul := Vector2(float(ro[3]), float(ro[4]))
+		var d := (pul - a).normalized()
+		r["a"] = a
+		r["b"] = pul - d * 90.0
+		r["d"] = d
+		r["top"] = float(ro[2])
+		var l := _rope_line(_undo_night(0.55) * Color(0.85, 0.83, 0.78), 4.0)
+		var start := a - d * 120.0   # tied to the landing's rail behind his hands
+		l.points = PackedVector2Array([start, pul])
+		r["line"] = l
+		var wheel := Sprite2D.new()   # the pulley on the window frame
+		wheel.texture = _soft_glow()
+		wheel.scale = Vector2.ONE * 0.2
+		wheel.position = pul
+		wheel.modulate = Color(0.05, 0.05, 0.05)
+		wheel.z_index = -2
+		add_child(wheel)
+		var hook := Sprite2D.new()   # (nothing rides on it but his hands: an empty marker the zip code moves)
+		hook.visible = false
+		add_child(hook)
+		r["hook"] = hook
+		r["rest"] = a
+		var clothes: Array = []
+		var rng := RandomNumberGenerator.new()
+		rng.seed = int(a.x)
+		var span := a.distance_to(pul)
+		var t := 230.0
+		while t < span - 160.0:
+			var tex: Texture2D = load("res://art/props/laundry_%d.png" % rng.randi_range(0, 8))
+			var c := Sprite2D.new()
+			c.texture = tex
+			c.centered = false
+			c.offset = Vector2(-tex.get_width() * 0.5, 0.0)   # pinned by its top middle
+			c.scale = Vector2.ONE * WASH_K * rng.randf_range(0.9, 1.05)
+			c.position = a + d * t + Vector2(0.0, -4.0)
+			c.rotation = rng.randf_range(-0.05, 0.05)
+			c.modulate = _undo_night(0.4)
+			c.z_index = -2
+			add_child(c)
+			clothes.append(c)
+			t += tex.get_width() * WASH_K + rng.randf_range(30.0, 70.0)
+		r["laundry"] = clothes
 	elif kind == "swing":   # from a crane's jib out of the picture, a cargo hook on its end
 		var x := float(ro[1])
 		r["a"] = Vector2(x, float(ro[2]) if float(ro[2]) != 0.0 else SWING_ANCHOR)   # a hoist's painted pulley, or the crane's jib out of the picture
@@ -9212,6 +9282,15 @@ func _on_rope(dir: float, jump: bool, down: bool, delta: float) -> void:
 		player.position = _hand + Vector2(-0.06 * PlayerPPM() * signf(player.scale.x) * 0.0, ROPE_REACH)
 		player.air = move_toward(player.air, 0.8, delta * 6.0)
 		(r["hook"] as Sprite2D).position = _hand + Vector2(0.0, -6.0)
+		for c in r.get("laundry", []):   # a washing line: what he passes is torn off and flutters down
+			var cs := c as Sprite2D
+			if cs.has_meta("gone") or absf(cs.position.x - _hand.x) > 60.0:
+				continue
+			cs.set_meta("gone", true)
+			var tw := cs.create_tween().set_parallel()
+			tw.tween_property(cs, "position", cs.position + Vector2(d.x * _rope_v * 0.35 + randf_range(-80.0, 80.0), -cs.position.y - 20.0), 1.1).set_ease(Tween.EASE_IN)
+			tw.tween_property(cs, "rotation", randf_range(-1.2, 1.2), 1.1)
+			tw.tween_property(cs, "modulate:a", 0.0, 0.5).set_delay(2.5)
 		if jump or _hand.x * signf(d.x) >= (r["b"] as Vector2).x * signf(d.x):
 			_let_go(d.x * _rope_v * 0.85, d.y * _rope_v * 0.25)
 			var hk: Sprite2D = r["hook"]   # the hook slides on down the cable to the drum and stays there
