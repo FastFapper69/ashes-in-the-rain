@@ -171,3 +171,21 @@ Viděno: (a) ulička s párou – dveře a zdi v hloubce jsou zkosené do kosod�
 3. Ověřit: boti na všech mapách, `--test=look` u KAŽDÉHO přechodu z auditu (1560 i 1280), prohlédnout zvětšené; přechody, které se změnily,
    ukázat uživateli jako list snímků v TEST LAB (`--sandbox=1`). Až potom deploy + řádek do changelog.gd.
 4. HANDOFF: krátký záznam + co audit našel (počty po mapách).
+
+## 10. Modulární systém – aby předěly mezi scénami nebyly poznat – SCHVÁLENO uživatelem 17. 11. 11:17 (hned po §9)
+Nejdřív si přečti `.claude/skills/ashes-vyzkum/chapters/ch15-modular-kits-seams.md` (celé). Platí pravidla 24/25 a 20/22/23.
+1. **Jednotné míry**: tabulka v gen/kit.py pro každou uliční kresbu, interiér a práh – čára chůze, horní hrana obrubníku, výška očí/horizontu,
+   výška a šířka dveří, římsa (px kresby). Změřit všechny existující kresby, vypsat odchylky (nový skript gen/tests/metrics_audit.py).
+   Nové zadání pro Gemini vždy s těmito čísly (+ šedá šablona z Blenderu, §8). Kresby, které se moc liší, označit k přemalování (seznam, ne hned).
+2. **Typy okrajů**: každá uliční kresba dostane levý/pravý typ (`party_wall`, `alley_mouth`, `facade_door`, `open_lot`, `fence`, `water`).
+   `street()` v gen/levels.py smí spojit jen stejné typy; `gen/tests/audit_maps.py` hlásí chybu jinak. Výpis, kolik kreseb má který typ.
+3. **Sada prahů**: pro každou změnu druhu prostoru jedna kresba (fasáda se vstupními dveřmi do řezu domem, ústí uličky s bránou/obloukem,
+   vrata do dvora, schody do metra, brána do doků, nakládací vrata skladu). Jednotná velikost otvoru, aby za každé dveře pasoval každý interiér.
+   Interiér začíná jen za dveřmi fasády TÉHOŽ domu. Chybějící kresby → zadání do Gemini (QUEUE §5 šablona, poučení z ch03).
+4. **Mapa = graf prostorů** (Dead Cells): v gen/levels.py popsat mapu jako sled uzlů (ulice → ústí uličky → dvůr → zadní dveře → schodiště →
+   byt → okno → vlastní požární schodiště → střecha); každý uzel vybírá kresbu z poolu podle typu okrajů/otvorů. Pravidlo 25 pak platí z konstrukce,
+   audit to jen ověří. Začít v TEST LAB (`--sandbox=1`), pak kapitola I.
+5. Později (až 1–4 stojí a uživatel je viděl): navazující kresby rozšiřováním okraje v Gemini (outpainting) + spoj na namalovaném okapu/pilíři;
+   kde napojit nejde, dveře + inkoustová prolínačka jen bez aktivních nepřátel.
+Ověření: boti na všech mapách, audit bez chyb, `--test=look` u každého přechodu 1280 i 1560 (prohlédnout zvětšené), list snímků TEST LAB
+ukázat uživateli před deployem. Do HANDOFF krátce, co se změnilo; nová trvalá pravidla do `ashes-znalosti`.
