@@ -145,6 +145,7 @@ def neon_mask(rgb, box, mode):
     return im, (x0 - pad, y0 - pad)
 
 
+TONE = {'front_warehouse': 0.78, 'front_club': 0.9}   # gamma < 1 lifts the midtones to the kit's (measured 17. 11.: 44 / 52 vs the kit's ~58)
 ONLY = sys.argv[1:]
 for name, (f, trim, towers) in STREET.items():
     if ONLY and name not in ONLY:
@@ -161,6 +162,9 @@ for name, (f, trim, towers) in STREET.items():
         piece = np.dstack([rgb[sl], alpha[sl]])
         Image.fromarray(piece).save(OUT + f'props/{name}_cut.png')
         alpha[sl] = 0
+    if name in TONE:   # (a drawing Gemini made much darker than the kit: lifted to the kit's tone, a gamma on the midtones)
+        f = rgb.astype(np.float32) / 255.0
+        rgb = (np.clip(f ** TONE[name], 0, 1) * 255).astype(np.uint8)
     im = Image.fromarray(np.dstack([rgb, alpha]))
     im.save(OUT + f'street/{name}.png')
     keep = alpha.copy()

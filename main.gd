@@ -1252,7 +1252,7 @@ const SEGMENT_TRIM := {"alley": 134.0, "bluenote": 134.0, "warehouse": 133.0, "l
 		"platform": 132.0, "tunnel": 132.0, "yard": 132.0, "station14": 132.0,
 		"bowery": 132.0, "walkway": 132.0, "pump": 132.0, "tunnel_lo": 132.0, "signal": 132.0, "arches": 132.0}
 # evens out how light each drawing came out, so neighbours do not jump in brightness
-const SEGMENT_GAIN := {"front_laundry": 1.05, "front_warehouse": 1.75, "front_club": 1.15, "front_tenement": 1.08,   # (the fronts: to their neighbours' tone, by eye 17. 11.)
+const SEGMENT_GAIN := {"front_laundry": 1.3, "front_warehouse": 1.35, "front_club": 1.3, "front_tenement": 1.3, "front_yard": 1.3,   # (the fronts: to their neighbours' tone, by eye 17. 11.)
 	"alley": 0.92, "bluenote": 0.98, "warehouse": 0.9, "laundry": 1.02, "subway": 1.07, "church": 1.0, "market": 1.05, "deadend": 1.1,
 		"pier17": 0.86, "cranes": 0.91, "shipping": 0.96, "quay": 0.91, "harbor": 0.86,
 		"platform": 0.95, "tunnel": 1.12, "yard": 0.85, "station14": 0.9,
@@ -1480,6 +1480,41 @@ func _build_segments() -> void:
 			_pavement(x0, seg_w)
 		var prev_art: String = String(level["street"][level["street"].find(seg) - 1][0]) if seg != level["street"][0] else ""
 		var walls: bool = KitData.EDGES.get(prev_art, ["party_wall", "party_wall"])[1] == "party_wall" and KitData.EDGES.get(art, ["party_wall", "party_wall"])[0] == "party_wall"
+		if art.begins_with("front_"):   # its doors: warm light from inside spilling out of the doorway onto the wet stones (you go in here)
+			for dpx in KitData.PIECES[art].get("doors", []):
+				var dx: float = x0 + float(dpx) * ws
+				var dw: float = (230.0 if art == "front_warehouse" else 150.0) * ws * 0.8   # the doorway lit from inside, in its own shape:
+				var dh: float = (400.0 if art == "front_warehouse" else 360.0) * ws         # bright at the threshold, fading up the door
+				var foot: float = -1344.0 * ws * SEGMENT_BASE - WALL_LIFT + 1250.0 * ws
+				var spill := Polygon2D.new()
+				spill.polygon = PackedVector2Array([Vector2(dx - dw * 0.5, foot - dh), Vector2(dx + dw * 0.5, foot - dh), Vector2(dx + dw * 0.5, foot), Vector2(dx - dw * 0.5, foot)])
+				var warm := _undo_night(0.15) * Color(1.0, 0.76, 0.46)
+				spill.vertex_colors = PackedColorArray([Color(warm, 0.0), Color(warm, 0.0), warm, warm])
+				spill.material = additive
+				spill.z_index = -5
+				add_child(spill)
+				var pool := Sprite2D.new()   # and its light on the pavement before it
+				pool.texture = halo_tex
+				pool.position = Vector2(dx, -18.0)
+				pool.scale = Vector2(2.2, 0.16)
+				pool.material = additive
+				pool.modulate = _undo_night(0.2) * Color(1.0, 0.78, 0.5)
+				pool.z_index = -5
+				add_child(pool)
+				var dl := _lamp_light(Vector2(dx, -200.0))   # on whoever stands in it
+				dl.energy *= 0.6
+				dl.color = Color(1.0, 0.8, 0.55)
+		if art.begins_with("front_"):   # a front laid over the street: a firewall pier at both its ends (the drawings under it are cut there)
+			for px in [x0, x0 + seg_w]:
+				var fp := Sprite2D.new()
+				fp.texture = BigTex.get_tex("res://art/street/pier.png")
+				fp.centered = false
+				fp.scale = Vector2.ONE * WALL_SCALE
+				fp.position = Vector2(px - fp.texture.get_width() * WALL_SCALE * 0.5, -WALL_LIFT - (diffuse.get_height() * SEGMENT_BASE - (diffuse.get_height() - fp.texture.get_height())) * WALL_SCALE)
+				fp.modulate = Color.WHITE * SEGMENT_MOON * 0.85 * (BG_DIM if LOOK2 else 1.0)
+				fp.material = w.material
+				fp.z_index = -5
+				add_child(fp)
 		if seg != level["street"][0] and not floored and walls:   # a firewall pier over the join with the drawing before (only between two buildings' walls: never in front of open sky or water)
 			var pier := Sprite2D.new()
 			pier.texture = BigTex.get_tex("res://art/street/pier.png")
