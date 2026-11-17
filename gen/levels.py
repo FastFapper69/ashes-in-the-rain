@@ -28,8 +28,8 @@ SEG_SIZE = {"deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.
             "signal": SUB, "arches": SUB, "sheds": 0.55, "fire_a": 0.605, "fire_b": 0.605, "fire_c": 0.605}
 UNDER_ROOF = ["tenrow_a", "tenrow_c", "tenrow_b", "tenrow_d"]   # the facades under the rooftops: their cornice meets the roof drawings   # shown smaller: see main.gd SEGMENT_SIZE
 STREET_POOL = ["hk_tailor", "hk_grocery", "hk_saloon", "hk_laundry",   # (the kit: gen/kit.py)
-               "alley_mouth", "warehouse", "laundry", "subway_entrance", "church_row", "market_row",   # (chapter I on one kit, 17. 11.: alley/_b -> alley_mouth,
-               "warehouse_b", "laundry_b"]                      # market/_b/_c -> market_row, church/_b -> church_row, subway/_b -> subway_entrance)
+               "alley_mouth", "warehouse", "subway_entrance", "church_row", "market_row",   # (chapter I on one kit, 17. 11.: alley/_b -> alley_mouth,
+               "warehouse_b"]                      # market/_b/_c -> market_row, church/_b -> church_row, subway/_b -> subway_entrance; laundry/_b: the laundry's front)
 DOCKS_POOL = ["pier17", "cranes", "shipping", "quay", "sheds", "pier17_b", "shipping_b", "quay_b", "sheds_b"]   # (the harbor with its lighthouse: only the Harbor Master's own)
 # variants (2026-11-15): the same kit redrawn with other details over the same floor, rails, edges and lamps,
 # so a map does not show one drawing again and again; everything about them but the picture is the kit's
@@ -533,7 +533,7 @@ def place_fronts(m):
             if KIT.get(g[0], g[0]) not in same or g[0] == "warehouse_c" or g[0] in KIT_CAT.PIECES:
                 continue
             near = [m.street[n][0] for n in (j - 1, j + 1) if 0 <= n < len(m.street)]
-            cands = [c for c in ("warehouse", "warehouse_b", "laundry", "laundry_b")   # (not the ones the kit retired, nor the Blue Note: a place in the story)
+            cands = [c for c in ("warehouse", "warehouse_b")   # (not the ones the kit retired, nor the Blue Note: a place in the story)
                      if KIT.get(c, c) not in same and c not in near and c in SEGMENTS or KIT.get(c) in SEGMENTS]
             cands = [c for c in cands if KIT.get(c, c) not in same and c not in near
                      and seg_w(KIT.get(c, c)) == seg_w(KIT.get(g[0], g[0]))]
@@ -654,7 +654,7 @@ def _build(mp, nudge):
         inside = lambda x: any(len(o) == 2 and o[1] - 50 < x < o[1] + BOX[o[0]][0] + 50 for o in out.boxes)
         if e["y"] == 0.0 and inside(e["x"]):
             e["x"] = next(x for d in range(40, 3000, 40) for x in (e["x"] + d, e["x"] - d) if not inside(x))
-    for name, sx in out.street:   # two of them keep watch under every crane's hanging crate
+    for name, sx, *_ in out.street:   # two of them keep watch under every crane's hanging crate
         if name != "cranes":
             continue
         cx = sx + (CRANE_CRATE * SEGMENTS[name] - 132) * (SEGMENTS[name] / (SEGMENTS[name] - 132)) * 1.9
@@ -672,7 +672,9 @@ def place_at(m, x):
         if a <= x < b:
             return "room:" + st
     best = None
-    for name, sx in m.street:
+    for name, sx, *cut in m.street:
+        if cut and sx + cut[0] > x:
+            continue   # (the part of a drawing cut away under a front)
         if sx <= x:
             best = name
     return best
@@ -799,7 +801,7 @@ for _n, _p in KIT_CAT.PIECES.items():
 def street_props(m):
     every = [(x0 + a * 1.9 * KIT_CAT.PIECES[n]["size"] - 120, x0 + b * 1.9 * KIT_CAT.PIECES[n]["size"] + 120)   # every piece's
              for n, x0, *_ in m.street if n in KIT_CAT.PIECES for a, b in KIT_CAT.PIECES[n].get("clear", [])]   # clear ground
-    for name, x0 in m.street:
+    for name, x0, *_ in m.street:
         piece = KIT_CAT.PIECES.get(name)
         if not piece:
             continue
@@ -1193,7 +1195,7 @@ CAMPAIGN = [
      "intro": ["Hell's Kitchen doesn't sleep. It just lies there with its eyes open."],
      "diary": "Nov 11. Pulled the Pier 17 file from records. Half of it is missing. The half that's left smells like money.",
      "outro": ["One of them talked before he stopped talking. A laundry on Tenth Avenue."]},
-    {"name": "THE LAUNDRY", "seed": 103, "feature": "laundry", "start": 0.35, "end": 0.6,
+    {"name": "THE LAUNDRY", "seed": 103, "start": 0.35, "end": 0.6,   # (no feature drawing: its laundry is the interior's front now)
      "fixed": ["crate_cover", "barrel_trap", "laundry", "blackout", "breather", "warehouse_arena", "fire_escape", "rush"],
      "intro": ["Steam, starch and gun oil.", "Nobody washes shirts at three in the morning."],
      "diary": "Nov 20. Insurance paid out $400,000 to a company owned by a company owned by a church charity. The Saint's charity.",
