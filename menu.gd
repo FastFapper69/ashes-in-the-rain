@@ -1026,10 +1026,10 @@ const SMITH_PARTS := {
 		[Vector2(650, 380), 0.8, "A SECOND REVOLVER", "", "", "reload_done", "second"],
 	],
 	"beretta": [
-		[Vector2(560, 300), 1.15, "THE FRAME", "", "", "reload_mag", ""],
+		[Vector2(560, 470), 0.72, "THE MAGAZINE CATCH", "", "", "reload_mag", ""],   # (the whole gun, high in the panel: room below for the drop)
 		[Vector2(700, 120), 1.45, "THE SLIDE", "", "", "hammer", ""],
 		[Vector2(280, 420), 1.55, "THE GRIPS", "", "", "click", ""],
-		[Vector2(280, 650), 1.5, "THE MAGAZINE", "", "", "reload_mag", ""],
+		[Vector2(560, 470), 0.72, "THE MAGAZINE", "", "", "reload_mag", ""],
 		[Vector2(650, 380), 0.8, "A SECOND BERETTA", "", "", "reload_done", "second"],
 	],
 	"shotgun": [
@@ -1546,28 +1546,80 @@ func _smith_act(kind: String) -> void:
 			t.tween_callback(func() -> void:
 				_snd("click")
 				_smith_word("zing", to_screen.call(SMITH_MUZZLE.get(_smith_gun, Vector2(1280, 110)) + Vector2(-120, -70))))
-		"mag", "magfull":   # the magazine drops out of the grip and a fresh one slams home
-			var pl: Node2D = _smith_pieces.get("plate")
-			if pl == null:
-				return
-			var m0 := pl.position
-			_snd("reload_mag")
-			var t := pl.create_tween()
-			t.tween_property(pl, "position", m0 + Vector2(0.0, 260.0), 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-			t.parallel().tween_property(pl, "modulate:a", 0.0, 0.18).set_delay(0.08)
-			t.tween_interval(0.25)
-			if kind == "magfull":
-				t.tween_callback(func() -> void:
-					_snd("shell_in")
-					_smith_word("clink", to_screen.call(Vector2(300, 520))))
-				t.tween_interval(0.35)
-			t.tween_property(pl, "modulate:a", 1.0, 0.05)
-			t.tween_property(pl, "position", m0, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		"mag", "magfull":   # (user 17. 11.: a real magazine change) the empty one slides out of the grip and drops, a fresh one
+			# goes up into it and seats with a click, the slide is racked; LONG MAG: two rounds thumbed into a longer magazine first
+			var k := 0.42
+			var top_w := Vector2(379.0, 236.0) - SMITH_SIZE * 0.5   # the magazine's box top inside the gun (picture px -> holder)
+			var axis := Vector2(-209.0, 1034.0).normalized()          # down the grip
+			var mk := func(n: String, top_px: Vector2) -> Sprite2D:
+				var m := Sprite2D.new()
+				m.texture = load("res://art/ui/gunsmith/%s.png" % n)
+				m.scale = Vector2.ONE * k
+				m.set_meta("off", (m.texture.get_size() * 0.5 - top_px) * k)
+				holder.add_child(m)
+				holder.move_child(m, 0)   # behind the frame and the grips: only what is out of the grip shows
+				return m
+			var old := mk.call("mag", Vector2(424.0, 41.0)) as Sprite2D
+			var long := kind == "magfull"
+			var fresh := mk.call("mag_long" if long else "mag", Vector2(482.0, 41.0) if long else Vector2(424.0, 41.0)) as Sprite2D
+			var at := func(m: Sprite2D, down: float) -> Vector2: return top_w + (m.get_meta("off") as Vector2) + axis * down
+			old.position = at.call(old, 0.0)
+			fresh.position = at.call(fresh, 700.0)
+			fresh.modulate.a = 0.0
+			var plate: CanvasItem = _smith_pieces.get("plate")
+			if plate != null:
+				plate.visible = false   # (the magazine's own base plate)
+			if _smith_cap != null and is_instance_valid(_smith_cap):
+				_smith_cap.visible = false   # (out of the way of the falling magazine)
+			var t := holder.create_tween()
+			t.tween_callback(func() -> void:
+				_snd("reload_mag")
+				_smith_word("click", Vector2.ZERO))
+			t.tween_property(old, "position", at.call(old, 120.0), 0.08)   # released: it drops free
+			t.tween_property(old, "position", at.call(old, 760.0), 0.28).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+			t.parallel().tween_property(old, "rotation", deg_to_rad(-18.0), 0.28)
+			t.parallel().tween_property(old, "modulate:a", 0.0, 0.18).set_delay(0.12)
+			t.tween_property(fresh, "modulate:a", 1.0, 0.05)
+			t.parallel().tween_property(fresh, "position", at.call(fresh, 420.0), 0.22).set_ease(Tween.EASE_OUT)
+			if long:   # two more rounds thumbed in at its lips
+				for r in 2:
+					var rd := Sprite2D.new()
+					rd.texture = load("res://art/ui/gunsmith/round9.png")
+					rd.scale = Vector2.ONE * k
+					var lip: Vector2 = top_w + axis * 420.0 + Vector2(10.0, -4.0 - r * 8.0)
+					rd.position = lip + Vector2(260.0, -120.0)
+					rd.modulate.a = 0.0
+					holder.add_child(rd)
+					t.tween_property(rd, "modulate:a", 1.0, 0.04)
+					t.parallel().tween_property(rd, "position", lip, 0.16).set_ease(Tween.EASE_OUT)
+					t.tween_callback(func() -> void:
+						_snd("shell_in")
+						if r == 1:
+							_smith_word("clink", Vector2.ZERO))
+					t.tween_property(rd, "position", lip + axis * 14.0, 0.06)
+					t.tween_property(rd, "modulate:a", 0.0, 0.05)
+					t.tween_callback(rd.queue_free)
+			t.tween_property(fresh, "position", at.call(fresh, 0.0), 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 			t.tween_callback(func() -> void:
 				_snd("hammer")
-				_smith_flash()
-				_smith_word("kachak", to_screen.call(Vector2(320, 600))))
-
+				_smith_flash())
+			var sl: Node2D = _smith_pieces.get("slide")
+			if sl != null:   # and the slide racked: back, and home
+				var s0 := sl.position
+				t.tween_interval(0.15)
+				t.tween_callback(func() -> void:
+					_snd("cyl_open")
+					_smith_word("kachak", Vector2.ZERO))
+				t.tween_property(sl, "position", s0 + Vector2(-90.0, 6.0), 0.08)
+				t.tween_property(sl, "position", s0, 0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			t.tween_interval(0.5)
+			t.tween_callback(func() -> void:
+				old.queue_free()
+				if _smith_cap != null and is_instance_valid(_smith_cap):
+					_smith_cap.visible = true
+				if plate != null and not long:
+					fresh.queue_free()
+					plate.visible = true)
 
 func _snd(n: String) -> void:
 	if sound.is_valid():

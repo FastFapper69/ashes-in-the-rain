@@ -20,6 +20,11 @@ while args and args[0] != "--":
 if args and args[0] == "--":
     args = args[1:]
 G = os.environ.get("G", os.path.join(os.path.expanduser("~"), "Downloads", "Godot_v4.7.2-stable_win64_console.exe"))
+# silent unless asked (user 17. 11.: sound off in tests, on only to test sound): Godot's Dummy audio driver
+if "--sound" in args:
+    args = [a for a in args if a != "--sound"]
+elif "--audio-driver" not in args:
+    args = ["--audio-driver", "Dummy"] + args
 p = subprocess.Popen([G] + args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace")
 last = [time.time()]
 def pump():

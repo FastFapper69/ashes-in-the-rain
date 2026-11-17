@@ -3,7 +3,7 @@ G="${G:-/home/claude/godot/Godot_v4.7.2-stable_linux.x86_64}"   # PC: G=/c/Users
 cd "$(dirname "$0")/../.."
 T="${TMPDIR:-/tmp}"
 run(){ if [ "$1" = sb ]; then a="--sandbox=$2"; n="sandbox $2"; else a="--chapter=$1 --map=$2"; n="$1/$2"; fi
-  timeout 300 "$G" --headless --fixed-fps 30 -- --test=play $a > "$T/bot_$1_$2.log" 2>&1
+  timeout 300 "$G" --headless --audio-driver Dummy --fixed-fps 30 -- --test=play $a > "$T/bot_$1_$2.log" 2>&1
   r=$(grep -E "BOT CLEARED|REACHED THE LAST|BOT DIED|BOT STUCK|SCRIPT ERROR" "$T/bot_$1_$2.log" | head -2 | tr '\n' ' '); echo "$n: ${r:-NO RESULT}"; }
 export -f run; export G T
 # how many maps each chapter has (levels.gd)
