@@ -16,6 +16,7 @@ var _head: FontVariation
 var _type: Font
 var _rows: Dictionary = {}   # key -> value label
 var _card: Control
+var _h := 52.0   # the height of a strip of tape on its line
 
 
 func _ready() -> void:
@@ -30,7 +31,7 @@ func _ready() -> void:
 	dim.color = Color(0, 0, 0, 0.75)
 	dim.size = view
 	add_child(dim)
-	var size := Vector2(minf(600.0, view.x - 96.0), minf(view.y - 40.0, 640.0 if erase.is_valid() else 560.0))
+	var size := Vector2(minf(600.0, view.x - 96.0), minf(view.y - 40.0, 690.0 if erase.is_valid() else 640.0))
 	_card = Paper.sheet("panel", size)   # an inked comic panel of old paper
 	_card.position = (view - size) * 0.5
 	_card.rotation = deg_to_rad(-0.5)
@@ -46,9 +47,11 @@ func _ready() -> void:
 	# four rows evenly between the title and the back button, each centred on its line
 	var top := inner.position.y + 18.0 + 56.0 + 14.0
 	var bottom := inner.end.y - 20.0 - 56.0 - 14.0
-	var rows := [["MUSIC", "music", true], ["SOUND", "sound", true], ["DIFFICULTY", "difficulty", false], ["SCREEN SHAKE", "shake", false], ["AIM ASSIST", "assist", false]]
+	var rows := [["MUSIC", "music", true], ["SOUND", "sound", true], ["DIFFICULTY", "difficulty", false], ["SCREEN SHAKE", "shake", false], ["AIM ASSIST", "assist", false],
+		["VIBRATION", "haptics", false], ["SEND PLAY DATA", "telemetry", false]]
 	var n := rows.size() + (1 if erase.is_valid() else 0)
 	var step := (bottom - top) / float(n)
+	_h = clampf(step - 12.0, 40.0, 52.0)   # eight lines on the title: a little thinner, never touching
 	for i in rows.size():
 		_row(top + step * (i + 0.5), left, right, String(rows[i][0]), String(rows[i][1]), bool(rows[i][2]))
 	if erase.is_valid():
@@ -70,7 +73,7 @@ func _row(mid_y: float, left: float, right: float, text: String, key: String, vo
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_card.add_child(l)
 	if volume and key != "difficulty":   # [-] 7 [+]
-		var bw := 58.0   # the badge carries its own printed sign
+		var bw := _h + 6.0   # the badge carries its own printed sign
 		var plus: Control = Paper.button("plus", Vector2(bw, bw), _step.bind(key, 1), sound)
 		plus.position = Vector2(right - bw, mid_y - bw * 0.5)
 		var v := _label("", _head, 34, INK)
@@ -84,11 +87,11 @@ func _row(mid_y: float, left: float, right: float, text: String, key: String, vo
 			_card.add_child(n)
 		_rows[key] = v
 	else:   # a strip of tape that says what it is now
-		var t: Control = Paper.button("tape", Vector2(184.0, 52.0), func() -> void:
+		var t: Control = Paper.button("tape", Vector2(184.0, _h), func() -> void:
 			var v = MenuScript.setting(key)
 			MenuScript.set_setting(key, (int(v) + 1) % 3 if v is int else not bool(v))
 			_show(), sound)
-		t.position = Vector2(right - 184.0, mid_y - 26.0)
+		t.position = Vector2(right - 184.0, mid_y - _h * 0.5)
 		_card.add_child(t)
 		_rows[key] = Paper.write(t, "", _head, 26, INK)
 	_show()
@@ -105,7 +108,7 @@ func _erase_row(mid_y: float, left: float, right: float) -> void:
 	var t: Control
 	var word: Label
 	var armed := [false]
-	t = Paper.button("tape", Vector2(w, 52.0), func() -> void:
+	t = Paper.button("tape", Vector2(w, _h), func() -> void:
 		if armed[0]:
 			queue_free()
 			erase.call()
@@ -118,7 +121,7 @@ func _erase_row(mid_y: float, left: float, right: float) -> void:
 				armed[0] = false
 				word.text = "ERASE ALL"
 				word.add_theme_color_override("font_color", INK)), sound)
-	t.position = Vector2(right - w, mid_y - 26.0)
+	t.position = Vector2(right - w, mid_y - _h * 0.5)
 	_card.add_child(t)
 	word = Paper.write(t, "ERASE ALL", _head, 24, INK)
 

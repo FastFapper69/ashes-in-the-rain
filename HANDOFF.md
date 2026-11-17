@@ -453,3 +453,9 @@ Read `.claude/skills/ashes-znalosti/SKILL.md` first (stable rules + topic index,
 ## (47) Uživatel naštvaný: uličky se kroutí, scény nenavazují – NOVÁ PRIORITA, 2026-11-17 10:45
 - Fotky z monitoru: ulička s párou zkosená (DEEP_PERSPECTIVE slide), chodba činžáku (3C) nalepená vedle ulice TAILOR s tmavou dírou, z okna rovnou do otevřené uličky; cedulky na 3C/3A jsou glyph soup; ulice → chodba 3A tvrdým řezem bez vstupních dveří a fasády.
 - Nová pravidla 24 (kresba se nikdy nedeformuje, hloubkové pohledy stojí) a 25 (prostory navazují jako ve skutečném městě) v `ashes-znalosti`. Úkol: `gen/QUEUE_doma.md` §9 – udělat PŘED vším ostatním.
+
+## (48) Play data and vibration wired in, 2026-11-17
+- main.gd `_event(kind, data)` -> crash.js ashesEvent -> public.ashes_events: `start` (from top/checkpoint), `died` (kills, hits, checkpoint x), `cleared` (kills, hits, spared, executed, time); `quit` comes from crash.js on pagehide with the last place sent by `ashesWhere` every 5 s beat. Never in tests (`_auto`), the title or the trial maps. Map = "chapter:map".
+- `_buzz(ms)` -> ashesBuzz: Frank's shot 12, a kill 18 (head 25), a hit on Frank 35, a hard landing 20, a blast 50, death 60. iPhone ticks on the next touch (crash.js).
+- Settings rows VIBRATION and SEND PLAY DATA (menu.gd defaults on; apply_settings mirrors them into localStorage ashes_haptics / ashes_telemetry, which crash.js reads). The title card has eight lines now: tape/badge height follows the line (settings.gd `_h`).
+- Read the data: Supabase `select map, kind, count(*) from ashes_events group by 1,2`.

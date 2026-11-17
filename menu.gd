@@ -132,7 +132,7 @@ static func stars(chapter: int, map: int) -> int:
 
 
 ## The player's settings: music and sound volume 0..10, screen shake and aim assist on or off.
-const SETTING_DEFAULTS := {"music": 7, "sound": 8, "shake": true, "assist": true, "difficulty": 1}
+const SETTING_DEFAULTS := {"music": 7, "sound": 8, "shake": true, "assist": true, "difficulty": 1, "telemetry": true, "haptics": true}
 
 static func setting(key: String):
 	var cfg := _save()
@@ -154,6 +154,9 @@ static func apply_settings() -> void:
 			var v: float = float(setting(pair[1])) / 10.0
 			AudioServer.set_bus_volume_db(i, linear_to_db(maxf(v, 0.0001)) + 0.0)
 			AudioServer.set_bus_mute(i, v <= 0.0)
+	if OS.has_feature("web"):   # crash.js reads these two before it sends play data or buzzes
+		JavaScriptBridge.eval("try{localStorage.setItem('ashes_telemetry','%d');localStorage.setItem('ashes_haptics','%d')}catch(e){}" % [
+			1 if setting("telemetry") else 0, 1 if setting("haptics") else 0], true)
 
 
 ## What the detective chose when it was his to choose (Briggs: "spared" or "killed").

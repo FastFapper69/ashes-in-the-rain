@@ -5,6 +5,8 @@ extends RefCounted
 
 const ENTRIES := [
 	["17 NOV 2026", [
+		"Vibration on shots, hits and blasts (setting VIBRATION)",
+		"Anonymous play data, can be off (setting SEND PLAY DATA)",
 		"Version and this list on the title (WHAT'S NEW)",
 		"Figures get a pale contour, readable on dark walls",
 		"The street sits higher, clear of the thumb buttons",

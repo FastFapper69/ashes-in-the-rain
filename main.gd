@@ -568,6 +568,21 @@ static func crumb(text: String) -> void:
 		JavaScriptBridge.eval("window.ashesCrumb&&window.ashesCrumb(%s)" % JSON.stringify(text), true)
 
 
+## Anonymous play data (crash.js ashesEvent -> public.ashes_events): where players die, what they finish.
+## Only the real game on the web: never the tests, the title or a trial map. The setting is read by crash.js.
+func _event(kind: String, data = null) -> void:
+	if not OS.has_feature("web") or _auto != "" or in_menu or _sandbox >= 0 or player == null:
+		return
+	JavaScriptBridge.eval("window.ashesEvent&&window.ashesEvent(%s,%s,%d,%d,%s)" % [JSON.stringify(kind),
+		JSON.stringify("%d:%d" % [chapter, map]), int(player.position.x), int(player.position.y), JSON.stringify(data)], true)
+
+
+## A short buzz in the hand (crash.js ashesBuzz: Android vibrates, iPhone ticks on the next touch).
+func _buzz(ms: int) -> void:
+	if OS.has_feature("web") and _auto == "" and not in_menu:
+		JavaScriptBridge.eval("window.ashesBuzz&&window.ashesBuzz(%d)" % ms, true)
+
+
 func _mem_line() -> String:
 	var heap := -1
 	if OS.has_feature("web"):
@@ -714,6 +729,7 @@ func _ready() -> void:
 	add_child(sets)
 	sets.setup(self)
 	_tm("sets")
+	_event.call_deferred("start", {"from": "checkpoint" if checkpoint > 0.0 else "top"})
 	if _card_up:   # the card that covered the load comes off now the street is built
 		_card_up = false
 		for n in get_tree().root.get_children():
@@ -2300,6 +2316,8 @@ func _process(delta: float) -> void:
 	if _beat_t <= 0.0:
 		_beat_t = 5.0
 		crumb("beat worst_frame=%dms %s" % [int(_worst_dt * 1000.0), _mem_line()])   # the longest frame of the last five seconds: the lag
+		if OS.has_feature("web") and _auto == "" and not in_menu and _sandbox < 0 and player != null:   # where a quit happens
+			JavaScriptBridge.eval("window.ashesWhere&&window.ashesWhere('%d:%d',%d)" % [chapter, map, int(player.position.x)], true)
 		_worst_dt = 0.0
 	if _measure_from >= 0:
 		_measure_t -= delta
@@ -4275,6 +4293,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			player.crouch = clampf(fall / 1500.0, 0.3, 0.9)   # the harder the landing, the deeper the knees
 			if fall > 900.0:
 				fx.dust(player.position, 0.35 + clampf(fall / 4000.0, 0.0, 0.3))
+				_buzz(20)
 			move_state = "ground"
 			steps.restart()
 			sfx.play("land", -4.0)
@@ -4883,6 +4902,7 @@ func _fire(shooter, from_player: bool, kind := "") -> void:
 	_scare_birds(at, 1300.0)
 	var point_blank := false
 	if from_player:
+		_buzz(12)
 		_alarm(at, mapfx.hearing(1600.0))   # (under the El going over, nobody hears it)
 	if from_player:   # a man right on top of him, between his chest and the muzzle: hit at point blank
 		var chest: Vector2 = player.position + SHOULDER + Vector2(0.0, DUCK_DROP * player.duck)
@@ -5181,6 +5201,7 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 	player.add_wound(pos, "")   # he flinches
 	sfx.play("hit_flesh", 2.0)
 	_shake = maxf(_shake, 0.18)
+	_buzz(35)
 	hud.hurt(float(hp - 1) / max_hp)
 	if (_dt < 0.0 or _dt > 7.4) and _tt < 0.0 and (_auto == "" or _auto == "stand"):   # nobody gets hurt during the demo or the tests
 		hp -= 1
@@ -5347,6 +5368,7 @@ func _knocked(e: Dictionary, delta: float) -> void:
 ## A mobster goes down: counted for the score, his gun left on the pavement.
 func _kill(e: Dictionary, head: bool, quiet := false, part := "") -> void:
 	e["alive"] = false
+	_buzz(25 if head else 18)
 	_score(e, head, part)
 	var m = e["node"]
 	stats["kills"] += 1
@@ -5626,6 +5648,7 @@ func _explode(at: Vector2, i: int) -> void:
 func _blast(at: Vector2, reach: float, hurt_reach: float, hits: int) -> void:
 	_scare_birds(at, 2600.0)
 	sfx.play("explosion", 2.0, at.x, 0.0)
+	_buzz(50)
 	_shake = 0.5
 	fx.word("res://art/fx/word_krakoom.png", at + Vector2(0.0, -260.0), 0.5)
 	fx.blast(at)
@@ -5738,6 +5761,8 @@ func _bullets_clash(at: Vector2) -> void:
 ## The detective is shot dead: he goes down in slow motion, the screen says so, and the level restarts.
 func _player_down() -> void:
 	crumb("died " + _mem_line())
+	_event("died", {"kills": int(stats["kills"]), "hits": int(stats["hits"]), "cp": int(checkpoint)})
+	_buzz(60)
 	over = true
 	slow_on = false
 	_death_t = 0.0
@@ -5794,6 +5819,7 @@ func _auto_arg() -> String:
 ## (after a chapter's last map, the case file opens again).
 func _map_cleared() -> void:
 	crumb("cleared " + _mem_line())
+	_event("cleared", {"kills": int(stats["kills"]), "hits": int(stats["hits"]), "spared": int(stats["spared"]), "executed": int(stats["executed"]), "t": int(stats["time"])})
 	cleared = true
 	MenuScript.mark_done(chapter, map)
 	if _auto == "":
