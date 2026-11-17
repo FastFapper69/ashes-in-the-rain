@@ -94,7 +94,8 @@ ESC_K = 1.0526           # the escape drawing's pixels to the world (its landing
 def esc(px): return SEC_WIN[1] + (px - 570.0) * ESC_K   # its picture's x (570 = the wall's outer face) in the chunk
 SEC_CLEAR = [(-60.0, 300.0), (1767.0, 2000.0), (2259.0, 2692.0), (2963.0, 3200.0)]   # ground floor, from x0: the street
 #   door's open leaf, door 2A, the stairs opening, door 2B
-TRIM = {"alley": 134, "bluenote": 134, "warehouse": 133, "laundry": 133, "subway": 53, "church": 58, "market": 58, "deadend": 58}
+TRIM = {"alley": 134, "bluenote": 134, "warehouse": 133, "laundry": 133, "subway": 53, "church": 58, "market": 58, "deadend": 58,
+        "sheds": 112, "tenrow_a": 0, "tenrow_b": 0, "tenrow_c": 0, "tenrow_d": 0, "fire_a": 0, "fire_b": 0, "fire_c": 0}   # = main.gd SEGMENT_TRIM (by kit; else 132)
 _MASKS = {}
 
 
@@ -104,7 +105,7 @@ def facade(street, xa, xb, ya, yb):
     import numpy as np
     tot = n = 0.0
     for i, (name, x0) in enumerate(street):
-        w = SEGMENTS[name]; trim = TRIM.get(name, 132); sx = w / (w - trim)
+        w = SEGMENTS[name]; trim = TRIM.get(KIT.get(name, name), 132); sx = w / (w - trim)
         x1 = x0 + w * 1.9
         a, b = max(xa, x0), min(xb, x1)
         if b <= a: continue
@@ -265,7 +266,7 @@ def chunk(name, hard, rng=None):
         if hard > 0.5: c.foe(1250, F1)
     elif name == "high_ground":
         c = (Chunk(2200).box("crate_long", 0).box("drum", 1450).plat(380, F1, LAND_W[3]).foe(800, F1).foe(1300, F1, kind="tommy" if hard > 0.6 else "post").foe(1780)
-             .rope("climb", 380 + LAND_W[3] - 70, F1))
+             .rope("ladder", 380 + LAND_W[3] - 70, F1, 0, 0.0))   # (a ladder up the trestle: a rope knotted to its rail hung there for no reason)
     elif name == "fire_escape":   # the tailor's painted fire escape (gen/kit.py hk_tailor): up the drop ladder,
         # men on both landings (the kit's "men"), the awning beside it throws him up to the top one. The game no
         # longer builds a fire escape of its own in front of a drawing (user 17. 11.: it never fitted the picture).
@@ -866,6 +867,9 @@ def street(mp, m, rng):
             cand = [s for s in cand if KIT.get(s, s) != KIT.get(last, last)] or cand   # nor a kit next to its own variant
             if i == 0:   # nor the one the feature is about to show next to it
                 cand = [s for s in cand if s != mp.get("feature")] or cand
+                if mp.get("feature"):   # and its right edge must meet the feature's left one (he starts right by that join)
+                    best = min(seam_score(s, mp["feature"]) for s in cand)
+                    cand = [s for s in cand if seam_score(s, mp["feature"]) < max(SEAM_OK, best + 0.05)]
             w_here = lambda s: SEGMENTS[s] * 1.9 * SEG_SIZE.get(s, 1.0)
             fuel = [b[1] for b in m.boxes if b[0] == "barrel" and not any(a <= b[1] < c for a, c, st in m.rooms)]
             if any(x <= f < x + w_here(cand[0]) for f in fuel):   # a red barrel here: a place where fuel is kept

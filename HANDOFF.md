@@ -387,3 +387,9 @@ Read `.claude/skills/ashes-znalosti/SKILL.md` first (stable rules + topic index,
 ## (34) Kegs burst animation, 2026-11-17
 - art_src 238 = Gemini 3x2 sheet (new chat, "Create image" tool on; plain chat with 4 Hydrogen refuses to draw). `gen/street_props.py`: kegs anim rows=2, SHRINK 0.5; `kegs_still()` makes the street kegs (hk_kegs.png) from the first cell with the spark/bullet removed, so the stack does not change when shot. props.gd `ANIM_X0` lines the strip up with the still; the drawn burst gets 3 dust puffs instead of 14 (smoke hid the foam).
 - propshot test: teleport by flag (the first frame after loading is long), prints `PROP kind (x, y)` for every street thing. Lab kegs at 13277,-173.
+
+## (35) Seams, a ladder up the trestle, six more deep views in perspective, 2026-11-17
+- Sheds/sheds_b had no SEGMENT_TRIM in the game (their dark left frame stood as a pole into the sky); now 112 in main.gd and gen. gen TRIM looks up by kit (variants) and has the game's 0 for tenrow/fire. street(): the first drawing must join the feature after it. Audit worst seam 1.11 -> 0.89 (left: fixed joins deadend|warehouse, alley|market - wall beside sky, acceptable).
+- high_ground (ch II): a ladder up the gantry trestle instead of a rope knotted to its rail. Gantry trestles stay (they stand on legs).
+- DEEP_SPLIT/DEEP_VP: deadend, shipping, harbor, tunnel, platform, yard now slide in perspective. `--test=deep:<art>` (deeps carry "art") shoots both sides.
+- Stunts per chapter: list in the story doc tab "Řez domem a kamera" (table: Snadné/Střední/Těžké). Next: ch II crane net, anchor chain, wall bounce; ch III trolley wire in a puddle, third rail, jump onto the moving El.

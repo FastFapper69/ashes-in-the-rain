@@ -1234,12 +1234,14 @@ void fragment() {
 	COLOR.a = t.a * tint.a;
 }
 """
-const DEEP_VP := {"alley": Vector2(0.52, 0.55), "laundry": Vector2(0.6, 0.5), "subway": Vector2(0.62, 0.5)}   # in the opening
+const DEEP_VP := {"alley": Vector2(0.52, 0.55), "laundry": Vector2(0.6, 0.5), "subway": Vector2(0.62, 0.5),
+		"deadend": Vector2(0.6, 0.5), "shipping": Vector2(0.5, 0.55), "harbor": Vector2(0.65, 0.72), "tunnel": Vector2(0.25, 0.45),
+		"platform": Vector2(0.65, 0.5), "yard": Vector2(0.5, 0.45)}   # in the opening
 var deeps: Array = []   # {sprite, center (world), box (UV)}
 var _deep_rects: Array[Rect2] = []
 var _stain_hosts: Array = []   # [x0, x1, node]: the masks blood on each drawing is clipped to   # the same in world space, for the blood
 const SEGMENT_TRIM := {"alley": 134.0, "bluenote": 134.0, "warehouse": 133.0, "laundry": 133.0, "subway": 53.0, "church": 58.0, "market": 58.0, "deadend": 58.0,
-		"pier17": 132.0, "cranes": 132.0, "shipping": 132.0, "quay": 132.0, "harbor": 132.0,
+		"pier17": 132.0, "cranes": 132.0, "shipping": 132.0, "quay": 132.0, "harbor": 132.0, "sheds": 112.0,
 		"platform": 132.0, "tunnel": 132.0, "yard": 132.0, "station14": 132.0,
 		"bowery": 132.0, "walkway": 132.0, "pump": 132.0, "tunnel_lo": 132.0, "signal": 132.0, "arches": 132.0}
 # evens out how light each drawing came out, so neighbours do not jump in brightness
@@ -1460,7 +1462,8 @@ func _build_segments() -> void:
 ## [left wall's inner edge, right wall's inner edge]; 0 or 1 where that side has no wall.
 # Only views whose ground ends inside the cut-out (a closed alley, a yard): where a road or tram tracks
 # run on out of it (warehouse, market), a sliding far end breaks them at the cut, so those stay put.
-const DEEP_SPLIT := {"alley": [0.3, 0.74], "laundry": [0.42, 1.0], "subway": [0.32, 1.0]}
+const DEEP_SPLIT := {"alley": [0.3, 0.74], "laundry": [0.42, 1.0], "subway": [0.32, 1.0],
+		"deadend": [0.3, 0.8], "shipping": [0.25, 0.75], "harbor": [0.25, 0.9], "tunnel": [0.0, 0.6], "platform": [0.3, 1.0], "yard": [0.2, 0.85]}
 const DEEP_SLIDE := 0.17   # how far the far end slides per pixel the camera stands off the alley's mouth
 const DEEP_LIFT := 0.02     # and how much it rises and falls with the camera
 
@@ -1490,7 +1493,7 @@ func _add_deep(tex: Texture2D, facade: Sprite2D, r: Rect2, trim: float, seg_name
 	poly.modulate = facade.modulate
 	poly.z_index = facade.z_index
 	add_child(poly)
-	deeps.append({"mat": mat, "world": world, "center": world.get_center(), "uv": r.size, "size": size})
+	deeps.append({"mat": mat, "world": world, "center": world.get_center(), "uv": r.size, "size": size, "art": seg_name})
 	_tick_one_deep(deeps[deeps.size() - 1], Vector2.ZERO)
 
 
@@ -2951,19 +2954,17 @@ func _auto_step(delta: float) -> void:
 			for i in 14:
 				fx.blood(Vector2(sx0 - 200.0 + i * 150.0, -200.0 - (i % 4) * 90.0), Vector2(1.0 if i % 2 == 0 else -1.0, 0.0))
 		shots = [[0.5, "stains_1"], [2.2, "stains_2"]]
-	elif _auto == "deep":   # the camera passing a deep view: the far end should slide against the wall
+	elif _auto.begins_with("deep"):   # --test=deep[:art]: the camera either side of a deep view (that drawing's, else the first): the far end should slide
+		var want := _auto.trim_prefix("deep").trim_prefix(":")
 		var cx: float = deeps[0]["center"].x if not deeps.is_empty() else 3000.0
 		for dp in deeps:
-			if String(level["street"][0][0]) != "" and dp["box"].size.x > 0.14:
+			if want == "" or String(dp["art"]) == want:
 				cx = dp["center"].x
 				break
 		var k := 0 if _at < 1.0 else 1
 		player.position.x = cx + (-700.0 if k == 0 else 700.0)
 		cam.position.x = player.position.x + 200.0
-		if _at > 0.5 and _auto_done & 1 == 0:
-			_auto_done |= 1
-			fx.blood(Vector2(cx, -400.0), Vector2(1.0, 0.0))
-			fx.blood(Vector2(cx - 900.0, -400.0), Vector2(1.0, 0.0))
+		_grace = 99.0
 		shots = [[0.9, "deep_1"], [1.9, "deep_2"]]
 	elif _auto == "vault":   # running at a low crate: the speed vault over it, frame by frame
 		var bi := -1
