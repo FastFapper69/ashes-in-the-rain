@@ -428,8 +428,8 @@ func _hang_neon() -> void:
 	var best := -1
 	for e in game.enemies:
 		var x: float = e["node"].position.x
-		if x < game.level_end * 0.35 or e["node"].position.y < -100.0:
-			continue
+		if x < game.level_end * 0.35 or e["node"].position.y < -100.0 or game._room_at(x) != "":
+			continue   # (a street sign: over the street, never inside a room or a yard)
 		var n := 0
 		for o in game.enemies:
 			if absf(o["node"].position.x - x) < 380.0 and o["node"].position.y > -100.0:

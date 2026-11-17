@@ -493,3 +493,4 @@ Read `.claude/skills/ashes-znalosti/SKILL.md` first (stable rules + topic index,
 - Prologue: stand_at_gate moves the last stand to the dead end's chained gate wherever the street puts it (main.gd computes STAND_GATE_X from the level); the dumpster off the gate, row houses past the dead end. User had got stuck at the cellar stairs (old hard-coded x).
 - Packs download in 4 MB chunks (HTTPRequest default 64 KB a frame took ~17 s for 68 MB).
 - Next: chapter I maps as graphs (each map's rooms as nodes), then chapter II.
+- (52b) Chapter I under the graph rules: fixed lists may not put two rooms back to back (chapter I and lab; docks/underground later), a front that cannot be placed is a build error now. THE ALLEY and BACK STREETS got a back yard (through the carriage passages); THE BLUE NOTE's warehouse now has its front (fire_escape moved first). The HOTEL neon never hangs inside a room. Audit ignores a room's own furniture.

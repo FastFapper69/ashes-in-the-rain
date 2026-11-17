@@ -515,8 +515,7 @@ def place_fronts(m):
                 if a < fx + fw and fx < b:
                     hit = True
         if hit:
-            print(f"  front {f} at {fx:.0f} would cover a kit piece's things: left out")
-            continue
+            raise ValueError(f"{m.name if hasattr(m, 'name') else ''} front {f} at {fx:.0f} would cover a kit piece's things (move the room or the kit piece in 'fixed')")
         out = []
         for seg in m.street:
             name, x0 = seg[0], seg[1]
@@ -579,6 +578,10 @@ def _build(mp, nudge):
     x = 1900.0   # the first of them out of sight of the start
     out = Chunk(0)
     picks = graph_chunks(mp["graph"]) if mp.get("graph") else list(mp["fixed"])
+    ROOMY = ("yard", "laundry", "warehouse_arena", "tenement", "club", "hold", "office", "cityhall", "catacombs", "section")
+    for a, b in zip(picks, picks[1:]):   # (chapter I and the lab: the docks and the underground get their fronts later)
+        if a in ROOMY and b in ROOMY and mp.get("pool") not in (DOCKS_POOL, UNDER_POOL):
+            raise ValueError(f"{mp['name']}: {a} -> {b} with no street between")
     n = len(picks)
     for i, name in enumerate(picks):
         hard = mp["start"] + (mp["end"] - mp["start"]) * i / max(1, n - 1)
@@ -1265,12 +1268,12 @@ CAMPAIGN = [
   {"title": "PROLOGUE", "name": "EDDIE DOYLE", "ready": True, "hero": "eddie", "ambient": [0.2, 0.21, 0.27], "rain": 1.2, "maps": [PROLOGUE]},
   {"title": "CHAPTER I", "name": "RAIN ON HELL'S KITCHEN", "ready": True, "hero": "frank", "ambient": [0.2, 0.21, 0.27], "rain": 1.0, "maps": [
     {"name": "THE ALLEY", "seed": 101, "neon_drop": True, "feature": "alley_mouth", "start": 0.0, "end": 0.35,
-     "fixed": ["crate_cover", "drum_duo", "dumpster_alley", "fire_escape", "barrel_trap", "crate_cover", "pistols_cache", "ambush_behind", "gauntlet"],
+     "fixed": ["crate_cover", "drum_duo", "dumpster_alley", "fire_escape", "barrel_trap", "pistols_cache", "yard", "ambush_behind", "gauntlet"],
      "intro": ["The shooters hadn't gone far. Rain doesn't wash a trail away that fast.", "Eddie had left a trail too: pages torn from his diary, nailed up where only I would look."],
      "diary": "Nov 3. Rosie showed me Tommy's photo again. Eleven men burned in '39 and the papers called it bad wiring. Bad wiring doesn't lock doors from the outside.",
      "outro": ["The shooters ran east. So did I."]},
     {"name": "BACK STREETS", "seed": 102, "start": 0.2, "end": 0.5, "el": True,
-     "fixed": ["dumpster_alley", "crate_cover", "fire_escape", "ambush_behind", "barrel_trap", "breather", "catwalk", "car_ambush", "drum_duo"],
+     "fixed": ["dumpster_alley", "crate_cover", "fire_escape", "ambush_behind", "barrel_trap", "yard", "catwalk", "car_ambush", "drum_duo"],
      "intro": ["Hell's Kitchen doesn't sleep. It just lies there with its eyes open."],
      "diary": "Nov 11. Pulled the Pier 17 file from records. Half of it is missing. The half that's left smells like money.",
      "outro": ["One of them talked before he stopped talking. A laundry on Tenth Avenue."]},
@@ -1286,7 +1289,7 @@ CAMPAIGN = [
      "diary": "Dec 9. The precinct log says who walked the Pier 17 beat that night. I wish I hadn't read it. I need to hear it from him before I take it upstairs.",
      "outro": ["Below me the neon said JAZZ.", "Mickey Teague owned the Blue Note. Somebody else owned Mickey."]},
     {"name": "THE BLUE NOTE", "seed": 105, "feature": "bluenote_row", "start": 0.6, "end": 0.85, "boss": "teague", "boss_room": "club",
-     "fixed": ["crate_cover", "fire_escape", "breather", "warehouse_arena", "rush"],
+     "fixed": ["fire_escape", "crate_cover", "breather", "warehouse_arena", "rush"],
      "intro": ["Mickey 'Canvas' Teague. Forty fights, and he lost every one he was paid to lose.", "Tonight nobody was paying."],
      "diary": "Dec 17. Meeting a guy from the Blue Note tonight. Says he'll sell me the name of who paid. If I'm wrong about this, I'll buy Frank a drink and tell him everything.",
      "outro": ["Mickey went down on cue, like always. They'd told him to take care of Eddie, and he never could say no. Then: ask your boss.", "Eddie's girl came down off the stage with his diary. I didn't open it. Not then."]},
