@@ -854,12 +854,21 @@ def street(mp, m, rng):
     """The run of drawn segments under the map: the map's own feature segment early on, no segment twice
     in a row, and (in the prologue) the dead-end alley under the last stand."""
     seq, x = [], -3000.0
+    near_house = lambda x, w: any(x < a + 2400 and x + w > a - 2400 for a, b, n, st in m.sections) or         any(x < b + 2600 and x + w > a - 600 for a, b, n, st in m.sections)
     if mp.get("street_fixed"):   # a test map: the drawings in the given order (then round again), nothing chosen
-        names, i = mp["street_fixed"], 0
+        names, i, k_row = mp["street_fixed"], 0, 0
+        roof_a = m.roof[2][0][1] - 4000 if m.roof else None
+        roof_b = m.roof[2][-1][1] + ROOF_PIC if m.roof else None
         while x < m.end + 2500:
-            seq.append([names[i % len(names)], x])
-            x += SEGMENTS[names[i % len(names)]] * 1.9 * SEG_SIZE.get(names[i % len(names)], 1.0)
-            i += 1
+            name = names[i % len(names)]
+            row_w = SEGMENTS[UNDER_ROOF[0]] * 1.9 * SEG_SIZE[UNDER_ROOF[0]]
+            if near_house(x, row_w) or (m.roof and m.kit["under"] and x + row_w > roof_a and x < roof_b):
+                name = UNDER_ROOF[k_row % len(UNDER_ROOF)]   # a house in cross-section stands in a row of houses like it
+                k_row += 1
+            else:
+                i += 1
+            seq.append([name, x])
+            x += SEGMENTS[name] * 1.9 * SEG_SIZE.get(name, 1.0)
         return seq
     if mp.get("dream"):   # the same two rooms over and over, then the far wall with the chained doors
         k = 0
@@ -885,7 +894,7 @@ def street(mp, m, rng):
     k_roof = 0
     while x < m.end + 2500:
         nxt = x + SEGMENTS[UNDER_ROOF[0]] * 1.9 * SEG_SIZE[UNDER_ROOF[0]]
-        if m.roof and m.kit["under"] and nxt > roof_a and x < roof_b:   # under the roofs: only the facades that reach up to them
+        if (m.roof and m.kit["under"] and nxt > roof_a and x < roof_b) or near_house(x, nxt - x):   # under the roofs (and round a house in cross-section): only the facades that reach up to them
             name = UNDER_ROOF[k_roof % len(UNDER_ROOF)]
             k_roof += 1
         elif i == 1 and mp.get("feature"):
@@ -1254,7 +1263,9 @@ SANDBOX = [
     # THE TEST LAB (--sandbox=1, user 16. 11.: one map where every new mechanic is, right from the start):
     # the street kit's awning + fire escape, hydrant, kegs, steam pipe, the hoist rope, then the flat (door kick,
     # window). Few men: only those the kit stands by its hazards and the flat's two. Add each new thing here.
-    {"name": "TEST LAB", "seed": 902, "start": 0.3, "end": 0.3, "fixed": ["lab", "stunts", "club"], "intro": [], "outro": [],
+    {"name": "TEST LAB", "seed": 902, "start": 0.3, "end": 0.3, "fixed": ["lab", "club", "section"], "intro": [], "outro": [],
+     "roof": True, "kit": "troof", "roofs": ["roof_b", "roof_a"],   # (rule 25, 17. 11.: the flat is in a whole house: in at
+     # its street door, up its stairs, the door kick and the window onto its own fire escape, up to its roof)
      "street_fixed": ["hk_laundry", "hk_tailor", "hk_grocery", "hk_saloon", "hk_laundry", "warehouse", "alley", "market"]},
 ]
 

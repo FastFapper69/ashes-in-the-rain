@@ -84,6 +84,40 @@ def rules(title, mp):
     for l in mp.get("lamps", []):
         if not any(r[0] <= l[0] <= r[1] for r in rooms):
             errs.append(f"room lamp at {l[0]:.0f} hangs outside any room")
+    errs += joins(mp)
+    return errs
+
+
+# ---- joins (rule 25, user 17. 11.: "I can't go from a window into an open alley") -------------------------------
+ROW = ("tenrow_a", "tenrow_b", "tenrow_c", "tenrow_d")   # the facades a house in cross-section stands among
+def joins(mp):
+    """How the spaces join: a house in cross-section stands in a row of houses like it (never pasted on a shop
+    street, an alley or a quay); its flat's window opens onto that house's own fire escape; an interior (seen
+    only from inside, a dip through black at its doorway) never overlaps a house or another interior."""
+    errs = []
+    st = mp.get("street", [])
+    def drawing_at(x):
+        here = [a for a, x0 in st if x0 <= x]
+        return here[-1] if here else None
+    secs = mp.get("sections", [])
+    plain = [r for r in mp.get("rooms", []) if not str(r[2]).startswith("section_")]
+    for x0, x1, n, style in secs:
+        for x in (x0 - 600, x0, (x0 + x1) / 2, x1, x1 + 600):
+            d = drawing_at(x)
+            if d not in ROW:
+                errs.append(f"house {style} at {x0:.0f}-{x1:.0f}: beside it at {x:.0f} the street is '{d}', not a row of houses")
+                break
+        for r in plain:
+            if r[0] < x1 + 300 and r[1] > x0 - 300:
+                errs.append(f"interior {r[2]} at {r[0]:.0f}-{r[1]:.0f} overlaps the house at {x0:.0f}-{x1:.0f}")
+    for f in mp.get("flats", []):   # [door x, storey y, door h, window in, window out, sill, lintel]
+        win_out, y = f[4], f[1]
+        esc = [p for p in mp.get("floors", []) if p[3] == "fescape" and abs(p[0] - win_out) < 400]
+        if not esc:
+            errs.append(f"flat window at {win_out:.0f} (storey {y:.0f}) opens onto no fire escape of its own house")
+    for a, b in zip(sorted(plain), sorted(plain)[1:]):
+        if b[0] < a[1] + 300:
+            errs.append(f"interiors {a[2]} and {b[2]} at {a[1]:.0f}/{b[0]:.0f} run into each other")
     return errs
 
 
@@ -175,7 +209,8 @@ def main():
     C = main_consts()
     bad, all_seams = 0, []
     maps = [(ci, mi, False, ch["title"], mp) for ci, ch in enumerate(campaign) for mi, mp in enumerate(ch["maps"]) if "street" in mp]
-    maps += [(0, mi, True, "SANDBOX", mp) for mi, mp in enumerate(sandbox)]
+    sb_maps = [m for ch in sandbox for m in ch.get("maps", [ch])]   # (SANDBOX is one case of trial maps)
+    maps += [(0, mi, True, "SANDBOX", mp) for mi, mp in enumerate(sb_maps) if "street" in mp]
     for ci, mi, sb, title, mp in maps:
         errs = rules(title, mp)
         for e in errs:
