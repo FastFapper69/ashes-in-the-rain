@@ -1185,7 +1185,7 @@ const SEGMENT_LIGHTS := {
 	# the interiors' fronts (17. 11.): a lamp over each street door - a gooseneck over the shop and warehouse doors,
 	# the club's own painted lamp by its door, a lantern on a stoop's pediment
 	"front_laundry": [[696, 812, "goose"]], "front_warehouse": [[795, 760, "goose"], [2373, 760, "goose", true]],
-	"front_club": [[630, 930, "painted"]], "front_tenement": [[870, 760, "goose"], [2305, 760, "goose", true]],
+	"front_club": [[630, 930, "painted"]], "subway_entrance": [[1272, 690, "painted"], [1884, 690, "painted"]], "front_tenement": [[870, 760, "goose"], [2305, 760, "goose", true]],
 	"laundry": [[2110, 748, "painted"], [455, 735, "goose"], [985, 735, "goose", true]],
 	"bluenote": [[1262, 880, "painted"], [284, 852, "lantern"], [2877, 833, "goose", true]],
 	"alley": [[507, 908, "painted"], [2034, 766, "goose"], [2365, 766, "goose", true]],
@@ -1225,6 +1225,7 @@ var moonlight: DirectionalLight2D   # stronger up on the roofs, under the open s
 # it as the camera moves, most in the middle and not at all at its edges: the far end of the view
 # moves slower than the wall, so it reads as depth. Blood does not splash onto these.
 const SEGMENT_DEEP := {
+	"subway_entrance": [Rect2(0.445, 0.6, 0.113, 0.33)],
 	"alley_mouth": [Rect2(0.425, 0.22, 0.155, 0.71)],
 	"alley": [Rect2(0.465, 0.22, 0.11, 0.64)], "bluenote": [Rect2(0.665, 0.3, 0.16, 0.38)],
 	"warehouse": [Rect2(0.45, 0.32, 0.2, 0.56)], "laundry": [Rect2(0.455, 0.32, 0.1, 0.54)],
@@ -1254,7 +1255,7 @@ const SEGMENT_KIT := {"walkway_b": "walkway", "signal_b": "signal", "arches_b": 
 	"yard_b": "yard", "tunnel_b": "tunnel", "sheds_b": "sheds", "pier17_b": "pier17", "shipping_b": "shipping", "quay_b": "quay",
 	"laundry_b": "laundry", "alley_b": "alley", "warehouse_b": "warehouse", "warehouse_c": "warehouse", "church_b": "church", "subway_b": "subway", "market_b": "market", "market_c": "market", "yard_c": "yard", "tunnel_c": "tunnel",
 	"fire_d": "fire_a", "fire_e": "fire_b", "fire_f": "fire_c", "fire_g": "fire_a"}
-const SEGMENT_SIZE := {"alley_mouth": 0.8, "market_row": 0.8, "church_row": 0.8, "front_laundry": 0.8, "front_warehouse": 0.8, "front_club": 0.8, "front_tenement": 0.8, "hk_tailor": 0.8, "hk_grocery": 0.8, "hk_saloon": 0.8, "hk_laundry": 0.8, "deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
+const SEGMENT_SIZE := {"alley_mouth": 0.8, "market_row": 0.8, "church_row": 0.8, "subway_entrance": 0.8, "front_laundry": 0.8, "front_warehouse": 0.8, "front_club": 0.8, "front_tenement": 0.8, "hk_tailor": 0.8, "hk_grocery": 0.8, "hk_saloon": 0.8, "hk_laundry": 0.8, "deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
 	"signal": 0.52, "arches": 0.52, "sheds": 0.55, "fire_a": 0.605, "fire_b": 0.605, "fire_c": 0.605}
 # A drawing whose floor runs into the depth: where on it a man's feet go, as a share of its height (the
 # street drawings stand at the back of the pavement at SEGMENT_BASE instead).

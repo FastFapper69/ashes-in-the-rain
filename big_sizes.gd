@@ -321,6 +321,7 @@ const SIZES := {
 	"res://art/street/subway_b.png": Vector2i(3108, 1344),
 	"res://art/street/subway_b_lit.png": Vector2i(1554, 672),
 	"res://art/street/subway_b_solid.png": Vector2i(1554, 672),
+	"res://art/street/subway_entrance.png": Vector2i(3168, 1344),
 	"res://art/street/subway_lit.png": Vector2i(1554, 672),
 	"res://art/street/subway_solid.png": Vector2i(1554, 672),
 	"res://art/street/tenrow_a.png": Vector2i(3043, 1344),

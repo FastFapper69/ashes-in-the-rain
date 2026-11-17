@@ -47,6 +47,7 @@ STREET = {
     'front_club': ('251.jpg', 0, False), 'front_tenement': ('252.jpg', 0, False),
     # chapter I on one kit (17. 11.): an alley's mouth with its gate between two row houses, rendered in Blender at a man's eye
     'alley_mouth': ('253.jpg', 0, False), 'market_row': ('254.jpg', 0, False), 'church_row': ('255.jpg', 0, False),
+    'subway_entrance': ('256.jpg', 0, False),
 }
 KIT = {'yard_c': 'yard', 'tunnel_c': 'tunnel', 'walkway_b': 'walkway', 'signal_b': 'signal', 'arches_b': 'arches', 'yard_b': 'yard', 'tunnel_b': 'tunnel', 'tunnel_lo_b': 'tunnel_lo',
        'sheds_b': 'sheds', 'pier17_b': 'pier17', 'shipping_b': 'shipping', 'quay_b': 'quay',
@@ -66,7 +67,7 @@ NEONS = {
 }
 # the deep views (see SEGMENT_DEEP in main.gd): their lit windows are left to the drawing, since
 # that part slides against the wall and a fixed glow would come apart from it
-DEEP = {'alley_mouth': [(0.425, 0.22, 0.155, 0.71)], 'alley': [(0.465, 0.22, 0.11, 0.64)], 'bluenote': [(0.665, 0.3, 0.16, 0.38)], 'warehouse': [(0.45, 0.32, 0.2, 0.56)],
+DEEP = {'subway_entrance': [(0.445, 0.6, 0.113, 0.33)], 'alley_mouth': [(0.425, 0.22, 0.155, 0.71)], 'alley': [(0.465, 0.22, 0.11, 0.64)], 'bluenote': [(0.665, 0.3, 0.16, 0.38)], 'warehouse': [(0.45, 0.32, 0.2, 0.56)],
         'laundry': [(0.455, 0.32, 0.1, 0.54)], 'subway': [(0.5, 0.25, 0.095, 0.63)], 'church': [(0.432, 0.4, 0.125, 0.4)],
         'market': [(0.54, 0.42, 0.13, 0.46)], 'deadend': [(0.485, 0.4, 0.07, 0.46)],
         'pier17': [_sc((0.45, 0.25, 0.24, 0.63))], 'cranes': [_sc((0.42, 0.42, 0.19, 0.48))], 'shipping': [_sc((0.47, 0.3, 0.075, 0.6))],

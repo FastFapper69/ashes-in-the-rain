@@ -83,6 +83,8 @@ PIECES = {
     "market_row": {"size": 0.8, "edge": "partywall", "props": [], "clear": [(600, 800), (1490, 1680), (2370, 2560)]},   # grocery, butcher, bakery doors
     # a parish church squeezed into the row (Gemini drew the houses either side after hk_tailor's: never next to it)
     "church_row": {"size": 0.8, "edge": "partywall", "props": [], "clear": [(1440, 1730)], "not_beside": ["hk_tailor"]},
+    # the subway entrance in an office block (the way down to chapter III's platforms): stairs going down through a stone arch
+    "subway_entrance": {"size": 0.8, "edge": "partywall", "props": [], "clear": [(1240, 1920)]},
 }
 # Edge types (QUEUE_doma §10.2, research ch15 "edge contracts"): what each street drawing's VISIBLE left and right edge
 # ends in (after main.gd trims its frame). Two drawings may stand side by side only where the right edge of the first
@@ -107,7 +109,7 @@ EDGES = {
     "tenrow_d": ("party_wall", "party_wall"), "warehouse": ("party_wall", "party_wall"), "warehouse_b": ("open_lot", "party_wall"),
     "warehouse_c": ("party_wall", "party_wall"), "yard": ("fence", "fence"), "yard_b": ("fence", "fence"), "yard_c": ("fence", "fence"),
 }
-EDGES["front_laundry"] = EDGES["front_warehouse"] = EDGES["front_club"] = EDGES["front_tenement"] = EDGES["alley_mouth"] = EDGES["market_row"] = EDGES["church_row"] = ("party_wall", "party_wall")
+EDGES["front_laundry"] = EDGES["front_warehouse"] = EDGES["front_club"] = EDGES["front_tenement"] = EDGES["alley_mouth"] = EDGES["market_row"] = EDGES["church_row"] = EDGES["subway_entrance"] = ("party_wall", "party_wall")
 for _n in ("arches", "arches_b", "bowery", "platform", "pump", "signal", "signal_b", "station14", "tunnel", "tunnel_b", "tunnel_c",
            "tunnel_lo", "tunnel_lo_b", "walkway", "walkway_b"):
     EDGES[_n] = ("girder", "girder")
