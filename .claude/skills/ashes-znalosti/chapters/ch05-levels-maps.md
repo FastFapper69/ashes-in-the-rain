@@ -71,3 +71,10 @@ How a new piece or map joins the rest so no break shows - in this order, never s
    own fire escape -> roof; each node picks a drawing whose edges/openings fit.
 Checks: `gen/tests/audit_maps.py` (rules incl. joins and edges, exit 1), `gen/tests/joins_shots.py` (every interior/house
 join from outside and inside, 1560 and 1280), the bots.
+
+Chapter I's street is all hk-kit pieces (17. 11.): hk_* (things to play with), alley_mouth, market_row, church_row,
+subway_entrance, warehouse_row (hoist), bluenote_row, and the interiors' fronts. A new piece: Blender template
+(front_template.py styles tenement/laundry/warehouse/club/shops/church/warehouse_row; alley_template.py alley/--subway),
+Gemini in a NEW chat with hk_tailor as style only ("a DIFFERENT building"; words it paints are legible if short and
+spelled out), process_art STREET entry, kit.py PIECES (+ clear, not_beside, hoist), EDGES, main.gd SEGMENT_SIZE,
+basis_imports + import, then audit, bots, shots.
