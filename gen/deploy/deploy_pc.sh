@@ -24,6 +24,13 @@ done
 cd "$REPO"
 "$G" --headless --import >/dev/null 2>&1 || true
 $PY gen/packs.py
+# the build the player sees on the title (whatsnew.gd): the number of the commit this deploy makes, and when
+printf '# Written by gen/deploy/deploy_pc.sh at every deploy: do not edit by hand.
+extends RefCounted
+
+const BUILD := %d
+const DATE := "%s"
+' "$(( $(git rev-list --count HEAD) + 1 ))" "$(date '+%-d %b %Y %H:%M' | tr a-z A-Z)" > version.gen.gd
 mkdir -p build && rm -f build/pack_*.pck
 "$G" --headless --export-release Web build/index.html 2>&1 | grep -i error || true
 for p in $(grep -o 'name="pack_[a-z]*"' export_presets.cfg | cut -d'"' -f2); do

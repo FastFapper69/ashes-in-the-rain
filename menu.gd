@@ -621,6 +621,15 @@ func _title() -> void:
 	cap.position = Vector2(view.x * 0.4, view.y - M - cap.size.y)
 	cap.rotation = deg_to_rad(-0.6)
 	_page.add_child(cap)
+	# the build the player is on, on a tag in the corner: tapped, what changed lately (whatsnew.gd, changelog.gd)
+	var WN = load("res://whatsnew.gd")
+	var tag: Control = Paper.button("tag", Vector2(250.0, 104.0), _open_whatsnew, sound)
+	tag.position = Vector2(view.x - M - tag.size.x, view.y - M - tag.size.y)
+	tag.rotation = deg_to_rad(1.2)
+	_page.add_child(tag)
+	Paper.write(tag, "WHAT'S NEW", _font_head, 22, CRIMSON, HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0, 1, 0.5), 6.0)
+	var built := String(load("res://version.gen.gd").DATE)
+	Paper.write(tag, WN.build_text() + ("" if built == "DEV" else "  " + built), _font_type, 14, INK, HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0.5, 1, 0.5), 6.0)
 
 
 var _cap_font: Font
@@ -843,6 +852,15 @@ func _instincts(back_to := Callable()) -> void:
 
 
 var _instincts_back := Callable()
+
+
+## WHAT'S NEW over the title: the build and the latest changes.
+func _open_whatsnew() -> void:
+	var wn = load("res://whatsnew.gd").new()
+	wn.sound = sound
+	_page.visible = false
+	wn.done = func() -> void: _page.visible = true
+	add_child(wn)
 
 
 ## The settings card over the title, with the one thing only the title offers: erasing the progress.

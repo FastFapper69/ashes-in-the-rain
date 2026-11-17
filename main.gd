@@ -591,7 +591,7 @@ func _ready() -> void:
 			_sandbox = int(arg.trim_prefix("--sandbox="))
 			chapter = 1
 		if arg.begins_with("--test="):
-			in_menu = arg == "--test=menu" or arg == "--test=instincts" or arg == "--test=gunsmith" or arg == "--test=titleset" or arg == "--test=erase" or arg == "--test=neon" or arg == "--test=paperkit" or arg.begins_with("--test=ui")
+			in_menu = arg == "--test=menu" or arg == "--test=whatsnew" or arg == "--test=instincts" or arg == "--test=gunsmith" or arg == "--test=titleset" or arg == "--test=erase" or arg == "--test=neon" or arg == "--test=paperkit" or arg.begins_with("--test=ui")
 	var picked := false
 	for arg in OS.get_cmdline_user_args():
 		picked = picked or arg.begins_with("--chapter=")
@@ -2471,6 +2471,18 @@ func _process(delta: float) -> void:
 					_auto_done = k + 2
 					_shot("smith_%d" % k)
 			if _at > 9.8:
+				get_tree().quit()
+		if _auto == "whatsnew":   # --test=whatsnew: the title, then the WHAT'S NEW card
+			_at += delta
+			if _at > 6.5 and _auto_done == 0:
+				_auto_done = 1
+				for c in get_children():
+					if c.has_method("_open_whatsnew"):
+						c._open_whatsnew()
+			if _at > 7.2 and _auto_done == 1:
+				_auto_done = 2
+				_shot("whatsnew")
+			if _at > 7.5:
 				get_tree().quit()
 		if _auto == "menu":
 			_at += delta
