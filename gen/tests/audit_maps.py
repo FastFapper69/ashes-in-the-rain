@@ -98,11 +98,11 @@ def joins(mp):
     only from inside, a dip through black at its doorway) never overlaps a house or another interior."""
     errs = []
     st = mp.get("street", [])
-    for (a, xa), (b, xb) in zip(st, st[1:]):   # edge contracts (QUEUE §10.2): neighbours meet on the same kind of edge
-        if not KITCAT.joins(a, b):
+    for (a, xa, *ca), (b, xb, *cb) in zip(st, st[1:]):   # edge contracts (QUEUE §10.2): neighbours meet on the same kind of edge
+        if not ca and not cb and not KITCAT.joins(a, b):   # (a drawing cut under a building front ends at the front's party wall)
             errs.append(f"join at {xb:.0f}: {a} ends in {KITCAT.EDGES[a][1]}, {b} begins with {KITCAT.EDGES[b][0]}")
     def drawing_at(x):
-        here = [a for a, x0 in st if x0 <= x]
+        here = [g[0] for g in st if g[1] + (g[2] if len(g) > 3 else 0.0) <= x]
         return here[-1] if here else None
     secs = mp.get("sections", [])
     plain = [r for r in mp.get("rooms", []) if not str(r[2]).startswith("section_")]
@@ -163,7 +163,9 @@ def seams(mp, C):
     st = mp.get("street", [])
     rows = np.arange(-2400.0, -20.0, 8.0)
     res = []
-    for (a, xa), (b, xb) in zip(st, st[1:]):
+    for (a, xa, *ca), (b, xb, *cb) in zip(st, st[1:]):
+        if ca or cb:
+            continue   # (a cut under a building front: no seam of two drawings' edges)
         ea, eb = edge_world(a, C, "right", rows), edge_world(b, C, "left", rows)
         if ea is None or eb is None:
             continue

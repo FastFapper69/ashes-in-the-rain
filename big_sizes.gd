@@ -244,6 +244,8 @@ const SIZES := {
 	"res://art/street/fire_g.png": Vector2i(2652, 1536),
 	"res://art/street/fire_g_lit.png": Vector2i(1326, 768),
 	"res://art/street/fire_g_solid.png": Vector2i(1326, 768),
+	"res://art/street/front_laundry.png": Vector2i(3168, 1344),
+	"res://art/street/front_warehouse.png": Vector2i(3168, 1344),
 	"res://art/street/harbor.png": Vector2i(3034, 1344),
 	"res://art/street/harbor_lit.png": Vector2i(1517, 672),
 	"res://art/street/harbor_solid.png": Vector2i(1517, 672),

@@ -64,6 +64,13 @@ PIECES = {
         "props": [{"kind": "steampipe", "box": (1588, 1000, 2158, 1292), "anchor": "foot"}],
         "clear": [(1560, 2190)],
     },
+    # interiors' building fronts (QUEUE §10.3, 17. 11., Blender template + Gemini): an interior of `front` style stands
+    # behind it, its street door at the room's left end and its side door at its right end (gen/levels.py places the
+    # front so); nothing stands in front of either door
+    "front_laundry": {"size": 0.8, "edge": "partywall", "front": "laundry", "doors": [696, 2472], "props": [],
+                      "clear": [(600, 790), (2380, 2570)]},
+    "front_warehouse": {"size": 0.8, "edge": "partywall", "front": "warehouse", "doors": [795, 2373], "props": [],
+                        "clear": [(670, 920), (2250, 2500)]},
 }
 # Edge types (QUEUE_doma §10.2, research ch15 "edge contracts"): what each street drawing's VISIBLE left and right edge
 # ends in (after main.gd trims its frame). Two drawings may stand side by side only where the right edge of the first
@@ -88,6 +95,7 @@ EDGES = {
     "tenrow_d": ("party_wall", "party_wall"), "warehouse": ("party_wall", "party_wall"), "warehouse_b": ("open_lot", "party_wall"),
     "warehouse_c": ("party_wall", "party_wall"), "yard": ("fence", "fence"), "yard_b": ("fence", "fence"), "yard_c": ("fence", "fence"),
 }
+EDGES["front_laundry"] = EDGES["front_warehouse"] = ("party_wall", "party_wall")
 for _n in ("arches", "arches_b", "bowery", "platform", "pump", "signal", "signal_b", "station14", "tunnel", "tunnel_b", "tunnel_c",
            "tunnel_lo", "tunnel_lo_b", "walkway", "walkway_b"):
     EDGES[_n] = ("girder", "girder")

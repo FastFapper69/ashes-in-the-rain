@@ -461,7 +461,50 @@ def build(mp):
                 v.street[k] = [ok[0] if ok else KIT[name], x0]
         if [(xa2, xb2) for i, xa2, xb2, ya, yb in v.iron if facade(v.street, xa2, xb2, ya, yb) < 0.93] == bad:
             break
+    place_fronts(v)
     return v
+
+
+def seg_w(name):
+    return SEGMENTS[name] * 1.9 * SEG_SIZE.get(name, 1.0)
+
+
+def place_fronts(m):
+    """Every interior with a drawn building front gets it in the street (QUEUE §10.3, research ch15 "thresholds"): the
+    front stands so its street door is at the room's left end and its side door at its right end. It is laid over the
+    street as it is - nothing moves: the drawings under it are cut where it begins and ends ([name, x, from, to]: the
+    part of the drawing shown, world px from its x), and one wholly under it is left out. A front that would cover a
+    kit piece's things (an awning, a fire escape) is not placed (the dip through black stays) and is reported."""
+    FRONT_OF = {p["front"]: n for n, p in KIT_CAT.PIECES.items() if p.get("front")}   # interior style -> its building front
+    for r in sorted([r for r in m.rooms if str(r[2]) in FRONT_OF], key=lambda r: r[0]):
+        f = FRONT_OF[r[2]]
+        k = 1.9 * KIT_CAT.PIECES[f]["size"]
+        fx = r[0] - KIT_CAT.PIECES[f]["doors"][0] * k
+        fw = seg_w(f)
+        hit = False
+        for seg in m.street:
+            p = KIT_CAT.PIECES.get(seg[0], {})
+            for pr in p.get("props", []) + [{"box": (a, 0, b, 0)} for a, b, *_ in p.get("floors", [])]:
+                a, b = seg[1] + pr["box"][0] * 1.9 * p["size"], seg[1] + pr["box"][2] * 1.9 * p["size"]
+                if a < fx + fw and fx < b:
+                    hit = True
+        if hit:
+            print(f"  front {f} at {fx:.0f} would cover a kit piece's things: left out")
+            continue
+        out = []
+        for seg in m.street:
+            name, x0 = seg[0], seg[1]
+            a, b = (seg[2], seg[3]) if len(seg) > 3 else (0.0, seg_w(name))
+            lo, hi = x0 + a, x0 + b                      # the part of it shown so far
+            if hi <= fx or lo >= fx + fw:
+                out.append(seg)
+                continue
+            if lo < fx:                                  # its left part, up to the front
+                out.append([name, x0, a, fx - x0])
+            if hi > fx + fw:                             # its right part, after the front
+                out.append([name, x0, fx + fw - x0, b])
+        out.append([f, fx])
+        m.street[:] = sorted(out, key=lambda s: s[1] + (s[2] if len(s) > 3 else 0.0))
 
 
 def _build(mp, nudge):
@@ -1236,7 +1279,7 @@ def gd(campaign):
             hn = ", ".join(f'[{f(h[0])}, {q(h[1])}]' for h in m.hints)
             ck = ", ".join(f(c) for c in m.checks)
             ro = ", ".join(f'["{r[0]}", {f(r[1])}, {f(r[2])}, {f(r[3])}, {f(r[4])}' + ((f', "{r[5]}"' if isinstance(r[5], str) else f', {f(r[5])}') if len(r) > 5 else "") + "]" for r in m.ropes)
-            st = ", ".join(f'["{g[0]}", {f(g[1])}]' for g in m.street)
+            st = ", ".join(f'["{g[0]}", {f(g[1])}' + (f', {f(g[2])}, {f(g[3])}' if len(g) > 3 else "") + "]" for g in m.street)
             out.append("\t\t{" + f'"name": {q(lv["name"])}, "end": {f(m.end)}, "boss": {q(lv.get("boss", ""))}, "stand": {f(m.stand if m.stand else -1)},')
             out.append("\t\t\t\"intro\": [" + ", ".join(q(t) for t in lv["intro"]) + "], \"outro\": [" + ", ".join(q(t) for t in lv["outro"]) + "],")
             out.append(f'\t\t\t"diary": {q(lv.get("diary", ""))}, "ash": {lv.get("ash", 0.3)}, "embers": {lv.get("embers", 0.0)},')
@@ -1284,7 +1327,7 @@ SANDBOX = [
     # THE TEST LAB (--sandbox=1, user 16. 11.: one map where every new mechanic is, right from the start):
     # the street kit's awning + fire escape, hydrant, kegs, steam pipe, the hoist rope, then the flat (door kick,
     # window). Few men: only those the kit stands by its hazards and the flat's two. Add each new thing here.
-    {"name": "TEST LAB", "seed": 902, "start": 0.3, "end": 0.3, "fixed": ["lab", "club", "section"], "intro": [], "outro": [],
+    {"name": "TEST LAB", "seed": 902, "start": 0.3, "end": 0.3, "fixed": ["lab", "laundry", "club", "section"], "intro": [], "outro": [],
      "roof": True, "kit": "troof", "roofs": ["roof_b", "roof_a"],   # (rule 25, 17. 11.: the flat is in a whole house: in at
      # its street door, up its stairs, the door kick and the window onto its own fire escape, up to its roof)
      "street_fixed": ["hk_laundry", "hk_tailor", "hk_grocery", "hk_saloon", "hk_laundry", "warehouse", "alley", "market"]},

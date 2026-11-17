@@ -1248,7 +1248,7 @@ const SEGMENT_KIT := {"walkway_b": "walkway", "signal_b": "signal", "arches_b": 
 	"yard_b": "yard", "tunnel_b": "tunnel", "sheds_b": "sheds", "pier17_b": "pier17", "shipping_b": "shipping", "quay_b": "quay",
 	"laundry_b": "laundry", "alley_b": "alley", "warehouse_b": "warehouse", "warehouse_c": "warehouse", "church_b": "church", "subway_b": "subway", "market_b": "market", "market_c": "market", "yard_c": "yard", "tunnel_c": "tunnel",
 	"fire_d": "fire_a", "fire_e": "fire_b", "fire_f": "fire_c", "fire_g": "fire_a"}
-const SEGMENT_SIZE := {"hk_tailor": 0.8, "hk_grocery": 0.8, "hk_saloon": 0.8, "hk_laundry": 0.8, "deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
+const SEGMENT_SIZE := {"front_laundry": 0.8, "front_warehouse": 0.8, "hk_tailor": 0.8, "hk_grocery": 0.8, "hk_saloon": 0.8, "hk_laundry": 0.8, "deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
 	"signal": 0.52, "arches": 0.52, "sheds": 0.55, "fire_a": 0.605, "fire_b": 0.605, "fire_c": 0.605}
 # A drawing whose floor runs into the depth: where on it a man's feet go, as a share of its height (the
 # street drawings stand at the back of the pavement at SEGMENT_BASE instead).
@@ -1288,7 +1288,18 @@ func _build_segments() -> void:
 	additive.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	var unshaded := CanvasItemMaterial.new()
 	unshaded.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+	# interiors' building fronts (gen/levels.py place_fronts): laid over the street as it is, a layer above the drawings
+	# under them; what those drawings have in front of the front's span (lamps, signs, steam) is left out
+	_front_spans.clear()
 	for seg in level["street"]:
+		if String(seg[0]).begins_with("front_"):
+			var fw := 3168.0 * WALL_SCALE * float(SEGMENT_SIZE.get(String(seg[0]), 1.0))
+			_front_spans.append(Vector2(float(seg[1]), float(seg[1]) + fw))
+	var built := {}
+	for seg in level["street"]:
+		if built.has("%s@%s" % [seg[0], seg[1]]):
+			continue   # (a drawing cut in two by a front: its two parts are the one drawing, under the front)
+		built["%s@%s" % [seg[0], seg[1]]] = true
 		var art := String(seg[0])   # the picture; a variant (SEGMENT_KIT) is its kit in everything else
 		var seg_name := String(SEGMENT_KIT.get(art, art))
 		var ws: float = WALL_SCALE * float(SEGMENT_SIZE.get(seg_name, 1.0))
@@ -1310,7 +1321,7 @@ func _build_segments() -> void:
 		var floored: bool = SEGMENT_FLOOR.has(seg_name)
 		if floored:   # its own floor under his feet: no pavement in front of it
 			w.position.y = -diffuse.get_height() * ws * float(SEGMENT_FLOOR[seg_name])
-		w.z_index = -10
+		w.z_index = -6 if art.begins_with("front_") else -10   # (a front over the drawings, their lamps and glow under it)
 		w.material = atmo.blur_material(1.4)
 		w.modulate = Color.WHITE * SEGMENT_MOON * float(SEGMENT_GAIN.get(seg_name, 1.0)) * (BG_DIM if LOOK2 else 1.0)   # a moonlit wash, so the drawing reads between the lamps
 		add_child(w)
@@ -1363,18 +1374,21 @@ func _build_segments() -> void:
 				_fire_life(w, glow, art, ws)
 		else:
 			atmo.add_mist(self, x0, seg_w, -WALL_LIFT, _undo_night(0.8))
-			_manhole(x0 + seg_w * 0.45, w.modulate)   # (the steam comes out of something: knowledge rule 22)
-			atmo.add_steam(self, Vector2(x0 + seg_w * 0.45, -20.0))
-			sfx.add_loop("steam", x0 + seg_w * 0.45, -20.0, 600.0, -20.0)
+			if not _under_front(x0 + seg_w * 0.45, art):
+				_manhole(x0 + seg_w * 0.45, w.modulate)   # (the steam comes out of something: knowledge rule 22)
+				atmo.add_steam(self, Vector2(x0 + seg_w * 0.45, -20.0))
+				sfx.add_loop("steam", x0 + seg_w * 0.45, -20.0, 600.0, -20.0)
 		var signs: Array = SEGMENT_NEONS.get(art, [])
 		for k in signs.size():
 			var p0: Vector2 = signs[k][0]
+			if _under_front(w.position.x + (p0.x - trim) * sx * ws, art):
+				continue
 			_add_sign("res://art/street/%s_neon%d.png" % [art, k], w.position + Vector2((p0.x - trim) * sx, p0.y) * ws, signs[k][1], String(signs[k][2]), halo_tex, signs[k].size() > 3)
 		for f in SEGMENT_LIGHTS.get(art, []):
 			if float(f[0]) < trim:   # cut off with the drawing's trimmed edge
 				continue
 			var at: Vector2 = w.position + Vector2((float(f[0]) - trim) * sx, float(f[1])) * ws
-			if _room_at(at.x) != "":
+			if _room_at(at.x) != "" or _under_front(at.x, art):
 				continue
 			var kind := String(f[2])
 			lamps.append(at)
@@ -1454,6 +1468,17 @@ func _build_segments() -> void:
 			pier.material = w.material
 			pier.z_index = -10
 			add_child(pier)
+
+
+var _front_spans: Array[Vector2] = []
+## Is x under a building front laid over the street (and the thing at x is not the front's own)?
+func _under_front(x: float, art: String) -> bool:
+	if art.begins_with("front_"):
+		return false
+	for sp in _front_spans:
+		if x > sp.x - 40.0 and x < sp.y + 40.0:
+			return true
+	return false
 
 
 ## A deep opening in a street drawing (an alley, a passage, a platform's far end). It stands still with its wall
@@ -6810,7 +6835,13 @@ func _build_level() -> void:
 			bar.z_index = -2
 			bar.modulate = Color(0.84, 0.82, 0.79)
 			add_child(bar)
+			var first := get_child_count()
 			_ground_shadow(r.position.x + r.size.x * 0.5, r.size.x, 0.0)
+			var ri := _plain_room_at(Vector2(r.get_center().x, -10.0))
+			if ri >= 0:   # the counter is the room's: seen only from inside it, like the rest of the room
+				bar.reparent(_room_art[ri][2])
+				for n in get_children().slice(first):
+					(n as Node).reparent(_room_art[ri][2])
 			continue
 		if String(c[3]) in ["section", "fescape", "drawn", "awning"]:
 			continue   # the storey's drawing (or the fire escape's) is the floor
@@ -7467,6 +7498,7 @@ func _tick_fire(t: float) -> void:
 ## a room pasted on the street beside other houses, a dark hole between them, was rejected). From the street
 ## nothing of it shows: the street drawing runs on. Stepping in is a dip through black, and inside the street
 ## round it is black (walls): its men, crates and lamps are seen only from in there (`_tick_rooms`).
+var _left_room := -1   # the interior he was last in (its men may follow him out)
 var _room_art: Array = []   # [x0, x1, holder] per interior (not the storeys of a building in cross-section)
 func _build_room(x0: float, x1: float, style: String) -> void:
 	var first := get_child_count()
@@ -7504,6 +7536,22 @@ func _tick_rooms() -> void:
 	var here := _plain_room_at(player.position)
 	for i in _room_art.size():
 		(_room_art[i][2] as Node2D).visible = i == here
+	if here >= 0:
+		_left_room = here
+	elif _left_room >= 0 and not over:   # he walked out with men still in there: they come out after him, through the door on his side
+		for e in enemies:
+			if not e["alive"] or e["state"] != "post" or e.get("followed", false) or e["node"].position.y != 0.0:
+				continue
+			var ri := _plain_room_at(e["node"].position)
+			if ri != _left_room:
+				continue
+			var a := float(_room_art[ri][0])
+			var b := float(_room_art[ri][1])
+			if player.position.x > b and player.position.x < b + 1500.0 or player.position.x < a and player.position.x > a - 1500.0:
+				e["followed"] = true
+				e["goal"] = b + 260.0 if player.position.x > b else a - 260.0
+				e["state"] = "move"
+				e["to_cover"] = true
 	for e in enemies:   # (only what this hid is shown again: other things hide men for their own reasons)
 		if e["state"] == "wait" or _section_at(e["node"].position) >= 0:
 			continue
@@ -7521,6 +7569,10 @@ func _tick_rooms() -> void:
 	for pk in pickups:
 		if pk.has("node") and is_instance_valid(pk["node"]):
 			(pk["node"] as CanvasItem).visible = _plain_room_at(pk["node"].position + Vector2(0.0, 60.0)) == here
+	if mapfx:   # the laundry's sheets on their line belong to the room
+		for sh in mapfx._sheets:
+			var r: Rect2 = sh["rect"]
+			(sh["node"] as CanvasItem).visible = _plain_room_at(Vector2(r.get_center().x, -100.0)) == here
 
 
 func _build_room_art(x0: float, x1: float, style: String) -> void:
@@ -8189,7 +8241,7 @@ func _witness(dead: Dictionary, dm) -> void:
 
 
 func _say(m, text: String) -> void:
-	if text == "":
+	if text == "" or (m != player and m is Node2D and not m.visible):
 		return
 	if _auto != "":
 		print("SAY ", text, " at ", int(m.position.x))
@@ -8398,6 +8450,8 @@ func _slot_free(e: Dictionary) -> bool:
 
 ## A "?" or "!" over a mobster's hat: he has noticed something, or he has seen the detective.
 func _mark(m, text: String) -> void:
+	if m != player and not m.visible:
+		return   # (a man behind a wall - in a room or a house he is not in - shows nothing over it)
 	var l := Label.new()
 	l.text = text
 	l.add_theme_font_override("font", load("res://fonts/ComicNeue-BoldItalic.woff"))
