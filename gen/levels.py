@@ -63,7 +63,10 @@ ROOF_STUB = 190 * 0.95    # the firewall at its right edge, left off where the n
 KITS = {
     # the roof over a building seen in cross-section (2026-11-16): three storeys of SEC_H, the roof on the third
     "troof": {"scale": 0.95, "line": 0.828, "stub": 190, "y": -2100.0, "deco": None, "goal": None, "under": True},
-    "roof": {"scale": 0.95, "line": 0.828, "stub": 190, "y": ROOF_Y, "deco": None, "goal": None, "under": True},
+    "roof": {"scale": 0.95, "line": 0.828, "stub": 190, "y": ROOF_Y, "deco": None, "goal": None, "under": True,
+             "ledge": 95, "row": ["row_house", "market_row", "hk_grocery", "warehouse_row", "hk_saloon"]},
+    # (17. 11.: under the roofs chapter I's kit pieces - their cornice top is exactly ROOF_Y - and of the roof drawing only
+    # its ledge's top (95 rows below the walked line) shows, so the kit's own windows are never covered)
     # the mezzanine over the platforms: the subway drawings at their half size; its floor on their ceiling
     "mezz": {"scale": 1.9 * 0.52, "line": 0.94, "stub": 134, "y": -1318.0, "deco": "mezz_a", "goal": 0.55, "under": False},
 }
@@ -1013,7 +1016,10 @@ def street(mp, m, rng):
     k_roof = 0
     while x < m.end + 2500:
         nxt = x + SEGMENTS[UNDER_ROOF[0]] * 1.9 * SEG_SIZE[UNDER_ROOF[0]]
-        if (m.roof and m.kit["under"] and nxt > roof_a and x < roof_b) or near_house(x, nxt - x):   # under the roofs (and round a house in cross-section): only the facades that reach up to them
+        if m.roof and m.kit.get("row") and x + seg_w(m.kit["row"][0]) > roof_a and x < roof_b:   # under kit roofs: kit row houses
+            name = m.kit["row"][k_roof % len(m.kit["row"])]
+            k_roof += 1
+        elif (m.roof and m.kit["under"] and nxt > roof_a and x < roof_b) or near_house(x, nxt - x):   # under the roofs (and round a house in cross-section): only the facades that reach up to them
             name = UNDER_ROOF[k_roof % len(UNDER_ROOF)]
             k_roof += 1
         elif i == 1 and mp.get("feature"):
@@ -1357,7 +1363,7 @@ def gd(campaign):
             if m.roof:
                 rp_ = ", ".join(f'["{g[0]}", {f(g[1])}]' for g in m.roof[2])
                 out.append(f'\t\t\t"roof": {{"x0": {f(m.roof[0])}, "x1": {f(m.roof[1])}, "y": {f(m.kit["y"])}, "goal": {f(m.roof[3])}, '
-                           f'"scale": {m.kit["scale"]:.4f}, "line": {m.kit["line"]:.4f}, "stub": {f(m.kit["stub"])}, '
+                           f'"scale": {m.kit["scale"]:.4f}, "line": {m.kit["line"]:.4f}, "stub": {f(m.kit["stub"])}, "ledge": {f(m.kit.get("ledge", 0))}, '
                            f'"pics": [{rp_}], "checks": [{", ".join(f(c) for c in m.roof_checks)}]}},')
             evs = ", ".join("[" + ", ".join(q(v) if isinstance(v, str) else f(v) for v in ev) + "]" for ev in m.events)
             out.append(f'\t\t\t"events": [{evs}],')

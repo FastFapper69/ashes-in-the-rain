@@ -1256,7 +1256,7 @@ const SEGMENT_KIT := {"walkway_b": "walkway", "signal_b": "signal", "arches_b": 
 	"yard_b": "yard", "tunnel_b": "tunnel", "sheds_b": "sheds", "pier17_b": "pier17", "shipping_b": "shipping", "quay_b": "quay",
 	"laundry_b": "laundry", "alley_b": "alley", "warehouse_b": "warehouse", "warehouse_c": "warehouse", "church_b": "church", "subway_b": "subway", "market_b": "market", "market_c": "market", "yard_c": "yard", "tunnel_c": "tunnel",
 	"fire_d": "fire_a", "fire_e": "fire_b", "fire_f": "fire_c", "fire_g": "fire_a"}
-const SEGMENT_SIZE := {"alley_mouth": 0.8, "market_row": 0.8, "church_row": 0.8, "subway_entrance": 0.8, "warehouse_row": 0.8, "bluenote_row": 0.8, "front_laundry": 0.8, "front_warehouse": 0.8, "front_club": 0.8, "front_tenement": 0.8, "hk_tailor": 0.8, "hk_grocery": 0.8, "hk_saloon": 0.8, "hk_laundry": 0.8, "deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
+const SEGMENT_SIZE := {"alley_mouth": 0.8, "market_row": 0.8, "church_row": 0.8, "subway_entrance": 0.8, "warehouse_row": 0.8, "bluenote_row": 0.8, "row_house": 0.8, "front_laundry": 0.8, "front_warehouse": 0.8, "front_club": 0.8, "front_tenement": 0.8, "hk_tailor": 0.8, "hk_grocery": 0.8, "hk_saloon": 0.8, "hk_laundry": 0.8, "deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
 	"signal": 0.52, "arches": 0.52, "sheds": 0.55, "fire_a": 0.605, "fire_b": 0.605, "fire_c": 0.605}
 # A drawing whose floor runs into the depth: where on it a man's feet go, as a share of its height (the
 # street drawings stand at the back of the pavement at SEGMENT_BASE instead).
@@ -7821,7 +7821,8 @@ func _build_roofs() -> void:
 		sp.region_enabled = true
 		var k := float(roof.get("scale", ROOF_SCALE))
 		var keep := tex.get_width() - (float(roof.get("stub", ROOF_STUB)) if i < pics.size() - 1 else 0.0)
-		sp.region_rect = Rect2(0.0, 0.0, keep, tex.get_height())
+		var ledge := float(roof.get("ledge", 0.0))   # (over kit facades only the top of its stone ledge: their own windows show)
+		sp.region_rect = Rect2(0.0, 0.0, keep, tex.get_height() * float(roof.get("line", ROOF_LINE)) + ledge if ledge > 0.0 else tex.get_height())
 		sp.scale = Vector2.ONE * k
 		sp.position = Vector2(float(pics[i][1]), float(roof["y"]) - tex.get_height() * k * float(roof.get("line", ROOF_LINE)))
 		sp.z_index = -8   # over the facades' own glow (a lit sign at the top of a wall would shine through)
