@@ -910,6 +910,8 @@ def street(mp, m, rng):
             cand = [s for s in pool if ok(s)] or pool
             cand = [s for s in cand if s != last] or cand   # never the same twice in a row
             cand = [s for s in cand if KIT.get(s, s) != KIT.get(last, last)] or cand   # nor a kit next to its own variant
+            if last is not None:   # only a drawing whose left edge is the same kind as the last one's right edge (gen/kit.py EDGES)
+                cand = [s for s in cand if KIT_CAT.joins(last, s)] or cand
             if i == 0:   # nor the one the feature is about to show next to it
                 cand = [s for s in cand if s != mp.get("feature")] or cand
                 if mp.get("feature"):   # and its right edge must meet the feature's left one (he starts right by that join)

@@ -1274,6 +1274,7 @@ var _room_tops: Array = []   # [x0, x1, y of the ceiling] of each interior   # t
 
 ## The street kit's things to play with: props.gd (behaviour) reading kit.gd (gen/kit.py: what is where).
 var props: Node2D
+const KitData = preload("res://kit.gd")   # (gen/kit.py: the edge types of the street drawings)
 
 
 func _build_segments() -> void:
@@ -1441,7 +1442,9 @@ func _build_segments() -> void:
 			rec["nodes"].append(bulb)
 		if not floored:
 			_pavement(x0, seg_w)
-		if seg != level["street"][0] and not floored:   # a firewall pier over the join with the drawing before
+		var prev_art: String = String(level["street"][level["street"].find(seg) - 1][0]) if seg != level["street"][0] else ""
+		var walls: bool = KitData.EDGES.get(prev_art, ["party_wall", "party_wall"])[1] == "party_wall" and KitData.EDGES.get(art, ["party_wall", "party_wall"])[0] == "party_wall"
+		if seg != level["street"][0] and not floored and walls:   # a firewall pier over the join with the drawing before (only between two buildings' walls: never in front of open sky or water)
 			var pier := Sprite2D.new()
 			pier.texture = BigTex.get_tex("res://art/street/pier.png")
 			pier.centered = false

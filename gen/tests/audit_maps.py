@@ -15,6 +15,8 @@ Exit code 1 when a rule is broken (seams are only ranked: they need eyes).
 """
 import os, re, sys, glob, subprocess, shutil
 import numpy as np
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import kit as KITCAT
 from PIL import Image, ImageDraw
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..")
@@ -96,6 +98,9 @@ def joins(mp):
     only from inside, a dip through black at its doorway) never overlaps a house or another interior."""
     errs = []
     st = mp.get("street", [])
+    for (a, xa), (b, xb) in zip(st, st[1:]):   # edge contracts (QUEUE §10.2): neighbours meet on the same kind of edge
+        if not KITCAT.joins(a, b):
+            errs.append(f"join at {xb:.0f}: {a} ends in {KITCAT.EDGES[a][1]}, {b} begins with {KITCAT.EDGES[b][0]}")
     def drawing_at(x):
         here = [a for a, x0 in st if x0 <= x]
         return here[-1] if here else None

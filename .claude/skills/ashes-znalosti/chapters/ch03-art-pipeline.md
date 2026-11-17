@@ -4,6 +4,7 @@
 All visible art is hand-drawn-looking Gemini output processed by scripts in `gen/`; code never draws visible art. Every drawing has a pixel contract (sizes, anchor points) that import tricks must preserve.
 
 ## Gemini on the user's PC (computer use)
+- **Only Gemini draws game art. Never Artlist** (user 17. 11., §1 rule 26) - Artlist is for sound/voice. Gemini unreachable → ask the user.
 - Request access to both gemini.exe paths (`computer_resolve_access` → `computer_request_access`).
 - **New Gemini chat for every redraw** – editing in the same chat drifts to its last version. Upload the reference (+ / Nahrát soubory), ask for a NEW drawing, reference for style only.
 - Download: hover → download icon top right → save as `…\art_src\NN.jpg` (next free number) → `device_stage_files` into the container.

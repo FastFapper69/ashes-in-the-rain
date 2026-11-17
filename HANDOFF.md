@@ -460,3 +460,15 @@ Read `.claude/skills/ashes-znalosti/SKILL.md` first (stable rules + topic index,
 - `_buzz(ms)` -> ashesBuzz: Frank's shot 12, a kill 18 (head 25), a hit on Frank 35, a hard landing 20, a blast 50, death 60. iPhone ticks on the next touch (crash.js).
 - Settings rows VIBRATION and SEND PLAY DATA (menu.gd defaults on; apply_settings mirrors them into localStorage ashes_haptics / ashes_telemetry, which crash.js reads). The title card has eight lines now: tape/badge height follows the line (settings.gd `_h`).
 - Read the data: Supabase `select map, kind, count(*) from ashes_events group by 1,2`.
+
+## (49) QUEUE §9 done, §10 started: deep views still, interiors only from inside, whole house in the TEST LAB, edge types, metrics, 2026-11-17
+- §9.1: DEEP_PERSPECTIVE/DEEP_SLIDE/_tick_deep removed; deep views are the painting itself. `--test=deep:all` (every deep view of a map, camera left/on/right): 33 views on all maps checked.
+- Interiors (plain rooms) are seen only from inside: from the street nothing of them shows; stepping in is a dip through black (hud.flash(1.0, 0.5)), inside the street round them is black; their men/crates/pickups/lamps hidden from the street (`_tick_rooms`), walls stop sight (`_can_see`).
+- TEST LAB: the flat is the top floor of a whole house (the `section` chunk: street door, stairs in the back wall, door kick, window onto its own fire escape, roof); street() puts tenement rows round any house.
+- §9 c: door plates under 3A/3B/3C on art/rooms/tenement.png now read O'Hara, Russo, Duffy (gen/fix_room_text.py, run after process_art.py).
+- Audit (gen/tests/audit_maps.py) checks joins: house among houses, flat window onto its own escape, interiors apart, and (§10.2) edge types; it now reads the trial maps. Found before the fixes: TEST LAB house on 'alley', window onto no escape; 3 dock joins wall->water (PIER 17, THE CRANES, CARGO HOLD). Now 0.
+- gen/tests/joins_shots.py: every interior/house join from outside and inside, 1560 and 1280 -> _shots/joins/sheet_<w>.png (34 joins).
+- §10.1: gen/tests/metrics_audit.py measures the pavement/roof lines and writes METRICS into gen/kit.py; the edge finder is fooled by tracks and quays, so the feet line was checked by eye on all 59 drawings (_shots/s9/feet_*.png): all stand on the front of their pavement/floor. Nothing marked for repainting yet.
+- §10.2: gen/kit.py EDGES (party_wall 29, girder 15, timber 7, fence 3, water, open_lot) + kit.joins(); street() picks only matching edges; the firewall pier stands only between two party walls (main.gd).
+- §10.3 started: Blender template of an interior's building front (gen/blender/front_template.py: hk kit metrics, the two doors exactly at the room's ends) -> Gemini. art_src 248 = the tenement front from Gemini (doors at 810/2340 px; upper floors too close to hk_tailor: redraw "a different building"). Laundry/warehouse/club fronts next, then fronts in street() at room x0.
+- Rule 26: art only from Gemini, never Artlist. Rule 27 (user): everything climbable/usable is its own layer standing out (fire escape landings, drop ladders...) - QUEUE §11.

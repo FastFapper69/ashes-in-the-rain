@@ -189,3 +189,12 @@ Nejdřív si přečti `.claude/skills/ashes-vyzkum/chapters/ch15-modular-kits-se
    kde napojit nejde, dveře + inkoustová prolínačka jen bez aktivních nepřátel.
 Ověření: boti na všech mapách, audit bez chyb, `--test=look` u každého přechodu 1280 i 1560 (prohlédnout zvětšené), list snímků TEST LAB
 ukázat uživateli před deployem. Do HANDOFF krátce, co se změnilo; nová trvalá pravidla do `ashes-znalosti`.
+
+## 11. Požární žebřík u markýzy nečitelný (uživatel 17. 11. odpoledne)
+„Vedle markýzy ten žebřík bude potřeba jakoby 3D nebo zvýraznit, protože není poznat, že na to jde skočit.“ hk_tailor (gen/kit.py
+ladders (2020, 693, 902)): spodní výsuvný žebřík vyříznout do vlastní vrstvy (pravidlo 20: interaktivní věc kousek před zdí, paralaxa +
+kontaktní stín, jemný obrys/odlesk kovu jako u postav), zeď za ním doplnit (Gemini bez žebříku, nebo vyříznutý kus z varianty).
+Případně krátký záblesk/pohup žebříku, když je Frank blízko. Ověřit snímkem proti kresbě (pravidlo 23) ve 1280 i 1560.
+Uživatel hned potom: „to samé ty balkónky, na které jde vylézt, vlastně všechny tyhle typy interaktivních věcí to musí mít“ (pravidlo 27).
+Postup: Gemini – kresba bez požárního schodiště + schodiště (podesty, schody, žebřík) na zeleném (jako markýza/hydrant, street_props.py);
+pak projít všechny „drawn“ podlahy ve všech kresbách (catwalk_style drawn) a udělat totéž. Pokus s výřezem přímo z malby (17. 11.) byl špinavý – zahozen.

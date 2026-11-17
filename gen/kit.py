@@ -65,6 +65,106 @@ PIECES = {
         "clear": [(1560, 2190)],
     },
 }
+# Edge types (QUEUE_doma §10.2, research ch15 "edge contracts"): what each street drawing's VISIBLE left and right edge
+# ends in (after main.gd trims its frame). Two drawings may stand side by side only where the right edge of the first
+# and the left edge of the second are the same type; a firewall pier (art/street/pier.png) is stood over a join only
+# between two party walls - never in front of open sky or water. Classified 17. 11. from the edges themselves (sky at
+# the edge, the family: underground girders, the dream's timbers, the yard's fences) and checked on _shots/s9/edges.png.
+#   party_wall  a building's side, shared with the next building (the pier covers the join)
+#   girder      the subway's riveted iron columns          timber   the burning warehouse's posts (the dream)
+#   fence       the train yard's fence and poles           water    the open harbour beyond a quay's end
+#   open_lot    open ground and sky between buildings
+EDGES = {
+    "alley": ("party_wall", "party_wall"), "alley_b": ("open_lot", "open_lot"), "bluenote": ("party_wall", "party_wall"),
+    "church": ("party_wall", "party_wall"), "church_b": ("party_wall", "party_wall"), "cranes": ("water", "party_wall"),
+    "deadend": ("party_wall", "party_wall"), "harbor": ("water", "water"),
+    "hk_grocery": ("party_wall", "party_wall"), "hk_laundry": ("party_wall", "party_wall"), "hk_saloon": ("party_wall", "party_wall"),
+    "hk_tailor": ("party_wall", "party_wall"), "laundry": ("party_wall", "party_wall"), "laundry_b": ("party_wall", "party_wall"),
+    "market": ("party_wall", "party_wall"), "market_b": ("party_wall", "party_wall"), "market_c": ("party_wall", "party_wall"),
+    "pier17": ("water", "party_wall"), "pier17_b": ("water", "party_wall"), "quay": ("water", "party_wall"), "quay_b": ("water", "water"),
+    "sheds": ("party_wall", "party_wall"), "sheds_b": ("water", "water"), "shipping": ("party_wall", "water"),
+    "shipping_b": ("party_wall", "party_wall"), "subway": ("party_wall", "party_wall"), "subway_b": ("party_wall", "party_wall"),
+    "tenrow_a": ("party_wall", "party_wall"), "tenrow_b": ("party_wall", "party_wall"), "tenrow_c": ("party_wall", "party_wall"),
+    "tenrow_d": ("party_wall", "party_wall"), "warehouse": ("party_wall", "party_wall"), "warehouse_b": ("open_lot", "party_wall"),
+    "warehouse_c": ("party_wall", "party_wall"), "yard": ("fence", "fence"), "yard_b": ("fence", "fence"), "yard_c": ("fence", "fence"),
+}
+for _n in ("arches", "arches_b", "bowery", "platform", "pump", "signal", "signal_b", "station14", "tunnel", "tunnel_b", "tunnel_c",
+           "tunnel_lo", "tunnel_lo_b", "walkway", "walkway_b"):
+    EDGES[_n] = ("girder", "girder")
+for _n in ("fire_a", "fire_b", "fire_c", "fire_d", "fire_e", "fire_f", "fire_g"):
+    EDGES[_n] = ("timber", "timber")
+
+
+def joins(a, b):
+    """May drawing b stand right of drawing a? (unknown drawings: yes, the audit lists them)"""
+    if a not in EDGES or b not in EDGES:
+        return True
+    return EDGES[a][1] == EDGES[b][0]
+
+
+# >>> METRICS (gen/tests/metrics_audit.py --write: measured, do not edit by hand)
+METRICS = {
+    "alley": {"top": 194, "foot": 1126, "curb": 1237, "foot_y": -270, "doors": [], "eye": None},
+    "alley_b": {"top": 383, "foot": 1271, "curb": 1290, "foot_y": 6, "doors": [], "eye": None},
+    "arches": {"top": 0, "foot": 1004, "curb": 1021, "foot_y": -290, "doors": [], "eye": None},
+    "arches_b": {"top": 0, "foot": 1006, "curb": 1022, "foot_y": -288, "doors": [], "eye": None},
+    "bluenote": {"top": 245, "foot": 1226, "curb": 1274, "foot_y": -80, "doors": [], "eye": None},
+    "bowery": {"top": 0, "foot": 1053, "curb": 1076, "foot_y": -241, "doors": [], "eye": None},
+    "church": {"top": 256, "foot": 1204, "curb": 1233, "foot_y": -122, "doors": [], "eye": None},
+    "church_b": {"top": 184, "foot": 1209, "curb": 1228, "foot_y": -112, "doors": [], "eye": None},
+    "cranes": {"top": 671, "foot": 1204, "curb": 1266, "foot_y": -122, "doors": [], "eye": None},
+    "deadend": {"top": 217, "foot": 1019, "curb": 1266, "foot_y": -391, "doors": [], "eye": None},
+    "fire_a": {"top": 0, "foot": 1159, "curb": 1182, "foot_y": -66, "doors": [], "eye": None},
+    "fire_b": {"top": 0, "foot": 1315, "curb": 1353, "foot_y": 113, "doors": [], "eye": None},
+    "fire_c": {"top": 0, "foot": 1159, "curb": 1175, "foot_y": -66, "doors": [], "eye": None},
+    "fire_d": {"top": 0, "foot": 1146, "curb": 1168, "foot_y": -81, "doors": [], "eye": None},
+    "fire_e": {"top": 0, "foot": 1345, "curb": 1412, "foot_y": 148, "doors": [], "eye": None},
+    "fire_f": {"top": 0, "foot": 1145, "curb": 1176, "foot_y": -82, "doors": [], "eye": None},
+    "fire_g": {"top": 0, "foot": 1251, "curb": 1277, "foot_y": 40, "doors": [], "eye": None},
+    "harbor": {"top": 659, "foot": 1203, "curb": 1243, "foot_y": -124, "doors": [], "eye": None},
+    "hk_grocery": {"top": 52, "foot": 1247, "curb": 1305, "foot_y": -44, "doors": [], "eye": None},
+    "hk_laundry": {"top": 116, "foot": 1153, "curb": 1249, "foot_y": -187, "doors": [], "eye": None},
+    "hk_saloon": {"top": 275, "foot": 1310, "curb": None, "foot_y": 52, "doors": [], "eye": None},
+    "hk_tailor": {"top": 54, "foot": 1156, "curb": 1262, "foot_y": -182, "doors": [(790, 150, 360), (2500, 150, 360)], "eye": None},
+    "laundry": {"top": 189, "foot": 1167, "curb": 1210, "foot_y": -192, "doors": [], "eye": None},
+    "laundry_b": {"top": 384, "foot": 1211, "curb": 1274, "foot_y": -108, "doors": [], "eye": None},
+    "market": {"top": 284, "foot": 1155, "curb": 1266, "foot_y": -215, "doors": [], "eye": None},
+    "market_b": {"top": 410, "foot": 1205, "curb": 1266, "foot_y": -120, "doors": [], "eye": None},
+    "market_c": {"top": 255, "foot": 961, "curb": 987, "foot_y": -583, "doors": [], "eye": None},
+    "pier17": {"top": 267, "foot": 1208, "curb": 1246, "foot_y": -114, "doors": [], "eye": None},
+    "pier17_b": {"top": 508, "foot": 1115, "curb": 1151, "foot_y": -291, "doors": [], "eye": None},
+    "platform": {"top": 0, "foot": 1035, "curb": 1069, "foot_y": -443, "doors": [], "eye": None},
+    "pump": {"top": 0, "foot": 1184, "curb": 1249, "foot_y": -160, "doors": [], "eye": None},
+    "quay": {"top": 434, "foot": 1126, "curb": 1164, "foot_y": -270, "doors": [], "eye": None},
+    "quay_b": {"top": 676, "foot": 1126, "curb": 1164, "foot_y": -270, "doors": [], "eye": None},
+    "sheds": {"top": 200, "foot": 1016, "curb": 1047, "foot_y": -290, "doors": [], "eye": None},
+    "sheds_b": {"top": 324, "foot": 1019, "curb": 1047, "foot_y": -287, "doors": [], "eye": None},
+    "shipping": {"top": 190, "foot": 1117, "curb": 1144, "foot_y": -287, "doors": [], "eye": None},
+    "shipping_b": {"top": 361, "foot": 1206, "curb": 1257, "foot_y": -118, "doors": [], "eye": None},
+    "signal": {"top": 0, "foot": 1004, "curb": 1021, "foot_y": -290, "doors": [], "eye": None},
+    "signal_b": {"top": 0, "foot": 1004, "curb": 1021, "foot_y": -290, "doors": [], "eye": None},
+    "station14": {"top": 0, "foot": 1053, "curb": 1076, "foot_y": -241, "doors": [], "eye": None},
+    "subway": {"top": 229, "foot": 1204, "curb": 1271, "foot_y": -122, "doors": [], "eye": None},
+    "subway_b": {"top": 145, "foot": 1204, "curb": 1245, "foot_y": -122, "doors": [], "eye": None},
+    "tenrow_a": {"top": 49, "foot": 1146, "curb": 1267, "foot_y": -176, "doors": [], "eye": None},
+    "tenrow_b": {"top": 51, "foot": 1141, "curb": 1252, "foot_y": -182, "doors": [], "eye": None},
+    "tenrow_c": {"top": 50, "foot": 1154, "curb": 1259, "foot_y": -166, "doors": [], "eye": None},
+    "tenrow_d": {"top": 50, "foot": 1059, "curb": 1258, "foot_y": -288, "doors": [], "eye": None},
+    "tunnel": {"top": 0, "foot": 1012, "curb": 1034, "foot_y": -487, "doors": [], "eye": None},
+    "tunnel_b": {"top": 0, "foot": 1083, "curb": 1105, "foot_y": -352, "doors": [], "eye": None},
+    "tunnel_c": {"top": 0, "foot": 959, "curb": 1012, "foot_y": -587, "doors": [], "eye": None},
+    "tunnel_lo": {"top": 0, "foot": 1012, "curb": 1034, "foot_y": -282, "doors": [], "eye": None},
+    "tunnel_lo_b": {"top": 0, "foot": 1083, "curb": 1105, "foot_y": -212, "doors": [], "eye": None},
+    "walkway": {"top": 0, "foot": 980, "curb": 1004, "foot_y": -313, "doors": [], "eye": None},
+    "walkway_b": {"top": 0, "foot": 958, "curb": 975, "foot_y": -335, "doors": [], "eye": None},
+    "warehouse": {"top": 222, "foot": 1115, "curb": 1225, "foot_y": -291, "doors": [], "eye": None},
+    "warehouse_b": {"top": 638, "foot": 967, "curb": 1207, "foot_y": -572, "doors": [], "eye": None},
+    "warehouse_c": {"top": 0, "foot": 1115, "curb": 1225, "foot_y": -291, "doors": [], "eye": None},
+    "yard": {"top": 317, "foot": 965, "curb": 1148, "foot_y": -576, "doors": [], "eye": None},
+    "yard_b": {"top": 307, "foot": 970, "curb": 1025, "foot_y": -566, "doors": [], "eye": None},
+    "yard_c": {"top": 312, "foot": 1082, "curb": 1149, "foot_y": -354, "doors": [], "eye": None},
+}
+# <<< METRICS
 WIDTH = 3168
 TOP = lambda size: -1344 * 1.9 * size * 0.92 - 60.0   # main.gd: a drawing's top in the world (WALL_SCALE, SEGMENT_BASE, WALL_LIFT)
 
@@ -80,4 +180,4 @@ def gd():
         if isinstance(x, dict): return "{" + ", ".join(f'"{k}": {v(i)}' for k, i in x.items()) + "}"
         raise TypeError(x)
     return ("# Generated by gen/levels.py from gen/kit.py: do not edit by hand.\nextends RefCounted\n\n"
-            f"const KINDS := {v(KINDS)}\nconst PIECES := {v(PIECES)}\n")
+            f"const KINDS := {v(KINDS)}\nconst PIECES := {v(PIECES)}\nconst EDGES := {v(EDGES)}\n")
