@@ -1299,6 +1299,7 @@ func _smith_show(part: Array, fitted: bool) -> void:
 	# the caption with the part's name
 	var cap: Control = Paper.caption(String(part[2]), _font_head, 22)
 	_smith_panel.add_child(cap)
+	_smith_cap = cap
 	var spot := goal + (hot + Vector2(0.0, rad + 24.0)).rotated(holder.rotation) * s
 	var room := _smith_panel.size
 	cap.position = Vector2(clampf(spot.x - cap.size.x * 0.5, 16.0, room.x - 16.0 - cap.size.x), clampf(spot.y, 16.0, room.y - 16.0 - cap.size.y))
@@ -1344,6 +1345,7 @@ void fragment() {
 
 
 var _word_n := 0
+var _smith_cap: Control   # the part's name: it steps aside while the cylinder is worked (it would cover it)
 var _word_layer: CanvasLayer
 func _smith_word(w: String, _at: Vector2) -> void:
 	var path := "res://art/fx/word_%s.png" % w
@@ -1419,40 +1421,74 @@ func _smith_act(kind: String) -> void:
 			open.texture = load("res://art/ui/gunsmith/revolver_open.png")
 			open.visible = false
 			holder.add_child(open)
-			var face := Vector2(700, 302) - SMITH_SIZE * 0.5 + Vector2(0.0, (678.0 - SMITH_SIZE.y) * 0.5)   # the chambers' mouths (picture px)
+			# (user 17. 11.: the spent cases are flung out, then new rounds pushed into the empty chambers one by one)
+			var c0 := Vector2(650.0, 339.0)   # (the open drawing is centred: its picture px -> the holder's)
+			var rims := [Vector2(680, 250), Vector2(697, 265), Vector2(666, 291), Vector2(667, 345), Vector2(687, 368), Vector2(700, 347)]
 			var one := kind == "lastround"
-			var ammo := Sprite2D.new()
-			ammo.texture = load("res://art/ui/gunsmith/%s.png" % ("round" if one else "speedloader"))
-			ammo.flip_h = true   # (noses into the chambers, to the left)
-			var k := 0.06 if one else 0.21
-			ammo.scale = Vector2.ONE * k
-			var seat := face + Vector2(ammo.texture.get_width() * k * 0.5 - (30.0 if one else 46.0), 0.0 if not one else -40.0)
-			ammo.position = seat + Vector2(520.0, -60.0)
-			ammo.modulate.a = 0.0
-			holder.add_child(ammo)
+			var holes: Array = []
+			for rp in rims:   # the empty chambers: dark mouths over the drawn rims, shown once the cases are out
+				var h := Polygon2D.new()
+				var pts := PackedVector2Array()
+				for q in 16:
+					pts.append(Vector2(cos(TAU * q / 16.0) * 10.0, sin(TAU * q / 16.0) * 15.0))
+				h.polygon = pts
+				h.color = Color(0.06, 0.055, 0.05)
+				h.position = (rp as Vector2) - c0
+				h.visible = false
+				holder.add_child(h)
+				holes.append(h)
+			var kc := 0.14
 			var t := create_tween()
 			t.tween_callback(func() -> void:
 				for pk in _smith_pieces:
 					(_smith_pieces[pk] as CanvasItem).visible = false
 				open.visible = true
+				if _smith_cap != null and is_instance_valid(_smith_cap):
+					_smith_cap.visible = false
 				_smith_flash()
 				_snd("cyl_open")
 				_smith_word("kachak", Vector2.ZERO))
-			t.tween_interval(0.3)
-			t.tween_property(ammo, "modulate:a", 1.0, 0.08)
-			t.parallel().tween_property(ammo, "position", seat + Vector2(60.0, 0.0), 0.32).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-			t.tween_property(ammo, "position", seat, 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-			t.tween_callback(func() -> void:
+			t.tween_interval(0.35)
+			t.tween_callback(func() -> void:   # the ejector rod pushed: the spent cases fly out and tumble down
 				_snd("shell_in")
-				_smith_word("clink", Vector2.ZERO))
-			if not one:   # the speedloader's knob turned, it lets go of the rounds and is pulled away empty
-				t.tween_property(ammo, "rotation", deg_to_rad(-6.0), 0.1)
-				t.tween_property(ammo, "rotation", 0.0, 0.08)
-				t.tween_property(ammo, "position", seat + Vector2(520.0, 120.0), 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-				t.parallel().tween_property(ammo, "modulate:a", 0.0, 0.3)
-			else:   # the round slides home into its chamber
-				t.tween_property(ammo, "position", seat + Vector2(-50.0, 0.0), 0.15)
-				t.parallel().tween_property(ammo, "modulate:a", 0.0, 0.15).set_delay(0.08)
+				for i in rims.size():
+					if one and i > 0:
+						break
+					(holes[i] as CanvasItem).visible = true
+					var cs := Sprite2D.new()
+					cs.texture = load("res://art/ui/gunsmith/case.png")
+					cs.scale = Vector2.ONE * kc
+					var from: Vector2 = (rims[i] as Vector2) - c0 + Vector2(cs.texture.get_width() * kc * 0.5 - 6.0, 0.0)
+					cs.position = from
+					holder.add_child(cs)
+					var out := from + Vector2(randf_range(120.0, 220.0), randf_range(-60.0, -10.0))
+					var tw := cs.create_tween()
+					tw.tween_property(cs, "position", out, 0.16).set_ease(Tween.EASE_OUT)
+					tw.parallel().tween_property(cs, "rotation", randf_range(-1.5, 1.5), 0.16)
+					tw.tween_property(cs, "position", out + Vector2(randf_range(-40.0, 80.0), 560.0), 0.55).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+					tw.parallel().tween_property(cs, "rotation", randf_range(-9.0, 9.0), 0.55)
+					tw.tween_callback(cs.queue_free))
+			t.tween_interval(0.55)
+			for i in (1 if one else rims.size()):   # a new round pushed into each empty chamber, nose first
+				var rd := Sprite2D.new()
+				rd.texture = load("res://art/ui/gunsmith/round.png")
+				rd.flip_h = true
+				rd.scale = Vector2.ONE * kc
+				var home: Vector2 = (rims[i] as Vector2) - c0 + Vector2(rd.texture.get_width() * kc * 0.5 - 4.0, 0.0)
+				rd.position = home + Vector2(150.0, 40.0)
+				rd.modulate.a = 0.0
+				holder.add_child(rd)
+				t.tween_property(rd, "modulate:a", 1.0, 0.04)
+				t.parallel().tween_property(rd, "position", home + Vector2(30.0, 0.0), 0.12).set_ease(Tween.EASE_OUT)
+				t.tween_property(rd, "position", home, 0.06)
+				t.tween_callback(func() -> void:
+					_snd("click")
+					(holes[i] as CanvasItem).visible = false)   # (the rim the drawing has there: the round is home)
+				t.tween_property(rd, "modulate:a", 0.0, 0.05)
+				t.tween_callback(rd.queue_free)
+				t.tween_interval(0.04)
+			var ammo := Node2D.new()   # (nothing left over: the old speedloader's slot)
+			holder.add_child(ammo)
 			t.tween_interval(0.15)
 			t.tween_callback(func() -> void: _snd("cyl_spin"))
 			t.tween_interval(0.25)
@@ -1463,7 +1499,9 @@ func _smith_act(kind: String) -> void:
 					(_smith_pieces[pk] as CanvasItem).visible = true
 				_smith_flash()
 				_snd("click")
-				_smith_word("click", Vector2.ZERO))
+				_smith_word("click", Vector2.ZERO)
+				if _smith_cap != null and is_instance_valid(_smith_cap):
+					_smith_cap.visible = true)
 			if one:   # then the hammer back, a breath, and the shot in a red flash
 				t.tween_interval(0.5)
 				t.tween_callback(func() -> void:
