@@ -9,6 +9,7 @@ const ENTRIES := [
 		"A pawnshop and an all-night diner, one shop to a building",
 		"The Alley: washing lines strung from window to window",
 		"Bullets tear real ragged holes through the laundry's sheets",
+		"The Alley: climb the fire escape, ride the washing line across the alley in slow motion",
 		"The Laundry: steam bursts out of the street grates",
 		"The Blue Note: a night street of neon signs",
 		"Room doors glow from inside: you can see where to go in",

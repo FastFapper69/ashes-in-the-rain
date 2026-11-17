@@ -1330,7 +1330,7 @@ const SEGMENT_KIT := {"walkway_b": "walkway", "signal_b": "signal", "arches_b": 
 	"yard_b": "yard", "tunnel_b": "tunnel", "sheds_b": "sheds", "pier17_b": "pier17", "shipping_b": "shipping", "quay_b": "quay",
 	"laundry_b": "laundry", "alley_b": "alley", "warehouse_b": "warehouse", "warehouse_c": "warehouse", "church_b": "church", "subway_b": "subway", "market_b": "market", "market_c": "market", "yard_c": "yard", "tunnel_c": "tunnel",
 	"fire_d": "fire_a", "fire_e": "fire_b", "fire_f": "fire_c", "fire_g": "fire_a"}
-const SEGMENT_SIZE := {"alley_mouth": 0.8, "market_row": 0.8, "church_row": 0.8, "subway_entrance": 0.8, "warehouse_row": 0.8, "bluenote_row": 0.8, "row_house": 0.8, "front_yard": 0.8, "apartment": 0.8, "factory": 0.8, "pawn_house": 0.8, "diner_house": 0.8, "front_laundry": 0.8, "front_warehouse": 0.8, "front_club": 0.8, "front_tenement": 0.8, "hk_tailor": 0.8, "hk_grocery": 0.8, "hk_saloon": 0.8, "hk_laundry": 0.8, "deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
+const SEGMENT_SIZE := {"alley_mouth": 0.8, "market_row": 0.8, "church_row": 0.8, "subway_entrance": 0.8, "warehouse_row": 0.8, "bluenote_row": 0.8, "row_house": 0.8, "front_yard": 0.8, "apartment": 0.8, "factory": 0.8, "pawn_house": 0.8, "diner_house": 0.8, "alley_wash": 0.8, "front_laundry": 0.8, "front_warehouse": 0.8, "front_club": 0.8, "front_tenement": 0.8, "hk_tailor": 0.8, "hk_grocery": 0.8, "hk_saloon": 0.8, "hk_laundry": 0.8, "deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
 	"signal": 0.52, "arches": 0.52, "sheds": 0.55, "fire_a": 0.605, "fire_b": 0.605, "fire_c": 0.605}
 # A drawing whose floor runs into the depth: where on it a man's feet go, as a share of its height (the
 # street drawings stand at the back of the pavement at SEGMENT_BASE instead).
@@ -3020,7 +3020,7 @@ func _auto_step(delta: float) -> void:
 			_auto_done |= 1 << 20
 			hud.dive_tapped = true
 		var kf := int((_at - 0.5) / 0.1)
-		if kf >= 0 and kf < 16 and _auto_done & (1 << kf) == 0:
+		if kf >= 0 and kf < 20 and _auto_done & (1 << kf) == 0:
 			_auto_done |= 1 << kf
 			_shot("film_%02d" % kf)
 			print("BAR ", kf, " ", move_state, " x ", int(player.position.x - bar.position.x), " y ", int(player.position.y), " glide ", int(glide))
@@ -3042,19 +3042,18 @@ func _auto_step(delta: float) -> void:
 			_auto_done |= 1 << 20
 			hud.jump_tapped = true
 		var kf := int((_at - 0.5) / 0.15)
-		if kf >= 0 and kf < 16 and _auto_done & (1 << kf) == 0:
+		if kf >= 0 and kf < 20 and _auto_done & (1 << kf) == 0:
 			_auto_done |= 1 << kf
 			print("AWNJ ", kf, " ", move_state, " ", Vector2i(player.position), " fall ", int(fall))
 			_shot("film_%02d" % kf)
 		if _at > 3.0:
 			get_tree().quit()
 		return
-	elif _auto == "wash":   # --test=wash --sandbox=1: from the fire escape's top landing a jump onto the washing line, the ride, frames
-		var wr: Dictionary = {}
+	elif _auto.begins_with("wash"):   # --test=wash --sandbox=1: from the fire escape's top landing a jump onto the washing line, the ride, frames
+		var wr: Dictionary = {}   # (--test=wash:alley: the one across the alley mouth - the longest)
 		for r in _ropes:
-			if r.has("laundry"):
+			if r.has("laundry") and (wr.is_empty() or (_auto.ends_with(":alley") and (r["b"] as Vector2).distance_to(r["a"]) > (wr["b"] as Vector2).distance_to(wr["a"]))):
 				wr = r
-				break
 		if _auto_done & (1 << 21) == 0 and not wr.is_empty():
 			_auto_done |= 1 << 21
 			player.position = Vector2((wr["a"] as Vector2).x - 90.0, float(wr["top"]))
@@ -3065,11 +3064,11 @@ func _auto_step(delta: float) -> void:
 			_auto_done |= 1 << 20
 			hud.jump_tapped = true
 		var kf := int((_at - 0.5) / 0.12)
-		if kf >= 0 and kf < 16 and _auto_done & (1 << kf) == 0:
+		if kf >= 0 and kf < 20 and _auto_done & (1 << kf) == 0:
 			_auto_done |= 1 << kf
 			_shot("film_%02d" % kf)
 			print("WASH ", kf, " ", move_state, " ", Vector2i(player.position))
-		if _at > 2.6:
+		if _at > 3.2:
 			get_tree().quit()
 		return
 	elif _auto.begins_with("wallkick"):   # --test=wallkick[:up] --sandbox=1: a run at the lab's crate stack, a jump into it, a jump off it (:up = onto it), frames
@@ -3091,7 +3090,7 @@ func _auto_step(delta: float) -> void:
 			hud.jump_tapped = true
 			print("WALLKICK at y ", int(player.position.y))
 		var kf := int((_at - 0.6) / 0.1)
-		if kf >= 0 and kf < 16 and _auto_done & (1 << kf) == 0:
+		if kf >= 0 and kf < 20 and _auto_done & (1 << kf) == 0:
 			_auto_done |= 1 << kf
 			_shot("film_%02d" % kf)
 		if _at > 2.4:
@@ -3112,7 +3111,7 @@ func _auto_step(delta: float) -> void:
 				print("PROP ", it["kind"], " ", Vector2i((it["rect"] as Rect2).get_center()))
 			props.shot(Vector2(float(at[0]), float(at[1])))
 		var kf := int((_at - 0.4) / 0.12)
-		if kf >= 0 and kf < 16 and _auto_done & (1 << kf) == 0:
+		if kf >= 0 and kf < 20 and _auto_done & (1 << kf) == 0:
 			_auto_done |= 1 << kf
 			_shot("film_%02d" % kf)
 		if _at > 2.6:
@@ -3127,7 +3126,7 @@ func _auto_step(delta: float) -> void:
 			_grace = 99.0
 		hud.move = -1.0 if _at > 0.6 and _at < 1.6 else 0.0
 		var kf := int((_at - 0.8) / 0.15)
-		if kf >= 0 and kf < 16 and _auto_done & (1 << kf) == 0:
+		if kf >= 0 and kf < 20 and _auto_done & (1 << kf) == 0:
 			_auto_done |= 1 << kf
 			print("AWNING t ", snappedf(_at, 0.01), " y ", int(player.position.y), " fall ", int(fall), " ", move_state, " ts ", Engine.time_scale)
 			_shot("film_%02d" % kf)
@@ -9724,6 +9723,8 @@ func _grab_rope() -> void:
 		elif move_state == "zip":
 			player.hang_one = true
 			player.hang_cycle = -1.0
+			if r.has("laundry"):   # riding a washing line over their heads: a slowed beat for free (rule 18) to shoot them
+				_free_slow = maxf(_free_slow, 1.6)
 			_rope_v = maxf(250.0, absf(run) * 0.6)
 			sfx.play("skid", -6.0, INF, 0.05)
 		else:

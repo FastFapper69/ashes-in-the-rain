@@ -49,6 +49,7 @@ STREET = {
     'alley_mouth': ('253.jpg', 0, False), 'market_row': ('254.jpg', 0, False), 'church_row': ('255.jpg', 0, False),
     'subway_entrance': ('256.jpg', 0, False), 'warehouse_row': ('257.jpg', 0, False), 'bluenote_row': ('258.jpg', 0, False), 'row_house': ('259.jpg', 0, False), 'front_yard': ('260.jpg', 0, False),
     'apartment': ('264.jpg', 0, False), 'factory': ('265.jpg', 0, False),
+    'alley_wash': ('269.jpg', 0, False),   # the washing-line alley: a fire escape beside an alley mouth (THE ALLEY's stunt)
     'pawn_house': ('267.jpg', 0, False), 'diner_house': ('268.jpg', 0, False),   # one shop a building (user 17. 11.)   # plain buildings (user 17. 11.: no rows of shops)
 }
 KIT = {'yard_c': 'yard', 'tunnel_c': 'tunnel', 'walkway_b': 'walkway', 'signal_b': 'signal', 'arches_b': 'arches', 'yard_b': 'yard', 'tunnel_b': 'tunnel', 'tunnel_lo_b': 'tunnel_lo',

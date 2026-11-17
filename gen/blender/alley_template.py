@@ -15,7 +15,8 @@ import bpy
 argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else ["/tmp/alley.png"]
 OUT = argv[0]
 SUBWAY = "--subway" in argv          # a subway entrance instead: an arch in one front, stairs going down inside
-argv = [a for a in argv if a != "--subway"]
+FIRE = "--fire" in argv              # the washing-line alley: a fire escape up the left house's front beside the mouth
+argv = [a for a in argv if a not in ("--subway", "--fire")]
 W, H = 3168, 1344
 PAVE, TOP, PIER = 1250, 96, 124
 EYE = 976                                    # a man's eyes: 274 px over the pavement (door 360 = 2.1 m, eyes 1.6 m)
@@ -99,6 +100,21 @@ if not SUBWAY:
   for r in (PAVE - 440, PAVE - 230, PAVE - 30):
       box(mid, M1 - 15, r, r + 8, 0.3, 0.36, IRON)
 
+
+if FIRE:   # an iron fire escape on the left house's front, its landings at the floors (rows 420, 760), right by the mouth
+    FX0, FX1 = 860, 1300
+    for r in (420, 760):
+        box(FX0, FX1, r - 8, r + 8, -0.9, 0.0, IRON)                  # the deck
+        box(FX0, FX1, r - 110, r - 100, -0.9, -0.85, IRON)            # its top rail
+        for c in range(FX0, FX1 + 1, 110):
+            box(c - 4, c + 4, r - 110, r, -0.9, -0.85, IRON)          # balusters
+    for k in range(10):                                                # the flight between the landings
+        cx = FX0 + 60 + k * 30
+        box(cx - 18, cx + 18, 760 - k * 34 - 6, 760 - k * 34, -0.6, -0.4, IRON)
+    box(FX1 - 60, FX1 - 52, 760, 1010, -0.95, -0.9, IRON)            # the drop ladder's rails
+    box(FX1 - 12, FX1 - 4, 760, 1010, -0.95, -0.9, IRON)
+    for r in range(790, 1010, 36):
+        box(FX1 - 60, FX1 - 4, r, r + 6, -0.95, -0.9, IRON)
 
 # the camera: a man's eye, on the mouth's middle, looking straight down the alley; the lens shifted so the fronts'
 # plane (y = 0) is exactly the 3168 x 1344 picture

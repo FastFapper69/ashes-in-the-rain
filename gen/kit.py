@@ -97,6 +97,18 @@ PIECES = {
     # plain buildings, no shops (user 17. 11.: "the shops forcibly stuck onto each other")
     "apartment": {"size": 0.8, "edge": "partywall", "props": [], "clear": [(1000, 1360)]},
     "factory": {"size": 0.8, "edge": "partywall", "props": [], "clear": [(2230, 2530)]},
+    # THE ALLEY's stunt (user 17. 11.): up the fire escape beside the alley mouth, a washing line from its top landing's
+    # rail down across the alley to a pulley on the far house's second-floor window - ridden over the men below in a free
+    # slowed beat. Measured on art_src 269 (picture px).
+    "alley_wash": {
+        "size": 0.8, "edge": "partywall", "props": [],
+        "floors": [(840, 1300, 400, "drawn"), (840, 1305, 747, "drawn")],
+        "ramps": [(950, 747, 1200, 400)],
+        "ladders": [(1260, 747, 1010)],
+        "lines": [(1297, 298, 1955, 590, 400)],
+        "men": [(1080, 747, "post")],
+        "clear": [(820, 1320), (1330, 1840)],
+    },
     "pawn_house": {"size": 0.8, "edge": "partywall", "props": [], "clear": [(760, 960), (1960, 2660)]},
     "diner_house": {"size": 0.8, "edge": "partywall", "props": [], "clear": [(400, 1100), (2160, 2440)]},
     "front_yard": {"size": 0.8, "edge": "partywall", "front": "yard", "doors": [810, 2320], "props": [],
@@ -125,7 +137,7 @@ EDGES = {
     "tenrow_d": ("party_wall", "party_wall"), "warehouse": ("party_wall", "party_wall"), "warehouse_b": ("open_lot", "party_wall"),
     "warehouse_c": ("party_wall", "party_wall"), "yard": ("fence", "fence"), "yard_b": ("fence", "fence"), "yard_c": ("fence", "fence"),
 }
-EDGES["front_laundry"] = EDGES["front_warehouse"] = EDGES["front_club"] = EDGES["front_tenement"] = EDGES["alley_mouth"] = EDGES["market_row"] = EDGES["church_row"] = EDGES["subway_entrance"] = EDGES["warehouse_row"] = EDGES["bluenote_row"] = EDGES["row_house"] = EDGES["front_yard"] = EDGES["apartment"] = EDGES["factory"] = EDGES["pawn_house"] = EDGES["diner_house"] = ("party_wall", "party_wall")
+EDGES["front_laundry"] = EDGES["front_warehouse"] = EDGES["front_club"] = EDGES["front_tenement"] = EDGES["alley_mouth"] = EDGES["market_row"] = EDGES["church_row"] = EDGES["subway_entrance"] = EDGES["warehouse_row"] = EDGES["bluenote_row"] = EDGES["row_house"] = EDGES["front_yard"] = EDGES["apartment"] = EDGES["factory"] = EDGES["pawn_house"] = EDGES["diner_house"] = EDGES["alley_wash"] = ("party_wall", "party_wall")
 for _n in ("arches", "arches_b", "bowery", "platform", "pump", "signal", "signal_b", "station14", "tunnel", "tunnel_b", "tunnel_c",
            "tunnel_lo", "tunnel_lo_b", "walkway", "walkway_b"):
     EDGES[_n] = ("girder", "girder")

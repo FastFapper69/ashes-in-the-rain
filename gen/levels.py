@@ -414,6 +414,11 @@ def chunk(name, hard, rng=None):
         c = Chunk(2000).foe(950).foe(1850, kind="tommy" if hard > 0.5 else "post")
     elif name == "roof_rush":   # they climb up from the cars behind and in front
         c = Chunk(1800).foe(300).runner(1200, 100, 2900).runner(1500, 200, 3200, kind="shotgun").runner(-200, 600, -1400)
+    elif name == "wash_alley":   # THE ALLEY's stunt: up the fire escape, along the washing line across the alley mouth,
+        # shooting the men below and on the far side in the slowed ride (gen/kit.py alley_wash)
+        c = (Chunk(4800).foe(1500, 0.0).foe(2650, 0.0).foe(3700, 0.0, kind="tommy" if hard > 0.4 else "post"))
+        c.kits.append((2400.0, "alley_wash"))
+        c.hint(900, "UP THE FIRE ESCAPE, RIDE THE LINE ACROSS")
     elif name == "breather":
         c = Chunk(700)
     elif name == "between":   # (graph: the street between two buildings with fronts - each front reaches ~1100 past its room)
@@ -579,6 +584,10 @@ def graph_chunks(graph):
                 raise ValueError(f"graph: {last} -> {node} with no street between (no drawn way from one to the other)")
             if kind in ("room", "yard") and style not in fronts:
                 raise ValueError(f"graph: {node} has no drawn building front (gen/kit.py PIECES 'front': {style!r})")
+        if kind == "street" and ":" in node:   # a street with something of its own on it (a stunt chunk)
+            out.append(style)
+            last = kind
+            continue
         out.append("between" if kind == "street" and "lab" in out else SPACE_CHUNK.get(kind, style))   # (the lab's long street once, then a stretch between fronts)
         last = kind
     return out
@@ -588,7 +597,7 @@ def _build(mp, nudge):
     rng = random.Random(mp["seed"])
     x = 1900.0   # the first of them out of sight of the start
     out = Chunk(0)
-    picks = graph_chunks(mp["graph"]) if mp.get("graph") else list(mp["fixed"])
+    picks = mp.get("pre", []) + (graph_chunks(mp["graph"]) if mp.get("graph") else list(mp["fixed"]))
     ROOMY = ("yard", "laundry", "warehouse_arena", "tenement", "club", "hold", "office", "cityhall", "catacombs", "section")
     for a, b in zip(picks, picks[1:]):   # (chapter I and the lab: the docks and the underground get their fronts later)
         if a in ROOMY and b in ROOMY and mp.get("pool") not in (DOCKS_POOL, UNDER_POOL):
@@ -1288,7 +1297,7 @@ CAMPAIGN = [
   {"title": "CHAPTER I", "name": "RAIN ON HELL'S KITCHEN", "ready": True, "hero": "frank", "ambient": [0.2, 0.21, 0.27], "rain": 1.0, "maps": [
     {"name": "THE ALLEY", "seed": 101, "neon_drop": True, "washing": True,   # (its landmark: washing lines strung from window to window, QUEUE §12)
      "feature": "alley_mouth", "start": 0.0, "end": 0.35,
-     "fixed": ["crate_cover", "drum_duo", "dumpster_alley", "fire_escape", "barrel_trap", "pistols_cache", "yard", "ambush_behind", "gauntlet"],
+     "fixed": ["crate_cover", "drum_duo", "wash_alley", "barrel_trap", "pistols_cache", "yard", "ambush_behind", "gauntlet"],
      "intro": ["The shooters hadn't gone far. Rain doesn't wash a trail away that fast.", "Eddie had left a trail too: pages torn from his diary, nailed up where only I would look."],
      "diary": "Nov 3. Rosie showed me Tommy's photo again. Eleven men burned in '39 and the papers called it bad wiring. Bad wiring doesn't lock doors from the outside.",
      "outro": ["The shooters ran east. So did I."]},
@@ -1479,7 +1488,7 @@ SANDBOX = [
     # window). Few men: only those the kit stands by its hazards and the flat's two. Add each new thing here.
     {"name": "TEST LAB", "seed": 902, "start": 0.3, "end": 0.3, "intro": [], "outro": [],
      # (QUEUE §10.4: the map as a graph of spaces - each change of kind of space through a drawn door or passage)
-     "graph": ["street", "yard", "street", "room:laundry", "street", "room:club", "street", "house"],
+     "graph": ["street", "yard", "street", "room:laundry", "street", "room:club", "street:wash_alley", "house"],
      "roof": True, "kit": "troof", "roofs": ["roof_b", "roof_a"],   # (rule 25, 17. 11.: the flat is in a whole house: in at
      # its street door, up its stairs, the door kick and the window onto its own fire escape, up to its roof)
      "street_fixed": ["hk_laundry", "hk_tailor", "hk_grocery", "hk_saloon", "hk_laundry", "warehouse", "alley_mouth", "market_row"]},
