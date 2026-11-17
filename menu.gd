@@ -701,7 +701,7 @@ func _case_file() -> void:
 			(card.get_node("Drawing") as TextureRect).modulate = Color(0.58, 0.56, 0.53)   # an unopened file, in the dark
 		var ink: Color = INK
 		Paper.write(card, str(m + 1), _font_head, 64, ink, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0, 1, 0.36), 4.0)
-		Paper.write(card, String(maps[m]["name"]), _font_type, 18, ink, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0.36, 1, 0.28), 10.0)
+		Paper.write(card, String(maps[m]["name"]), _font_head, 22, ink, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0.36, 1, 0.28), 10.0)   # (audit 17. 11.: the typed name read too small on a phone)
 		var low := Rect2(0, 0.64, 1, 0.36)
 		if not ch["ready"]:
 			Paper.write(card, "SOON", _font_head, 30, Color(0.1, 0.1, 0.1), HORIZONTAL_ALIGNMENT_CENTER, low, 10.0)

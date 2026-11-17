@@ -673,8 +673,9 @@ func rating(level_line: String, head: String, score: int, rows: Array) -> void:
 	oswald.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): 600}
 	var type: Font = load("res://fonts/SpecialElite.ttf")
 	Paper.write(card, head, oswald, 24, Paper.INK, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0.0, 1, 0.17), 8.0)
-	Paper.write(card, "SCORE %d" % score, oswald, 28, CRIMSON, HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0.17, 0.5, 0.22), 10.0)
-	Paper.write(card, level_line, type, 17, CRIMSON, HORIZONTAL_ALIGNMENT_RIGHT, Rect2(0.5, 0.17, 0.5, 0.22), 10.0)
+	# (audit 17. 11.: the XP line wrapped into two cramped lines) the score on its own line, the level under it, one line each
+	Paper.write(card, "SCORE %d" % score, oswald, 28, CRIMSON, HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0.17, 0.42, 0.22), 10.0)
+	Paper.write(card, level_line, type, 14, CRIMSON, HORIZONTAL_ALIGNMENT_RIGHT, Rect2(0.42, 0.17, 0.58, 0.22), 10.0)
 	for i in rows.size():   # two columns, typed
 		var col := i % 2
 		var row := i / 2
