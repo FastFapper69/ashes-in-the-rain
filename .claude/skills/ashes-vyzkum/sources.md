@@ -35,3 +35,13 @@
 - Celeste & Forgiveness (Maddy Thorson): https://maddymakesgames.com/articles/celeste_and_forgiveness/
 - Game Programming Patterns (free online): https://gameprogrammingpatterns.com/contents.html , https://gameprogrammingpatterns.com/object-pool.html
 - Mobile design (Fortnite docs): https://dev.epicgames.com/documentation/fortnite/designing-for-mobile-in-fortnite ; mobile controls overview: https://abratabia.com/game-controls/best-mobile-controls.php
+
+## Modular kits and joins (ch15, 2026-11-17)
+- Burgess & Purkeypile, Skyrim's modular approach (GDC 2013): https://gamedeveloper.com/design/skyrim-s-modular-approach-to-level-design , slides https://www.slideshare.net/JoelBurgess/gdc2013-kit-buildingfinal
+- Burgess, kits and art fatigue (80.lv): https://80.lv/articles/building-huge-open-worlds-modularity-kits-art-fatigue ; Level Design Book, modular kits: https://book.leveldesignbook.com/process/blockout/metrics/modular
+- Dead Cells hybrid level design (Sébastien Bénard): https://deepnight.net/tutorial/the-level-design-of-dead-cells-a-hybrid-approach/ ; Spelunky generator: https://tinysubversions.com/spelunkyGen2/
+- Wang tiles / autotiling (Red Blob Games): https://www.redblobgames.com/articles/autotile/claude/
+- Frozenbyte Trine level art – composition: https://wiki.frozenbyte.com/index.php/Level_Art:_Composition
+- Hollow Knight layers: https://medium.com/3d-environmental-art/the-art-of-hollow-knight-f4c05dda3882 , Unity case study https://unity.com/madewith/hollow-knight
+- Transition zones / squeeze holes / airlocking: https://filmstories.co.uk/features/squeeze-holes-where-did-they-come-from-and-what-are-they-for/ , https://www.mapcore.org/articles/development/creative-airlocking-streaming-in-action-games-r87
+- Outpainting for game backgrounds (Image Extender, Poisson blending): https://sourceforge.net/mirror/image-extender/profile/
