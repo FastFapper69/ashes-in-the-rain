@@ -31,11 +31,11 @@ STREET_POOL = ["hk_grocery", "hk_saloon", "hk_laundry", "row_house", "apartment"
                "alley_mouth", "warehouse_row", "subway_entrance", "church_row"]   # asks for its fire escape; no rows of shops, user 17. 11.)
 # chapter I: every map its own district (QUEUE §12, user 17. 11.: "I don't want to feel I walk the same map again")
 DISTRICT = {
-    "THE ALLEY": ["alley_mouth", "warehouse_row", "row_house", "factory", "hk_laundry", "apartment"],           # back alleys, yards, stores
-    "BACK STREETS": ["hk_grocery", "hk_saloon", "apartment", "church_row", "subway_entrance", "row_house"],      # the street under the El
+    "THE ALLEY": ["alley_mouth", "warehouse_row", "row_house", "factory", "hk_laundry", "apartment", "pawn_house"],           # back alleys, yards, stores
+    "BACK STREETS": ["hk_grocery", "pawn_house", "diner_house", "church_row", "subway_entrance", "row_house", "apartment"],      # the street under the El
     "THE LAUNDRY": ["factory", "warehouse_row", "hk_laundry", "alley_mouth", "row_house"],                      # workshops, laundries, steam
     "TENEMENTS": ["row_house", "apartment", "church_row", "hk_grocery", "alley_mouth"],                         # where people live
-    "THE BLUE NOTE": ["hk_saloon", "apartment", "subway_entrance", "alley_mouth", "church_row", "row_house"],    # the night street round the club
+    "THE BLUE NOTE": ["hk_saloon", "diner_house", "apartment", "subway_entrance", "alley_mouth", "row_house"],    # the night street round the club
 }
 DOCKS_POOL = ["pier17", "cranes", "shipping", "quay", "sheds", "pier17_b", "shipping_b", "quay_b", "sheds_b"]   # (the harbor with its lighthouse: only the Harbor Master's own)
 # variants (2026-11-15): the same kit redrawn with other details over the same floor, rails, edges and lamps,

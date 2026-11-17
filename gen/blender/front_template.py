@@ -24,7 +24,7 @@ PIER = 124                # the dark party wall down each edge
 # the interiors (gen/levels.py chunk widths): the doors' middles this far apart, the room's middle at the picture's
 ROOM_W = {"tenement": 2300, "laundry": 2700, "warehouse": 2400, "club": 2600, "yard": 2600}
 # plain street pieces (no interior behind): their ground-floor bays (shop door middles), spread along the front
-SHOPS = {"shops": [700, 1584, 2468], "two_shops": [1000, 2168], "plain_a": [1180], "factory": [2380], "church": [1584], "warehouse_row": [900, 2268]}
+SHOPS = {"shops": [700, 1584, 2468], "two_shops": [1000, 2168], "plain_a": [1180], "factory": [2380], "one_shop_l": [760], "one_shop_r": [2300], "church": [1584], "warehouse_row": [900, 2268]}
 if STYLE in SHOPS:
     DOORS = SHOPS[STYLE]
 else:
@@ -94,11 +94,21 @@ kind = {"tenement": "stoop"}.get(STYLE, "plain")
 for cx in DOORS:
     door(cx, kind)
 # the ground floor between the doors: by the style
-PLAIN = ("plain_a", "factory")
+PLAIN = ("plain_a", "factory", "one_shop_l", "one_shop_r")
 HOIST = (1584, 464)   # (warehouse_row) the pulley's bottom, picture px: the game hangs its swinging rope from it
 if STYLE == "plain_a":   # a walk-up: ground-floor windows either side of its one stoop
     for c in cols:
         if abs(c - DOORS[0]) > 200:
+            window(c, 880, 118, 170)
+elif STYLE in ("one_shop_l", "one_shop_r"):   # one shop in an apartment house: its window and sign off to one side, a plain stoop door elsewhere
+    d = DOORS[0]
+    box(d - 330, d - 90, PAVE - 300, PAVE - 60, -0.04, -0.01, GLASS)
+    box(d + 90, d + 330, PAVE - 300, PAVE - 60, -0.04, -0.01, GLASS)
+    box(d - 360, d + 360, PAVE - 420, PAVE - 340, -0.14, 0.0, TRIM)
+    stoop = 2300 if STYLE == "one_shop_l" else 860
+    box(stoop - 75, stoop + 75, PAVE - 360, PAVE, -0.04, -0.01, DARK)
+    for c in cols:
+        if abs(c - d) > 460 and abs(c - stoop) > 200:
             window(c, 880, 118, 170)
 elif STYLE == "factory":   # a factory's long wall: tall barred windows high up, blank brick below, one pair of doors
     for c in cols[::2]:
