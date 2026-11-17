@@ -130,3 +130,21 @@ Cíl: automaticky poznat vizuální regresi, aby se nic nerozbilo bez povšimnut
 5. Zapojit do testů: po `--test=` módech s fotkami spustit likeness; pod prahem (začít ~85, doladit) vypsat `LIKENESS LOW <test> <šířka> <skóre>`
    a otevřít diff. Na PC lze pustit i z hooku Stop, pokud to trvá do ~1 min.
 6. Výsledek a práh zapsat do `ashes-znalosti` ch02 (Tests) a cheatsheetu.
+
+## 8. POKUS: Blender jako pomocník pro 2D art – SCHVÁLENO uživatelem 17. 11. ráno (zatím jen test, ne plošně)
+Nástroje: Blender 5.2+ na PC + EL4CTEO/blender-skills (MIT; plugin `/plugin marketplace add EL4CTEO/blender-skills`,
+`/plugin install blender-agent-skills@blender-agent-skills`) – instalaci krátce potvrdit s uživatelem. Účtový skill `blender-modelovani` má pravidla.
+ZÁSADA: 3D nikdy není vidět ve hře tak, jak vyrenderovalo – vždy jen jako předloha/data; viditelný výsledek je ruční kresba (Gemini) nebo
+přemalba. Postavy se do 3D NEdělají (loutky zůstávají).
+
+Pokus (dvě malé věci, pak ukázat uživateli porovnání a čekat na verdikt):
+1. **Šablona místnosti pro Gemini**: šedý blockout jedné scény z řezu činžákem (chodba + schody v zadní stěně) ve stejné kameře a měřítku jako hra
+   (postava = 1,8 m, FIG 1.18, čára podlahy jako v section_art). Render: šedé tvary + čáry hran (Line Art / Freestyle), bez textur.
+   Dát Gemini jako vzor perspektivy a rozměrů („redraw this layout in the style of art/rooms/tenement.png, keep every edge where it is“).
+   Porovnat s kresbou bez šablony: rovné čáry, měřítko proti postavě, schody vs kolize. Kolize brát z rozměrů blockoutu.
+2. **Zbraň u zbrojíře**: jednoduchý model revolveru (nebo brokovnice) s vyměnitelnými díly (hlaveň, rukojeť, mířidla), renderovaný
+   inkoustovým NPR stylem (blender-stylized-npr: outline, 2–3 tónové pásy) ve stejném úhlu jako gunsmith kresby. Stavy: starý/opotřebovaný
+   → každý upgrade. Pak přetáhnout Gemini do ručního stylu (stejná póza), a porovnat se současnými kresbami 201–208.
+3. Volitelně, až 1–2 dopadnou dobře: normálová mapa z jednoduchého 3D tvaru jedné fasády/rekvizity pro světla v Godotu
+   (porovnat s dnešní normálovou mapou na `--test=look`), a mechanické animace (jeřáb, cedule, ventilátor) jako 3D → snímky → přemalba.
+Výstup pokusu: screenshoty 1280 i 1560 před/po, 2–3 věty do HANDOFF, poznatky do `ashes-vyzkum` (nová kapitola 15, pokud se osvědčí).
