@@ -9,12 +9,12 @@ extends RefCounted
 
 const CAMPAIGN := [
 	{"title": "PROLOGUE", "name": "EDDIE DOYLE", "ready": true, "hero": "eddie", "ambient": Color(0.2, 0.21, 0.27), "rain": 1.2, "maps": [
-		{"name": "THE LAST NOTE", "end": 13198.8, "boss": "", "stand": 12098.8,
+		{"name": "THE LAST NOTE", "end": 15986.1, "boss": "", "stand": 14886.1,
 			"intro": ["They came out of the rain at both ends of the street.", "Eddie had six rounds and a long way to the Blue Note."], "outro": ["His pencil found the notebook one last time. One word: FRANK.", "Eddie Doyle bled out in that alley a little before two.", "At ten past, somebody called me. Somebody always does."],
 			"diary": "", "ash": 0.3, "embers": 0.0,
 			"events": [],
-			"hints": [[200.0, "DRAG THE STICK TO MOVE"], [1500.0, "TAP ANYWHERE TO SHOOT THERE"], [2700.0, "PULL THE STICK DOWN TO HIDE BEHIND COVER"], [4300.0, "THE RUNNING MAN BUTTON DIVES OVER CRATES"], [6100.0, "SHOOT THE RED BARREL"], [7900.0, "TAP THE STOPWATCH TO SLOW TIME"], [11498.8, "NOWHERE LEFT TO RUN"]],
-			"boxes": [["crate", 3090.3, 250.0, 248.0, 0.0], ["drum", 5294.5, 160.0, 246.0, 0.0], ["crate", 5994.5, 250.0, 248.0, 0.0], ["crate", 7273.7, 250.0, 248.0, 0.0], ["drum", 8013.7, 160.0, 246.0, 0.0], ["crate", 8630.2, 250.0, 248.0, 0.0], ["crate", 11698.8, 250.0, 248.0, 0.0], ["dumpster", 12648.8, 300.0, 250.0, 0.0]],
+			"hints": [[200.0, "DRAG THE STICK TO MOVE"], [1500.0, "TAP ANYWHERE TO SHOOT THERE"], [2700.0, "PULL THE STICK DOWN TO HIDE BEHIND COVER"], [4300.0, "THE RUNNING MAN BUTTON DIVES OVER CRATES"], [6100.0, "SHOOT THE RED BARREL"], [7900.0, "TAP THE STOPWATCH TO SLOW TIME"], [14286.1, "NOWHERE LEFT TO RUN"]],
+			"boxes": [["crate", 3090.3, 250.0, 248.0, 0.0], ["drum", 5294.5, 160.0, 246.0, 0.0], ["crate", 5994.5, 250.0, 248.0, 0.0], ["crate", 7273.7, 250.0, 248.0, 0.0], ["drum", 8013.7, 160.0, 246.0, 0.0], ["crate", 8630.2, 250.0, 248.0, 0.0], ["dumpster", 13736.1, 300.0, 250.0, 0.0], ["crate", 14486.1, 250.0, 248.0, 0.0]],
 			"floors": [],
 			"ramps": [],
 			"ropes": [],
@@ -23,7 +23,7 @@ const CAMPAIGN := [
 			"pickups": [],
 			"things": [],
 			"checkpoints": [7174.0],
-			"street": [["hk_saloon", -3000.0], ["bluenote_row", 1815.4], ["hk_laundry", 6630.7], ["deadend", 11446.1]],
+			"street": [["hk_saloon", -3000.0], ["bluenote_row", 1815.4], ["hk_laundry", 6630.7], ["deadend", 11446.1], ["row_house", 16063.8]],
 			"enemies": [{"x": 3540.3, "y": 0.0, "kind": "post", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 5654.5, "y": 0.0, "kind": "post", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 6444.5, "y": 0.0, "kind": "post", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 7893.7, "y": 0.0, "kind": "post", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 8233.7, "y": 0.0, "kind": "post", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 8493.7, "y": 0.0, "kind": "post", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}, {"x": 10400.2, "y": 0.0, "kind": "post", "trig": 9400.2, "from": 12000.2, "delay": 0.0, "run": true}, {"x": 10660.2, "y": 0.0, "kind": "post", "trig": 9400.2, "from": 12300.2, "delay": 0.0, "run": true}, {"x": 10110.9, "y": 0.0, "kind": "post", "trig": -1.0, "from": 0.0, "delay": 0.0, "run": false}]},
 	]},
 	{"title": "CHAPTER I", "name": "RAIN ON HELL'S KITCHEN", "ready": true, "hero": "frank", "ambient": Color(0.2, 0.21, 0.27), "rain": 1.0, "maps": [

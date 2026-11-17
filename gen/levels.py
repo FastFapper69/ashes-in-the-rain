@@ -641,6 +641,7 @@ def _build(mp, nudge):
     out.checks = sorted(set(round(c) for c in out.checks if 800 < c < out.end - 500))
     door_clear(out)
     out.street = street(mp, out, rng)
+    stand_at_gate(out)
     kit_pieces(out)
     hoist_ropes(out)
     street_props(out)
@@ -1106,6 +1107,36 @@ def roofs(out, mp, x, hard):
     out.enemies.append({"x": r1 - L * 0.7, "y": ROOF_Y, "kind": "post", "trig": r1 - L * 0.4, "from": r0 + 300, "delay": 0.0, "run": True})
     out.roof_checks = [r1 - L * 0.5]
     out.end = r1 + 400.0
+
+
+STAND_GATE_PX = 2620.0   # the chained gate's left post in art/street/deadend.png (main.gd reads the same)
+def stand_at_gate(m):
+    """The prologue's last stand happens with Eddie's back to the dead end's chained gate, wherever the street
+    put the dead end: the stand, its crates and hint and the map's end move along to it."""
+    if not m.stand:
+        return
+    seg = next((g for g in m.street if g[0] == "deadend"), None)
+    if seg is None:
+        return
+    k = 1.9 * SEG_SIZE["deadend"]
+    gate = seg[1] + (STAND_GATE_PX - TRIM["deadend"]) * k * SEGMENTS["deadend"] / (SEGMENTS["deadend"] - TRIM["deadend"])
+    dx = gate - 530.0 - m.stand
+    x = m.stand - 600.0   # (last_stand's x)
+    for b in m.boxes:
+        if len(b) == 2 and x <= b[1] <= m.end:
+            b[1] += dx
+    for h in m.hints:
+        if abs(h[0] - x) < 1:
+            h[0] += dx
+    m.stand += dx
+    m.end += dx
+    for b in m.boxes:   # (nothing in front of the chained gate: the dumpster stands back in the alley, cover for them)
+        if len(b) == 2 and b[0] == "dumpster" and b[1] + BOX["dumpster"][0] > m.stand - 100:
+            b[1] = m.stand - 1150.0
+    end = seg[1] + seg_w("deadend")   # and the street goes on past the dead end: a row house beyond it
+    while end < m.end + 2500:
+        m.street.append(["row_house", end])
+        end += seg_w("row_house")
 
 
 def last_stand(out, x):   # the prologue's end: a dead-end alley and more of them than Eddie has bullets

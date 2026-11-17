@@ -150,7 +150,12 @@ var _stand_prev := 0.0
 var _move_dir := 0.0   # the stick or keys this frame
 # The chained iron gate at the right of the prologue's dead end (art/street/deadend.png, its left post at
 # 2620 px of the drawing, the segment at x 8658.4, trim 58, scale 1.9 x 0.8): Eddie's back is to it.
-const STAND_GATE_X := 8658.4 + (2620.0 - 58.0) * 1.52 * 3038.0 / (3038.0 - 58.0)
+var STAND_GATE_X := 0.0   # set from the level's dead-end drawing (gen/levels.py stand_at_gate puts the stand by it)
+func _stand_gate_x() -> float:
+	for seg in level.get("street", []):
+		if String(seg[0]) == "deadend":
+			return float(seg[1]) + (2620.0 - 58.0) * 1.52 * 3038.0 / (3038.0 - 58.0)
+	return float(level.get("stand", 0.0)) + 530.0
 var _stand_t := 0.0
 var _stand_spawn := 0.0
 var _shake := 0.0
@@ -5937,6 +5942,8 @@ func _map_events(delta: float) -> void:
 		# Nothing unseen holds him. Behind him is the dead end's chained gate (in the drawing); in front, the
 		# mouth of the alley fills with Vail's men, and a man cannot walk through a line of men. They only
 		# come from that side: over a chained gate nobody comes.
+		if STAND_GATE_X == 0.0:
+			STAND_GATE_X = _stand_gate_x()
 		var gate := STAND_GATE_X - 30.0
 		var line := stand_x - 1100.0
 		for e in enemies:

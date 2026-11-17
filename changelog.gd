@@ -9,6 +9,7 @@ const ENTRIES := [
 		"New alley gate, market, church, subway entrance, warehouse",
 		"The Blue Note gets its neon sign",
 		"Row houses under the rooftops, chapters open faster",
+		"Prologue: the last stand is back at the chained gate",
 		"Rooms have building fronts: in one door, out the other",
 		"Rooms are seen only from inside, no more fights through walls",
 		"Alleys and deep views no longer slide or warp",
