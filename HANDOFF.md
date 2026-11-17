@@ -453,6 +453,7 @@ Read `.claude/skills/ashes-znalosti/SKILL.md` first (stable rules + topic index,
 ## (47) Uživatel naštvaný: uličky se kroutí, scény nenavazují – NOVÁ PRIORITA, 2026-11-17 10:45
 - Fotky z monitoru: ulička s párou zkosená (DEEP_PERSPECTIVE slide), chodba činžáku (3C) nalepená vedle ulice TAILOR s tmavou dírou, z okna rovnou do otevřené uličky; cedulky na 3C/3A jsou glyph soup; ulice → chodba 3A tvrdým řezem bez vstupních dveří a fasády.
 - Nová pravidla 24 (kresba se nikdy nedeformuje, hloubkové pohledy stojí) a 25 (prostory navazují jako ve skutečném městě) v `ashes-znalosti`. Úkol: `gen/QUEUE_doma.md` §9 – udělat PŘED vším ostatním.
+- (47b) Research `ashes-vyzkum` ch15 (modular kits, joins, transitions): metrics sheet, edge types on street drawings, threshold kit, map as a graph of spaces, outpainting neighbours. Proposals await the user's pick before going to QUEUE.
 
 ## (48) Play data and vibration wired in, 2026-11-17
 - main.gd `_event(kind, data)` -> crash.js ashesEvent -> public.ashes_events: `start` (from top/checkpoint), `died` (kills, hits, checkpoint x), `cleared` (kills, hits, spared, executed, time); `quit` comes from crash.js on pagehide with the last place sent by `ashesWhere` every 5 s beat. Never in tests (`_auto`), the title or the trial maps. Map = "chapter:map".

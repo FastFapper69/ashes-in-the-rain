@@ -46,6 +46,7 @@ Pick the chapter for the task. Every idea marked **[H]** is a hypothesis: measur
 | [ch12](chapters/ch12-licences-stores.md) | Licences & stores | Artlist licence for games (Enterprise!), ElevenLabs, Gemini watermark/ownership, AI disclosure |
 | [ch13](chapters/ch13-business-release.md) | Business & release | premium vs free-to-start, subscriptions, native iOS needs Mac+Xcode, haptics |
 | [ch14](chapters/ch14-camera-telemetry-accessibility.md) | Camera, telemetry, accessibility | Keren camera techniques, death heatmaps/funnels, subtitles, assist mode |
+| [ch15](chapters/ch15-modular-kits-seams.md) | Modular kits, joins, transitions | Bethesda kits & metrics, Wang edge types, Dead Cells graph, Trine/Hollow Knight layers, thresholds, outpainting joins |
 
 ## Topic index
 - **attack tokens** → ch04 · **backbuffer / CanvasGroup** → ch06 · **barks / callouts** → ch04
@@ -57,6 +58,7 @@ Pick the chapter for the task. Every idea marked **[H]** is a hypothesis: measur
 - **skills / tools / web build check / reader testing** → ch09
 - **cutscene pacing, voice timing, trailer** → ch10
 - **Godot MCP / hooks / unit tests** → ch11 · **licences, Artlist, AI disclosure** → ch12 · **business model, native export, haptics** → ch13 · **camera, heatmaps, accessibility** → ch14
+- **modular kit / metrics / edge types / seams / threshold / transition between scenes / outpainting** → ch15
 
 ## Supporting files
 - [cheatsheet.md](cheatsheet.md) – decision rules distilled from all chapters
