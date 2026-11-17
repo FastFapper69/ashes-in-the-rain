@@ -521,6 +521,7 @@ func _fetch_pack() -> void:
 	var req := HTTPRequest.new()
 	req.use_threads = false
 	req.accept_gzip = false   # the browser has already unpacked what GitHub sent gzipped
+	req.download_chunk_size = 4 * 1024 * 1024   # (the default 64 KB a frame: a 68 MB pack took ~1000 frames, 17 s at 60 fps)
 	add_child(req)
 	var tick := Timer.new()
 	tick.wait_time = 0.3
