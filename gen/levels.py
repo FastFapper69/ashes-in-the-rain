@@ -557,6 +557,7 @@ def _build(mp, nudge):
         else:   # nothing to climb: it lies where the fight is thickest, halfway along
             out.pickups.append(["page", out.end * 0.55, 0.0])
     out.checks = sorted(set(round(c) for c in out.checks if 800 < c < out.end - 500))
+    door_clear(out)
     out.street = street(mp, out, rng)
     kit_pieces(out)
     hoist_ropes(out)
@@ -848,6 +849,24 @@ def _main_consts(A):
     if _C is None:
         cwd = os.getcwd(); os.chdir(REPO); _C = A.main_consts(); os.chdir(cwd)
     return _C
+
+
+DOOR_CLEAR = 700.0   # (research ch15: a change of scene only when no fight is on) nobody waits in the street this close to an interior's door
+def door_clear(m):
+    """No fight across the dip through black at an interior's door: a man standing in the street within DOOR_CLEAR of
+    a door steps back along the street, away from it (he still covers the way there)."""
+    plain = [r for r in m.rooms if not str(r[2]).startswith("section_")]
+    for e in m.enemies:
+        if e["y"] != 0.0:
+            continue
+        for a, b, st in plain:
+            if a < e["x"] < b:
+                break
+            for door, away in ((a, -1.0), (b, 1.0)):
+                if 0 < abs(e["x"] - door) < DOOR_CLEAR and (e["x"] - door) * away > 0:
+                    e["x"] = door + away * DOOR_CLEAR
+                    if e.get("from") is not None and abs(e["from"] - door) < DOOR_CLEAR:
+                        e["from"] = door + away * (DOOR_CLEAR + 200.0)
 
 
 def street(mp, m, rng):

@@ -120,6 +120,11 @@ def joins(mp):
         esc = [p for p in mp.get("floors", []) if p[3] == "fescape" and abs(p[0] - win_out) < 400]
         if not esc:
             errs.append(f"flat window at {win_out:.0f} (storey {y:.0f}) opens onto no fire escape of its own house")
+    for r in plain:   # no fight across an interior's door (research ch15: transitions only without enemies on)
+        for door in (r[0], r[1]):
+            for e in mp.get("enemies", []):
+                if e["y"] == 0.0 and not (r[0] < e["x"] < r[1]) and 0 < abs(e["x"] - door) < 690:
+                    errs.append(f"{e['kind']} at {e['x']:.0f} waits {abs(e['x'] - door):.0f} from the door of {r[2]} at {door:.0f}")
     for a, b in zip(sorted(plain), sorted(plain)[1:]):
         if b[0] < a[1] + 300:
             errs.append(f"interiors {a[2]} and {b[2]} at {a[1]:.0f}/{b[0]:.0f} run into each other")
