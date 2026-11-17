@@ -1060,6 +1060,9 @@ func _gunsmith(gun := "", pick := -1) -> void:
 	if not Instincts.reached(int(Instincts.GUN_FROM[_smith_gun])):
 		_smith_gun = "gun"
 	_smith_pick = clampi(_smith_pick, 0, Instincts.tiers(_smith_gun) - 1)
+	if _word_layer != null and is_instance_valid(_word_layer):   # (a quick tap to another card: last card's words go)
+		for w in _word_layer.get_children():
+			w.queue_free()
 	var view := _new_page()
 	if view.x < view.y:
 		_portrait_note(view)
@@ -1391,7 +1394,7 @@ func _smith_swap(part: String) -> void:
 	fresh.modulate.a = 0.0
 	_smith_stage.add_child(fresh)
 	_smith_stage.move_child(fresh, old.get_index() + 1)
-	var t := create_tween()
+	var t := _smith_stage.create_tween()
 	t.tween_property(fresh, "modulate:a", 1.0, 0.45)
 	t.tween_callback(func() -> void:
 		old.queue_free()
@@ -1417,28 +1420,18 @@ func _smith_act(kind: String) -> void:
 	match kind:
 		"open", "lastround":   # the cylinder swings out (the drawn open revolver); a speedloader puts six rounds in at once
 			# (FAST HANDS), or one round is thumbed into the last chamber (LAST ROUND) - then it snaps shut
+			var worn := not Instincts.owned(_smith_gun, _smith_pick)   # (the open gun as worn as the closed one shown)
 			var open := Sprite2D.new()
-			open.texture = load("res://art/ui/gunsmith/revolver_open.png")
+			open.texture = load("res://art/ui/gunsmith/revolver_open%s.png" % ("_worn" if worn else ""))
+			var empty_tex: Texture2D = load("res://art/ui/gunsmith/revolver_open_empty.png") if worn else null
 			open.visible = false
 			holder.add_child(open)
 			# (user 17. 11.: the spent cases are flung out, then new rounds pushed into the empty chambers one by one)
 			var c0 := Vector2(650.0, 339.0)   # (the open drawing is centred: its picture px -> the holder's)
 			var rims := [Vector2(680, 250), Vector2(697, 265), Vector2(666, 291), Vector2(667, 345), Vector2(687, 368), Vector2(700, 347)]
 			var one := kind == "lastround"
-			var holes: Array = []
-			for rp in rims:   # the empty chambers: dark mouths over the drawn rims, shown once the cases are out
-				var h := Polygon2D.new()
-				var pts := PackedVector2Array()
-				for q in 16:
-					pts.append(Vector2(cos(TAU * q / 16.0) * 10.0, sin(TAU * q / 16.0) * 15.0))
-				h.polygon = pts
-				h.color = Color(0.06, 0.055, 0.05)
-				h.position = (rp as Vector2) - c0
-				h.visible = false
-				holder.add_child(h)
-				holes.append(h)
 			var kc := 0.14
-			var t := create_tween()
+			var t := _smith_stage.create_tween()   # (on the gun: a page rebuilt by a quick tap kills it with the gun)
 			t.tween_callback(func() -> void:
 				for pk in _smith_pieces:
 					(_smith_pieces[pk] as CanvasItem).visible = false
@@ -1454,7 +1447,6 @@ func _smith_act(kind: String) -> void:
 				for i in rims.size():
 					if one and i > 0:
 						break
-					(holes[i] as CanvasItem).visible = true
 					var cs := Sprite2D.new()
 					cs.texture = load("res://art/ui/gunsmith/case.png")
 					cs.scale = Vector2.ONE * kc
@@ -1467,7 +1459,9 @@ func _smith_act(kind: String) -> void:
 					tw.parallel().tween_property(cs, "rotation", randf_range(-1.5, 1.5), 0.16)
 					tw.tween_property(cs, "position", out + Vector2(randf_range(-40.0, 80.0), 560.0), 0.55).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 					tw.parallel().tween_property(cs, "rotation", randf_range(-9.0, 9.0), 0.55)
-					tw.tween_callback(cs.queue_free))
+					tw.tween_callback(cs.queue_free)
+				if empty_tex != null and not one:
+					open.texture = empty_tex)   # (the drawn empty chambers)
 			t.tween_interval(0.55)
 			for i in (1 if one else rims.size()):   # a new round pushed into each empty chamber, nose first
 				var rd := Sprite2D.new()
@@ -1481,9 +1475,11 @@ func _smith_act(kind: String) -> void:
 				t.tween_property(rd, "modulate:a", 1.0, 0.04)
 				t.parallel().tween_property(rd, "position", home + Vector2(30.0, 0.0), 0.12).set_ease(Tween.EASE_OUT)
 				t.tween_property(rd, "position", home, 0.06)
+				var last := i == (0 if one else rims.size() - 1)
 				t.tween_callback(func() -> void:
 					_snd("click")
-					(holes[i] as CanvasItem).visible = false)   # (the rim the drawing has there: the round is home)
+					if last and empty_tex != null:
+						open.texture = load("res://art/ui/gunsmith/revolver_open_worn.png"))   # (all home: the loaded drawing)
 				t.tween_property(rd, "modulate:a", 0.0, 0.05)
 				t.tween_callback(rd.queue_free)
 				t.tween_interval(0.04)

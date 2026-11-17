@@ -2559,6 +2559,10 @@ func _process(delta: float) -> void:
 				for c in get_children():
 					if c.has_method("_gunsmith"):
 						c._gunsmith(g, pk)
+			if "--mash" in OS.get_cmdline_user_args() and _at > 7.0 and _at < 9.0 and fmod(_at, 0.2) < 0.04:   # quick taps across the cards
+				for c in get_children():
+					if c.has_method("_gunsmith"):
+						c._gunsmith("", int(_at * 5.0) % 4)
 			if "--buy" in OS.get_cmdline_user_args() and _at > 7.0 and _auto_done == 2:
 				for c in get_children():
 					if c.has_method("_smith_buy"):
@@ -2567,7 +2571,7 @@ func _process(delta: float) -> void:
 				if _at > 6.6 + [0.3, 0.62, 0.9, 1.2, 1.5, 2.9][k] and _auto_done == k + 1:
 					_auto_done = k + 2
 					_shot("smith_%d" % k)
-			if _at > 9.8:
+			if _at > (11.0 if "--mash" in OS.get_cmdline_user_args() else 9.8):
 				get_tree().quit()
 		if _auto == "whatsnew":   # --test=whatsnew: the title, then the WHAT'S NEW card
 			_at += delta
