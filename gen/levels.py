@@ -749,6 +749,12 @@ def street_props(m):
             x_a, y_a, x_b, y_b = pr["box"]
             if kd["floor"]:
                 m.plats.append([wx(x_a + 15), top + pr.get("walk_y", y_a) * k, (x_b - x_a - 30) * k, kd["floor"]])
+                if kd["floor"] == "awning" and 1500 < wx(x_a) < m.end - 800:   # a crate below its near end: the way up onto it
+                    near = [o for o in m.boxes if len(o) == 2 and wx(x_a) - 700 < o[1] < wx(x_a) + 200]
+                    if not near:
+                        cx = next((x for d in range(0, 900, 40) for x in (wx(x_a) - 330 - d,) if free(x, BOX["crate"][0], None)), None)
+                        if cx is not None:
+                            m.boxes.append(["crate", cx])
             if kd["shot"]:
                 hx = wx((x_a + x_b) / 2)
                 if not any(abs(e["x"] - hx) < 500 and e["y"] == 0.0 for e in m.enemies) and 1500 < hx < m.end - 1500:
@@ -765,8 +771,8 @@ def street_props(m):
             m.enemies.append({"x": wx(mx), "y": top + my * k, "kind": kind, "trig": None, "from": None, "delay": 0.0, "run": False})
         for lx, ly, foot in piece.get("ladders", []):
             m.ropes.append(["ladder", wx(lx), top + ly * k, 0.0, top + foot * k, "drawn"])
-        for xa, ya, xb, yb in piece.get("lines", []):
-            m.ropes.append(["wash", wx(xa), top + ya * k, wx(xb), top + yb * k])
+        for xa, ya, xb, yb, fl in piece.get("lines", []):
+            m.ropes.append(["wash", wx(xa), top + ya * k, wx(xb), top + yb * k, top + fl * k])
 
 
 def kit_pieces(m):
@@ -1199,7 +1205,7 @@ def gd(campaign):
             th = ", ".join(f'["{t[0]}", {f(t[1])}]' for t in m.things)
             hn = ", ".join(f'[{f(h[0])}, {q(h[1])}]' for h in m.hints)
             ck = ", ".join(f(c) for c in m.checks)
-            ro = ", ".join(f'["{r[0]}", {f(r[1])}, {f(r[2])}, {f(r[3])}, {f(r[4])}' + (f', "{r[5]}"' if len(r) > 5 else "") + "]" for r in m.ropes)
+            ro = ", ".join(f'["{r[0]}", {f(r[1])}, {f(r[2])}, {f(r[3])}, {f(r[4])}' + ((f', "{r[5]}"' if isinstance(r[5], str) else f', {f(r[5])}') if len(r) > 5 else "") + "]" for r in m.ropes)
             st = ", ".join(f'["{g[0]}", {f(g[1])}]' for g in m.street)
             out.append("\t\t{" + f'"name": {q(lv["name"])}, "end": {f(m.end)}, "boss": {q(lv.get("boss", ""))}, "stand": {f(m.stand if m.stand else -1)},')
             out.append("\t\t\t\"intro\": [" + ", ".join(q(t) for t in lv["intro"]) + "], \"outro\": [" + ", ".join(q(t) for t in lv["outro"]) + "],")

@@ -33,7 +33,7 @@ KINDS = {
 PIECES = {
     "hk_tailor": {
         "size": 0.8, "edge": "partywall",
-        "props": [{"kind": "awning", "box": (975, 752, 1732, 958), "anchor": "top", "walk_y": 770}],
+        "props": [{"kind": "awning", "box": (975, 752, 1732, 958), "anchor": "top", "walk_y": 914}],
         # the fire escape beside it, all painted: its landings, the stairs between them, the drop ladder (its foot
         # hangs ~590 px over the pavement: reached with a jump). Up it, then off a landing onto the awning: it
         # throws him up for a slowed beat in the air.
@@ -43,7 +43,7 @@ PIECES = {
         # a washing line from the top landing to the pulley on the next house's window (the stunt list: a washing line
         # as a rope): he rides it down like a zip line, tearing the laundry off. (x, y) of its start on the landing's
         # floor, (x, y) of the pulley.
-        "lines": [(2290, 389, 2830, 600)],
+        "lines": [(2316, 318, 2822, 532, 389)],   # rail post top, the window's left jamb, the landing it is ridden from
         # men up on the fire escape: they only fire at a Frank on their own landing (the floor rule), so the way to
         # them is the ladder or a bounce off the awning; the awning is how you get the drop on them
         "men": [(2230, 389, "post"), (1960, 693, "shotgun")],

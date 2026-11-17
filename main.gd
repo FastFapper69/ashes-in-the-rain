@@ -728,20 +728,8 @@ func _ready() -> void:
 	add_child(fore)
 	_scatter_fore()
 	_tm("fore")
-	# telephone wires sagging across the top of the frame, nearest of all: only in the streets of
-	# Hell's Kitchen (the docks and the subway have no poles to hang them from); every span meets the
-	# next at the same height, only the sag differs
-	for k in range(-2, int(level_end / 4200.0) + 3 if chapter <= 1 and not _unreal() else -2):
-		var wire := Line2D.new()
-		var pts := PackedVector2Array()
-		for j in range(17):
-			var u := float(j) / 16.0
-			pts.append(Vector2(k * 4200.0 + u * 4200.0, -980.0 + sin(u * PI) * (160.0 + absf(k % 2) * 50.0)))
-		wire.points = pts
-		wire.width = 7.0
-		wire.default_color = Color(0.02, 0.02, 0.025)
-		wire.light_mask = MASK_UNLIT
-		fore.add_child(wire)
+	# (the telephone wires sagging across the top of the frame are gone, user 17. 11.: with the camera going up the fire
+	# escapes they cut across the facades, hung from nothing)
 
 	cam = Camera2D.new()
 	cam.zoom = Vector2(ZOOM, ZOOM)
@@ -2924,6 +2912,28 @@ func _auto_step(delta: float) -> void:
 		if _at > 2.4:
 			get_tree().quit()
 		return
+	elif _auto == "awnjump":   # --test=awnjump --sandbox=1: from the crate (stack) before the awning: a jump onto it, the throw, frames
+		var bi := -1
+		for k in boxes.size():
+			if boxes[k].position.x > 2000.0 and boxes[k].position.x < 4000.0:
+				bi = k
+		if _auto_done & (1 << 21) == 0 and bi >= 0:
+			_auto_done |= 1 << 21
+			player.position = Vector2(boxes[bi].end.x - 40.0, boxes[bi].position.y)
+			_ground_y = player.position.y
+			_grace = 99.0
+		hud.move = 1.0 if _at > 0.5 else 0.0
+		if _at > 0.55 and _auto_done & (1 << 20) == 0:
+			_auto_done |= 1 << 20
+			hud.jump_tapped = true
+		var kf := int((_at - 0.5) / 0.15)
+		if kf >= 0 and kf < 16 and _auto_done & (1 << kf) == 0:
+			_auto_done |= 1 << kf
+			print("AWNJ ", kf, " ", move_state, " ", Vector2i(player.position), " fall ", int(fall))
+			_shot("film_%02d" % kf)
+		if _at > 3.0:
+			get_tree().quit()
+		return
 	elif _auto == "wash":   # --test=wash --sandbox=1: from the fire escape's top landing a jump onto the washing line, the ride, frames
 		var wr: Dictionary = {}
 		for r in _ropes:
@@ -4222,7 +4232,19 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			_start_dive(dir if dir != 0.0 else facing, facing, minf(fall, -300.0), false)
 		elif fall > AWNING_BOUNCE and player.position.y >= floor_y and _awning_under():   # (a trampoline every time: user)
 			player.position.y = floor_y   # onto an awning: the canvas gives and throws him up (a stunt: a slowed beat)
-			fall = -JUMP_SPEED * 1.42   # high enough to land on the fire escape's top landing beside it
+			fall = -JUMP_SPEED * 1.8   # high enough to land on the fire escape's landings beside it
+			if absf(run) > 50.0:   # (and on: the canvas throws him the way he was going, onto the fire escape there)
+				var way := signf(run)
+				var goal := INF
+				for k in catwalks.size():
+					var c: Rect2 = catwalks[k]
+					if catwalk_style[k] == "drawn" and c.position.y < floor_y - 200.0:
+						var cx := c.position.x + 120.0 if way > 0.0 else c.end.x - 120.0
+						if (cx - player.position.x) * way > 0.0 and absf(cx - player.position.x) < 2000.0 and absf(cx - player.position.x) < absf(goal - player.position.x):
+							goal = cx
+				var t_air := -fall / GRAVITY * 1.5   # up to the top and part way down: over the landing
+				run = clampf((goal - player.position.x) / t_air, -RUN_SPEED * 2.0, RUN_SPEED * 2.0) if goal != INF else way * RUN_SPEED * 1.25
+				_fling = t_air
 			sfx.play("land", -2.0)
 			_word(["thud"], player.position + Vector2(0.0, -80.0), 0.14)
 			_free_slow = maxf(_free_slow, 0.6)
@@ -6575,7 +6597,7 @@ func _flat_closed_between(a: Vector2, b: Vector2) -> bool:
 	return false
 
 
-const AWNING_BOUNCE := 520.0   # how fast he must be falling for the awning to throw him back up
+const AWNING_BOUNCE := 120.0   # how fast he must be falling for the awning to throw him back up (any landing from a jump)
 func _awning_under() -> bool:
 	for i in catwalks.size():
 		var c: Rect2 = catwalks[i]
@@ -9282,27 +9304,23 @@ func _add_rope(ro: Array) -> void:
 		r["hook"] = hook
 		r["rest"] = s0
 		hook.position = s0 + Vector2(0.0, 22.0)
-	elif kind == "wash":   # a washing line from a fire escape's top landing to a pulley at the next house's window:
-		# ridden down like a zip line (his hands on it), the laundry torn off as he passes (the stunt list)
+	elif kind == "wash":   # a washing line tied to the fire escape's top rail, run through a pulley on the next
+		# house's window jamb (user 17. 11.: it must start and end on something): ridden down like a zip line, the
+		# laundry torn off as he passes (the stunt list)
 		r["kind"] = "zip"
-		var a := Vector2(float(ro[1]), float(ro[2]) - ROPE_REACH - 6.0)
+		var start := Vector2(float(ro[1]), float(ro[2]))
 		var pul := Vector2(float(ro[3]), float(ro[4]))
-		var d := (pul - a).normalized()
+		var d := (pul - start).normalized()
+		var a := start + d * 70.0
 		r["a"] = a
-		r["b"] = pul - d * 90.0
+		r["b"] = pul - d * 110.0
 		r["d"] = d
-		r["top"] = float(ro[2])
+		r["top"] = float(ro[5]) if ro.size() > 5 else float(ro[2])
 		var l := _rope_line(_undo_night(0.55) * Color(0.85, 0.83, 0.78), 4.0)
-		var start := a - d * 120.0   # tied to the landing's rail behind his hands
 		l.points = PackedVector2Array([start, pul])
 		r["line"] = l
-		var wheel := Sprite2D.new()   # the pulley on the window frame
-		wheel.texture = _soft_glow()
-		wheel.scale = Vector2.ONE * 0.2
-		wheel.position = pul
-		wheel.modulate = Color(0.05, 0.05, 0.05)
-		wheel.z_index = -2
-		add_child(wheel)
+		_pulley(start, Vector2(0.0, 26.0))   # tied round the rail's post
+		_pulley(pul, Vector2(-26.0, 0.0))    # on its bracket in the window jamb
 		var hook := Sprite2D.new()   # (nothing rides on it but his hands: an empty marker the zip code moves)
 		hook.visible = false
 		add_child(hook)
@@ -9311,18 +9329,18 @@ func _add_rope(ro: Array) -> void:
 		var clothes: Array = []
 		var rng := RandomNumberGenerator.new()
 		rng.seed = int(a.x)
-		var span := a.distance_to(pul)
-		var t := 230.0
-		while t < span - 160.0:
+		var span := start.distance_to(pul)
+		var t := 150.0
+		while t < span - 130.0:
 			var tex: Texture2D = load("res://art/props/laundry_%d.png" % rng.randi_range(0, 8))
 			var c := Sprite2D.new()
 			c.texture = tex
 			c.centered = false
 			c.offset = Vector2(-tex.get_width() * 0.5, 0.0)   # pinned by its top middle
 			c.scale = Vector2.ONE * WASH_K * rng.randf_range(0.9, 1.05)
-			c.position = a + d * t + Vector2(0.0, -4.0)
+			c.position = start + d * t + Vector2(0.0, -4.0)
 			c.rotation = rng.randf_range(-0.05, 0.05)
-			c.modulate = _undo_night(0.4)
+			c.modulate = _undo_night(0.27)
 			c.z_index = -2
 			add_child(c)
 			clothes.append(c)
@@ -9343,6 +9361,26 @@ func _add_rope(ro: Array) -> void:
 		r["hook"] = hook
 		_draw_swing(r, 0.0, SWING_BOTTOM - (r["a"] as Vector2).y)
 	_ropes.append(r)
+
+
+## A small iron pulley: a ring and the bracket that holds it (from `arm` off the ring to the ring).
+func _pulley(at: Vector2, arm: Vector2) -> void:
+	var col := _undo_night(0.32)
+	var bracket := Line2D.new()
+	bracket.points = PackedVector2Array([at + arm, at])
+	bracket.width = 6.0
+	bracket.default_color = col
+	bracket.z_index = -2
+	add_child(bracket)
+	var ring := Line2D.new()
+	var pts := PackedVector2Array()
+	for k in 13:
+		pts.append(at + Vector2.from_angle(TAU * k / 12.0) * 12.0)
+	ring.points = pts
+	ring.width = 5.0
+	ring.default_color = col
+	ring.z_index = -2
+	add_child(ring)
 
 
 func _draw_swing(r: Dictionary, th: float, grip_len: float) -> void:
