@@ -1182,6 +1182,10 @@ func _build_street() -> void:
 # (art/props/lamp_<kind>.png, art_src 141) where a real one would be: over a shop sign, over a door,
 # on bare wall between windows; never on a window, a fire escape or a sign.
 const SEGMENT_LIGHTS := {
+	# the interiors' fronts (17. 11.): a lamp over each street door - a gooseneck over the shop and warehouse doors,
+	# the club's own painted lamp by its door, a lantern on a stoop's pediment
+	"front_laundry": [[696, 812, "goose"]], "front_warehouse": [[795, 760, "goose"], [2373, 760, "goose", true]],
+	"front_club": [[630, 930, "painted"]], "front_tenement": [[870, 760, "goose"], [2305, 760, "goose", true]],
 	"laundry": [[2110, 748, "painted"], [455, 735, "goose"], [985, 735, "goose", true]],
 	"bluenote": [[1262, 880, "painted"], [284, 852, "lantern"], [2877, 833, "goose", true]],
 	"alley": [[507, 908, "painted"], [2034, 766, "goose"], [2365, 766, "goose", true]],
@@ -1238,7 +1242,8 @@ const SEGMENT_TRIM := {"alley": 134.0, "bluenote": 134.0, "warehouse": 133.0, "l
 		"platform": 132.0, "tunnel": 132.0, "yard": 132.0, "station14": 132.0,
 		"bowery": 132.0, "walkway": 132.0, "pump": 132.0, "tunnel_lo": 132.0, "signal": 132.0, "arches": 132.0}
 # evens out how light each drawing came out, so neighbours do not jump in brightness
-const SEGMENT_GAIN := {"alley": 0.92, "bluenote": 0.98, "warehouse": 0.9, "laundry": 1.02, "subway": 1.07, "church": 1.0, "market": 1.05, "deadend": 1.1,
+const SEGMENT_GAIN := {"front_laundry": 1.05, "front_warehouse": 1.75, "front_club": 1.15, "front_tenement": 1.08,   # (the fronts: to their neighbours' tone, by eye 17. 11.)
+	"alley": 0.92, "bluenote": 0.98, "warehouse": 0.9, "laundry": 1.02, "subway": 1.07, "church": 1.0, "market": 1.05, "deadend": 1.1,
 		"pier17": 0.86, "cranes": 0.91, "shipping": 0.96, "quay": 0.91, "harbor": 0.86,
 		"platform": 0.95, "tunnel": 1.12, "yard": 0.85, "station14": 0.9,
 		"bowery": 0.92, "walkway": 1.0, "pump": 0.95, "tunnel_lo": 1.12, "signal": 1.0, "arches": 1.0}
@@ -1248,7 +1253,7 @@ const SEGMENT_KIT := {"walkway_b": "walkway", "signal_b": "signal", "arches_b": 
 	"yard_b": "yard", "tunnel_b": "tunnel", "sheds_b": "sheds", "pier17_b": "pier17", "shipping_b": "shipping", "quay_b": "quay",
 	"laundry_b": "laundry", "alley_b": "alley", "warehouse_b": "warehouse", "warehouse_c": "warehouse", "church_b": "church", "subway_b": "subway", "market_b": "market", "market_c": "market", "yard_c": "yard", "tunnel_c": "tunnel",
 	"fire_d": "fire_a", "fire_e": "fire_b", "fire_f": "fire_c", "fire_g": "fire_a"}
-const SEGMENT_SIZE := {"front_laundry": 0.8, "front_warehouse": 0.8, "hk_tailor": 0.8, "hk_grocery": 0.8, "hk_saloon": 0.8, "hk_laundry": 0.8, "deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
+const SEGMENT_SIZE := {"front_laundry": 0.8, "front_warehouse": 0.8, "front_club": 0.8, "front_tenement": 0.8, "hk_tailor": 0.8, "hk_grocery": 0.8, "hk_saloon": 0.8, "hk_laundry": 0.8, "deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
 	"signal": 0.52, "arches": 0.52, "sheds": 0.55, "fire_a": 0.605, "fire_b": 0.605, "fire_c": 0.605}
 # A drawing whose floor runs into the depth: where on it a man's feet go, as a share of its height (the
 # street drawings stand at the back of the pavement at SEGMENT_BASE instead).
@@ -1354,7 +1359,7 @@ func _build_segments() -> void:
 		glow.position = w.position
 		glow.material = additive
 		glow.modulate = _undo_night(0.55)   # added on top of the drawing: big lit shopfronts would burn out at more
-		glow.z_index = -9
+		glow.z_index = -5 if art.begins_with("front_") else -9   # (a front's own lit windows over the front)
 		add_child(glow)
 		var host := Sprite2D.new()   # blood lands only on what is solid in the drawing: see _stain_host
 		host.texture = BigTex.get_tex("res://art/street/" + art + "_solid.png")
@@ -1364,7 +1369,7 @@ func _build_segments() -> void:
 		host.scale = glow.scale
 		host.position = w.position
 		host.clip_children = CanvasItem.CLIP_CHILDREN_ONLY
-		host.z_index = -9
+		host.z_index = -5 if art.begins_with("front_") else -9
 		host.light_mask = 0
 		add_child(host)
 		_stain_hosts.append([w.position.x, w.position.x + seg_w, host])
@@ -1388,7 +1393,7 @@ func _build_segments() -> void:
 			if float(f[0]) < trim:   # cut off with the drawing's trimmed edge
 				continue
 			var at: Vector2 = w.position + Vector2((float(f[0]) - trim) * sx, float(f[1])) * ws
-			if _room_at(at.x) != "" or _under_front(at.x, art):
+			if (_room_at(at.x) != "" and not art.begins_with("front_")) or _under_front(at.x, art):   # (a front's lamps hang outside, over its doors)
 				continue
 			var kind := String(f[2])
 			lamps.append(at)
@@ -1410,7 +1415,7 @@ func _build_segments() -> void:
 				fix.offset = -bulb_px
 				fix.position = at
 				fix.modulate = Color(0.5, 0.48, 0.46)   # dark wet iron, like the painted ironwork round it
-				fix.z_index = -7
+				fix.z_index = -4 if art.begins_with("front_") else -7
 				add_child(fix)   # not in rec["nodes"]: shot out, the lamp stays on the wall, dark
 			if _cones:   # (comparison) an inked cone of light down from the lamp
 				var cone := Sprite2D.new()
@@ -1430,7 +1435,7 @@ func _build_segments() -> void:
 			halo.position = at + Vector2(0.0, -8.0)
 			halo.material = additive
 			halo.modulate = _undo_night(0.4) * Color(1.0, 0.68, 0.32)
-			halo.z_index = -6
+			halo.z_index = -3 if art.begins_with("front_") else -6
 			add_child(halo)
 			rec["nodes"].append(halo)
 			for wet_scale in [Vector2(1.7, 0.13), Vector2(0.55, 0.3)]:
@@ -1440,7 +1445,7 @@ func _build_segments() -> void:
 				wet.position = Vector2(at.x, -30.0)
 				wet.material = additive
 				wet.modulate = _undo_night(0.2) * Color(1.0, 0.72, 0.4)
-				wet.z_index = -7
+				wet.z_index = -4 if art.begins_with("front_") else -7
 				add_child(wet)
 				rec["nodes"].append(wet)
 			if kind == "painted":
@@ -1451,7 +1456,7 @@ func _build_segments() -> void:
 			bulb.position = at + Vector2(0.0, -8.0)
 			bulb.material = unshaded
 			bulb.modulate = _undo_night(0.8) * Color(1.0, 0.85, 0.6)
-			bulb.z_index = -6
+			bulb.z_index = -3 if art.begins_with("front_") else -6
 			add_child(bulb)
 			rec["nodes"].append(bulb)
 		if not floored:
@@ -8498,6 +8503,8 @@ func _squad(e: Dictionary, m, to_player: Vector2, delta: float) -> void:
 		var step: float = way * 260.0 * delta
 		var blocked := false
 		for bx in boxes:
+			if e.get("followed", false):
+				break   # (out of a room after him: he passes behind the crates, deeper in the room)
 			if bx.grow(40.0).has_point(Vector2(m.position.x + step * 4.0, -60.0)) and m.position.y == 0.0:
 				var far: float = bx.end.x + 70.0 if way > 0.0 else bx.position.x - 70.0
 				if bx.size.y <= 270.0 and absf(far - player.position.x) > 260.0 and (goal - far) * way >= 0.0:

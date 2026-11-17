@@ -44,6 +44,7 @@ STREET = {
     # interiors' building fronts (QUEUE §10.3, 17. 11.): hk kit metrics, painted over a Blender template (gen/blender/front_template.py),
     # the two doors exactly at the room's ends (gen/levels.py FRONTS)
     'front_laundry': ('249.jpg', 0, False), 'front_warehouse': ('250.jpg', 0, False),
+    'front_club': ('251.jpg', 0, False), 'front_tenement': ('252.jpg', 0, False),
 }
 KIT = {'yard_c': 'yard', 'tunnel_c': 'tunnel', 'walkway_b': 'walkway', 'signal_b': 'signal', 'arches_b': 'arches', 'yard_b': 'yard', 'tunnel_b': 'tunnel', 'tunnel_lo_b': 'tunnel_lo',
        'sheds_b': 'sheds', 'pier17_b': 'pier17', 'shipping_b': 'shipping', 'quay_b': 'quay',

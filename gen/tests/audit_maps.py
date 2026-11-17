@@ -91,7 +91,8 @@ def rules(title, mp):
 
 
 # ---- joins (rule 25, user 17. 11.: "I can't go from a window into an open alley") -------------------------------
-ROW = ("tenrow_a", "tenrow_b", "tenrow_c", "tenrow_d")   # the facades a house in cross-section stands among
+ROW = ("tenrow_a", "tenrow_b", "tenrow_c", "tenrow_d", "hk_tailor", "hk_grocery", "hk_saloon", "hk_laundry",
+       "front_laundry", "front_warehouse", "front_club", "front_tenement")   # row houses a house in cross-section may stand among
 def joins(mp):
     """How the spaces join: a house in cross-section stands in a row of houses like it (never pasted on a shop
     street, an alley or a quay); its flat's window opens onto that house's own fire escape; an interior (seen

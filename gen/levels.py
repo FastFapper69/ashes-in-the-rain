@@ -479,7 +479,8 @@ def place_fronts(m):
     for r in sorted([r for r in m.rooms if str(r[2]) in FRONT_OF], key=lambda r: r[0]):
         f = FRONT_OF[r[2]]
         k = 1.9 * KIT_CAT.PIECES[f]["size"]
-        fx = r[0] - KIT_CAT.PIECES[f]["doors"][0] * k
+        d0, d1 = KIT_CAT.PIECES[f]["doors"]
+        fx = (r[0] + r[1]) / 2 - (d0 + d1) / 2 * k   # the middle between its doors on the room's middle
         fw = seg_w(f)
         hit = False
         for seg in m.street:
@@ -505,6 +506,25 @@ def place_fronts(m):
                 out.append([name, x0, fx + fw - x0, b])
         out.append([f, fx])
         m.street[:] = sorted(out, key=lambda s: s[1] + (s[2] if len(s) > 3 else 0.0))
+        # never the old drawing of the same kind right beside it (an old laundry next to the new one): a drawing of the
+        # same width and size takes its place, so nothing moves (kit pieces and the hoisted warehouse stay: things hang on them)
+        same = {"laundry": ("laundry",), "warehouse": ("warehouse",), "club": ("bluenote",), "tenement": ()}[r[2]]
+        i = next(n for n, g in enumerate(m.street) if g[0] == f and g[1] == fx)
+        for j in (i - 1, i + 1):
+            if not 0 <= j < len(m.street):
+                continue
+            g = m.street[j]
+            if KIT.get(g[0], g[0]) not in same or g[0] == "warehouse_c" or g[0] in KIT_CAT.PIECES:
+                continue
+            near = [m.street[n][0] for n in (j - 1, j + 1) if 0 <= n < len(m.street)]
+            cands = [c for c in ("alley", "alley_b", "bluenote", "warehouse", "warehouse_b", "laundry", "laundry_b", "church", "church_b",
+                                 "subway", "subway_b", "market", "market_b", "market_c")
+                     if KIT.get(c, c) not in same and c not in near and c in SEGMENTS or KIT.get(c) in SEGMENTS]
+            cands = [c for c in cands if KIT.get(c, c) not in same and c not in near
+                     and seg_w(KIT.get(c, c)) == seg_w(KIT.get(g[0], g[0]))]
+            if cands:
+                used = [q[0] for q in m.street]
+                m.street[j] = [min(cands, key=lambda c: used.count(c))] + list(g[1:])
 
 
 def _build(mp, nudge):
