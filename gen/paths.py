@@ -6,6 +6,6 @@ import os
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")).replace(os.sep, "/") + "/"
 _SRC = [os.environ.get("ASHES_SRC", ""),
-        os.path.join(os.path.expanduser("~"), "Documents", "MobileGames", "Ink and Lead", "art_src"),   # the PC
-        "/mnt/user-data/uploads/Ink and Lead/art_src"]                                                 # a cloud chat
+        os.path.join(os.path.expanduser("~"), "Documents", "MobileGames", "Ashes in the Rain", "art_src"),   # the PC
+        "/mnt/user-data/uploads/Ashes in the Rain/art_src"]                                                 # a cloud chat
 SRC = next((p for p in _SRC if p and os.path.isdir(p)), _SRC[1]).replace(os.sep, "/") + "/"

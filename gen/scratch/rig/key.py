@@ -2,7 +2,7 @@ import numpy as np
 from scipy import ndimage as ndi
 from PIL import Image
 from scipy import ndimage as ndi
-SRC = '/mnt/user-data/uploads/Ink and Lead/art_src/'
+SRC = '/mnt/user-data/uploads/Ashes in the Rain/art_src/'
 def keyed(name):
     im = np.asarray(Image.open(SRC + name).convert('RGB')).astype(np.float32)
     r, g, b = im[..., 0], im[..., 1], im[..., 2]

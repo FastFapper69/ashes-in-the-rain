@@ -3,20 +3,20 @@
 Read `.claude/skills/ashes-znalosti/SKILL.md` first (stable rules + topic index, see CLAUDE.md), then this log. Reply to the user in Czech, short. In-game text English, nothing Czech in the story, hero Frank Malone.
 
 ## Where things live
-- GitHub: `FastFapper69/ink-and-lead` – `main` = sources, `gh-pages` = web build (https://fastfapper69.github.io/ink-and-lead/). The user plays on an iPhone 17.
-- PC project folder: `C:\Users\super\Documents\MobileGames\Ink and Lead` (Gemini images in `art_src`, numbered; last used **185**, next is **186**).
+- GitHub: `FastFapper69/ashes-in-the-rain` – `main` = sources, `gh-pages` = web build (https://fastfapper69.github.io/ashes-in-the-rain/). The user plays on an iPhone 17.
+- PC project folder: `C:\Users\super\Documents\MobileGames\Ashes in the Rain` (Gemini images in `art_src`, numbered; last used **185**, next is **186**).
 - Docs (claude.ai): GDD `aac76a8f-a825-409f-a7d5-7834fe45049d` (tab Úkoly = task list by blocks 1–7), story doc `c223d676-08b8-42df-ae12-8f2cdf9b9dc3`, Gemini briefs `855fd524-d34d-495e-a18c-22e6eefa5dee`.
 - UI rules: `.claude/skills/ui-papir/SKILL.md` (paper.gd kit, mandatory `UI BAD` audit at 1280 and 1560 wide).
 
 ## Rebuild from scratch in a new container
-1. Work copy: `git clone https://github.com/FastFapper69/ink-and-lead /home/claude/repo` (edit ONLY here). Main clone for pushing sources: `git clone ... /home/claude/ink-and-lead` (HANDOFF.md lives only there). gh-pages clone: `git clone -b gh-pages ... /tmp/ghp`.
+1. Work copy: `git clone https://github.com/FastFapper69/ashes-in-the-rain /home/claude/repo` (edit ONLY here). Main clone for pushing sources: `git clone ... /home/claude/ashes-in-the-rain` (HANDOFF.md lives only there). gh-pages clone: `git clone -b gh-pages ... /tmp/ghp`.
 2. Godot 4.7.2 stable linux (+ export templates) at `/home/claude/godot/Godot_v4.7.2-stable_linux.x86_64`; `godot --headless --import`.
 3. Deploy tooling is in the repo: `cp gen/deploy/deploy.sh gen/deploy/version_build.py /home/claude/` then `/home/claude/deploy.sh "msg"` (prints GHP-OK / MAIN-OK). It:
    - runs `gen/packs.py` (splits the build: see "Story packs" below; rewrites export_presets.cfg and packs_list.gen.gd),
    - exports the base `Web` preset and `pack_a/b/c` with `--export-pack`,
    - copies repo -> main clone and pushes main,
    - `version_build.py`: copies the web build into /tmp/ghp under versioned names `ashes-<md5>.{pck,wasm,js,...}` plus `ashes-<md5>-<group>.pck`, keeps the PREVIOUS build too (a phone with the old page cached still starts), and injects `gen/deploy/crash.js` into index.html.
-4. The container cannot reach github.io or supabase.co: check a deploy in the built-in browser on the user's PC (Claude_Browser preview_start `https://fastfapper69.github.io/ink-and-lead/?v=<hash>`, then javascript_tool: `GODOT_CONFIG.executable` and `JSON.parse(localStorage.ashes_crumbs)`).
+4. The container cannot reach github.io or supabase.co: check a deploy in the built-in browser on the user's PC (Claude_Browser preview_start `https://fastfapper69.github.io/ashes-in-the-rain/?v=<hash>`, then javascript_tool: `GODOT_CONFIG.executable` and `JSON.parse(localStorage.ashes_crumbs)`).
 5. Commit trailer: `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` and the current `Claude-Session:` link.
 
 ## Tests
@@ -266,7 +266,7 @@ Read `.claude/skills/ashes-znalosti/SKILL.md` first (stable rules + topic index,
 
 ## (15) PC environment ready (Claude Code on the user's PC), 2026-11-16
 - Installed/checked: Git 2.56, Python 3.13 (`py -3`; pillow, numpy, scipy, opencv, pocketsphinx, playwright + chromium), ffmpeg 9.0.2 (winget), Godot 4.7.2 Web export templates. Details in knowledge ch01 "On the user's PC".
-- `gen/deploy/deploy_pc.sh` (one repo + gh-pages clone `..\ink-and-lead-pages`), `gen/tests/bots.sh` takes the Godot path from `G`. Not yet run end to end (first push needs the user's GitHub login).
+- `gen/deploy/deploy_pc.sh` (one repo + gh-pages clone `..\ashes-in-the-rain-pages`), `gen/tests/bots.sh` takes the Godot path from `G`. Not yet run end to end (first push needs the user's GitHub login).
 - First import 24 s; `--test=play --sandbox=0` renders at 60 fps on the RTX 5070 Ti (4 shots). The run ended after the shots without a BOT CLEARED line – check that first.
 - Seen in play_2 (1560): the roof storey stays in frame above the 3rd floor (camera does not hold the storey yet), Frank's arm reaches through the stair rail. Next: PC_SETUP "Pak práce" 1 – the cross-section at 1280/1560.
 
@@ -446,3 +446,6 @@ Read `.claude/skills/ashes-znalosti/SKILL.md` first (stable rules + topic index,
 - gen/tests/rungd.py: runs the game, kills the whole process tree when it prints nothing for --idle s (Git Bash timeout leaves the window). Use it for every windowed test.
 - gen/tests/bots.sh: 12 at once, the trial maps in the same pool, map counts read from levels.gd, `bots.sh 1 3` = only those chapters. Whole run ~40-50 s (was ~20 min).
 - (45b) Version on the title + WHAT'S NEW card (user: "a changelog or a visible version, so I see what I am playing"): tag bottom right (BUILD n + date, from version.gen.gd written by deploy_pc.sh), tap -> whatsnew.gd panel listing changelog.gd. `--test=whatsnew`. Add to changelog.gd with every deploy (knowledge ch01).
+
+## (46) Renamed everywhere to Ashes in the Rain, 2026-11-17
+- User: drop every trace of the old project name. GitHub repo is now FastFapper69/ashes-in-the-rain (github redirects git URLs from the old name; the old Pages URL does not redirect). Web: https://fastfapper69.github.io/ashes-in-the-rain/ . Repo description updated. All files, deploy scripts and gen/paths.py use the new names; folders: repo `ashes-in-the-rain`, pages clone `ashes-in-the-rain-pages`, art `Ashes in the Rain/art_src`.

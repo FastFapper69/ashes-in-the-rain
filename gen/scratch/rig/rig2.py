@@ -3,7 +3,7 @@ from PIL import Image
 from scipy import ndimage as ndi
 import key, seg
 OUT_PPM = 300.0
-SRC = '/mnt/user-data/uploads/Ink and Lead/art_src/'
+SRC = '/mnt/user-data/uploads/Ashes in the Rain/art_src/'
 def white_part(img, box):
     c = img[box[1]:box[3], box[0]:box[2]].copy()
     lab, n = ndi.label(c[..., 3] > 40); sizes = ndi.sum(c[..., 3] > 40, lab, range(1, n + 1)); keep = 1 + int(np.argmax(sizes))

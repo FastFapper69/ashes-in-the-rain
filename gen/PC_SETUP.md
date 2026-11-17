@@ -10,8 +10,8 @@ dialogy „Uložit jako“. Na PC s grafikou je to v reálném čase a soubory j
 3. **Repo** (bez mezer v cestě, ne do OneDrive):
    ```
    cd C:\Users\super\Documents\MobileGames
-   git clone https://github.com/FastFapper69/ink-and-lead.git ink-and-lead
-   cd ink-and-lead
+   git clone https://github.com/FastFapper69/ashes-in-the-rain.git ashes-in-the-rain
+   cd ashes-in-the-rain
    claude
    ```
    Při prvním spuštění přihlášení k účtu Claude. Push na GitHub: Git for Windows se při prvním `git push` zeptá na přihlášení
@@ -23,11 +23,11 @@ dialogy „Uložit jako“. Na PC s grafikou je to v reálném čase a soubory j
 2. Ověřit nástroje a doinstalovat, co chybí (winget / pip, s potvrzením):
    - Godot 4.7.2 + **export templates pro Web** (Editor → Manage Export Templates) – na PC je Godot stažený, cesta zjistit.
    - Python 3 + `pip install pillow numpy pocketsphinx` (gen/*.py), ffmpeg (zvuk 22050 Hz mono).
-3. Deploy na PC: `gen/deploy/deploy.sh` má cesty z cloudu (/home/claude/repo, /home/claude/ink-and-lead, /tmp/ghp).
+3. Deploy na PC: `gen/deploy/deploy.sh` má cesty z cloudu (/home/claude/repo, /home/claude/ashes-in-the-rain, /tmp/ghp).
    Na PC je repo jediné: udělat `gen/deploy/deploy_pc.sh` (export do build/, gh-pages v samostatném klonu
-   `..\ink-and-lead-pages` na větvi gh-pages, `version_build.py`, guard na commity druhého chatu zůstává).
+   `..\ashes-in-the-rain-pages` na větvi gh-pages, `version_build.py`, guard na commity druhého chatu zůstává).
 4. Testy s grafikou bez xvfb: `godot --path . --resolution 1560x720 -- --test=<mode>` (a 1280x720); bot `gen/tests/bots.sh` (cesta ke Godotu přes proměnnou G).
-5. Složka s Gemini obrázky: `C:\Users\super\Documents\MobileGames\Ink and Lead\art_src` – ponechat, číslování pokračuje (gun parts 201–208 rezervované, řez domem 211–221).
+5. Složka s Gemini obrázky: `C:\Users\super\Documents\MobileGames\Ashes in the Rain\art_src` – ponechat, číslování pokračuje (gun parts 201–208 rezervované, řez domem 211–221).
 
 ## Pak práce (pořadí dohodnuté s Jakubem)
 1. **Podívat se na řez domem** `--sandbox=0` na 1280 i 1560 (zatím s dočasným artem) a opravit, co je špatně.

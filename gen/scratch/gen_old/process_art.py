@@ -6,7 +6,7 @@ import numpy as np
 from PIL import Image, ImageFilter
 from scipy import ndimage
 
-SRC = '/mnt/user-data/uploads/Ink and Lead/art_src/'
+SRC = '/mnt/user-data/uploads/Ashes in the Rain/art_src/'
 OUT = '/home/claude/repo/art/'
 # segment name: (file, right pilaster to trim, has the tower pair at top left)
 STREET = {

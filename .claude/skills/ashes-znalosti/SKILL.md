@@ -1,6 +1,6 @@
 ---
 name: ashes-znalosti
-description: "Distilled project knowledge for Ashes in the Rain (Godot 4.7 web/iPhone noir shooter, repo FastFapper69/ink-and-lead): the user's hard rules, build/deploy, tests, art pipeline, phone memory, levels, lights, enemy AI, progression, audio, story. Read first in every session on this game; open a chapter file when a task touches that topic."
+description: "Distilled project knowledge for Ashes in the Rain (Godot 4.7 web/iPhone noir shooter, repo FastFapper69/ashes-in-the-rain): the user's hard rules, build/deploy, tests, art pipeline, phone memory, levels, lights, enemy AI, progression, audio, story. Read first in every session on this game; open a chapter file when a task touches that topic."
 ---
 
 <!-- argument-hint: [topic, system name, or chapter number] -->

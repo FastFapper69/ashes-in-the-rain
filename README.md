@@ -2,7 +2,7 @@
 
 Noir bullet-time shooter for phones, in the style of a 1940s ink comic. Godot 4.7, Compatibility renderer.
 
-**Play in the browser (phone or PC):** https://fastfapper69.github.io/ink-and-lead/
+**Play in the browser (phone or PC):** https://fastfapper69.github.io/ashes-in-the-rain/
 
 ## Controls
 

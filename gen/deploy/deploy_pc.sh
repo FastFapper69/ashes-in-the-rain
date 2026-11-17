@@ -1,15 +1,15 @@
 #!/bin/bash
 # PC deploy (Git Bash): gen/deploy/deploy_pc.sh "commit message"
-# One repo on the PC: sources -> main from this clone, web build -> gh-pages from a separate clone ../ink-and-lead-pages.
+# One repo on the PC: sources -> main from this clone, web build -> gh-pages from a separate clone ../ashes-in-the-rain-pages.
 # Override paths with G=<godot.exe> PY=<python> PAGES=<dir> if they move.
 set -e
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 G="${G:-/c/Users/super/Downloads/Godot_v4.7.2-stable_win64_console.exe}"
 PY="${PY:-py -3}"
-PAGES="${PAGES:-$REPO/../ink-and-lead-pages}"
+PAGES="${PAGES:-$REPO/../ashes-in-the-rain-pages}"
 export PYTHONUTF8=1
 [ -x "$G" ] || { echo "STOP: Godot not found at $G (set G=...)"; exit 1; }
-[ -d "$PAGES/.git" ] || git clone -q --depth 1 --single-branch -b gh-pages https://github.com/FastFapper69/ink-and-lead.git "$PAGES"
+[ -d "$PAGES/.git" ] || git clone -q --depth 1 --single-branch -b gh-pages https://github.com/FastFapper69/ashes-in-the-rain.git "$PAGES"
 git -C "$PAGES" config user.name Claude; git -C "$PAGES" config user.email noreply@anthropic.com   # (a fresh clone has no identity: the build commit failed silently)
 # Another chat may deploy to the same repo: never push over work that is not in this clone.
 for d in "$REPO" "$PAGES"; do
