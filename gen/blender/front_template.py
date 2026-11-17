@@ -23,8 +23,13 @@ TOP = 96                  # the cornice's top
 PIER = 124                # the dark party wall down each edge
 # the interiors (gen/levels.py chunk widths): the doors' middles this far apart, the room's middle at the picture's
 ROOM_W = {"tenement": 2300, "laundry": 2700, "warehouse": 2400, "club": 2600}
-span = ROOM_W[STYLE] / PX
-DOORS = [W / 2 - span / 2, W / 2 + span / 2]   # picture px: the street door (the room's left end), the side door (its right)
+# plain street pieces (no interior behind): their ground-floor bays (shop door middles), spread along the front
+SHOPS = {"shops": [700, 1584, 2468]}
+if STYLE in SHOPS:
+    DOORS = SHOPS[STYLE]
+else:
+    span = ROOM_W[STYLE] / PX
+    DOORS = [W / 2 - span / 2, W / 2 + span / 2]   # picture px: the street door (the room's left end), the side door (its right)
 DOOR_W, DOOR_H = {"warehouse": (230, 400)}.get(STYLE, (150, 360))
 
 def z(r): return (H - r) / 100.0
@@ -85,7 +90,13 @@ kind = {"tenement": "stoop"}.get(STYLE, "plain")
 for cx in DOORS:
     door(cx, kind)
 # the ground floor between the doors: by the style
-if STYLE in ("laundry", "club"):   # a shop window, a blank sign board over it
+if STYLE in SHOPS:   # a shop each side of every door: windows, a sign board over the bay, an awning frame
+    for d in DOORS:
+        for side in (-1, 1):
+            a0, b0 = sorted((d + side * 110, d + side * 400))
+            box(a0, b0, PAVE - 300, PAVE - 50, -0.04, -0.01, GLASS)
+        box(d - 420, d + 420, PAVE - 440, PAVE - 360, -0.14, 0.0, TRIM)
+elif STYLE in ("laundry", "club"):   # a shop window, a blank sign board over it
     a, b = DOORS[0] + 180, DOORS[1] - 180
     box(a, b, PAVE - 330, PAVE - 60, -0.04, -0.01, GLASS)
     box(a - 20, b + 20, PAVE - 60, PAVE - 40, -0.1, 0.0, TRIM)
@@ -94,13 +105,13 @@ elif STYLE == "warehouse":   # a loading door between, shut, and a plain board o
     mid = (DOORS[0] + DOORS[1]) / 2
     box(mid - 260, mid + 260, PAVE - 420, PAVE, -0.04, -0.01, DARK)
     box(mid - 300, mid + 300, PAVE - 520, PAVE - 440, -0.14, 0.0, TRIM)
-else:   # tenement ground floor: windows between the stoops
+elif STYLE == "tenement":   # tenement ground floor: windows between the stoops
     for c in cols:
         if all(abs(c - d) > 200 for d in DOORS):
             window(c, 880, 118, 170)
 # the ground-floor windows beyond the doors, outside the room
 for c in cols:
-    if c < DOORS[0] - 200 or c > DOORS[1] + 200:
+    if (c < DOORS[0] - 200 or c > DOORS[-1] + 200) and STYLE not in SHOPS:
         if STYLE != "tenement":
             window(c, 880, 118, 170)
 

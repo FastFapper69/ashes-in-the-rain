@@ -28,8 +28,8 @@ SEG_SIZE = {"deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.
             "signal": SUB, "arches": SUB, "sheds": 0.55, "fire_a": 0.605, "fire_b": 0.605, "fire_c": 0.605}
 UNDER_ROOF = ["tenrow_a", "tenrow_c", "tenrow_b", "tenrow_d"]   # the facades under the rooftops: their cornice meets the roof drawings   # shown smaller: see main.gd SEGMENT_SIZE
 STREET_POOL = ["hk_tailor", "hk_grocery", "hk_saloon", "hk_laundry",   # (the kit: gen/kit.py)
-               "alley_mouth", "warehouse", "laundry", "subway", "church", "market",   # (chapter I on one kit, 17. 11.: alley/alley_b -> alley_mouth)
-               "warehouse_b", "laundry_b", "subway_b", "church_b", "market_b", "market_c"]
+               "alley_mouth", "warehouse", "laundry", "subway", "church", "market_row",   # (chapter I on one kit, 17. 11.: alley/alley_b -> alley_mouth,
+               "warehouse_b", "laundry_b", "subway_b", "church_b"]                      # market/_b/_c -> market_row)
 DOCKS_POOL = ["pier17", "cranes", "shipping", "quay", "sheds", "pier17_b", "shipping_b", "quay_b", "sheds_b"]   # (the harbor with its lighthouse: only the Harbor Master's own)
 # variants (2026-11-15): the same kit redrawn with other details over the same floor, rails, edges and lamps,
 # so a map does not show one drawing again and again; everything about them but the picture is the kit's

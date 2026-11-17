@@ -270,6 +270,7 @@ const SIZES := {
 	"res://art/street/market_c_lit.png": Vector2i(1519, 672),
 	"res://art/street/market_c_solid.png": Vector2i(1519, 672),
 	"res://art/street/market_lit.png": Vector2i(1519, 672),
+	"res://art/street/market_row.png": Vector2i(3168, 1344),
 	"res://art/street/market_solid.png": Vector2i(1519, 672),
 	"res://art/street/mezz_a.png": Vector2i(3168, 1344),
 	"res://art/street/mezz_b.png": Vector2i(3168, 1344),
