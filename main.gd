@@ -2856,6 +2856,28 @@ func _auto_step(delta: float) -> void:
 					print("  left: ", int(e["node"].position.x), " ", e["state"], " y ", int(e["node"].position.y))
 			get_tree().quit()
 		return
+	elif _auto == "barslide":   # --test=barslide --sandbox=1: on the club's bar counter, a dive along it, frames
+		var bar := Rect2()
+		for k in catwalks.size():
+			if catwalk_style[k] == "bar":
+				bar = catwalks[k]
+		if _auto_done & (1 << 21) == 0:
+			_auto_done |= 1 << 21
+			player.position = Vector2(bar.position.x + 30.0, bar.position.y)
+			move_state = "ground"
+			_grace = 99.0
+		hud.move = 1.0 if _at > 0.5 and _at < 0.75 else 0.0
+		if _at > 0.6 and _auto_done & (1 << 20) == 0:
+			_auto_done |= 1 << 20
+			hud.dive_tapped = true
+		var kf := int((_at - 0.5) / 0.1)
+		if kf >= 0 and kf < 16 and _auto_done & (1 << kf) == 0:
+			_auto_done |= 1 << kf
+			_shot("film_%02d" % kf)
+			print("BAR ", kf, " ", move_state, " x ", int(player.position.x - bar.position.x), " y ", int(player.position.y), " glide ", int(glide))
+		if _at > 2.4:
+			get_tree().quit()
+		return
 	elif _auto == "wash":   # --test=wash --sandbox=1: from the fire escape's top landing a jump onto the washing line, the ride, frames
 		var wr: Dictionary = {}
 		for r in _ropes:
@@ -4059,7 +4081,12 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 
 	if move_state == "ground":
 		var can_act: bool = player.dive < 0.05 and player.slide < 0.3 and not over   # back on his feet first
-		if can_act and dive:
+		if can_act and dive and _over_bar():   # on the bar counter: straight down onto his back and along it
+			player.dive = 1.0
+			player.dive_side = dir if dir != 0.0 else facing
+			glide = player.dive_side * DIVE_SPEED.x
+			sfx.play("skid", -5.0, INF, 0.1)
+		elif can_act and dive:
 			_start_dive(dir if dir != 0.0 else facing, facing, DIVE_SPEED.y, absf(run) > 300.0)
 		elif can_act and slide and absf(run) > 300.0 and player.duck < 0.3:
 			move_state = "slide"
@@ -4084,6 +4111,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 				_start_vault(vb, signf(run))
 
 	_drop_t = maxf(0.0, _drop_t - delta)
+	_bar_t = maxf(0.0, _bar_t - delta)
 	# stick pulled down TWICE on a landing or the stairs: he drops through (user 17. 11.: one pull is a crouch
 	# behind the rail, and dropping on it was "I fall through the balconies")
 	_drop_tap = maxf(0.0, _drop_tap - delta)
@@ -4104,7 +4132,10 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 		var crouched: bool = duck_held and player.dive < 0.05 and _pop == 0.0
 		player.duck = move_toward(player.duck, 1.0 if crouched else 0.0, delta * (11.0 if crouched else 10.0))
 		run = move_toward(run, dir * RUN_SPEED * (1.0 - player.dive) * (1.0 - 0.62 * player.duck) * _wading(player.position.y), RUN_ACCEL * delta)
-		glide = move_toward(glide, 0.0, delta * 1500.0)    # landed flat, he skids along the wet stones a while
+		var on_bar := _last_kind == "floor" and _last_floor_style == "bar"
+		glide = move_toward(glide, 0.0, delta * (220.0 if on_bar else 1500.0))    # landed flat, he skids along the wet stones a while (along a bar: all the way)
+		if on_bar and absf(glide) > 400.0:
+			_bar_slide(delta)
 		player.position.x += (run + glide) * delta
 		player.air = move_toward(player.air, 0.0, delta * 8.0)
 		if absf(glide) < 180.0:   # and only gets up once the skid has run out
@@ -4117,6 +4148,10 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			move_state = "jump"
 			fall = 0.0
 			_coyote = 0.12   # a jump a beat late still goes
+		elif floor_y > player.position.y + 100.0 and player.dive > 0.9 and absf(glide) > 300.0:   # skidded off the end of a bar: flying on, flat out
+			move_state = "dive"
+			fall = 0.0
+			player.position.y -= DIVE_LAND
 		else:
 			player.position.y = floor_y + DIVE_LAND * player.dive   # getting up brings him back onto his feet
 		legs = run / RUN_SPEED if player.dive < 0.05 else 0.0
@@ -4168,7 +4203,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 		_try_vault()
 		if move_state != "dive":
 			pass
-		elif dive_rolls and fall > 0.0 and player.position.y >= floor_y + 30.0:   # fast and forward: over the shoulder
+		elif dive_rolls and fall > 0.0 and player.position.y >= floor_y + 30.0 and not _over_bar():   # fast and forward: over the shoulder (onto a bar: on his back, skidding)
 			move_state = "roll"
 			roll_done = 0.0
 			player.roll = 1.35 * player.dive * player.dive_side
@@ -4350,6 +4385,30 @@ func _block(before_x: float) -> void:
 				_wall_away = -1.0 if player.position.x <= b.get_center().x else 1.0
 			run = 0.0
 			glide = 0.0
+
+
+## Down the bar on his back (the stunt list): a dive onto the club's counter skids him its whole length, glasses and
+## bottles flying off ahead of him, a slowed beat for free the first moment.
+var _bar_t := 0.0
+func _over_bar() -> bool:
+	for k in catwalks.size():
+		var c: Rect2 = catwalks[k]
+		if catwalk_style[k] == "bar" and player.position.x > c.position.x - 20.0 and player.position.x < c.end.x + 20.0 and absf(player.position.y - c.position.y) < 120.0:
+			return true
+	return false
+
+
+func _bar_slide(delta: float) -> void:
+	if _bar_t <= 0.0:
+		_free_slow = maxf(_free_slow, 0.6)
+		sfx.play("glass", -2.0, player.position.x, 0.1)
+		_word(["smash", "clink"], player.position + Vector2(signf(glide) * 160.0, -170.0), 0.16)
+	_bar_t = 0.3
+	if randf() < delta * 9.0:   # a glass swept off ahead of him
+		fx.shatter(player.position + Vector2(signf(glide) * randf_range(90.0, 180.0), -40.0))
+	for e in enemies:   # whoever stands at the end of the bar takes his boots
+		if e["alive"] and absf(float(e["node"].position.x) - player.position.x) < 110.0 and absf(float(e["node"].position.y) - player.position.y) < 260.0 and String(e["state"]) in ["post", "run", "move", "hop"]:
+			_knock_down(e, signf(glide) * 700.0)
 
 
 ## Off a wall: flying into a tall crate stack's side, jump again and he plants a foot on it and kicks off, up and
@@ -6663,8 +6722,8 @@ func _build_level() -> void:
 		catwalks.append(r)
 		catwalk_style.append(String(c[3]))
 		catwalk_solid.append(String(c[3]) in ["roof", "section", "fescape"])   # a storey's floor, a fire escape's deck: no dropping through it
-		if String(c[3]) in ["section", "fescape", "drawn", "awning"]:
-			continue   # the storey's drawing (or the fire escape's) is the floor
+		if String(c[3]) in ["section", "fescape", "drawn", "awning", "bar"]:
+			continue   # the storey's drawing (or the fire escape's, the club's bar counter) is the floor
 		if String(c[3]) == "floor":
 			_slab(r)
 			continue

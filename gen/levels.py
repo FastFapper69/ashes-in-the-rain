@@ -348,6 +348,7 @@ def chunk(name, hard, rng=None):
         furnish(c, "tenement", rng, ["post", "shotgun" if hard > 0.5 else "post", "post"], flask=True)
     elif name == "club":   # the Blue Note: the bar for cover, tables, a stage at the back
         c = Chunk(2600).room(0, 2600, "club").lamp(500).lamp(1400).lamp(2300).runner(1100, 900, -800, delay=2.0)
+        c.plat(487, -305, 435, "bar")   # the painted bar counter's top (drawing x 500-1080, y ~830): dive onto it and skid its length
         furnish(c, "club", rng, ["post", "shotgun", "tommy"])
     # ---- the docks -------------------------------------------------------------------------------
     elif name == "live_wire":   # a trolley pole over a puddle, two of them standing in it (ch III hazard, art_src 242)
@@ -514,6 +515,8 @@ def _build(mp, nudge):
         if mp.get("boss_room"):   # the fight in a room of its own
             out.rooms.append([x - 200, x + 2700, mp["boss_room"]])
             out.lamps += [[x + 400, -760.0], [x + 1400, -760.0], [x + 2300, -760.0]]
+            if mp["boss_room"] == "club":   # the painted bar counter's top: dive onto it and skid its length (room x = px * 0.75 + 262)
+                out.plats.append([x - 200 + 637, -305.0, 435.0, "bar"])
         first, second = ("bar", "crate_long") if mp.get("boss_room") == "club" else ("crate", "crate_long" if mp.get("boss_room") else "dumpster")
         a, b = x + 300, x + 1500
         if mp.get("boss_room"):   # nothing in front of the room's doors (ROOM_CLEAR): along to the nearest clear floor
@@ -1233,7 +1236,7 @@ SANDBOX = [
     # THE TEST LAB (--sandbox=1, user 16. 11.: one map where every new mechanic is, right from the start):
     # the street kit's awning + fire escape, hydrant, kegs, steam pipe, the hoist rope, then the flat (door kick,
     # window). Few men: only those the kit stands by its hazards and the flat's two. Add each new thing here.
-    {"name": "TEST LAB", "seed": 902, "start": 0.3, "end": 0.3, "fixed": ["lab", "stunts"], "intro": [], "outro": [],
+    {"name": "TEST LAB", "seed": 902, "start": 0.3, "end": 0.3, "fixed": ["lab", "stunts", "club"], "intro": [], "outro": [],
      "street_fixed": ["hk_laundry", "hk_tailor", "hk_grocery", "hk_saloon", "hk_laundry", "warehouse", "alley", "market"]},
 ]
 
