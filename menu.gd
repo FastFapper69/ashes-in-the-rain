@@ -1400,7 +1400,7 @@ func _smith_swap(part: String) -> void:
 	var act := String(SMITH_ACTS.get(_smith_gun, [])[_smith_pick]) if SMITH_ACTS.has(_smith_gun) else ""
 	if act != "":
 		t.tween_callback(_smith_act.bind(act))
-		t.tween_interval(1.5 if act in ["open", "lastround"] else 0.9)
+		t.tween_interval(2.3 if act in ["open", "lastround"] else 0.9)
 	t.tween_callback(_smith_stamp)
 
 
@@ -1413,29 +1413,67 @@ func _smith_act(kind: String) -> void:
 	var holder := _smith_stage
 	var to_screen := func(p: Vector2) -> Vector2: return holder.position + (p - SMITH_SIZE * 0.5).rotated(holder.rotation) * holder.scale.x
 	match kind:
-		"open":   # the cylinder swings out on its crane (the drawn open revolver), then snaps shut
+		"open", "lastround":   # the cylinder swings out (the drawn open revolver); a speedloader puts six rounds in at once
+			# (FAST HANDS), or one round is thumbed into the last chamber (LAST ROUND) - then it snaps shut
 			var open := Sprite2D.new()
 			open.texture = load("res://art/ui/gunsmith/revolver_open.png")
 			open.visible = false
 			holder.add_child(open)
+			var face := Vector2(700, 302) - SMITH_SIZE * 0.5 + Vector2(0.0, (678.0 - SMITH_SIZE.y) * 0.5)   # the chambers' mouths (picture px)
+			var one := kind == "lastround"
+			var ammo := Sprite2D.new()
+			ammo.texture = load("res://art/ui/gunsmith/%s.png" % ("round" if one else "speedloader"))
+			ammo.flip_h = true   # (noses into the chambers, to the left)
+			var k := 0.06 if one else 0.21
+			ammo.scale = Vector2.ONE * k
+			var seat := face + Vector2(ammo.texture.get_width() * k * 0.5 - (30.0 if one else 46.0), 0.0 if not one else -40.0)
+			ammo.position = seat + Vector2(520.0, -60.0)
+			ammo.modulate.a = 0.0
+			holder.add_child(ammo)
 			var t := create_tween()
 			t.tween_callback(func() -> void:
-				for k in _smith_pieces:
-					(_smith_pieces[k] as CanvasItem).visible = false
+				for pk in _smith_pieces:
+					(_smith_pieces[pk] as CanvasItem).visible = false
 				open.visible = true
 				_smith_flash()
 				_snd("cyl_open")
-				_smith_word("kachak", to_screen.call(Vector2(700, 160))))
-			t.tween_interval(0.9)
+				_smith_word("kachak", Vector2.ZERO))
+			t.tween_interval(0.3)
+			t.tween_property(ammo, "modulate:a", 1.0, 0.08)
+			t.parallel().tween_property(ammo, "position", seat + Vector2(60.0, 0.0), 0.32).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+			t.tween_property(ammo, "position", seat, 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+			t.tween_callback(func() -> void:
+				_snd("shell_in")
+				_smith_word("clink", Vector2.ZERO))
+			if not one:   # the speedloader's knob turned, it lets go of the rounds and is pulled away empty
+				t.tween_property(ammo, "rotation", deg_to_rad(-6.0), 0.1)
+				t.tween_property(ammo, "rotation", 0.0, 0.08)
+				t.tween_property(ammo, "position", seat + Vector2(520.0, 120.0), 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+				t.parallel().tween_property(ammo, "modulate:a", 0.0, 0.3)
+			else:   # the round slides home into its chamber
+				t.tween_property(ammo, "position", seat + Vector2(-50.0, 0.0), 0.15)
+				t.parallel().tween_property(ammo, "modulate:a", 0.0, 0.15).set_delay(0.08)
+			t.tween_interval(0.15)
 			t.tween_callback(func() -> void: _snd("cyl_spin"))
-			t.tween_interval(0.45)
+			t.tween_interval(0.25)
 			t.tween_callback(func() -> void:
 				open.queue_free()
-				for k in _smith_pieces:
-					(_smith_pieces[k] as CanvasItem).visible = true
+				ammo.queue_free()
+				for pk in _smith_pieces:
+					(_smith_pieces[pk] as CanvasItem).visible = true
 				_smith_flash()
 				_snd("click")
-				_smith_word("click", to_screen.call(Vector2(620, 150))))
+				_smith_word("click", Vector2.ZERO))
+			if one:   # then the hammer back, a breath, and the shot in a red flash
+				t.tween_interval(0.5)
+				t.tween_callback(func() -> void:
+					_smith_act("recoil")
+					var red := ColorRect.new()
+					red.color = Color(0.6, 0.08, 0.05, 0.45)
+					red.size = _smith_panel.size
+					red.mouse_filter = Control.MOUSE_FILTER_IGNORE
+					_smith_panel.add_child(red)
+					red.create_tween().tween_property(red, "color:a", 0.0, 0.5))
 		"recoil":   # a heavy load: the flash at the muzzle, the gun kicks up and comes back
 			var mz: Vector2 = SMITH_MUZZLE.get(_smith_gun, Vector2(1280, 110)) - SMITH_SIZE * 0.5
 			var fl := Sprite2D.new()
@@ -1474,19 +1512,6 @@ func _smith_act(kind: String) -> void:
 			t.tween_callback(func() -> void:
 				_snd("click")
 				_smith_word("zing", to_screen.call(SMITH_MUZZLE.get(_smith_gun, Vector2(1280, 110)) + Vector2(-120, -70))))
-		"lastround":   # the hammer back with a click, a held breath, then the boom in a red flash
-			_snd("hammer")
-			_smith_word("click", to_screen.call(Vector2(330, 90)))
-			var t := create_tween()
-			t.tween_interval(0.55)
-			t.tween_callback(func() -> void:
-				_smith_act("recoil")
-				var red := ColorRect.new()
-				red.color = Color(0.6, 0.08, 0.05, 0.45)
-				red.size = _smith_panel.size
-				red.mouse_filter = Control.MOUSE_FILTER_IGNORE
-				_smith_panel.add_child(red)
-				red.create_tween().tween_property(red, "color:a", 0.0, 0.5))
 		"mag", "magfull":   # the magazine drops out of the grip and a fresh one slams home
 			var pl: Node2D = _smith_pieces.get("plate")
 			if pl == null:
