@@ -5,6 +5,13 @@ extends RefCounted
 
 const ENTRIES := [
 	["17 NOV 2026", [
+		"Chapter I streets redrawn as one set: same scale, pavement and walls",
+		"New alley gate, market, church, subway entrance, warehouse",
+		"The Blue Note gets its neon sign",
+		"Rooms have building fronts: in one door, out the other",
+		"Rooms are seen only from inside, no more fights through walls",
+		"Alleys and deep views no longer slide or warp",
+		"Real names on the hallway door plates",
 		"Vibration on shots, hits and blasts (setting VIBRATION)",
 		"Anonymous play data, can be off (setting SEND PLAY DATA)",
 		"Version and this list on the title (WHAT'S NEW)",
