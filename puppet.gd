@@ -225,8 +225,9 @@ func _ready() -> void:
 	sh.code = OUTLINE_SHADER
 	var mat := ShaderMaterial.new()
 	mat.shader = sh
-	mat.set_shader_parameter("line", Vector3(0.03, 0.03, 0.035))
-	mat.set_shader_parameter("width", 2.8)   # the cream contour keeps a dark coat apart from a dark wall
+	var look2 := not OS.get_cmdline_user_args().has("--oldlook")   # (feedback 17. 11.: a pale contour reads on dark walls)
+	mat.set_shader_parameter("line", Vector3(0.8, 0.77, 0.7) if look2 else Vector3(0.03, 0.03, 0.035))
+	mat.set_shader_parameter("width", 1.8 if look2 else 2.8)   # the cream contour keeps a dark coat apart from a dark wall
 	mat.set_shader_parameter("boost", Vector3(body_boost.r, body_boost.g, body_boost.b))
 	_body.material = mat
 	add_child(_body)

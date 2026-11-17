@@ -215,6 +215,10 @@ def cut_one(f, name, scale=0.5):
 
 if __name__ == "__main__" and os.path.exists(os.path.join(SRC, "246.jpg")):
     cut_one("246.jpg", "bar_counter")
+# The street's steam comes out of a manhole (art_src 247, user 17. 11.: "steam out of the middle of the pavement -
+# there should be a manhole or something"): main.gd puts one under every plume.
+if __name__ == "__main__" and os.path.exists(os.path.join(SRC, "247.jpg")):
+    cut_one("247.jpg", "manhole", 0.35)
 
 
 if __name__ == "__main__" and os.path.exists(os.path.join(SRC, "243.jpg")):

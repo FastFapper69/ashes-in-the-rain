@@ -274,7 +274,12 @@ const DIVE_SPEED := Vector2(1250.0, -900.0)
 const VAULT_MAX := 270.0 * FIG   # a dive carries him over anything up to this tall instead of stopping dead
 const DIVE_LAND := 125.0   # lying flat, the figure's origin sits this far below the pavement line
 const SLOW_SCALE := 0.3   # how fast time runs while it is slowed
-const CAM_Y := -508.0     # puts the pavement about four fifths of the way down the screen
+const CAM_Y_BASE := -508.0     # puts the pavement about four fifths of the way down the screen
+## Feedback round 17. 11. (user: "turn them all on"): the pavement higher on the screen, clear of the thumb buttons;
+## the backgrounds pushed back (BG_DIM); a light contour round the figures (puppet.gd). --oldlook shows the old one.
+static var LOOK2 := not OS.get_cmdline_user_args().has("--oldlook")
+static var CAM_Y: float = CAM_Y_BASE + (150.0 if LOOK2 else 0.0)
+const BG_DIM := 0.86
 const CAM_LEAD := 400.0   # the camera looks ahead of the detective
 # Layers behind the street, nearest last: texture, how much they follow the camera (1 = not at all
 # displaced, i.e. infinitely far), top edge in world units, scale, brightness, blur.
@@ -1317,7 +1322,7 @@ func _build_segments() -> void:
 			w.position.y = -diffuse.get_height() * ws * float(SEGMENT_FLOOR[seg_name])
 		w.z_index = -10
 		w.material = atmo.blur_material(1.4)
-		w.modulate = Color.WHITE * SEGMENT_MOON * float(SEGMENT_GAIN.get(seg_name, 1.0))   # a moonlit wash, so the drawing reads between the lamps
+		w.modulate = Color.WHITE * SEGMENT_MOON * float(SEGMENT_GAIN.get(seg_name, 1.0)) * (BG_DIM if LOOK2 else 1.0)   # a moonlit wash, so the drawing reads between the lamps
 		add_child(w)
 		props.build(art, w, ws, sx, trim)   # (the kit's things: once the drawing stands where it goes)
 		_facades.append([x0, x0 + diffuse.get_width() * ws, w])
@@ -1368,6 +1373,7 @@ func _build_segments() -> void:
 				_fire_life(w, glow, art, ws)
 		else:
 			atmo.add_mist(self, x0, seg_w, -WALL_LIFT, _undo_night(0.8))
+			_manhole(x0 + seg_w * 0.45, w.modulate)   # (the steam comes out of something: knowledge rule 22)
 			atmo.add_steam(self, Vector2(x0 + seg_w * 0.45, -20.0))
 			sfx.add_loop("steam", x0 + seg_w * 0.45, -20.0, 600.0, -20.0)
 		var signs: Array = SEGMENT_NEONS.get(art, [])
@@ -1619,6 +1625,8 @@ func _tick_neons(delta: float) -> void:
 ## whose lantern blooms into a soft disc. Each map deals them in its own order and spacing.
 const FORE_PROPS := {"bollard": 2.0, "hydrant": 2.0, "lamp": 2.0, "railing": 1.0}   # only what stands at a kerb; no cars or crates sliding past the lens
 func _scatter_fore() -> void:
+	return   # (user 17. 11.: hydrant and lamp silhouettes stuck in an empty grey strip in front: nothing stands without a
+	# ground of its own - knowledge rule 22. The rest is kept should a drawn kerb ever come in front.)
 	if level.get("under", false):   # no hydrants and lamp posts down in the subway
 		return
 	var rng := RandomNumberGenerator.new()
@@ -4654,12 +4662,13 @@ func _dive_clears(way: float, up: float, strict: bool) -> bool:
 
 ## A lettered sound effect, picked from the given words so the same one does not come twice in a row.
 var _last_word := ""
+const WORD_SCALE := 1.6   # (feedback 17. 11.: the comic words were too small to read on a phone)
 func _word(names: Array, at: Vector2, size: float, along := Vector2.ZERO) -> void:
 	var pick: String = names.pick_random()
 	if pick == _last_word and names.size() > 1:
 		pick = names[(names.find(pick) + 1) % names.size()]
 	_last_word = pick
-	fx.word("res://art/fx/word_%s.png" % pick, at, size * randf_range(0.92, 1.08), along)
+	fx.word("res://art/fx/word_%s.png" % pick, at, size * WORD_SCALE * randf_range(0.92, 1.08), along)
 
 
 ## Out of rounds: a dry click, and then he reloads. A gun that is nearly full is topped up
@@ -8650,6 +8659,22 @@ func _going_round(e: Dictionary, m, delta: float) -> void:
 	_bark(m, "behind", "", true)
 
 
+## Another man stands within a man's width or two of this one on his floor: the one further from the detective
+## steps back away from him (returns the way to step, 0 when there is room).
+const CROWD := 230.0
+func _crowded(e: Dictionary, m) -> float:
+	var away: float = signf(m.position.x - player.position.x)
+	for o in enemies:
+		if o == e or not o["alive"] or o["boss"]:
+			continue
+		var om = o["node"]
+		if absf(float(om.position.y) - m.position.y) > 40.0 or absf(float(om.position.x) - m.position.x) > CROWD:
+			continue
+		if absf(m.position.x - player.position.x) >= absf(float(om.position.x) - player.position.x):
+			return away if away != 0.0 else 1.0
+	return 0.0
+
+
 ## A flanker goes in close, to just beyond the detective's crate, where he can fire down over it.
 func _go_close(o: Dictionary) -> void:
 	if o["node"].position.y != 0.0:
@@ -8829,6 +8854,16 @@ func _enemies(delta: float) -> void:
 				if not e.has("home"):
 					e["home"] = m.position.x
 					e["wander"] = m.position.x
+				var crowd := _crowded(e, m)   # (feedback 17. 11.: no knot of men shoulder to shoulder in the open)
+				if crowd != 0.0 and absf(float(e["wander"]) - m.position.x) <= 8.0:
+					var to2: float = m.position.x + crowd * 260.0
+					var ok2 := true
+					for bx in boxes:
+						if bx.grow(60.0).has_point(Vector2(to2, -50.0)):
+							ok2 = false
+					if ok2:
+						e["wander"] = to2
+						e["home"] = to2
 				if absf(float(e["wander"]) - m.position.x) > 8.0:
 					walk = signf(float(e["wander"]) - m.position.x)
 					m.position.x += walk * 170.0 * delta
@@ -9341,6 +9376,21 @@ func _add_rope(ro: Array) -> void:
 		r["hook"] = hook
 		_draw_swing(r, 0.0, SWING_BOTTOM - (r["a"] as Vector2).y)
 	_ropes.append(r)
+
+
+## A manhole cover in the pavement (art_src 247), where the street's steam comes up: flat on the stones, toned like
+## the drawing behind it.
+const MANHOLE_W := 380.0
+func _manhole(x: float, tone: Color) -> void:
+	var tex: Texture2D = load("res://art/props/manhole.png")
+	var k := MANHOLE_W / tex.get_width()
+	var sp := Sprite2D.new()
+	sp.texture = tex
+	sp.scale = Vector2(k, k * 0.42)   # (laid flatter: the pavement is seen from low down)
+	sp.position = Vector2(x, -12.0)
+	sp.modulate = tone * 0.9
+	sp.z_index = -6
+	add_child(sp)
 
 
 ## A small iron pulley: a ring and the bracket that holds it (from `arm` off the ring to the ring).

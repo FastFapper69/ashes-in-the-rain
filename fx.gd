@@ -308,15 +308,15 @@ func _clashes() -> void:
 func blood(at: Vector2, dir: Vector2, heavy := false) -> void:
 	dir = dir.normalized() if dir.length() > 0.01 else Vector2.RIGHT
 	var more := 1.6 if heavy else 1.0
-	var mist := _sprite(STAIN_MISTS.pick_random(), at + dir * 30.0, 0.08)   # the red cloud the shot blows out
+	var mist := _sprite(STAIN_MISTS.pick_random(), at + dir * 70.0, 0.06)   # the red cloud the shot blows out (small and off the body: feedback 17. 11.)
 	mist.rotation = dir.angle() + randf_range(-0.3, 0.3)
 	mist.flip_h = dir.x < 0.0
-	mist.modulate = Color(0.6 * night.r, 0.08 * night.g, 0.06 * night.b, 0.75)
+	mist.modulate = Color(0.6 * night.r, 0.08 * night.g, 0.06 * night.b, 0.5)
 	var tm := create_tween()
 	tm.set_parallel(true)
-	tm.tween_property(mist, "scale", Vector2.ONE * randf_range(0.35, 0.5) * more, 0.22).set_ease(Tween.EASE_OUT)
-	tm.tween_property(mist, "position", mist.position + dir * 60.0 + Vector2(0.0, 20.0), 0.4)
-	tm.tween_property(mist, "modulate:a", 0.0, 0.4).set_ease(Tween.EASE_IN)
+	tm.tween_property(mist, "scale", Vector2.ONE * randf_range(0.22, 0.3) * more, 0.16).set_ease(Tween.EASE_OUT)
+	tm.tween_property(mist, "position", mist.position + dir * 110.0 + Vector2(0.0, 20.0), 0.3)
+	tm.tween_property(mist, "modulate:a", 0.0, 0.28).set_ease(Tween.EASE_IN)
 	tm.chain().tween_callback(mist.queue_free)
 
 	var spray := _sprite(INK_BLOOD.pick_random(), at - dir * 10.0, 0.05)   # the painted burst, thrown out along the shot
@@ -335,7 +335,7 @@ func blood(at: Vector2, dir: Vector2, heavy := false) -> void:
 	for i in int(randi_range(10, 16) * more):   # the spray out of the exit side
 		var v := dir.rotated(randf_range(-0.55, 0.55)) * randf_range(260.0, 950.0) + Vector2(0.0, -randf_range(0.0, 320.0))
 		_bit(BLOODS.pick_random(), at + dir * 15.0, v, randf_range(0.028, 0.075), randf_range(0.5, 1.0), 2300.0, true, red * randf_range(0.8, 1.15), "blood")
-	for i in randi_range(2, 4):   # and a little back the way it came
+	for i in randi_range(1, 2):   # and a little back the way it came
 		var v := (-dir).rotated(randf_range(-0.7, 0.7)) * randf_range(150.0, 420.0) + Vector2(0.0, -randf_range(60.0, 260.0))
 		_bit(BLOODS.pick_random(), at, v, randf_range(0.015, 0.03), randf_range(0.4, 0.7), 2300.0, true, red, "blood")
 
