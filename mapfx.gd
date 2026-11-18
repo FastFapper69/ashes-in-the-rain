@@ -569,7 +569,7 @@ func _tick_fog(delta: float) -> void:
 	fog = move_toward(fog, want, delta * rate)
 	var vp: Vector2 = game.get_viewport().get_visible_rect().size
 	var sp: Vector2 = game.get_viewport().get_canvas_transform() * (game.player.position + Vector2(0.0, -220.0))
-	game.atmo.set_fog(fog, sp / vp)
+	game.atmo.set_fog(fog * 0.72, sp / vp)   # (audit 18. 11.: at full the men went to grey soup on a phone; their sight is still cut by all of it)
 
 
 # ---- the storm ---------------------------------------------------------------------------------

@@ -7,6 +7,7 @@ const ENTRIES := [
 	["18 NOV 2026", [
 		"The docks and the subway: every map its own stretch of waterfront or line; two new dock sheds",
 		"Chapter III is a slope now, not a wall: three gunmen at once only by its end",
+		"Pier 17's fog no longer swallows the men whole",
 		"Smoke and canister clouds are see-through: the men inside show as shapes",
 		"Pickup words never print over the narration; the score popup steps under the LEVEL banner",
 		"The Blue Note is now a big club: the bar and the stairs, a dance hall with a gallery of private booths, then the stage where Teague waits",

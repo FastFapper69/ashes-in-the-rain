@@ -256,3 +256,17 @@ Nepravdy v posudku Gemini (ověřeno): "nikdo neobchází zboku" (flank existuje
 (je 1x za mapu; na snímcích visí přes dva snímky), "boss bez krytů" (bar + sudy jsou), "stejná místnost 3x v DREAM" (záměr - smyčka snu).
 Stav §15 (18. 11. odpoledne): A hotovo (HANDOFF 76), B+C (78), D (79), E (80), F (81), G (82 - velký klub, lustr). Zbývá H (střechy TENEMENTS).
 H hotovo (HANDOFF 84). §15 celý hotový.
+
+## 16. Audit kapitol II a III (18. 11., vlastní + Gemini; _shots/audit_ch2, audit_ch3)
+Hotovo hned (HANDOFF 85-86): obtížnost kap. III zjemněna (CURVE), kouř průhledný, mlha na PIER 17 slabší (vizuálně 72 %),
+texty se nepřekrývají (sebrání nad vyprávěním, combo pod LEVEL), každá mapa doků a metra svoje kusy (DOCK_DISTRICT), 2 nové sklady.
+Ověřeno jako omyl Gemini: zaplavení v CATACOMBS existuje; traverzy v LAST TRAIN existují (bot jim neuhýbá - proto jeho zásahy).
+Ochozy kap. II/III jsou už samostatné kreslené vrstvy (iron_walk/gantry); mezipatro 14TH je celé patro - pravidlo 27 splněno.
+Zbývá (potřebuje tvoje rozhodnutí nebo nové kresby):
+A. Typy nepřátel nejsou poznat podle siluety (brokovník / samopal / boss vypadají stejně) - nové kresby postav, nebo aspoň jiný klobouk/kabát.
+B. 1931: oheň v ulici je malý ("plamínky u kotníků") - větší požáry oken, padající trámy (jako ve snu).
+C. LAST TRAIN: mezery mezi vagony k přeskoku, nízké návěstidla (kromě traverz).
+D. Kessler a Briggs: víc fází souboje (Briggs má štít - ověřit), výrazně jiná postava.
+E. Úvodní obrazovky map v docích by mohly mít vlastní "establishing" kresbu (lávka na loď, vrata Kesslerova skladu).
+F. Bot: neuhýbá traverzám ani nepoužívá shootdodge při 2+ mužích - zásahy v kap. III jsou proto vyšší než u hráče.
+
