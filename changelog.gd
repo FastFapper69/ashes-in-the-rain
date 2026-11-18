@@ -5,6 +5,7 @@ extends RefCounted
 
 const ENTRIES := [
 	["18 NOV 2026", [
+		"No long empty streets: a fight every screen or so; shotgunners and tommy gunners from the first maps on",
 		"Ten new buildings: every chapter I district has its own (a livery stable, a garage under the El, a boiler house, brownstones, a hotel, a dance hall...)",
 		"No street front repeats across chapter I any more: the tailor's, the grocery, the hand laundry each belong to one map",
 		"Frank's picture, health, rounds and guns sit together on one plate",

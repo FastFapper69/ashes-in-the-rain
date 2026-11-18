@@ -764,6 +764,7 @@ def _build(mp, nudge):
                     en["x"] = b[1] + BOX["drum"][0] + 60
     for e in mp.get("events", []):
         out.events.append(list(e))
+    pace(out, mp, rng)
     cover_men(out, mp)
     for e in out.enemies:   # (after the kit moved things about) nobody left standing inside a crate
         inside = lambda x: any(len(o) == 2 and o[1] - 50 < x < o[1] + BOX[o[0]][0] + 50 for o in out.boxes)
@@ -822,6 +823,34 @@ def check_props(m):
 
 
 THING_W = 1300   # = props.gd THING_W (the widest: the third rail; the trolley pole 960, the windlass 520)
+# The rhythm of a street map (QUEUE §15 B, C - chapter I audit 18. 11.: "long stretches of holding right on an empty
+# street", "18 of 19 plain pistol men"): no stretch of street longer than PACE_GAP without a man (a fight every screen or
+# so, a breather is one screen, not three), and from the chapter's first map on men who make him change how he fights.
+PACE_GAP = 2600
+MIX = {"THE ALLEY": {"shotgun": 2}, "BACK STREETS": {"shotgun": 2, "tommy": 2}}   # at least this many, in the second half
+def pace(m, mp, rng):
+    if mp.get("name") not in DISTRICT and not mp.get("dream"):   # (the dream too: "sluggish", three stretches of nothing)
+        return
+    in_room = lambda x: any(a - 400 < x < b + 400 for a, b, st in m.rooms)
+    xs = sorted(e["x"] for e in m.enemies if e["y"] == 0.0 and not e["run"])
+    adds = []
+    for a, b in zip([1700.0] + xs, xs + [m.end - 900]):
+        k = int((b - a) // PACE_GAP)
+        for j in range(1, k + 1):
+            x = a + (b - a) * j / (k + 1)
+            if not in_room(x):
+                hard = mp["start"] + (mp["end"] - mp["start"]) * x / m.end
+                adds.append({"x": x, "y": 0.0, "kind": "shotgun" if hard > 0.4 and rng.random() < 0.3 else "post",
+                             "trig": None, "from": None, "delay": 0.0, "run": False})
+    m.enemies += adds
+    for kind, n in MIX.get(mp["name"], {}).items():
+        have = sum(1 for e in m.enemies if e["kind"] == kind)
+        plain = sorted([e for e in m.enemies if e["kind"] == "post" and e["y"] == 0.0 and e["x"] > m.end * 0.45
+                        and not in_room(e["x"])], key=lambda e: e["x"])
+        for e in plain[::max(1, len(plain) // max(1, n - have))][:max(0, n - have)]:
+            e["kind"] = kind
+
+
 def cover_men(m, mp):
     """Men who wait for Frank in the open street would just be targets (2026-11-16): about half of them
     get something to stand behind, a crate or a drum on their side of the fight, a step in front of
