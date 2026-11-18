@@ -50,6 +50,18 @@ for g, lst in EXTRA.items():
 # never needed in the build: the old painted-wall street (main.gd _build_street's fallback when a map has
 # no drawn street; every map has one) and a foreground layer nothing loads
 NEVER = ['art/bg/far.png', 'art/bg/mid.png', 'art/bg/fore.png', 'art/bg/wall2.png', 'art/bg/wall2_n.png', 'art/bg/wall2_lit.png']
+# (18. 11.: the base pack hit GitHub's 100 MB limit) a street or room drawing no campaign map names - the trial maps'
+# (they play as chapter I, pack a) or one no map uses any more (front_laundry, the old kits): into pack a, never the
+# base. Only the firewall pier is loaded by name for every map.
+_sand = open('levels.gd').read().split('const SANDBOX')[1]
+for f in sorted(set(x.replace(os.sep, '/') for x in glob.glob('art/street/*.png') + glob.glob('art/rooms/**/*.png', recursive=True))):
+    if f in files or f.endswith('/pier.png'):
+        continue
+    base = re.sub(r'_(lit|solid|neon\d|n|catwalk)$', '', os.path.basename(f)[:-4])
+    if re.search(r'"%s"' % re.escape(PART_OF.get(base, base)), _sand):
+        files[f] = {'a'}
+    else:   # named by no map at all: not in the build (its source stays in the repo)
+        NEVER.append(f)
 # the title screen of a page with no pack yet (main.gd stand_in: the "1931" map) loads before any pack is mounted:
 # every drawing it names stays in the base pack (17. 11.: market_b left chapter I's maps, went into pack b, and a
 # fresh page died on "No loader found ... market_b.png")
