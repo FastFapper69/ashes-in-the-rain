@@ -163,7 +163,7 @@ EDGES = {
     "hk_tailor": ("party_wall", "party_wall"), "laundry": ("party_wall", "party_wall"), "laundry_b": ("party_wall", "party_wall"),
     "market": ("party_wall", "party_wall"), "market_b": ("party_wall", "party_wall"), "market_c": ("party_wall", "party_wall"),
     "pier17": ("water", "party_wall"), "pier17_b": ("water", "party_wall"), "quay": ("water", "party_wall"), "quay_b": ("water", "water"),
-    "sheds": ("party_wall", "party_wall"), "sheds_b": ("water", "water"), "shipping": ("party_wall", "water"),
+    "sheds": ("party_wall", "party_wall"), "sheds_b": ("water", "water"), "sheds_c": ("water", "water"), "sheds_d": ("party_wall", "water"), "shipping": ("party_wall", "water"),
     "shipping_b": ("party_wall", "party_wall"), "subway": ("party_wall", "party_wall"), "subway_b": ("party_wall", "party_wall"),
     "tenrow_a": ("party_wall", "party_wall"), "tenrow_b": ("party_wall", "party_wall"), "tenrow_c": ("party_wall", "party_wall"),
     "tenrow_d": ("party_wall", "party_wall"), "warehouse": ("party_wall", "party_wall"), "warehouse_b": ("open_lot", "party_wall"),

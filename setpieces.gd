@@ -217,7 +217,7 @@ func smoke(at: Vector2, steam := false) -> void:
 	grow.add_point(Vector2(0.0, 0.5))
 	grow.add_point(Vector2(1.0, 1.4))
 	p.scale_amount_curve = grow
-	p.amount = 60
+	p.amount = 34   # (fewer, so they do not pile into one opaque mass)
 	p.lifetime = 4.0
 	p.one_shot = false
 	p.explosiveness = 0.6
@@ -235,8 +235,8 @@ func smoke(at: Vector2, steam := false) -> void:
 	p.scale_amount_max = 2.6
 	var g := Gradient.new()
 	g.set_color(0, Color(0.55, 0.57, 0.55, 0.0))
-	g.add_point(0.12, Color(0.48, 0.5, 0.49, 0.7))
-	g.add_point(0.7, Color(0.4, 0.42, 0.41, 0.5))
+	g.add_point(0.12, Color(0.48, 0.5, 0.49, 0.38))   # (audit 18. 11.: an opaque white wall on a phone - the men inside it
+	g.add_point(0.7, Color(0.4, 0.42, 0.41, 0.26))     # must still show as shapes; the smoke still blocks their sight, in_smoke)
 	g.set_color(g.get_point_count() - 1, Color(0.4, 0.4, 0.4, 0.0))
 	p.color_ramp = g
 	p.modulate = game._undo_night(0.35)
@@ -250,7 +250,7 @@ func smoke(at: Vector2, steam := false) -> void:
 		p.initial_velocity_max = 650.0
 		p.emission_rect_extents = Vector2(70.0, 20.0)
 		g.set_color(0, Color(0.95, 0.95, 0.93, 0.0))
-		g.set_color(1, Color(0.9, 0.9, 0.88, 0.75))
+		g.set_color(1, Color(0.9, 0.9, 0.88, 0.5))
 		p.modulate = game._undo_night(0.6)
 	add_child(p)
 	game.sfx.play("steam" if steam else "slow_out", 2.0 if steam else -4.0, at.x, 0.1)   # the hiss of the canister / the pipe

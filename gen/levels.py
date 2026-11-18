@@ -39,11 +39,24 @@ DISTRICT = {   # (QUEUE §15 A, 18. 11.: no piece in two maps - each district it
 }
 FILLERS = ["row_house", "apartment", "factory", "alley_mouth", "warehouse_row", "church_row"]   # plain houses, at most twice a chapter
 ONE_MAP = {p for d in DISTRICT.values() for p in d} - set(FILLERS) | {"hk_tailor", "alley_wash"}   # never outside their own map
+# (audit 18. 11.: the Margarethe opened four maps, SAILORS REST and NORTH RIVER COLD STORAGE in three) each dock map its
+# own stretch of the waterfront; the plain sheds are the fillers. Same identity checks on DOCKS_POOL stay (pool=).
+DOCK_DISTRICT = {"PIER 17": ["pier17_b", "sheds", "quay_b", "sheds_b"],
+                 "THE CRANES": ["sheds_b", "shipping", "sheds", "pier17_b"],
+                  "SANTA LUCIA": ["shipping_b", "sheds_b", "cranes", "sheds"],
+                 "CARGO HOLD": ["sheds", "quay", "sheds_b", "pier17_b"],
+                 "HARBOR MASTER": ["pier17_b", "quay_b", "sheds"],
+                 # chapter III the same (audit 18. 11.: THE CATACOMBS looked like THE TUNNELS): each line its own stations
+                 "14TH STREET": ["signal", "walkway", "arches"],
+                 "THE TUNNELS": ["tunnel_lo_b", "signal_b"],
+                 "THE CATACOMBS": ["walkway_b", "arches_b", "signal"]}
+DISTRICT_PLAIN = {"14TH STREET": ["signal", "walkway", "arches"], "THE TUNNELS": ["tunnel_lo_b", "signal_b", "tunnel_lo"],
+                  "THE CATACOMBS": ["walkway_b", "arches_b", "bowery"]}
 DOCKS_POOL = ["pier17", "cranes", "shipping", "quay", "sheds", "pier17_b", "shipping_b", "quay_b", "sheds_b"]   # (the harbor with its lighthouse: only the Harbor Master's own)
 # variants (2026-11-15): the same kit redrawn with other details over the same floor, rails, edges and lamps,
 # so a map does not show one drawing again and again; everything about them but the picture is the kit's
 KIT = {"walkway_b": "walkway", "signal_b": "signal", "arches_b": "arches", "tunnel_lo_b": "tunnel_lo",
-       "yard_b": "yard", "tunnel_b": "tunnel", "sheds_b": "sheds", "pier17_b": "pier17", "shipping_b": "shipping", "quay_b": "quay",
+       "yard_b": "yard", "tunnel_b": "tunnel", "sheds_b": "sheds", "sheds_c": "sheds", "sheds_d": "sheds", "pier17_b": "pier17", "shipping_b": "shipping", "quay_b": "quay",
        "laundry_b": "laundry", "alley_b": "alley", "warehouse_b": "warehouse", "warehouse_c": "warehouse", "church_b": "church", "subway_b": "subway", "market_b": "market", "market_c": "market", "yard_c": "yard", "tunnel_c": "tunnel",
        # the dream's rooms gone wrong (gen/process_dream.py): the burning warehouse's own cut and floor
        "fire_d": "fire_a", "fire_e": "fire_b", "fire_f": "fire_c", "fire_g": "fire_a"}
@@ -1232,10 +1245,12 @@ def street(mp, m, rng):
             seq.append([name, x])
             x += SEGMENTS[name] * 1.9 * SEG_SIZE[name]
             k += 1
-    base_pool = mp.get("pool", DISTRICT.get(mp.get("name"), STREET_POOL))
+    base_pool = DOCK_DISTRICT.get(mp.get("name")) or mp.get("pool", DISTRICT.get(mp.get("name"), STREET_POOL))
     pool = [s for s in base_pool if s != mp.get("feature") and not (mp.get("plain") and s in KIT)] or [mp["feature"]]
     if len(pool) < 2:   # a map of one kit and its variant: the feature takes its turns too
         pool = [s for s in base_pool if not (mp.get("plain") and s in KIT)]
+    if not pool:   # (a district of variants only, in the plain layout pass: their kits stand in)
+        pool = list(dict.fromkeys(KIT.get(s, s) for s in base_pool)) or [mp["feature"]]
     last = None
     i = 0
     roof_a = m.roof[2][0][1] - 4000 if m.roof else None
@@ -1271,8 +1286,10 @@ def street(mp, m, rng):
             if i == 0:   # nor the one the feature is about to show next to it
                 cand = [s for s in cand if s != mp.get("feature")] or cand
                 if mp.get("feature"):   # and its right edge must meet the feature's left one (he starts right by that join)
+                    cand = [s for s in cand if KIT_CAT.joins(s, mp["feature"])] or [s for s in DOCKS_POOL + UNDER_POOL if s != mp["feature"]
+                            and KIT_CAT.joins(s, mp["feature"]) and s in (DOCK_DISTRICT.get(mp.get("name"), []) + ["sheds_b", "sheds_c", "tunnel_lo_b"])] or cand
                     best = min(seam_score(s, mp["feature"]) for s in cand)
-                    cand = [s for s in cand if seam_score(s, mp["feature"]) < max(SEAM_OK, best + 0.05)]
+                    cand = [s for s in cand if seam_score(s, mp["feature"]) < max(SEAM_OK, best + 0.05)] or cand
             w_here = lambda s: SEGMENTS[s] * 1.9 * SEG_SIZE.get(s, 1.0)
             fuel = [b[1] for b in m.boxes if b[0] == "barrel" and not any(a <= b[1] < c for a, c, st in m.rooms)]
             if any(x <= f < x + w_here(cand[0]) for f in fuel):   # a red barrel here: a place where fuel is kept
@@ -1284,6 +1301,13 @@ def street(mp, m, rng):
                 # under it - a plain filler goes here and the district's own pieces stay for where they are seen
                 under = [s for s in FILLERS if s in cand or KIT_CAT.joins(last, s) if last is not None] if last is not None else FILLERS
                 fresh = [s for s in (under or FILLERS) if s not in used] or fresh
+            if mp.get("name") in DOCK_DISTRICT:   # the docks: a landmark once a map; after that the plain sheds take turns
+                plain = sorted(DISTRICT_PLAIN.get(mp["name"], ["sheds", "sheds_b", "sheds_c", "sheds_d", "pier17_b"]), key=lambda q: (used.count(q), CHAPTER_USED.get(q, 0), rng.random()))
+                jn = lambda q: last is None or KIT_CAT.joins(last, q)
+                fresh = ([q for q in cand if q not in used and jn(q)] or [q for q in plain if q != last and ok(q) and jn(q)][:1]
+                         or [q for q in DOCKS_POOL + UNDER_POOL if q != last and q not in used and ok(q) and jn(q)
+                             and (q not in KIT or KIT[q] != KIT.get(last, last))][:1]
+                         or [q for q in cand if q not in used] or [q for q in plain if q != last][:1])
             if not fresh and mp.get("name") in DISTRICT:   # the district's own all laid: a plain house not yet in this map
                 fresh = [s for s in FILLERS if s not in used and s != last and CHAPTER_USED.get(s, 0) < 2
                          and (last is None or KIT_CAT.joins(last, s))]

@@ -1334,7 +1334,7 @@ const SEGMENT_GAIN := {"front_club_l": 1.3, "front_club_mid": 1.3, "front_club_r
 # A drawing whose doors and bins came out too big for a man is shown smaller (gen/levels.py SEG_SIZE).
 # variants of a kit (gen/levels.py KIT, art_src 164-168): their own picture, the kit's everything else
 const SEGMENT_KIT := {"walkway_b": "walkway", "signal_b": "signal", "arches_b": "arches", "tunnel_lo_b": "tunnel_lo",
-	"yard_b": "yard", "tunnel_b": "tunnel", "sheds_b": "sheds", "pier17_b": "pier17", "shipping_b": "shipping", "quay_b": "quay",
+	"yard_b": "yard", "tunnel_b": "tunnel", "sheds_b": "sheds", "sheds_c": "sheds", "sheds_d": "sheds", "pier17_b": "pier17", "shipping_b": "shipping", "quay_b": "quay",
 	"laundry_b": "laundry", "alley_b": "alley", "warehouse_b": "warehouse", "warehouse_c": "warehouse", "church_b": "church", "subway_b": "subway", "market_b": "market", "market_c": "market", "yard_c": "yard", "tunnel_c": "tunnel",
 	"fire_d": "fire_a", "fire_e": "fire_b", "fire_f": "fire_c", "fire_g": "fire_a"}
 const SEGMENT_SIZE := {"alley_mouth": 0.8, "market_row": 0.8, "church_row": 0.8, "subway_entrance": 0.8, "warehouse_row": 0.8, "bluenote_row": 0.8, "row_house": 0.8, "front_yard": 0.8, "apartment": 0.8, "factory": 0.8, "pawn_house": 0.8, "diner_house": 0.8, "alley_wash": 0.8, "stable_row": 0.8, "rear_walkup": 0.8, "el_garage": 0.8, "rooming_house": 0.8, "boiler_works": 0.8, "machine_shop": 0.8, "brownstones": 0.8, "bay_tenement": 0.8, "hotel_front": 0.8, "dance_hall": 0.8, "front_club_l": 0.8, "front_club_mid": 0.8, "front_club_r": 0.8, "front_laundry": 0.8, "front_laundry_l": 0.8, "front_laundry_mid": 0.8, "front_laundry_r": 0.8, "front_warehouse": 0.8, "front_club": 0.8, "front_tenement": 0.8, "hk_tailor": 0.8, "hk_grocery": 0.8, "hk_saloon": 0.8, "hk_laundry": 0.8, "deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
@@ -7651,8 +7651,11 @@ const CURVE := [
 	[2, {"density": 6.0, "mob_hp": 3, "aim": 1.3, "pause": 1.2, "shooters": 2, "heavy": 0.0}],
 	[4, {"density": 7.2, "mob_hp": 3, "aim": 1.15, "pause": 1.1, "shooters": 2, "heavy": 0.0}],
 	[7, {"density": 9.0, "mob_hp": 3, "aim": 1.0, "pause": 1.0, "shooters": 2, "heavy": 0.1}],
-	[10, {"density": 11.0, "mob_hp": 3, "aim": 0.92, "pause": 0.92, "shooters": 3, "heavy": 0.2}],
-	[15, {"density": 13.5, "mob_hp": 4, "aim": 0.85, "pause": 0.85, "shooters": 3, "heavy": 0.3}],
+	# (audit 18. 11.: the bot took 2-4 hits a map in chapter II and 16-21 in chapter III - a wall, not a slope) three at once
+	# and the tighter aim only by the chapter's end; Briggs' map (16) keeps the old hardest row
+	[10, {"density": 10.0, "mob_hp": 3, "aim": 0.97, "pause": 0.97, "shooters": 2, "heavy": 0.2}],
+	[13, {"density": 11.0, "mob_hp": 3, "aim": 0.93, "pause": 0.93, "shooters": 2, "heavy": 0.25}],
+	[16, {"density": 13.5, "mob_hp": 4, "aim": 0.85, "pause": 0.85, "shooters": 3, "heavy": 0.3}],
 ]
 # The three settings on top of the curve: hits Frank can take, how many men, how well they aim, how
 # long they wait between shots, how many may fire at once.

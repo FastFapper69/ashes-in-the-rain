@@ -277,6 +277,7 @@ func banner(text: String) -> void:
 
 ## A level reached mid-fight (2026-11-16): a small paper tag up at the top between the gun card and
 ## the pause button, never over the street, gone again in under two seconds.
+var _level_box: Control   # the LEVEL n banner while it is up (audit 18. 11.: the combo printed over it)
 func level_up(n: int) -> void:
 	var Paper = load("res://paper.gd")
 	var head := FontVariation.new()
@@ -291,6 +292,7 @@ func level_up(n: int) -> void:
 	b.position = Vector2((view.x - b.size.x) * 0.5, -b.size.y - 10.0)
 	b.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(b)
+	_level_box = b
 	var tw := b.create_tween()
 	tw.tween_property(b, "position:y", 22.0, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.tween_interval(1.3)
@@ -700,7 +702,13 @@ func toast(text: String) -> void:
 	l.add_theme_constant_override("outline_size", 10)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.size = Vector2(view.x, 50.0)
-	l.position = Vector2(0.0, view.y * 0.68)
+	var ty := view.y * 0.68
+	_captions = _captions.filter(func(b) -> bool: return is_instance_valid(b))
+	for cb in _captions:   # (audit 18. 11.: "+60 TOMMY GUN ROUNDS" over the narration) above the narration's top
+		for c in (cb as Control).get_children():
+			if (c as Control).visible:
+				ty = minf(ty, (cb as Control).position.y + (c as Control).position.y - 60.0)
+	l.position = Vector2(0.0, ty)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(l)
 	var tw := create_tween()
@@ -795,6 +803,8 @@ func combo(streak: int, points: int, how: String) -> void:
 	_combo_box = cap
 	var under_boss := is_instance_valid(_boss_box) and _boss_box.visible   # the boss's name owns the top
 	var y := 112.0 if under_boss else 26.0
+	if is_instance_valid(_level_box):   # (the LEVEL banner owns the top a moment: under it)
+		y = maxf(y, 100.0)
 	# (audit 18. 11.: right beside the pause button) in the middle at the top, between the HUD plate and the pause
 	var mid := (plate_right() + view.x - 120.0) * 0.5
 	cap.position = Vector2(roundf(mid - cap.size.x * 0.5), y)

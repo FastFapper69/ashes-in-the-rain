@@ -5,6 +5,10 @@ extends RefCounted
 
 const ENTRIES := [
 	["18 NOV 2026", [
+		"The docks and the subway: every map its own stretch of waterfront or line; two new dock sheds",
+		"Chapter III is a slope now, not a wall: three gunmen at once only by its end",
+		"Smoke and canister clouds are see-through: the men inside show as shapes",
+		"Pickup words never print over the narration; the score popup steps under the LEVEL banner",
 		"The Blue Note is now a big club: the bar and the stairs, a dance hall with a gallery of private booths, then the stage where Teague waits",
 		"Tenements rooftops: shoot the water tower's tank and the water sweeps the men under it off their feet; men come out of the stairwell doors as you pass",
 		"The bar is back in the big Blue Note: dive onto the counter and skid its whole length",

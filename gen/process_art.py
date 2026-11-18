@@ -33,7 +33,7 @@ STREET = {
     # were too close and were redrawn as 172, 175, 173; ch II: 174, 176, 177, 178 replaced 169-171)
     'walkway_b': ('172.jpg', 134, False), 'signal_b': ('165.jpg', 134, False), 'arches_b': ('175.jpg', 134, False),
     'yard_b': ('167.jpg', 134, False), 'tunnel_b': ('173.jpg', 134, False), 'tunnel_lo_b': ('173.jpg', 134, False),
-    'sheds_b': ('177.jpg', 125, False), 'pier17_b': ('176.jpg', 134, False), 'shipping_b': ('174.jpg', 134, False), 'quay_b': ('178.jpg', 134, False),
+    'sheds_b': ('177.jpg', 125, False), 'sheds_c': ('310.jpg', 125, False), 'sheds_d': ('311.jpg', 125, False),   # (audit 18. 11.: the docks' plain sheds took turns too often) 'pier17_b': ('176.jpg', 134, False), 'shipping_b': ('174.jpg', 134, False), 'quay_b': ('178.jpg', 134, False),
     'laundry_b': ('179.jpg', 140, False), 'alley_b': ('180.jpg', 140, False), 'warehouse_b': ('181.jpg', 140, False),
     'church_b': ('182.jpg', 60, False), 'subway_b': ('183.jpg', 60, False), 'market_b': ('184.jpg', 130, False), 'market_c': ('185.jpg', 130, False),
     # a third of the two chapter III maps that had only two drawings (2026-11-15)
@@ -59,7 +59,7 @@ STREET = {
     'pawn_house': ('267.jpg', 0, False), 'diner_house': ('268.jpg', 0, False),   # one shop a building (user 17. 11.)   # plain buildings (user 17. 11.: no rows of shops)
 }
 KIT = {'yard_c': 'yard', 'tunnel_c': 'tunnel', 'walkway_b': 'walkway', 'signal_b': 'signal', 'arches_b': 'arches', 'yard_b': 'yard', 'tunnel_b': 'tunnel', 'tunnel_lo_b': 'tunnel_lo',
-       'sheds_b': 'sheds', 'pier17_b': 'pier17', 'shipping_b': 'shipping', 'quay_b': 'quay',
+       'sheds_b': 'sheds', 'sheds_c': 'sheds', 'sheds_d': 'sheds', 'pier17_b': 'pier17', 'shipping_b': 'shipping', 'quay_b': 'quay',
        'laundry_b': 'laundry', 'alley_b': 'alley', 'warehouse_b': 'warehouse', 'church_b': 'church', 'subway_b': 'subway', 'market_b': 'market', 'market_c': 'market'}
 # measured on the whole picture, before the right frame comes off: scaled to the trimmed one below
 FULL = 3168.0
