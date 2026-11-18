@@ -55,6 +55,8 @@ func setup(main) -> void:
 				_blaze(float(ev[1]), float(ev[2]), INF, 0.0, 1.7 if game.level.get("memory", false) else 1.0)
 			"loop":
 				_events.append({"kind": kind, "trig": float(ev[1]), "done": false})
+			"comic":   # a comic page as he gets there (main.gd _mid_comic)
+				_events.append({"kind": kind, "trig": float(ev[1]), "id": String(ev[2]), "done": false})
 	if game.level.get("dream", false):   # eleven knocks from behind the chained doors, spread down the warehouse
 		var end: float = float(game.level["end"])
 		for k in 11:
@@ -88,6 +90,8 @@ func tick(delta: float) -> void:
 				_loop_again(ev)
 			"knock":
 				_knock(ev)
+			"comic":
+				game._mid_comic(String(ev["id"]))
 	_tick_blazes(delta)
 	if game.level.get("dream", false):
 		_tick_guilt_ash(delta)

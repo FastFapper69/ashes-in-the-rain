@@ -161,6 +161,8 @@ class Chunk:
         self.roof = None       # [x0, x1] of the walked roof, its drawings [[name, x0]], the goal x
         self.roof_checks = []
         self.sections = []     # buildings in cross-section: [x0, x1, storeys, style]
+        self.start_xy = None   # where he starts, when not at the street's start (TENEMENTS: in a flat)
+        self.wash_from = None  # a washing line's top end; its bottom is found on a window of the drawing across (wash_lines)
         self.xy_checks = []    # checkpoints up in a building: [x, y]
         self.stairdoors = []   # the stairs in a building's back wall: [x, storey y, the y they lead to]
         self.hoists = []       # where a swing rope is wanted from a warehouse hoist (hoist_ropes)
@@ -404,6 +406,29 @@ def chunk(name, hard, rng=None):
         c.checks += [-60.0]
         c.hint(-400, "INSIDE, UP THE STAIRS")
         c.up_end = esc(1050.0)   # the roof reaches out to where the fire escape's top flight arrives
+    elif name == "flat_start":   # TENEMENTS opens where THE LAUNDRY ended (user 18. 11., rule 30): the top-floor flat of the
+        # tenement he ran into, the men on the stairs; they break the door in (main.gd "break_in"), he goes out of the window
+        # onto the fire escape and rides the washing line strung from its rail down to a window across the way (WASH_WINDOWS)
+        w = SEC_W
+        c = Chunk(w + 2400)
+        c.sections.append([0.0, w, 3, "tenement"])
+        for k in (1, 2):
+            c.plat(0.0, -SEC_H * k, w, "section")
+        r, l = SEC_STAIRS_A, SEC_STAIRS_B
+        c.stairdoors += [[r, 0.0, -SEC_H], [r, -SEC_H, 0.0], [l, -SEC_H, -SEC_H * 2], [l, -SEC_H * 2, -SEC_H]]
+        c.flats.append([SEC_FLAT_DOOR, -SEC_H * 2, 476.0, SEC_WIN[0], SEC_WIN[1], 178.0, 501.0])
+        e0 = esc(570.0)
+        for k in (1, 2):   # the escape's landings he can reach (the top one, at the roof, is out of his way)
+            c.plat(e0, -SEC_H * k, esc(1160.0) - e0, "fescape")
+        c.ramps.append([esc(820.0), -SEC_H, esc(1050.0), -SEC_H * 2, "fescape"])
+        c.start_xy = [SEC_FLAT_DOOR + 900.0, -SEC_H * 2]   # inside the flat, his back to the door
+        c.wash_from = [esc(1120.0), -SEC_H * 2 - 95.0]    # the landing's outer rail post
+        # the crowd from THE LAUNDRY: on the stairs and in the hallway behind the flat's door
+        c.foe(SEC_FLAT_DOOR - 500, -SEC_H * 2).foe(SEC_FLAT_DOOR - 900, -SEC_H * 2, kind="tommy")
+        c.foe(1400, -SEC_H).foe(2200, 0.0)
+        c.foe(w + 1500, 0.0).foe(w + 2100, 0.0, kind="shotgun" if hard > 0.5 else "post")   # and waiting below in the street
+        c.hint(SEC_FLAT_DOOR + 1100, "OUT OF THE WINDOW")
+        c.checks += [w + 1100.0]   # down in the street off the line
     elif name == "stunts":   # SANDBOX STUNTS: the new moves in a few seconds - one storey, the flat right by the door,
         w = SEC_W            # kick its door in (a man behind it), out of its window to the street, the rope behind
         c = Chunk(w + 2600)
@@ -605,7 +630,7 @@ def front_spans(m):
 # end moves on (never back) to the nearest doorway of a building near it, which the game lights as the way out.
 def exit_door(m, mp):
     m.exit = None
-    if mp.get("name") not in DISTRICT or m.roof or any(b > m.end - 200 for a, b, st in m.rooms):
+    if getattr(m, "goal", None) or mp.get("name") not in DISTRICT or m.roof or any(b > m.end - 200 for a, b, st in m.rooms):
         return
     pieces = set(FILLERS) | {p for d in DISTRICT.values() for p in d} | {"pawn_house", "diner_house", "subway_entrance"}
     doors = []
@@ -755,6 +780,8 @@ def _build(mp, nudge):
         for rp_ in c.ramps: out.ramps.append([x + rp_[0], rp_[1], x + rp_[2], rp_[3]] + list(rp_[4:]))
         for a, b, st in c.rooms: out.rooms.append([x + a, x + b, st])
         for a, b, n, st in c.sections: out.sections.append([x + a, x + b, n, st])
+        if getattr(c, "start_xy", None): out.start_xy = [x + c.start_xy[0], c.start_xy[1]]
+        if getattr(c, "wash_from", None): out.wash_from = [x + c.wash_from[0], c.wash_from[1]]
         for cx, cy in c.xy_checks: out.xy_checks.append([x + cx, cy])
         for sx, sy, ty in c.stairdoors: out.stairdoors.append([x + sx, sy, ty])
         for hx in c.hoists: out.hoists.append(x + hx)
@@ -841,6 +868,7 @@ def _build(mp, nudge):
     out.checks = sorted(set(round(c) for c in out.checks if 800 < c < out.end - 500))
     door_clear(out)
     out.street = street(mp, out, rng)
+    wash_line(out)
     if not mp.get("plain"):
         for g in out.street:
             CHAPTER_USED[g[0]] = CHAPTER_USED.get(g[0], 0) + 1
@@ -1421,6 +1449,66 @@ def stand_at_gate(m):
         end += seg_w("row_house")
 
 
+# The first-floor windows of the row facades beside a cut-open tenement (measured on the drawings, 18. 11.): the
+# glass's left, top, width, height (picture px). A washing line ends in a pulley on such a window's jamb (rule 22).
+WASH_WINDOWS = {
+    "tenrow_a": [(174, 479, 122, 196), (370, 494, 121, 181), (565, 479, 123, 196), (763, 482, 119, 194), (1404, 494, 124, 210), (1650, 478, 120, 197), (2291, 478, 122, 198), (2486, 477, 122, 199), (2881, 495, 123, 209)],
+    "tenrow_b": [(172, 479, 124, 219), (466, 489, 124, 182), (761, 497, 113, 180), (1116, 489, 131, 182), (1405, 478, 123, 175), (1648, 478, 125, 203), (2060, 478, 122, 158), (2290, 478, 123, 199), (2486, 478, 122, 197), (2883, 477, 121, 199)],
+    "tenrow_c": [(174, 493, 121, 182), (372, 491, 121, 184), (565, 478, 123, 196), (769, 493, 112, 181), (1405, 477, 123, 198), (1648, 477, 124, 227), (2290, 478, 123, 196), (2486, 477, 121, 197), (2882, 490, 123, 185)],
+    "tenrow_d": [(1642, 682, 166, 178), (2034, 673, 144, 187), (2316, 693, 128, 167)],
+}
+def wash_line(m):
+    """The washing line from wash_from down to the window jamb across the way nearest 1500-2300 px further on."""
+    if not getattr(m, "wash_from", None):
+        return
+    fx, fy = m.wash_from
+    best = None
+    for seg in m.street:
+        name, x0 = seg[0], seg[1]
+        if name not in WASH_WINDOWS:
+            continue
+        ws = 1.9 * SEG_SIZE.get(name, 1.0)
+        top = -1344 * ws * 0.92 - 60.0
+        for wx, wy, ww, wh in WASH_WINDOWS[name]:
+            jx, jy = x0 + (wx - 10) * ws, top + (wy + wh * 0.3) * ws   # its left jamb, a third of the way down
+            d = jx - fx
+            if 1500 < d < 2300 and jy > fy + 350 and (best is None or abs(d - 1900) < abs(best[0] - fx - 1900)):
+                best = (jx, jy)
+    if best is None:
+        raise SystemExit("wash_line: no window across the way for the line from %s" % m.wash_from)
+    m.ropes.append(["wash", fx, fy, best[0], best[1], fy + 95.0])
+
+
+def refuge(out, x):
+    """THE LAUNDRY's end (user 18. 11., rule 30: "a comic, a pile of them turns up, I have to run - into a house, up to
+    the first floor, a comic, the end of the map"): a comic page as the street fills (event "comic" horde), men running
+    in from behind him, a tenement cut open ahead (its street door, the stairs in the back wall, the flat on the top
+    floor); the map is won when he is through the flat's door (main.gd "goal") - nobody has to be dead. The next map,
+    TENEMENTS, opens in that flat."""
+    x0 = x + 1400
+    out.events.append(["comic", x - 300, "horde"])
+    for k in range(6):   # the crowd off the cars behind him: they keep coming, he cannot hold the street
+        out.enemies.append({"x": x - 1500 - 200 * k, "y": 0.0, "kind": "tommy" if k % 3 == 1 else "post", "trig": x - 200,
+                            "from": x - 1500 - 200 * k, "delay": 0.4 + 0.7 * k, "run": True})
+    out.sections.append([x0, x0 + SEC_W, 3, "tenement"])
+    for k in (1, 2):
+        out.plats.append([x0, -SEC_H * k, SEC_W, "section"])
+    r, l = SEC_STAIRS_A, SEC_STAIRS_B
+    out.stairdoors += [[x0 + r, 0.0, -SEC_H], [x0 + r, -SEC_H, 0.0], [x0 + l, -SEC_H, -SEC_H * 2], [x0 + l, -SEC_H * 2, -SEC_H]]
+    out.flats.append([x0 + SEC_FLAT_DOOR, -SEC_H * 2, 476.0, x0 + SEC_WIN[0], x0 + SEC_WIN[1], 178.0, 501.0])
+    e0 = esc(570.0)   # (the same house TENEMENTS opens in: its window onto its own fire escape, rule 25)
+    for k in (1, 2):
+        out.plats.append([x0 + e0, -SEC_H * k, esc(1160.0) - e0, "fescape"])
+    out.ramps.append([x0 + esc(820.0), -SEC_H, x0 + esc(1050.0), -SEC_H * 2, "fescape"])
+    out.enemies += [{"x": x0 + 1900, "y": 0.0, "kind": "post", "trig": None, "from": None, "delay": 0.0, "run": False},   # one on each storey
+                    {"x": x0 + 1300, "y": -SEC_H, "kind": "post", "trig": None, "from": None, "delay": 0.0, "run": False}]
+    out.xy_checks += [[x0 + r, -SEC_H], [x0 + l, -SEC_H * 2]]
+    out.checks.append(x0 - 60)
+    out.hints.append([x0 - 600, "INTO THE HOUSE, UP THE STAIRS"])
+    out.goal = [x0 + SEC_FLAT_DOOR + 140.0, -SEC_H * 2]   # through the flat's door
+    out.end = x0 + SEC_W - 60.0   # (the street may not end before the stairs at the house's far end: main.gd holds him at end + 500)
+
+
 def last_stand(out, x):   # the prologue's end: a dead-end alley and more of them than Eddie has bullets
     out.boxes += [["crate", x + 200], ["dumpster", x + 1150]]
     out.hints.append([x, "NOWHERE LEFT TO RUN"])
@@ -1531,13 +1619,14 @@ CAMPAIGN = [
      "outro": ["One of them talked before he stopped talking. A laundry on Tenth Avenue."]},
     {"name": "THE LAUNDRY", "seed": 103, "start": 0.35, "end": 0.6, "steam": True,   # (its landmark: steam out of the grates, QUEUE §12)   # (no feature drawing: its laundry is the interior's front now)
      "fixed": ["crate_cover", "barrel_trap", "laundry", "blackout", "breather", "warehouse_arena", "drum_duo", "rush"],   # (the tailor's fire escape: BACK STREETS only)
+     "extra": refuge,   # (user 18. 11.: the street fills, he runs into a tenement and up - TENEMENTS opens in its flat)
      "intro": ["Steam, starch and gun oil.", "Nobody washes shirts at three in the morning."],
      "diary": "Nov 20. Insurance paid out $400,000 to a company owned by a company owned by a church charity. The Saint's charity.",
-     "outro": ["A receipt in the back room, signed M. T.", "The back door led up. They always lead up."]},
+     "outro": ["A receipt in the back room, signed M. T.", "Then the cars came."]},
     {"name": "TENEMENTS", "seed": 104, "start": 0.45, "end": 0.7, "storm": True,
-     "fixed": ["tenement", "ambush_behind", "drum_duo", "car_ambush", "breather", "barrel_trap", "tenement", "gauntlet", "scaffold"],
+     "fixed": ["flat_start", "ambush_behind", "drum_duo", "car_ambush", "breather", "barrel_trap", "crate_cover", "gauntlet", "scaffold"],   # (18. 11.: in the flat THE LAUNDRY ended in; no hallway twice)
      "roof": True, "roofs": ["roof_b", "roof_a"],
-     "intro": ["Iron stairs, wet as a liar's palm."],
+     "intro": ["Four of them on the stairs, and one window."],
      "diary": "Dec 9. The precinct log says who walked the Pier 17 beat that night. I wish I hadn't read it. I need to hear it from him before I take it upstairs.",
      "outro": ["Below me the neon said JAZZ.", "Mickey Teague owned the Blue Note. Somebody else owned Mickey."]},
     {"name": "THE BLUE NOTE", "seed": 105, "feature": "bluenote_row", "neon_street": True,   # (its landmark: the night street full of neon, QUEUE §12)
@@ -1679,6 +1768,8 @@ def gd(campaign):
             if lv.get("moving"): out.append(f'\t\t\t"moving": {lv["moving"]},')
             if lv.get("cops"): out.append('\t\t\t"cops": true,')
             if getattr(m, "exit", None): out.append(f'\t\t\t"exit": {f(m.exit)},')
+            if getattr(m, "goal", None): out.append(f'\t\t\t"goal": [{f(m.goal[0])}, {f(m.goal[1])}],')
+            if getattr(m, "start_xy", None): out.append(f'\t\t\t"start_xy": [{f(m.start_xy[0])}, {f(m.start_xy[1])}], "break_in": 3.5,')
             if m.roof:
                 rp_ = ", ".join(f'["{g[0]}", {f(g[1])}]' for g in m.roof[2])
                 out.append(f'\t\t\t"roof": {{"x0": {f(m.roof[0])}, "x1": {f(m.roof[1])}, "y": {f(m.kit["y"])}, "goal": {f(m.roof[3])}, '

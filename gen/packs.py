@@ -10,7 +10,7 @@ Run from the repo root: python3 gen/packs.py
 import re, os, glob, collections, json
 
 GROUP_OF_CHAPTER = {0: 'a', 1: 'a', 2: 'b', 3: 'c', 4: 'd'}
-CUTS = {'opening': 'a', 'eddie': 'a', 'interlude': 'a', 'teague': 'a', 'dream': 'e',   # (the dream's panels: before 1:5, with its own pack)
+CUTS = {'opening': 'a', 'eddie': 'a', 'interlude': 'a', 'horde': 'a', 'teague': 'a', 'dream': 'e',   # (the dream's panels: before 1:5, with its own pack)
        
         'docks': 'b', 'cranes': 'b', 'lucia': 'b', 'hold': 'b', 'harbor': 'b', 'kessler': 'b', 'memory': 'b', 'underground': 'c', 'briggs': 'c'}
 

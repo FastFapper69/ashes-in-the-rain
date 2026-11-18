@@ -12,7 +12,7 @@ A story-driven noir told as an animated comic: narration over painted panels, be
 
 ## In-game comic panels (idea, user 18. 11., rule 30; QUEUE §17)
 - Like Max Payne 1/2: a few times a chapter, mid-map, a short comic page shows what is happening in the scene and why Frank does the next thing (a horde arrives, he runs for a house, he jumps). The map hands over: map N ends in the panel, map N+1 opens with its consequence.
-- First instance the user sketched: end of THE LAUNDRY - panel: a crowd of men pours in; he has to run - he gets into a tenement, up to the first floor - panel, end of map. TENEMENTS opens with that escape: out of the first-floor window, he catches a washing line and slides down it to the street.
+- Built 18. 11. (HANDOFF 96): level event ["comic", x, scene] -> main.gd _mid_comic (paused like a before-map page, once per map, never for bots); a map can be won by getting somewhere: level "goal" [x, y] (no _all_down). First instance the user sketched: end of THE LAUNDRY - panel: a crowd of men pours in; he has to run - he gets into a tenement, up to the first floor - panel, end of map. TENEMENTS opens with that escape: out of the first-floor window, he catches a washing line and slides down it to the street.
 
 ## Cutscenes (cutscene.gd)
 - Panels 1920×815 in `art/cut`, WebP (never Basis). `LIVE` = live fire/smoke spots per panel. Ids: eddie, interlude, teague, dream, kessler, underground, briggs, docks, memory.

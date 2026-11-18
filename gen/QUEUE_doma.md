@@ -272,7 +272,7 @@ F. HOTOVO 18. 11. (HANDOFF 89; LAST TRAIN samostatně 5-10 zásahů místo ~20).
 
 ## 17. NÁPAD (uživatel 18. 11.): mapy mají vždy význam + komiks uprostřed hry jako Max Payne 1 a 2 (pravidlo 30)
 Pár míst v každé kapitole: krátká komiksová stránka přímo ve hře ukáže, co se ve scéně děje a proč Frank udělá další krok. Konec mapy = začátek další.
-První návrh od uživatele (zatím nestavěno, čeká na schválení rozsahu):
+První návrh od uživatele - POSTAVENO 18. 11. (HANDOFF 96):
 - konec THE LAUNDRY: komiks - dorazí hromada nepřátel, musí utéct -> uteče do činžáku do 1. patra -> komiks -> konec mapy;
 - začátek TENEMENTS: útěk pokračuje skokem z okna v 1. patře, chytí se šňůry na prádlo a sjede po ní na zem.
 Opraveno hned (HANDOFF 95): v TENEMENTS vcházel do přízemí a vyskakoval z okna v patře - teď vyskočí z okna v přízemí.

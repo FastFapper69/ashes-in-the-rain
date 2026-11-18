@@ -44,11 +44,18 @@ const SCENES := {
 		{"img": 53, "from": [0.35, 0.45, 1.05], "to": [0.66, 0.58, 1.3], "rain": 0.7, "hit": 1,
 			"lines": ["In his fist, a matchbook from the Blue Note.", "His notebook lay open in the rain, one word on the page. My name. They took it before I could ask it anything."]},
 	],
+	# THE LAUNDRY's street fills (user 18. 11., rule 30): a page in the middle of the map
+	"horde": [
+		{"img": 324, "from": [0.45, 0.45, 1.0], "to": [0.6, 0.55, 1.18], "rain": 1.1, "hit": 1,
+			"lines": ["Three cars. Fifteen men. Somebody had made a phone call about the man asking questions in the laundry.", "Too many for one gun. Across the street a tenement door stood open."]},
+	],
 	"interlude": [
 		{"img": 54, "from": [0.62, 0.45, 1.0], "to": [0.52, 0.52, 1.2], "rain": 0.0,
 			"lines": ["A laundry receipt. Two hundred dollars for shirts nobody would ever wear.", "Signed M. T. Mickey Teague signed everything. Even his fights."]},
 		{"img": 55, "from": [0.5, 0.5, 1.12], "to": [0.42, 0.45, 1.0], "rain": 0.0,
 			"lines": ["Two weeks ago Eddie bought the coffee. Eddie never bought the coffee.", "\"Frank, I need to tell you something. Tomorrow.\"", "Tomorrow was a long time coming. Then it didn't come at all."]},
+		{"img": 325, "from": [0.4, 0.5, 1.15], "to": [0.62, 0.45, 1.0], "rain": 0.9, "hit": 1, "at": ["tl", "bl"],   # (the window and its line on the right stay clear)
+			"lines": ["Top floor, a stranger's flat. The door wouldn't hold long. The stairs were full of boots.", "Behind me a window, and a washing line strung across to the next house. My mother always said I'd break my neck on one."]},
 	],
 	"teague": [
 		{"img": 56, "from": [0.3, 0.6, 1.15], "to": [0.55, 0.5, 1.0], "rain": 0.0, "at": ["tl", "tl", "br"],
@@ -124,7 +131,7 @@ const SCENES := {
 
 ## The piano under each story: Satie's first Gnossienne for Eddie, a slow lament for the guilt,
 ## a smoky jazz for the nights on the move.
-const PIANO := {"opening": "gnossienne", "eddie": "gnossienne", "interlude": "broken_trust", "teague": "melancholia",
+const PIANO := {"opening": "gnossienne", "eddie": "gnossienne", "interlude": "broken_trust", "horde": "broken_trust", "teague": "melancholia",
 	"dream": "melancholia", "memory": "melancholia", "kessler": "melancholia", "docks": "broken_trust", "cranes": "broken_trust", "lucia": "broken_trust", "hold": "broken_trust", "harbor": "melancholia", "underground": "broken_trust", "briggs": "gnossienne"}
 
 ## What lives in each picture, so no panel is a still: [x, y, radius (fractions of the picture), kind].
@@ -180,9 +187,13 @@ const AUDIO := {
 		{"bed": {"city": -19.0}, "rain": 0.6, "cues": [[0.8, "drip", -8.0], [2.4, "drip", -10.0], [4.1, "drip", -9.0]]},
 		{"bed": {"city": -20.0}, "rain": 0.7, "cues": [[1.2, "page", -9.0]]},
 	],
+	"horde": [
+		{"bed": {"city": -15.0}, "rain": 1.1, "cues": [[0.3, "car_arrive", -4.0], [1.4, "door", -8.0], [1.9, "door", -9.0], [2.6, "step1", -9.0], [2.9, "step2", -9.0]]},
+	],
 	"interlude": [
 		{"bed": {"steam": -17.0, "lamp_hum": -22.0}, "rain": 0.5, "in": true, "cues": [[1.0, "page", -9.0]]},
 		{"bed": {"crowd": -17.0}, "rain": 0.7, "in": true, "cues": [[1.0, "cup", -6.0], [7.5, "cup", -8.0]]},
+		{"bed": {"lamp_hum": -24.0}, "rain": 0.9, "in": true, "music": DREAD, "cues": [[0.5, "knock", -2.0], [1.3, "knock", -3.0], [2.4, "step1", -9.0], [2.7, "step2", -9.0], [3.6, "knock", -1.0]]},
 	],
 	"teague": [
 		{"bed": {"lamp_hum": -21.0}, "rain": 0.8, "in": true, "cues": [[0.3, "shot_player", -2.0], [0.8, "body_fall", -3.0], [1.9, "coo", -10.0], [2.6, "wing", -14.0]]},   # the empty club; his pigeons stir in their cage

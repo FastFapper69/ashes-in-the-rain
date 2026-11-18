@@ -738,6 +738,17 @@ func _ready() -> void:
 	if checkpoint > 0.0 and not in_menu:
 		player.position = Vector2(checkpoint, _floor_at(checkpoint, checkpoint_y - 10.0 if checkpoint_y < 0.0 else -2000.0))
 		cam_start = player.position.x
+	elif level.has("start_xy") and not in_menu:   # (TENEMENTS, 18. 11.: he starts where THE LAUNDRY left him - in the flat upstairs)
+		var sxy: Array = level["start_xy"]
+		player.position = Vector2(float(sxy[0]), float(sxy[1]))
+		_ground_y = float(sxy[1])
+		cam_start = player.position.x
+		if level.has("break_in"):   # the men on the stairs break the flat's door in behind him
+			get_tree().create_timer(float(level["break_in"]), false).timeout.connect(func() -> void:
+				var f := _flat_at_storey(float(sxy[1]))
+				if not f.is_empty() and not f["open"] and not over:
+					_kick_door(f)
+					_say_near(f))
 	sets = SetpiecesScript.new()
 	add_child(sets)
 	sets.setup(self)
@@ -2913,7 +2924,11 @@ func _process(delta: float) -> void:
 	sets.tick(delta)
 	mapfx.tick(delta)
 	_tick_exit(delta)
-	if not cleared and not over and roof.is_empty() and player.position.x > level_end and _all_down():
+	if level.has("goal"):   # (rule 30, 18. 11.) a map won by getting somewhere: the flat he runs into, the crowd behind him
+		var gl: Array = level["goal"]
+		if not cleared and not over and player.position.x > float(gl[0]) and absf(player.position.y - float(gl[1])) < 80.0:
+			_map_cleared()
+	elif not cleared and not over and roof.is_empty() and player.position.x > level_end and _all_down():
 		_map_cleared()
 	elif not cleared and not over and not roof.is_empty() and player.position.x < float(roof["goal"]) \
 			and player.position.y < float(roof["y"]) + 60.0 and _roof_clear():
@@ -6331,6 +6346,21 @@ func _map_cleared() -> void:
 
 
 ## A comic-page cutscene over the game, then `then`.
+## A comic page in the middle of a map (rule 30, like Max Payne's): the street holds still under it, then play goes
+## on where it stopped. Once per map - played again (map done before), it is not shown.
+func _mid_comic(id: String) -> void:
+	if OS.get_cmdline_user_args().has("--log-sets"): print("COMIC ", id, " t ", snappedf(_at, 0.1))
+	if _auto != "" or MenuScript.is_done(chapter, map) or over:
+		return
+	get_tree().paused = true
+	_play_cut(id, func() -> void:
+		get_tree().paused = false
+		hud.release_all()
+		_in_cut = false
+		hud.visible = true
+		_grace = maxf(_grace, 1.2))   # (a beat to take it in before anybody fires)
+
+
 func _play_cut(id: String, then: Callable, test := false) -> void:
 	crumb("cut " + id + " " + _mem_line())
 	Engine.time_scale = 1.0
@@ -7024,6 +7054,16 @@ func _flat_door_block(before_x: float) -> void:
 const FLAT_DOOR_HINGE := 65.0   # the door's hinge: on the painted post, this far right of the passage's middle
 const FLAT_KICK_FROM := 330.0   # how far before the door a run turns into the flying kick
 const FLAT_SWING := 2.35        # how far the kicked door swings round its hinge (radians): back into the flat, onto the stove
+func _say_near(f: Dictionary) -> void:   # the first man through the door he broke
+	var best = null
+	for e in enemies:
+		if e["alive"] and absf(float(e["node"].position.y) - float(f["y"])) < 60.0 and (best == null or absf(e["node"].position.x - float(f["x"])) < absf(best["node"].position.x - float(f["x"]))):
+			best = e
+	if best != null:
+		best["seen"] = true
+		_say(best["node"], "THERE HE IS!")
+
+
 func _kick_door(f: Dictionary) -> void:
 	f["open"] = true
 	var d: Polygon2D = f["door"]
