@@ -2881,6 +2881,7 @@ func _process(delta: float) -> void:
 		want_x = lerpf(want_x, _cue_at.x, k)
 		want_y = lerpf(want_y, _cue_at.y, k * 0.5)
 	want_x = _room_cam_x(want_x)
+	want_y = _room_cam_y(want_y)
 	cam.position = Vector2(lerpf(cam.position.x, want_x, 1.0 - exp(-5.5 * real)),
 			lerpf(cam.position.y, want_y, 1.0 - exp(-3.0 * real)))
 	var held := _room_cam_x(cam.position.x)   # (through the door the room is simply there: never a glimpse past its walls)
@@ -8112,6 +8113,20 @@ func _room_cam_x(x: float) -> float:
 	return clampf(x, x0, x1)
 
 
+## Up on an interior's catwalk the camera never looks over the top of the drawing (user 18. 11.: a black band
+## over the laundry's roof trusses): it stops where the drawing's top meets the screen's.
+func _room_cam_y(y: float) -> float:
+	var i := _plain_room_at(player.position)
+	if i < 0 or _section_at(player.position) >= 0:
+		return y
+	var x0 := float(_room_art[i][0])
+	for t in _room_tops:
+		if absf(float(t[0]) - x0) < 1.0:
+			var half: float = get_viewport().get_visible_rect().size.y * 0.5 / cam.zoom.y
+			return maxf(y, float(t[2]) + half - 10.0)
+	return y
+
+
 ## Which interior (index into _room_art) a point is in, or -1 out in the street.
 func _plain_room_at(p: Vector2) -> int:
 	if p.y <= GROUND_STOREY:
@@ -9440,6 +9455,36 @@ func _going_round(e: Dictionary, m, delta: float) -> void:
 
 ## Another man stands within a man's width or two of this one on his floor: the one further from the detective
 ## steps back away from him (returns the way to step, 0 when there is room).
+## (user 18. 11. look at the big laundry: two men drawn one over the other) two men on one floor never stand in the
+## same spot: whoever is nearer to Frank stays, the other slides back a step, never into cover or off his floor.
+const SEPARATE := 90.0
+func _separate(delta: float) -> void:
+	for i in enemies.size():
+		var a: Dictionary = enemies[i]
+		if not a["alive"] or a["boss"] or not String(a["state"]) in ["post", "move"]:
+			continue
+		var ma = a["node"]
+		for j in range(i + 1, enemies.size()):
+			var b: Dictionary = enemies[j]
+			if not b["alive"] or b["boss"] or not String(b["state"]) in ["post", "move"]:
+				continue
+			var mb = b["node"]
+			var dx: float = float(mb.position.x) - float(ma.position.x)
+			if absf(float(mb.position.y) - float(ma.position.y)) > 20.0 or absf(dx) > SEPARATE:
+				continue
+			var back = ma if absf(float(ma.position.x) - player.position.x) > absf(float(mb.position.x) - player.position.x) else mb
+			var way := signf(float(back.position.x) - player.position.x)
+			if way == 0.0:
+				way = 1.0
+			var to: float = float(back.position.x) + way * 160.0 * delta
+			var blocked := false
+			for bx in boxes:
+				if bx.grow(30.0).has_point(Vector2(to, float(back.position.y) - 40.0)):
+					blocked = true
+			if not blocked and (back.position.y == 0.0 or _floor_under_ok(Vector2(to, back.position.y))):
+				back.position.x = to
+
+
 const CROWD := 230.0
 func _crowded(e: Dictionary, m) -> float:
 	var away: float = signf(m.position.x - player.position.x)
@@ -9491,6 +9536,7 @@ func _go_close(o: Dictionary) -> void:
 ## Nobody fires at a detective crouched behind cover: they wait for him to show himself.
 func _enemies(delta: float) -> void:
 	_ai_t += delta
+	_separate(delta)
 	_tick_sticks(delta)
 	_tick_loads(delta)
 	var crouched: bool = _player_covered(1.0) or _player_covered(-1.0)
