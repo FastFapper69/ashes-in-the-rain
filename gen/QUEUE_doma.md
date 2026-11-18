@@ -267,6 +267,6 @@ A. HOTOVO 18. 11. (oblečení podle typu, HANDOFF 87). ~~Typy nepřátel nejsou 
 B. HOTOVO 18. 11. (HANDOFF 88). ~~1931: oheň v ulici je malý ("plamínky u kotníků") - větší požáry oken, padající trámy (jako ve snu).~~
 C. LAST TRAIN: mezery mezi vagony k přeskoku, nízké návěstidla (kromě traverz).
 D. HOTOVO 18. 11. (HANDOFF 93). ~~Kessler a Briggs: víc fází souboje (Briggs má štít - ověřit), výrazně jiná postava.~~
-E. Úvodní obrazovky map v docích by mohly mít vlastní "establishing" kresbu (lávka na loď, vrata Kesslerova skladu).
+E. HOTOVO 18. 11. (HANDOFF 94). ~~Úvodní obrazovky map v docích by mohly mít vlastní "establishing" kresbu (lávka na loď, vrata Kesslerova skladu).~~
 F. HOTOVO 18. 11. (HANDOFF 89; LAST TRAIN samostatně 5-10 zásahů místo ~20). ~~Bot: neuhýbá traverzám ani nepoužívá shootdodge při 2+ mužích - zásahy v kap. III jsou proto vyšší než u hráče.~~
 

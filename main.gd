@@ -84,7 +84,7 @@ const TESTIMONY := {
 	"3:4": "\"The Saint's throwing a ball Christmas Eve. Rourke's the guest of honour.\"",
 }
 const CUTS := {"0:0": "eddie", "1:2": "interlude", "1:4": "teague", "2:4": "kessler", "3:4": "briggs"}   # the cutscene after a map ("chapter:map")
-const CUTS_BEFORE := {"0:0": "opening", "1:5": "dream", "2:0": "docks", "2:5": "memory", "3:0": "underground"}   # and before one, the first time it is played
+const CUTS_BEFORE := {"0:0": "opening", "1:5": "dream", "2:0": "docks", "2:1": "cranes", "2:2": "lucia", "2:3": "hold", "2:4": "harbor", "2:5": "memory", "3:0": "underground"}   # and before one, the first time it is played
 const BOSS_HP := 16
 const BOSS_NAMES := {"teague": "MICKEY 'CANVAS' TEAGUE", "kessler": "BRUNO KESSLER", "briggs": "LT. HARLAN BRIGGS"}
 const BOSS_FACES := {"teague": "boxer", "kessler": "cap", "briggs": "briggs"}

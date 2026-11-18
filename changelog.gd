@@ -7,6 +7,7 @@ const ENTRIES := [
 	["18 NOV 2026", [
 		"The docks and the subway: every map its own stretch of waterfront or line; two new dock sheds",
 		"Chapter III is a slope now, not a wall: three gunmen at once only by its end",
+		"Every dock map opens on its own comic panel: the cranes, the Santa Lucia, the hold, the harbor master's light",
 		"The bosses change in their last third: Teague drops his guns for his fists (and bottles), Kessler falls back and fires wild, Briggs's shield can be shot off his arm",
 		"In the dream the dead come for you: the shadows of the dock workers who burned there, ember eyes, a touch that burns",
 		"The dream's ash thickens like his guilt: the deeper in, each time round, each man shot with his hands up",

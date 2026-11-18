@@ -96,6 +96,23 @@ const SCENES := {
 		{"img": 77, "from": [0.3, 0.45, 1.15], "to": [0.55, 0.45, 1.0], "rain": 1.4,
 			"lines": ["Up in the Saint's tower, two old men were drinking to me.", "\"He'll come,\" Rourke said. \"He always comes. He's his father's son.\""]},
 	],
+	# (QUEUE §16 E, 18. 11.) one establishing panel before each dock map after the first: where he is, in a line or two
+	"cranes": [
+		{"img": 320, "from": [0.35, 0.4, 1.15], "to": [0.55, 0.55, 1.0], "rain": 1.2, "at": ["tl", "bl"],   # (Frank is low in the middle)
+			"lines": ["The cranes stood over the quay like gallows waiting for a hanging.", "Somebody up there was working the night shift. Nobody unloads honest cargo at four in the morning."]},
+	],
+	"lucia": [
+		{"img": 321, "from": [0.6, 0.6, 1.15], "to": [0.45, 0.4, 1.0], "rain": 1.0,
+			"lines": ["The Santa Lucia, out of Palermo. Registered to a company with no office and no telephone.", "Vail's ships always came in at night. Honest freight doesn't mind the sun."]},
+	],
+	"hold": [
+		{"img": 322, "from": [0.62, 0.3, 1.0], "to": [0.5, 0.6, 1.25], "rain": 0.4,
+			"lines": ["Below decks the air was older than the ship.", "Whatever Vail was shipping, he didn't want it counted."]},
+	],
+	"harbor": [
+		{"img": 323, "from": [0.35, 0.55, 1.1], "to": [0.68, 0.3, 1.2], "rain": 1.1,
+			"lines": ["The harbor master's office. One light on upstairs.", "Kessler had kept that light burning for eight years. Like a man waiting for a knock."]},
+	],
 	"docks": [
 		{"img": 60, "from": [0.3, 0.55, 1.12], "to": [0.6, 0.45, 1.0], "rain": 1.2,
 			"lines": ["The waterfront at four in the morning. The ash was thicker down here.", "Pier 17 had been dead for eight years. Nobody told the smoke."],
@@ -108,7 +125,7 @@ const SCENES := {
 ## The piano under each story: Satie's first Gnossienne for Eddie, a slow lament for the guilt,
 ## a smoky jazz for the nights on the move.
 const PIANO := {"opening": "gnossienne", "eddie": "gnossienne", "interlude": "broken_trust", "teague": "melancholia",
-	"dream": "melancholia", "memory": "melancholia", "kessler": "melancholia", "docks": "broken_trust", "underground": "broken_trust", "briggs": "gnossienne"}
+	"dream": "melancholia", "memory": "melancholia", "kessler": "melancholia", "docks": "broken_trust", "cranes": "broken_trust", "lucia": "broken_trust", "hold": "broken_trust", "harbor": "melancholia", "underground": "broken_trust", "briggs": "gnossienne"}
 
 ## What lives in each picture, so no panel is a still: [x, y, radius (fractions of the picture), kind].
 ## neon: buzzes and now and then stutters; lamp: breathes; fire: flickers fast; siren: turns on and
@@ -195,6 +212,18 @@ const AUDIO := {
 		{"bed": {"fire": -20.0}, "rain": 0.0, "music": [-16.0, -14.0, -80.0, -80.0], "cues": [[0.9, "clink", -5.0]]},
 		{"bed": {"fire": -20.0}, "rain": 0.0, "music": [-80.0, -80.0, -16.0, -80.0], "cues": [[0.5, "shot_player", -1.0], [1.3, "body_fall", -3.0]]},
 		{"bed": {"fire": -15.0}, "rain": 1.4, "in": true, "music": DREAD, "cues": [[1.0, "thunder", -4.0], [3.2, "toast", -4.0]]},
+	],
+	"cranes": [
+		{"bed": {"water": -12.0, "city": -24.0}, "rain": 1.2, "cues": [[1.2, "chain", -9.0], [4.5, "creak", -10.0], [7.0, "foghorn", -12.0]]},
+	],
+	"lucia": [
+		{"bed": {"water": -10.0}, "rain": 1.0, "cues": [[1.5, "creak", -9.0], [5.0, "foghorn", -10.0]]},
+	],
+	"hold": [
+		{"bed": {"water": -20.0}, "rain": 0.4, "in": true, "cues": [[0.8, "drip", -8.0], [2.6, "chain", -12.0], [4.4, "drip", -9.0]]},
+	],
+	"harbor": [
+		{"bed": {"water": -11.0, "lamp_hum": -26.0}, "rain": 1.1, "cues": [[2.0, "foghorn", -9.0]]},
 	],
 	"docks": [
 		{"bed": {"water": -9.0, "city": -24.0}, "rain": 1.2, "cues": [[2.0, "foghorn", -8.0], [13.0, "foghorn", -11.0]]},
