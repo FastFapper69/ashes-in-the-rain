@@ -17,9 +17,13 @@ src = open('levels.gd').read()
 src = src.split('const SANDBOX')[0]   # trial maps use chapter I drawings: they add nothing to the packs
 chapters = re.split(r'\n\t\{"title": ', src)[1:]
 files = collections.defaultdict(set)   # path -> groups
+# the big laundry's other drawings (main.gd ROOM_PARTS, 18. 11.): never named in levels.gd themselves - they go
+# wherever its long front goes (only chapter I's THE LAUNDRY), or the base pack grew past GitHub's 100 MB
+PART_OF = {'laundry_mid': 'front_laundry_l', 'laundry_end': 'front_laundry_l'}
 for f in sorted(set(x.replace(os.sep, '/') for x in glob.glob('art/street/*.png') + glob.glob('art/rooms/**/*.png', recursive=True))):   # (/ on Windows too)
     stem = os.path.basename(f)[:-4]
-    base = re.sub(r'_(lit|solid|neon\d|n)$', '', stem)
+    base = re.sub(r'_(lit|solid|neon\d|n|catwalk)$', '', stem)
+    base = PART_OF.get(base, base)
     for i, c in enumerate(chapters):
         if re.search(r'"%s"' % re.escape(base), c):
             files[f].add(GROUP_OF_CHAPTER[i])
