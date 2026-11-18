@@ -3113,6 +3113,16 @@ func _auto_step(delta: float) -> void:
 			hud.move = -1.0
 		if near != null and absf(near.position.x - player.position.x) < 1900.0:
 			hud.fire_tapped = true
+		hud.duck = false   # (audit 18. 11., QUEUE §16 F) on the last train: down flat under a girder, as a player does on the red lamp
+		if sets != null and sets._speed > 0.0 and move_state == "ground":
+			for bl in sets._beams_live:
+				var gx: float = (bl[0] as Node2D).position.x - player.position.x
+				if gx > -80.0 and gx < 1100.0:
+					hud.duck = true
+					hud.fire_tapped = false   # (a shot from down there pops him up into it - nor one tapped a moment ago)
+					_fire_buf = 0.0
+					_queued_shot = false
+					hud.move = 0.0   # (still: running into it, a duck is a slide, and a slide comes up again)
 		if hud.move != 0.0 and move_state == "ground":
 			for r in _ropes:   # a crane rope before a wall of cargo: jump for it (not when he is on his way up a ladder)
 				if r["kind"] == "swing" and lad == null and player.position.x > (r["a"] as Vector2).x - 110.0 and player.position.x < (r["a"] as Vector2).x - 40.0:
@@ -3125,7 +3135,7 @@ func _auto_step(delta: float) -> void:
 					if r["kind"] == "swing" and player.position.x > rx - 40.0 and player.position.x < rx + 900.0:
 						_bot_back = 0.25 + (player.position.x - rx + 300.0) / 450.0
 						_bot_stuck = 0.0
-			if _bot_stuck > 0.3:
+			if _bot_stuck > 0.3 and not hud.duck:
 				hud.jump_tapped = true
 				print("BOT jump at ", int(player.position.x))
 				_bot_stuck = 0.0

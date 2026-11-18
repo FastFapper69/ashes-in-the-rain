@@ -780,6 +780,7 @@ func _tick_moving(delta: float) -> void:
 		if was >= px and b.position.x < px:   # it reaches him: down flat or under it, or it takes him off his feet
 			for y in range(-470, -320, 25):
 				if game.player.hit_part(Vector2(px, y)) != "":
+					if OS.get_cmdline_user_args().has("--log-sets"): print("GIRDER HIT duck ", snappedf(game.player.duck, 0.01), " state ", game.move_state, " pop ", game._pop, " hud ", game.hud.duck, " dive ", snappedf(game.player.dive, 0.01), " t ", snappedf(_t, 0.1))
 					game._bullet_hit(Vector2(px, y), false)
 					game._shake = 0.5
 					game.sfx.play("body_fall", 0.0, px, 0.05)

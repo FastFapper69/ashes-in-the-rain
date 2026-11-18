@@ -268,5 +268,5 @@ B. HOTOVO 18. 11. (HANDOFF 88). ~~1931: oheň v ulici je malý ("plamínky u kot
 C. LAST TRAIN: mezery mezi vagony k přeskoku, nízké návěstidla (kromě traverz).
 D. Kessler a Briggs: víc fází souboje (Briggs má štít - ověřit), výrazně jiná postava.
 E. Úvodní obrazovky map v docích by mohly mít vlastní "establishing" kresbu (lávka na loď, vrata Kesslerova skladu).
-F. Bot: neuhýbá traverzám ani nepoužívá shootdodge při 2+ mužích - zásahy v kap. III jsou proto vyšší než u hráče.
+F. HOTOVO 18. 11. (HANDOFF 89; LAST TRAIN samostatně 5-10 zásahů místo ~20). ~~Bot: neuhýbá traverzám ani nepoužívá shootdodge při 2+ mužích - zásahy v kap. III jsou proto vyšší než u hráče.~~
 
