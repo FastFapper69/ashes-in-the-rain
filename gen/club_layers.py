@@ -35,6 +35,13 @@ m = poly(d.shape, [(1990, 1135), (2140, 1140), (2700, 690), (2700, 430), (2020, 
 m |= poly(d.shape, [(2640, 380), (3055, 380), (3055, 690), (2640, 690)])
 m |= poly(d.shape, [(2675, 680), (2750, 680), (2750, FLOOR), (2675, FLOOR)])
 save(a, m, "club_bar_gallery.png", SHIFT_A)
+# (18. 11.: the bar to dive onto and skid along is the game's own counter, art/props/bar_counter.png, in front of the back
+# bar) the painted counter and stools out: art_src 307 is 303 without them; only its bar area is taken (Gemini moved other
+# bits a little), feathered into 303
+c = load("307.jpg")
+yy, xx = np.mgrid[:H, :W]
+w = np.clip(np.minimum.reduce([(xx - 960) / 40.0, (2080 - xx) / 40.0, (yy - 760) / 40.0, (1270 - yy) / 40.0]), 0, 1)[..., None]
+b = b * (1 - w) + c * w
 Image.fromarray(b.astype(np.uint8)).save(os.path.join(OUT, "club_bar.png"))
 a, b = load("304.jpg"), load("305.jpg")
 d = diff(a, b)

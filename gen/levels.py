@@ -202,10 +202,11 @@ def big_club(c, hard, boss=False):
     for x, y in ((cx(0, 420), -824), (cx(0, 1600), -824), (cx(1, 900), -824), (cx(1, 2300), -824)):
         c.lamp(x, y)
     # (room x: the bar room 0-2600, the hall 2600-5300, the stage room 5300-6495; the stairs 1739-2259)
-    for kind, x in (("crate", 900), ("crate_long", 3000), ("crate", 3900), ("crate_long", 4700), ("crate", 5380)):
+    c.plats.append([820.0, -BAR_TOP, 900.0, "bar"])   # the counter before the back bar: dive onto it and skid its length
+    for kind, x in (("crate", 300 + 260), ("crate_long", 3000), ("crate", 3900), ("crate_long", 4700), ("crate", 5380)):
         c.box(kind, x)
     tough = "tommy" if hard > 0.5 else "post"
-    c.foe(1450).foe(3450, kind="shotgun" if hard > 0.4 else "post").foe(4300, kind=tough).foe(5150)   # bar, dance floor
+    c.foe(2420).foe(3450, kind="shotgun" if hard > 0.4 else "post").foe(4300, kind=tough).foe(5150)   # bar, dance floor
     c.foe(3600, CLUB_DECK).foe(4800, CLUB_DECK, kind="shotgun").foe(5100, CLUB_DECK, kind=tough)       # the gallery
     c.runner(4000, 2400, 5900, kind="post", delay=1.0)
     if boss:
