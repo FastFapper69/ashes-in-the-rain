@@ -316,7 +316,7 @@ func caption(lines: Array) -> void:
 	# the lines stack upwards from the bottom edge, so the last one always sits lowest.
 	var Paper = load("res://paper.gd")
 	var font: Font = load("res://fonts/ComicNeue-BoldItalic.woff")
-	var fs := 22
+	var fs := 26   # (audit 18. 11.: 22 read small on a phone)
 	var view := get_viewport().get_visible_rect().size
 	var left := _stick_at.x + 120.0   # clear of the thumbstick's ring
 	var right := _slow.position.x - 92.0   # clear of the stopwatch and its meter
@@ -794,13 +794,13 @@ func combo(streak: int, points: int, how: String) -> void:
 	var cap: Control = Paper.caption(text, load("res://fonts/ComicNeue-BoldItalic.woff"), 22, 560.0)
 	_combo_box = cap
 	var under_boss := is_instance_valid(_boss_box) and _boss_box.visible   # the boss's name owns the top
-	var y := 116.0 if under_boss else 22.0
-	if under_boss and is_instance_valid(_hint_box):   # a how-to line up there too: below it
-		y = _hint_box.position.y + _hint_box.size.y + 10.0
-	cap.position = Vector2(view.x - 124.0 - cap.size.x, y)
+	var y := 112.0 if under_boss else 26.0
+	# (audit 18. 11.: right beside the pause button) in the middle at the top, between the HUD plate and the pause
+	var mid := (plate_right() + view.x - 120.0) * 0.5
+	cap.position = Vector2(roundf(mid - cap.size.x * 0.5), y)
 	cap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(cap)
-	cap.pivot_offset = cap.size * Vector2(1.0, 0.5)
+	cap.pivot_offset = cap.size * Vector2(0.5, 0.5)
 	cap.scale = Vector2.ONE * (1.0 + 0.06 * streak)
 	var tw := cap.create_tween().set_ignore_time_scale(true)
 	tw.tween_property(cap, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)

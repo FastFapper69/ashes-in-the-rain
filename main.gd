@@ -2864,9 +2864,9 @@ func _process(delta: float) -> void:
 			want_zoom = maxf(want_zoom, (get_viewport().get_visible_rect().size.x + 60.0) / (float(_room_art[ri][1]) - float(_room_art[ri][0])))
 	var rim := clampf((0.85 - Engine.time_scale) / 0.5, 0.0, 1.0) if not over else 0.0
 	player.set_rim(rim)
-	for e in enemies:
+	for e in enemies:   # (chapter I audit 18. 11.: black coats lost in dark doorways) a faint rim always, the full one in slowed time
 		if e["alive"] and is_instance_valid(e["node"]):
-			e["node"].set_rim(rim)
+			e["node"].set_rim(maxf(rim, 0.35))
 	if wide_shot > 0.0:   # a set piece bigger than the picture (the El's train over the street): the camera pulls back for it
 		want_zoom *= 1.0 - 0.28 * wide_shot
 	if Engine.time_scale < 0.8 and not over:   # (audit 17. 11.) slowed time leans in a little: the moment fills the picture
@@ -7967,10 +7967,12 @@ func _dream_vfx() -> void:
 	var x := 700.0
 	var k := 0
 	while x < end + 1500.0:
-		var f := _flame(Vector2(x, 190.0), randf_range(330.0, 430.0), k * 5, 7)
-		f.modulate = _undo_night(0.3) * Color(1.0, 0.85, 0.75)
+		# (chapter I audit 18. 11.: men behind them vanished) knee high: the fire is near, the men's bodies stay in sight
+		var f := _flame(Vector2(x, 190.0), randf_range(240.0, 300.0), k * 5, 7)
+		f.modulate = _undo_night(0.3) * Color(1.0, 0.85, 0.75, 0.85)
 		if k % 2 == 0:   # and a lower one leaning in beside it, so it is a fire and not a candle
-			_flame(Vector2(x + randf_range(110.0, 190.0), 200.0), randf_range(200.0, 270.0), k * 5 + 2, 7)
+			var f2 := _flame(Vector2(x + randf_range(110.0, 190.0), 200.0), randf_range(170.0, 220.0), k * 5 + 2, 7)
+			f2.modulate.a = 0.85
 		x += randf_range(900.0, 1500.0)
 		k += 1
 	for sp in _dream_soot:
