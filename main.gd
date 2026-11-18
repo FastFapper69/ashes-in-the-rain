@@ -8060,7 +8060,8 @@ const FIRE_SPOTS := {
 	"fire_c": [[0.307, 0.84, 0.375, 0.266], [0.768, 0.762, 0.198, 0.19], [0.929, 0.901, 0.147, 0.094], [0.105, 0.443, 0.195, 0.085],
 		[0.675, 0.286, 0.099, 0.137], [0.929, 0.493, 0.135, 0.093], [0.218, 0.24, 0.108, 0.057]],
 	# the rooms gone wrong (gen/process_dream.py); fires on a beam, a stair or the flying front page stay painted
-	"fire_d": [[0.711, 0.891, 0.362, 0.326], [0.302, 0.721, 0.262, 0.251], [0.105, 0.448, 0.2, 0.085], [0.93, 0.501, 0.143, 0.092],
+	# (18. 11.: fire_d's two big fires burn behind the painted huddled people - in front of them they set their heads alight)
+	"fire_d": [[0.711, 0.891, 0.362, 0.326, false], [0.302, 0.721, 0.262, 0.251, false], [0.105, 0.448, 0.2, 0.085], [0.93, 0.501, 0.143, 0.092],
 		[0.084, 0.752, 0.184, 0.044], [0.692, 0.283, 0.093, 0.138], [0.225, 0.242, 0.117, 0.072]],
 	"fire_e": [[0.785, 0.638, 0.513, 0.328, false], [0.694, 0.893, 0.468, 0.193], [0.262, 0.79, 0.357, 0.193], [0.922, 0.897, 0.134, 0.108],
 		[0.105, 0.445, 0.197, 0.085], [0.536, 0.875, 0.166, 0.092], [0.349, 0.632, 0.128, 0.061, false]],
@@ -8119,10 +8120,12 @@ func _dream_vfx() -> void:
 	var k := 0
 	while x < end + 1500.0:
 		# (chapter I audit 18. 11.: men behind them vanished) knee high: the fire is near, the men's bodies stay in sight
-		var f := _flame(Vector2(x, 190.0), randf_range(240.0, 300.0), k * 5, 7)
+		# (18. 11.: they stood 190 px down in the black under the boards - rule 22, a flame burns on a drawn floor) on the
+		# front edge of the boards, knee high
+		var f := _flame(Vector2(x, 22.0), randf_range(150.0, 185.0), k * 5, 7)
 		f.modulate = _undo_night(0.3) * Color(1.0, 0.85, 0.75, 0.85)
 		if k % 2 == 0:   # and a lower one leaning in beside it, so it is a fire and not a candle
-			var f2 := _flame(Vector2(x + randf_range(110.0, 190.0), 200.0), randf_range(170.0, 220.0), k * 5 + 2, 7)
+			var f2 := _flame(Vector2(x + randf_range(110.0, 190.0), 26.0), randf_range(105.0, 135.0), k * 5 + 2, 7)
 			f2.modulate.a = 0.85
 		x += randf_range(900.0, 1500.0)
 		k += 1

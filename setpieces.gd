@@ -88,6 +88,11 @@ func tick(delta: float) -> void:
 			"knock":
 				_knock(ev)
 	_tick_blazes(delta)
+	if _loops > 0 and not game.over:   # (18. 11.) each time round worse: the burning roof sheds cinders, more often every loop
+		_cinder_t -= delta
+		if _cinder_t <= 0.0:
+			_cinder_t = randf_range(3.5, 6.0) / _loops
+			_cinders(game.player.position.x + randf_range(-500.0, 1100.0))
 	if _speed > 0.0 and _band != null:
 		_tick_moving(delta)
 	if _blackout_t > 0.0:
@@ -1052,6 +1057,44 @@ func _beam_drop(x: float) -> void:
 		if absf(p.position.x - x) < 290.0 and p.position.y > -260.0:
 			game._burn_player(2)
 		_blaze(x - 280.0, 560.0, 7.0))   # it burns where it lies, then smoulders out
+
+
+var _cinder_t := 2.0
+## A shower of glowing cinders and charred splinters out of the burning roof (the dream, from its first loop on).
+func _cinders(x: float) -> void:
+	if OS.get_cmdline_user_args().has("--log-sets"): print("CINDERS ", int(x), " t ", snappedf(_t, 0.05))
+	var c := CPUParticles2D.new()
+	c.texture = game._soft_glow()
+	c.amount = 30
+	c.lifetime = 1.6
+	c.one_shot = true
+	c.explosiveness = 0.55
+	c.position = Vector2(x, -1150.0)
+	c.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	c.emission_rect_extents = Vector2(160.0, 10.0)
+	c.direction = Vector2(0.0, 1.0)
+	c.spread = 18.0
+	c.gravity = Vector2(30.0, 900.0)
+	c.initial_velocity_min = 60.0
+	c.initial_velocity_max = 220.0
+	c.scale_amount_min = 0.06
+	c.scale_amount_max = 0.13
+	var g := Gradient.new()
+	g.set_color(0, Color(1.0, 0.85, 0.5, 1.0))
+	g.set_color(1, Color(0.9, 0.3, 0.08, 0.0))
+	c.color_ramp = g
+	var add := CanvasItemMaterial.new()
+	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	add.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+	c.material = add
+	c.z_index = 4
+	add_child(c)
+	c.emitting = true
+	game.sfx.play("creak", -10.0, x, 0.1)
+	for k in 5:   # and a few charred splinters with them
+		get_tree().create_timer(randf_range(0.0, 0.5), false).timeout.connect(func() -> void:
+			game.fx.chip(Vector2(x + randf_range(-150.0, 150.0), -700.0)))
+	get_tree().create_timer(1.9, false).timeout.connect(c.queue_free)
 
 
 ## The dream starts over: a white flash, the same room, worse.
