@@ -12,6 +12,7 @@ const ENTRIES := [
 		"Laundry sheets shot through come down: the loose part drops, a sheet shot to rags falls whole",
 		"The burst steam pipe's cloud is no longer cut off at the top",
 		"The El's train no longer pulls the camera back while you are indoors",
+		"The dive is a real shootdodge: a lunge off the front foot, then flat out with the legs long behind; diving backwards he tips onto his back",
 	]],
 	["17 NOV 2026", [
 		"A dive starts with a push-off; in slowed time everyone's outline burns brighter",

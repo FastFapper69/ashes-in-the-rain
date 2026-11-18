@@ -173,10 +173,18 @@ const CLIPS := {
 		[0.75, {"fa": Vector2(0.28, -0.62), "fb": Vector2(0.18, -0.6), "legs": 0.0, "lean": 0.45, "drop": 0.3, "spin": 0.95, "far": Vector2(0.25, 0.3)}],
 		[1.0, {"fa": Vector2(0.12, -0.15), "fb": Vector2(-0.1, -0.05), "legs": 0.0, "lean": 0.05, "drop": 0.08, "spin": 1.0, "far": Vector2(-0.2, -0.1)}]]},
 	# into a dive: a beat of push-off - leaning hard forward, the back leg driving, the free hand reaching (audit 17. 11.)
-	"dive_push": {"len": 0.2, "keys": [
-		[0.0, {"fa": Vector2(0.28, -0.12), "fb": Vector2(-0.42, -0.05), "legs": 0.0, "lean": 0.9, "drop": 0.22, "far": Vector2(0.35, 0.05)}],
-		[0.6, {"fa": Vector2(0.35, -0.3), "fb": Vector2(-0.55, -0.2), "legs": -0.1, "lean": 1.1, "drop": 0.15, "far": Vector2(0.4, 0.0)}],
-		[1.0, {"fa": Vector2(0.3, -0.35), "fb": Vector2(-0.5, -0.3), "legs": -0.1, "lean": 1.0, "drop": 0.1, "far": Vector2(0.38, 0.0)}]]},
+	"dive_push": {"len": 0.22, "keys": [
+		# a lunge: the front foot planted, its knee over it, the back leg already reaching behind; then the front leg
+		# drives him off it long and low and the back leg swings up into the flat dive (no knee drawn up forward)
+		[0.0, {"fa": Vector2(0.3, 0.0), "fb": Vector2(-0.36, -0.03), "legs": 0.15, "lean": 0.55, "drop": 0.2, "far": Vector2(0.35, 0.05)}],
+		[0.55, {"fa": Vector2(0.06, -0.02), "fb": Vector2(-0.5, -0.3), "legs": 0.75, "lean": 1.1, "drop": 0.04, "far": Vector2(0.42, 0.0)}],
+		[1.0, {"fa": Vector2(-0.03, -0.05), "fb": Vector2(-0.1, -0.18), "legs": 1.35, "lean": 1.4, "drop": 0.0, "far": Vector2(0.42, 0.0)}]]},
+	# backwards (he aims behind him and dives away, the shootdodge on his back): both feet push off under him and he
+	# tips back flat; x is in the dive's direction, so his feet in front of him are at minus x
+	"dive_back": {"len": 0.22, "keys": [
+		[0.0, {"fa": Vector2(-0.16, 0.0), "fb": Vector2(0.1, 0.0), "legs": 0.1, "lean": 0.35, "drop": 0.22, "far": Vector2(0.1, 0.1)}],
+		[0.55, {"fa": Vector2(-0.22, -0.1), "fb": Vector2(-0.02, -0.06), "legs": 0.65, "lean": 0.95, "drop": 0.05, "far": Vector2(0.2, 0.05)}],
+		[1.0, {"fa": Vector2(0.03, -0.05), "fb": Vector2(-0.05, -0.1), "legs": 1.35, "lean": 1.4, "drop": 0.0, "far": Vector2(0.25, 0.0)}]]},
 	# through a window: the free arm over the face against the glass, knees up, curled
 	"window": {"len": 0.5, "keys": [
 		[0.0, {"fa": Vector2(0.25, -0.5), "fb": Vector2(0.02, -0.42), "legs": 0.1, "lean": 0.3, "drop": 0.2, "far": Vector2(0.3, -0.12)}],
@@ -672,11 +680,11 @@ func _pose() -> void:
 	var down := clampf(air_v, 0.0, 1.0)
 	var ja := Vector2(0.14, -0.36).lerp(Vector2(0.24, -0.46), up).lerp(Vector2(0.12, -0.1), down)
 	var jb := Vector2(-0.12, -0.24).lerp(Vector2(-0.26, -0.02), up).lerp(Vector2(-0.1, -0.04), down)
-	# a dive is a body flung through the air, not a plank: one knee bends up, the other leg trails a
-	# little bent, and the bend breathes as he flies
-	var flut := sin(_clock * 7.0) * 0.03
-	foot_a = foot_a.lerp(ja, air).lerp(Vector2(0.0, -0.17 + flut), dive).lerp(Vector2(0.74 * slide_side, -0.03), slide)
-	foot_b = foot_b.lerp(jb, air).lerp(Vector2(-0.12, -0.06 - flut), dive).lerp(Vector2(0.3 * slide_side, 0.0), slide)
+	# a dive is the shootdodge (user 18. 11.: "like Max Payne", the knee forward rejected): laid out flat, the legs
+	# long behind him and together, only a soft bend at the knees (down, toward the ground), breathing as he flies
+	var flut := sin(_clock * 7.0) * 0.015
+	foot_a = foot_a.lerp(ja, air).lerp(Vector2(-0.03, -0.05 + flut), dive).lerp(Vector2(0.74 * slide_side, -0.03), slide)
+	foot_b = foot_b.lerp(jb, air).lerp(Vector2(0.05, -0.1 - flut), dive).lerp(Vector2(0.3 * slide_side, 0.0), slide)
 	if hang > 0.0:   # hanging: the legs hang; climbing, the knees come up in turn to grip the rope
 		var fa_h := Vector2(0.07, -0.05)
 		var fb_h := Vector2(-0.05, -0.02)
@@ -698,7 +706,7 @@ func _pose() -> void:
 	var drop := minf(0.62, crouch * 0.3 + slide * 0.5 + duck * 0.58 + _hit_dip * 0.16)   # how far the hips sink
 	drop = lerpf(drop, float(cl.get("drop", drop)), cw)
 	var hip := Vector2(-0.1 * slide * slide_side, -(l1 + l2) * 0.985 - ankle + drop + lerpf(0.01, 0.04 + 0.035 * cos(th * 2.0), t))
-	var legs_lean := dive * 1.35 * dive_side + roll        # the legs follow a dive or a tumble
+	var legs_lean := dive * 1.5 * dive_side + roll        # the legs follow a dive (flat out) or a tumble
 	if not _dead:   # the whole body pitches into the leap and settles back for the landing
 		legs_lean += air * (0.16 * clampf(-air_v, 0.0, 1.0) - 0.05 * clampf(air_v, 0.0, 1.0)) * (1.0 - dive)
 		legs_lean += dive * dive_side * (0.18 * clampf(air_v, -1.0, 1.0) - 0.08)   # the dive follows its arc: head up leaving, down landing

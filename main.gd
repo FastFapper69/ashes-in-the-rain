@@ -2696,7 +2696,7 @@ func _process(delta: float) -> void:
 		var target = _nearest_enemy()
 		if target != null:
 			aim = target.position + SHOULDER + Vector2(0.0, DUCK_DROP * target.duck) - chest
-	if _auto == "ricochet" and _test_aim != Vector2.INF:
+	if _auto in ["ricochet", "dive"] and _test_aim != Vector2.INF:
 		aim = _test_aim - chest
 	_aim_point = chest + aim
 	dir = _move(dir, aim, delta)
@@ -2907,6 +2907,8 @@ func _auto_step(delta: float) -> void:
 			player.position.x = 900.0
 			cam.position.x = player.position.x + _lead
 		hud.move = 1.0 if _at < 2.2 else 0.0
+		if OS.get_cmdline_user_args().has("--fwd"):   # aimed ahead, the way he dives (the usual case on the phone)
+			_test_aim = player.position + Vector2(1400.0, -250.0)
 		if player.position.x > _dive_at and _auto_done & 1 == 0:
 			_auto_done |= 1
 			_at = 1.0
@@ -4837,7 +4839,7 @@ func _dive_g() -> float:
 func _start_dive(way: float, facing: float, up: float, from_run: bool) -> void:
 	sfx.play("dive", -2.0)
 	if player.dive < 0.3:   # (audit 17. 11.: it snapped from upright to flat) the push-off, then the flight
-		_clip("dive_push", way)
+		_clip("dive_push" if way * facing >= 0.0 else "dive_back", way)
 		fx.dust(player.position, 0.3)
 	move_state = "dive"
 	_kicked_this_dive = false

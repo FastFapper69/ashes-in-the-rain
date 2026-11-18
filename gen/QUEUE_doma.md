@@ -223,3 +223,15 @@ Pravidla: díl nejvýš jednou na mapu, pool mapy z její čtvrti (gen/levels.py
 4. Pára vychází z náhodného místa uprostřed (mrak bez zdroje) -> sloupec z poklopu, poklop nadskočí.
 5. THE LAUNDRY: velký industriální interiér prádelny (první velký interiér hry, zapamatovatelný): bubny, mandly, páry, dopravníky, prádlo na kolejnicích.
 6. Interiéry, ve kterých nic není (sklad: jen Frank) -> vybavit kryty a muži.
+
+## 14. Velká prádelna (uživatel 18. 11.: „mnohem větší místnost, traversal, víc nepřátel“; volba: dlouhá hala + kancelář nahoře)
+Hala ze tří kreseb za sebou (každá 3168x1344, ROOM_SCALES 0.8523 = 2700 px, celkem ~8100 px), spoje vždy na nakresleném sloupu (pravidlo 15):
+1. laundry (art_src 275, hotová): vstupní prací hala, vpravo železný sloup.
+2. laundry_mid (NOVÁ): kotelna + sušárna, vzadu OCHOZ (lávka) ve výšce ~0.49 výšky kresby, žebřík nahoru, nahoře kolejnice
+   kladkostroje s řetězem nad máchací kádí (houpačka přes káď); ochoz a žebřík jako vlastní vrstvy (pravidlo 27).
+3. laundry_end (NOVÁ): třídírna/žehlírna, mandly; vzadu zvýšená prosklená KANCELÁŘ MISTRA na úrovni ochozu (schody/ochoz k ní),
+   vpravo dveře ven (boční dveře fasády).
+Fasáda: front_laundry rozdělit (levá část s dveřmi + nový střed fasády + pravá část s bočními dveřmi), dveře přesně na koncích haly.
+Engine: _build_room_art umí víc kreseb za sebou (ROOM_PARTS), lampy/páry/ochoz po částech; plošina ochozu "drawn", žebříky,
+swing z kladkostroje; ventily páry (steampipe) uvnitř. Muži: 10-12 (zem, ochoz, kancelář: shotgun + tommy), běžci z dálky.
+Postup: TEST LAB (pravidlo 21) -> THE LAUNDRY. Ověřit: boti, audit_maps, look 1280/1560, joins_shots.
