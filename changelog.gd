@@ -7,6 +7,7 @@ const ENTRIES := [
 	["18 NOV 2026", [
 		"The docks and the subway: every map its own stretch of waterfront or line; two new dock sheds",
 		"Chapter III is a slope now, not a wall: three gunmen at once only by its end",
+		"1931 burns for real: man-high fires in the street, timbers falling, and the tenements ablaze at its end",
 		"Every kind of enemy has his own clothes: tommy gunners in pinstripes, shotgunners in leather, bosses in white, the police in uniform",
 		"Pier 17's fog no longer swallows the men whole",
 		"Smoke and canister clouds are see-through: the men inside show as shapes",

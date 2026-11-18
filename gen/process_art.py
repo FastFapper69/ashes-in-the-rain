@@ -56,11 +56,12 @@ STREET = {
     'stable_row': ('291.jpg', 0, False), 'rear_walkup': ('292.jpg', 0, False), 'el_garage': ('293.jpg', 0, False),
     'rooming_house': ('294.jpg', 0, False), 'boiler_works': ('295.jpg', 0, False), 'machine_shop': ('296.jpg', 0, False),
     'brownstones': ('297.jpg', 0, False), 'bay_tenement': ('298.jpg', 0, False), 'hotel_front': ('299.jpg', 0, False), 'dance_hall': ('301.jpg', 0, False),
+    'alley_fire': ('317.jpg', 140, True),   # (QUEUE §16 B, 18. 11.) the alley's tenements ablaze (316 = left only; 317 both sides): the end of the 1931 memory
     'pawn_house': ('267.jpg', 0, False), 'diner_house': ('268.jpg', 0, False),   # one shop a building (user 17. 11.)   # plain buildings (user 17. 11.: no rows of shops)
 }
 KIT = {'yard_c': 'yard', 'tunnel_c': 'tunnel', 'walkway_b': 'walkway', 'signal_b': 'signal', 'arches_b': 'arches', 'yard_b': 'yard', 'tunnel_b': 'tunnel', 'tunnel_lo_b': 'tunnel_lo',
        'sheds_b': 'sheds', 'sheds_c': 'sheds', 'sheds_d': 'sheds', 'pier17_b': 'pier17', 'shipping_b': 'shipping', 'quay_b': 'quay',
-       'laundry_b': 'laundry', 'alley_b': 'alley', 'warehouse_b': 'warehouse', 'church_b': 'church', 'subway_b': 'subway', 'market_b': 'market', 'market_c': 'market'}
+       'laundry_b': 'laundry', 'alley_b': 'alley', 'alley_fire': 'alley', 'warehouse_b': 'warehouse', 'church_b': 'church', 'subway_b': 'subway', 'market_b': 'market', 'market_c': 'market'}
 # measured on the whole picture, before the right frame comes off: scaled to the trimmed one below
 FULL = 3168.0
 def _sc(r, trim=134): k = FULL / (FULL - trim); return (r[0] * k, r[1], r[2] * k, r[3])

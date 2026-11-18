@@ -156,7 +156,7 @@ PIECES = {
 #   fence       the train yard's fence and poles           water    the open harbour beyond a quay's end
 #   open_lot    open ground and sky between buildings
 EDGES = {
-    "alley": ("party_wall", "party_wall"), "alley_b": ("open_lot", "open_lot"), "bluenote": ("party_wall", "party_wall"),
+    "alley": ("party_wall", "party_wall"), "alley_fire": ("party_wall", "party_wall"), "alley_b": ("open_lot", "open_lot"), "bluenote": ("party_wall", "party_wall"),
     "church": ("party_wall", "party_wall"), "church_b": ("party_wall", "party_wall"), "cranes": ("water", "party_wall"),
     "deadend": ("party_wall", "party_wall"), "harbor": ("water", "water"),
     "hk_grocery": ("party_wall", "party_wall"), "hk_laundry": ("party_wall", "party_wall"), "hk_saloon": ("party_wall", "party_wall"),
@@ -189,6 +189,7 @@ def joins(a, b):
 # >>> METRICS (gen/tests/metrics_audit.py --write: measured, do not edit by hand)
 METRICS = {
     "alley": {"top": 194, "foot": 1126, "curb": 1237, "foot_y": -270, "doors": [], "eye": None},
+    "alley_fire": {"top": 194, "foot": 1126, "curb": 1237, "foot_y": -270, "doors": [], "eye": None},
     "alley_b": {"top": 383, "foot": 1271, "curb": 1290, "foot_y": 6, "doors": [], "eye": None},
     "arches": {"top": 0, "foot": 1004, "curb": 1021, "foot_y": -290, "doors": [], "eye": None},
     "arches_b": {"top": 0, "foot": 1006, "curb": 1022, "foot_y": -288, "doors": [], "eye": None},

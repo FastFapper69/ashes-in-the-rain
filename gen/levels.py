@@ -57,7 +57,7 @@ DOCKS_POOL = ["pier17", "cranes", "shipping", "quay", "sheds", "pier17_b", "ship
 # so a map does not show one drawing again and again; everything about them but the picture is the kit's
 KIT = {"walkway_b": "walkway", "signal_b": "signal", "arches_b": "arches", "tunnel_lo_b": "tunnel_lo",
        "yard_b": "yard", "tunnel_b": "tunnel", "sheds_b": "sheds", "sheds_c": "sheds", "sheds_d": "sheds", "pier17_b": "pier17", "shipping_b": "shipping", "quay_b": "quay",
-       "laundry_b": "laundry", "alley_b": "alley", "warehouse_b": "warehouse", "warehouse_c": "warehouse", "church_b": "church", "subway_b": "subway", "market_b": "market", "market_c": "market", "yard_c": "yard", "tunnel_c": "tunnel",
+       "laundry_b": "laundry", "alley_b": "alley", "alley_fire": "alley", "warehouse_b": "warehouse", "warehouse_c": "warehouse", "church_b": "church", "subway_b": "subway", "market_b": "market", "market_c": "market", "yard_c": "yard", "tunnel_c": "tunnel",
        # the dream's rooms gone wrong (gen/process_dream.py): the burning warehouse's own cut and floor
        "fire_d": "fire_a", "fire_e": "fire_b", "fire_f": "fire_c", "fire_g": "fire_a"}
 for _v, _k in KIT.items():
@@ -1336,6 +1336,11 @@ def street(mp, m, rng):
         last = name
         x += SEGMENTS[name] * 1.9 * SEG_SIZE.get(name, 1.0)
         i += 1
+    if mp.get("finale"):   # (QUEUE §16 B) the piece he stops in front of becomes the map's own last picture (a variant of
+        # that piece's kit: same floor, edges, size), else the one before it if that is the kit
+        for q in seq:
+            if q[1] <= m.end < q[1] + SEGMENTS[q[0]] * 1.9 * SEG_SIZE.get(q[0], 1.0) and KIT.get(mp["finale"]) == KIT.get(q[0], q[0]):
+                q[0] = mp["finale"]
     return seq
 
 
@@ -1577,8 +1582,11 @@ CAMPAIGN = [
     # between chapters II and III: in the back of Rourke's car Frank is seventeen again (2026-11-15)
     {"name": "1931", "seed": 206, "feature": "laundry", "memory": True, "pool": ["laundry", "market", "alley", "market_b", "alley_b"], "rain": 0.0,
      "start": 0.5, "end": 0.75, "ash": 1.0, "embers": 1.0,
-     "fixed": ["smoke_men", "blaze", "arsonists", "breather", "blaze", "smoke_men", "arsonists", "blaze", "smoke_men"],
-     "events": [["burn", "laundry"], ["burn", "market"]],
+     # (audit 18. 11.: "flames round the ankles") burning timbers come down, the floor fires stand tall, and the street ends
+     # at the tenement on fire (alley_fire, art_src 316)
+     "fixed": ["smoke_men", "blaze", "arsonists", "beam_fall", "breather", "blaze", "smoke_men", "beam_fall", "arsonists", "blaze", "smoke_men"],
+     "finale": "alley_fire",
+     "events": [["burn", "laundry"], ["burn", "market"], ["burn", "alley_fire"]],
      "intro": ["I've told this one to myself so many times I can't tell any more which parts are true.", "In the version I tell, I get past the firemen."],
      "outro": ["My father brought out three of the Kowalczyk kids. He went back up for the fourth. The roof came down at ten past two.", "Declan Rourke held me back by the collar. He smelled of smoke and of something else. Kerosene. I was seventeen. I didn't know what it meant."]},
   ]},

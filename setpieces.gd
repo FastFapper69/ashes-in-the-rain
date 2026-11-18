@@ -10,6 +10,9 @@ const FIRES := {"shipping": [Vector2(0.11, 0.193), Vector2(0.21, 0.193), Vector2
 		Vector2(0.31, 0.333), Vector2(0.11, 0.562), Vector2(0.41, 0.562)],   # window sills, measured on the drawing
 	"laundry": [Vector2(0.275, 0.415), Vector2(0.36, 0.415), Vector2(0.795, 0.33), Vector2(0.965, 0.33), Vector2(0.795, 0.505)],
 	"market": [Vector2(0.065, 0.505), Vector2(0.18, 0.505), Vector2(0.29, 0.505), Vector2(0.86, 0.385), Vector2(0.97, 0.385)],
+	"alley_fire": [Vector2(0.085, 0.34), Vector2(0.29, 0.34), Vector2(0.145, 0.5), Vector2(0.35, 0.5), Vector2(0.085, 0.76),
+		Vector2(0.405, 0.76), Vector2(0.33, 0.14), Vector2(0.67, 0.34), Vector2(0.86, 0.34), Vector2(0.97, 0.34),
+		Vector2(0.92, 0.5), Vector2(0.86, 0.76), Vector2(0.97, 0.76), Vector2(0.93, 0.12)],   # (art_src 317: its burning windows' sills, both sides)
 	"pier17": [Vector2(0.14, 0.34), Vector2(0.25, 0.34), Vector2(0.36, 0.34), Vector2(0.2, 0.68)]}
 
 var game   # main.gd
@@ -47,8 +50,8 @@ func setup(main) -> void:
 				_events.append({"kind": kind, "trig": float(ev[1]), "done": false})
 			"beam":   # it starts to go a little before he gets there
 				_events.append({"kind": kind, "trig": float(ev[1]) - 650.0, "x": float(ev[1]), "done": false})
-			"blaze":
-				_blaze(float(ev[1]), float(ev[2]), INF)
+			"blaze":   # (1931, audit 18. 11.: "flames round the ankles") a street on fire burns man-high
+				_blaze(float(ev[1]), float(ev[2]), INF, 0.0, 1.7 if game.level.get("memory", false) else 1.0)
 			"loop":
 				_events.append({"kind": kind, "trig": float(ev[1]), "done": false})
 	if game.level.get("dream", false):   # eleven knocks from behind the chained doors, spread down the warehouse
@@ -499,12 +502,13 @@ func _burn(seg_name: String) -> void:
 		if String(seg[0]) != seg_name:   # its own drawing only: a variant's windows are elsewhere
 			continue
 		var tex: Texture2D = BigTex.get_tex("res://art/street/%s.png" % seg_name)
-		var ws: float = game.WALL_SCALE * float(game.SEGMENT_SIZE.get(seg_name, 1.0))   # as the street builds it
+		var kit: String = String(game.SEGMENT_KIT.get(seg_name, seg_name))   # (a variant: its kit's size and trim)
+		var ws: float = game.WALL_SCALE * float(game.SEGMENT_SIZE.get(kit, 1.0))   # as the street builds it
 		var w: float = tex.get_width() * ws
 		var h: float = tex.get_height() * ws
 		var top: float = -h * game.SEGMENT_BASE - game.WALL_LIFT
 		var x0 := float(seg[1])
-		var trim: float = game.SEGMENT_TRIM.get(seg_name, 0.0)
+		var trim: float = game.SEGMENT_TRIM.get(kit, 0.0)
 		var sx: float = tex.get_width() / (tex.get_width() - trim)
 		var heat := PointLight2D.new()
 		heat.texture = load("res://art/light_blob.png")
