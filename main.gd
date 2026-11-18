@@ -3258,6 +3258,19 @@ func _auto_step(delta: float) -> void:
 			hud.caption(level["outro"] if chapter == 0 else level["intro"])
 			hud.boss_bar("MICKEY 'CANVAS' TEAGUE", 0.7)
 		shots = [[4.5, "caption"]]
+	elif _auto == "hud":   # the HUD plate in its worst case: two guns, an empty gun, a long narration and a hint
+		hp = max_hp
+		_grace = 99.0
+		if _auto_done & 1 == 0 and _at > 0.4:
+			_auto_done |= 1
+			hud.set_guns("revolver", "tommy")
+			hud.hint("Tap the rounds to reload.")
+			hud.caption(["The rain came down like it had a grudge against the whole city.", "I knew the feeling.", "Somebody in this street had a gun and a reason."])
+		if _at > 0.4:
+			mag = 0   # the gun empty: the plate's TAP TO RELOAD must stay clear of the gun card
+		shots = [[1.6, "hud_1"], [4.6, "hud_2"], [6.7, "hud_3"], [11.0, "hud_4"]]
+		if _at > 11.4:
+			get_tree().quit()
 	elif _auto == "stains":   # eight hits along the wall, then look at them once the runs have crept down
 		var sx0: float = 1150.0
 		for seg in level["street"]:   # in front of the church railings, if this map has them

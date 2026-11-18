@@ -26,6 +26,9 @@ var target_at := Callable()   # func(screen: Vector2) -> bool: is there a mobste
 var touch_seen := false    # true once a finger has touched the screen: then the mouse is ignored
 
 var _portrait: Sprite2D
+var _plate: Control
+const PLATE_RECT := Rect2(10.0, 8.0, 512.0, 112.0)
+const PLATE_TINT := Color(0.2, 0.19, 0.18, 0.86)
 var _bar: Sprite2D
 var _fill: Polygon2D
 var _ring: Sprite2D
@@ -42,6 +45,12 @@ var _stick_at := Vector2.ZERO
 
 func _ready() -> void:
 	layer = 6
+	# One plate under the whole cluster (UI audit 18. 11.: portrait, health, rounds and gun card floated as
+	# separate pieces): the caption paper inked dark, so the cream bar, rounds and cards read on it.
+	_plate = load("res://paper.gd").sheet("panel", PLATE_RECT.size)
+	_plate.position = PLATE_RECT.position
+	_plate.modulate = PLATE_TINT
+	add_child(_plate)
 	_portrait = _add("res://art/ui/portrait.png", 0.2)
 	_soot = ShaderMaterial.new()   # the ash on Frank's face: his conscience, without a number
 	_soot.shader = Shader.new()
@@ -295,20 +304,27 @@ var _boss_box: Control
 var _boss_fill: ColorRect
 
 
-## The detective's narration, in comic captions: cream boxes with black lettering at the top of the
-## screen, one line after another, then gone.
+## The detective's narration, in comic captions: cream boxes with black lettering low in the middle of
+## the screen, one line after another, then gone.
 var voice := Callable()   # main.gd: sfx.voice, for the narration captions
 
 func caption(lines: Array) -> void:
-	# Up in the corner under his portrait, small: the narration sits beside the action, never on it.
-	# Each line its own inked caption box, sized to its words (the drawing is never stretched out of shape).
+	# Low in the middle, between the thumbstick and the buttons, over the dark street foreground: the
+	# narration reads like a comic's caption under the panel and never covers the men up the street
+	# (UI audit 18. 11.: in the corner under the portrait it sat on the top-left of the action).
+	# Each line its own inked caption box, sized to its words (the drawing is never stretched out of shape);
+	# the lines stack upwards from the bottom edge, so the last one always sits lowest.
 	var Paper = load("res://paper.gd")
 	var font: Font = load("res://fonts/ComicNeue-BoldItalic.woff")
 	var fs := 22
+	var view := get_viewport().get_visible_rect().size
+	var left := _stick_at.x + 120.0   # clear of the thumbstick's ring
+	var right := _slow.position.x - 92.0   # clear of the stopwatch and its meter
+	var band := right - left
+	var max_w := minf(760.0, band)
 	var box := Control.new()
-	box.position = Vector2(28.0, 128.0)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	for old in _captions:   # the new narration takes the corner: the last one steps aside, never under it
+	for old in _captions:   # the new narration takes the place: the last one steps aside, never under it
 		if is_instance_valid(old):
 			old.create_tween().tween_property(old, "modulate:a", 0.0, 0.15).finished.connect(old.queue_free)
 	_captions = []
@@ -320,17 +336,21 @@ func caption(lines: Array) -> void:
 		var hb := _hint_box
 		_hint_box = null
 		hb.create_tween().tween_property(hb, "modulate:a", 0.0, 0.2).finished.connect(hb.queue_free)
-	var tw := create_tween()
-	var y := 0.0
+	var caps: Array = []
+	var w := 0.0
 	for i in lines.size():
 		var text := String(lines[i]).to_upper()
-		var cap: Control = Paper.caption(text, font, fs, 460.0)
-		cap.position = Vector2(0.0, y)
+		var cap: Control = Paper.caption(text, font, fs, _even_width(text, font, fs, max_w))
 		cap.modulate.a = 0.0
+		cap.visible = false
 		box.add_child(cap)
-		var h: float = cap.size.y
-		y += h + 8.0
-		tw.tween_property(cap, "modulate:a", 1.0, 0.35)
+		caps.append(cap)
+		w = maxf(w, cap.size.x)
+	box.size = Vector2(w, 0.0)
+	box.position = Vector2(roundf(left + (band - w) * 0.5), roundf(view.y - 26.0))   # the bottom edge: lines stack up from it
+	var tw := create_tween()
+	for i in lines.size():
+		tw.tween_callback(_caption_step.bind(caps, i))
 		var said := String(lines[i])
 		var vo: float = 0.0
 		if voice.is_valid():   # Frank says it: the next line waits for him
@@ -338,14 +358,57 @@ func caption(lines: Array) -> void:
 			if sfx != null and sfx.has_method("voice") and ResourceLoader.exists("res://voice/%s.mp3" % said.md5_text().substr(0, 10)):
 				vo = (load("res://voice/%s.mp3" % said.md5_text().substr(0, 10)) as AudioStream).get_length()
 				tw.tween_callback(sfx.voice.bind(said))
-		tw.tween_interval(maxf(1.2 + text.length() * 0.028, vo + 0.4))
+		tw.tween_interval(maxf(1.55 + said.length() * 0.028, vo + 0.4))
 	tw.tween_interval(1.2)
 	tw.tween_property(box, "modulate:a", 0.0, 0.6)
 	tw.tween_callback(box.queue_free)
 
 
-## How to play: a tutorial line in its own box, low in the middle of the screen, apart from the narration
-## up in the corner (they used to land on top of each other). One at a time; the next waits its turn.
+## Line i of a narration comes in at the bottom; the lines before it step up. Never more than
+## CAPTION_MAX_H of boxes on screen: the oldest fades out, so the stack stays under the street.
+const CAPTION_MAX_H := 140.0
+func _caption_step(caps: Array, i: int) -> void:
+	var w: float = 0.0
+	for c in caps:
+		if is_instance_valid(c):
+			w = maxf(w, (c as Control).size.x)
+	var y := 0.0
+	for k in range(i, -1, -1):
+		var c: Control = caps[k]
+		if not is_instance_valid(c):
+			continue
+		var h := c.size.y
+		var at := Vector2(roundf((w - c.size.x) * 0.5), -(y + h))
+		var keep := k == i or y + h <= CAPTION_MAX_H
+		if k == i:
+			c.position = at
+			c.visible = true
+			c.create_tween().tween_property(c, "modulate:a", 1.0, 0.35)
+		elif keep:
+			c.create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT).tween_property(c, "position", at, 0.25)
+		elif c.visible and not c.has_meta("gone"):
+			c.set_meta("gone", true)
+			c.create_tween().tween_property(c, "modulate:a", 0.0, 0.2).finished.connect(c.hide)
+		y += h + 8.0
+
+
+## The narrowest width that still keeps the text on as few lines as max_w does: the lines come out even,
+## never a long line and one word left alone under it.
+func _even_width(text: String, font: Font, fs: int, max_w: float) -> float:
+	var h := font.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, max_w, fs).y
+	var lo := max_w * 0.4
+	var hi := max_w
+	for k in 10:
+		var mid := (lo + hi) * 0.5
+		if font.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, mid, fs).y > h + 1.0:
+			lo = mid
+		else:
+			hi = mid
+	return ceilf(hi) + 2.0
+
+
+## How to play: a tutorial line in its own box, up on the right, apart from the narration
+## low in the middle (they used to land on top of each other). One at a time; the next waits its turn.
 var _hint_box: Control
 var _hint_queue: Array = []
 var _hint_text := ""
@@ -378,10 +441,12 @@ func hint(text: String, queued := false) -> void:
 	tw.tween_property(cap, "modulate:a", 1.0, 0.3)
 	tw.tween_interval(maxf(2.6, 1.4 + text.length() * 0.05))
 	tw.tween_property(cap, "modulate:a", 0.0, 0.5)
+	var ref: WeakRef = weakref(cap)   # narration may take it down before this runs: never hold the freed box
 	tw.tween_callback(func() -> void:
-		if is_instance_valid(cap):   # narration may have taken it down already
-			cap.queue_free()
-		if _hint_box == cap:
+		var c = ref.get_ref()
+		if c != null:
+			c.queue_free()
+		if _hint_box == c:   # still the one up (or both gone): the next line may come
 			_hint_box = null
 			_next_hint())
 
@@ -396,21 +461,27 @@ func boss_bar(boss_name: String, fraction: float) -> void:
 	if _boss_box == null:
 		_boss_box = Control.new()
 		_boss_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_boss_box.position = Vector2(get_viewport().get_visible_rect().size.x * 0.5 - 300.0, 26.0)
+		var vw := get_viewport().get_visible_rect().size.x
+		var band_l := plate_right() + 24.0   # between the HUD plate and the pause button, never over either
+		var band_r := vw - 120.0
+		var bw := minf(600.0, band_r - band_l)
+		var bx := clampf(vw * 0.5 - bw * 0.5, band_l, band_r - bw)
+		_boss_box.position = Vector2(roundf(bx), 26.0)
+		_boss_box.set_meta("w", bw)
 		add_child(_boss_box)
 		var back := ColorRect.new()
 		back.color = INK
-		back.size = Vector2(600.0, 30.0)
+		back.size = Vector2(bw, 30.0)
 		back.position = Vector2(0.0, 46.0)
 		_boss_box.add_child(back)
 		_boss_fill = ColorRect.new()
 		_boss_fill.color = CRIMSON
 		_boss_fill.position = Vector2(5.0, 51.0)
-		_boss_fill.size = Vector2(590.0, 20.0)
+		_boss_fill.size = Vector2(bw - 10.0, 20.0)
 		_boss_box.add_child(_boss_fill)
 		var l := Label.new()
 		l.text = boss_name
-		l.size = Vector2(600.0, 44.0)
+		l.size = Vector2(bw, 44.0)
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		l.add_theme_font_size_override("font_size", 30)
 		l.add_theme_color_override("font_color", PAPER)
@@ -421,7 +492,7 @@ func boss_bar(boss_name: String, fraction: float) -> void:
 		_boss_box.queue_free()
 		_boss_box = null
 		return
-	_boss_fill.size.x = 590.0 * clampf(fraction, 0.0, 1.0)
+	_boss_fill.size.x = (float(_boss_box.get_meta("w")) - 10.0) * clampf(fraction, 0.0, 1.0)
 
 
 ## The chapter's title card: the chapter number small, its name large, both fading in and out.
@@ -496,6 +567,7 @@ func set_guns(hand: String, other: String) -> void:
 		return
 	_gun_card.texture = load("res://art/ui/gun_%s.png" % hand)
 	_gun_spare.visible = other != ""
+	_fit_plate(other != "")
 	if other != "":
 		_gun_spare.texture = load("res://art/ui/gun_%s.png" % other)
 	_gun_card.position = front_at
@@ -506,6 +578,26 @@ func set_guns(hand: String, other: String) -> void:
 	var tw := _gun_card.create_tween()   # a little flip as the gun changes
 	_gun_card.scale = Vector2(0.02, 0.19)
 	tw.tween_property(_gun_card, "scale", Vector2.ONE * 0.19, 0.16)
+
+
+## The plate ends just past the last card: the gun card alone, or the spare one tucked behind it.
+var _plate_wide := true
+func _fit_plate(wide: bool) -> void:
+	if wide == _plate_wide:
+		return
+	_plate_wide = wide
+	var size := PLATE_RECT.size if wide else Vector2(PLATE_RECT.size.x - 40.0, PLATE_RECT.size.y)
+	var fresh: Control = load("res://paper.gd").sheet("panel", size)
+	fresh.position = PLATE_RECT.position
+	fresh.modulate = PLATE_TINT
+	add_child(fresh)
+	move_child(fresh, _plate.get_index())
+	_plate.queue_free()
+	_plate = fresh
+
+
+func plate_right() -> float:
+	return PLATE_RECT.position.x + (PLATE_RECT.size.x if _plate_wide else PLATE_RECT.size.x - 40.0)
 
 
 ## The gun in hand and its rounds, under the health bar; the revolver never runs dry, so it shows none.
@@ -580,9 +672,13 @@ func _draw_ammo() -> void:
 		tail = "RELOADING"
 	elif _ammo[0] <= 0:
 		tail = "TAP TO RELOAD"
-	if tail != "":
-		_ammo_box.draw_string_outline(font, Vector2(x + 12.0, 28.0), tail, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, 7, INK)
-		_ammo_box.draw_string(font, Vector2(x + 12.0, 28.0), tail, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, AMBER if progress > 0.0 or _ammo[0] <= 0 else PAPER)
+	if tail != "":   # on the plate, clear of the gun card: a long word is set smaller, never under the card
+		var room := GUN_CARD_AT.x - 56.0 - AMMO_AT.x - (x + 12.0)
+		var tfs := 22
+		while tfs > 14 and font.get_string_size(tail, HORIZONTAL_ALIGNMENT_LEFT, -1, tfs).x > room:
+			tfs -= 1
+		_ammo_box.draw_string_outline(font, Vector2(x + 12.0, 28.0), tail, HORIZONTAL_ALIGNMENT_LEFT, -1, tfs, 7, INK)
+		_ammo_box.draw_string(font, Vector2(x + 12.0, 28.0), tail, HORIZONTAL_ALIGNMENT_LEFT, -1, tfs, AMBER if progress > 0.0 or _ammo[0] <= 0 else PAPER)
 
 
 ## A short word low on the screen that fades: CHECKPOINT, a gun picked up.

@@ -12,6 +12,8 @@ All UI is drawn paper (`paper.gd`) – never flat rectangles – and is checked 
 
 ## HUD
 - Landscape only. Portrait (Frank; Eddie in the prologue, `portrait_eddie.png`) + health top-left, gun card GTA-style beside it (other gun as a small card behind), pause top-right; combo caption left of pause (below boss bar/hint).
+- One plate under the cluster (UI audit 18. 11.): the `panel` paper tinted dark (`hud.PLATE_RECT`, `PLATE_TINT`), 40 px shorter when there is no spare gun card (`_fit_plate`). Ammo tail text (TAP TO RELOAD, RELOADING) shrinks to stay clear of the gun card. Boss bar sits between `plate_right()` and the pause button.
+- Narration captions (`hud.caption`) low in the middle between thumbstick and stopwatch, over the dark foreground under the street; lines stack up from the bottom edge, at most `CAPTION_MAX_H` (140 px) of boxes, the oldest fades. Wrapping is balanced (`_even_width`: no lone word on the last line). Hints stay top-right. Test: `--test=hud` (two guns, empty gun, 3-line narration, hint), `--test=caption`.
 - `hud.modal()` hides thumb controls under pause/diary/choice; idle stick/buttons see-through; tutorial hints wait for narration captions (`_hint_queue`).
 - Map tally `hud.rating` = Paper card right of centre (LEVEL/XP; "<CHAPTER> CLOSED" on a chapter's last map). Level-up = small tape at top 1.8 s.
 - Instincts board: cards show name + PINNED/READY/LOCKED; tap opens a big detail card (`menu._card_detail`) with BACK + PIN IT / TAKE IT DOWN; icons `art/ui/instincts/icon_*.png`.
