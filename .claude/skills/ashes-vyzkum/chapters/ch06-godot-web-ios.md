@@ -30,3 +30,8 @@ The web build runs WebAssembly + WebGL 2 in Safari's process budget. GPU passes,
 1. Budget the page at ~350 MB total, not the phone's RAM.
 2. Every CanvasGroup and full-screen shader is a screen pass – count them.
 3. Measure with crumbs on the iPhone, not on desktop.
+
+## Cheaper wall shadow – idea from Barrow and Blade (80.lv, checked 2026-11-18) [H]
+- Their trick (Unreal, 3D): each character has a second, much simpler mesh only for the shadow, driven by the main skeleton (no second animation), projected onto the floor; only the overall shape matters.
+- Us: `puppet.gd _build_shadow()` makes a FULL black copy of every figure (every body sprite, both leg meshes, skirt, both guns) inside a second CanvasGroup = one more backbuffer pass per visible shadow plus a per-frame pose copy (`_shadow_spr` loop ~l. 897). With 6–8 figures in a fight that doubles the CanvasGroup count (see takeaway 1).
+- [H] Try: shadow from 4–6 merged parts (head+hat, torso+coat, legs, gun arm) following the same bones; or one pre-drawn silhouette per pose family. Measure fps in the biggest fight (`--test=perf`) before/after on the iPhone; keep only if visibly the same on the wall (user rule: lights/shadows must make physical sense) and faster.
