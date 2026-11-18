@@ -278,3 +278,14 @@ První návrh od uživatele (zatím nestavěno, čeká na schválení rozsahu):
 Opraveno hned (HANDOFF 95): v TENEMENTS vcházel do přízemí a vyskakoval z okna v patře - teď vyskočí z okna v přízemí.
 Potřeba: komiksové panely uprostřed mapy (cutscene.gd umí stránky; nové je spuštění na místě v mapě + navázání stavu), Gemini panely, šňůra na prádlo jako lano ke sjetí (existuje zip/rope mechanika: zip_mast/zip_winch).
 
+## 18. Audit smyslu map kap. I-III (18. 11., pravidla 10, 12, 14, 25, 30)
+Porušení:
+- P14: řez domem (vstup dveřmi, schody v zadní stěně, kopnutí do bytu, oknem na požární schodiště) je JEN v SECTION a TEST LAB - žádná mapa kampaně ho nemá; mapy jsou hlavně ulice.
+- P10/P30: TENEMENTS má 2x stejnou chodbu "tenement" (x 1900 a 16050); generátor ji sám popisuje jako 3. patro (dveře 3A-3C, neon za oknem), ale stojí na úrovni ulice.
+- P30: CARGO HOLD = ulice doků s podpalubím jen na začátku; SANTA LUCIA už podpalubí měla -> dvě mapy se stejným smyslem, CARGO HOLD nemá cíl.
+- P30: BACK STREETS, THE CRANES, TRAIN YARD = jen přestřelky po cestě, bez události, která by je nesla.
+- P12: TRAIN YARD končí "prázdným vlakem", LAST TRAIN začíná "na střeše expresu" s policajty; 1931 = sedmnáctiletý Frank se zbraní proti žhářům; jak Briggs ví o Catacombs.
+- Vzhled: audit švů hlásí 10 švů v docích (skóre přes 1), ve hře na 2 kontrolovaných nejsou vidět (vršky mimo záběr).
+Návrhy komiksů ve hře (Max Payne): konec LAUNDRY útěk (uživatel), start TENEMENTS okno + šňůra, BACK STREETS výslech ("one of them talked"), konec TENEMENTS pohled na JAZZ, PIER 17 sklad Vail se vzňal, SANTA LUCIA nalodění po lávce, CARGO HOLD jedenáct beden, TUNNELS tma + Briggs počítá náboje, konec TRAIN YARD skok na rozjetý vlak, konec LAST TRAIN vlak vyjede z tunelu.
+Rozšíření: TENEMENTS celý jako řez domem (útěk z prádelny nahoru, byt, okno, šňůra, střechy); SANTA LUCIA paluba lodi (lávka nahoru, paluba, podpalubí); CARGO HOLD = zaplavované podpalubí s bednami (petrolej 1939 = důkaz); PIER 17 dovnitř hořícího skladu Vail.
+
