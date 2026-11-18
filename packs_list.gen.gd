@@ -3,4 +3,4 @@ extends RefCounted
 
 const GROUP_OF_MAP := {"1:5": "e"}
 const GROUP_OF_CHAPTER := {0: "a", 1: "a", 2: "b", 3: "c", 4: "d"}
-const PROBE := {"a": "res://art/cut/49.jpg", "b": "res://art/cut/320.jpg", "c": "res://art/cut/74.jpg", "e": "res://art/cut/70.jpg"}
+const PROBE := {"a": "res://art/cut/324.jpg", "b": "res://art/cut/320.jpg", "c": "res://art/cut/74.jpg", "e": "res://art/cut/70.jpg"}
