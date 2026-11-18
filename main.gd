@@ -2963,6 +2963,8 @@ func _auto_step(delta: float) -> void:
 						hud.move = 0.0 if absf(dx) < 40.0 else signf(dx)
 						if absf(dx) < 60.0:
 							hud.jump_tapped = true
+		if move_state == "ground" and player.position.y > -10.0:
+			_bot_esc_up = false   # (back on the street: the next fire escape is climbed from its own foot)
 		if not fight and move_state == "ground" and _section_at(player.position) < 0 and player.position.y < -600.0:
 			for rp in ramps:   # on the fire escape: back to the foot of the flight going up, then up it
 				if rp.size() > 4 and String(rp[4]) == "fescape" and absf(float(rp[1]) - player.position.y) < 12.0:
@@ -9238,6 +9240,13 @@ func _on_stairs(e: Dictionary, m, delta: float) -> void:
 	sd["t"] = float(sd["t"]) + delta
 	match int(sd["phase"]):
 		0:   # along his storey to the opening
+			if move_state == "stairs" or (absf(_ground_y - to_y) > 12.0 and move_state == "ground"):
+				# (18. 11.: they came down the stairs as he went up, and missed him for good) he is leaving, or has left, the
+				# storey this man was going to: he stays on his own and takes him on from here, or follows him later
+				e["state"] = "post"
+				e.erase("sd")
+				e["stairs_t"] = _ai_t - 6.0   # (a few seconds, then he may go after him again)
+				return
 			sd["up"] = up
 			var goal: float = x + (_stair_foot() if up else 0.0)
 			var way := signf(goal - m.position.x)
