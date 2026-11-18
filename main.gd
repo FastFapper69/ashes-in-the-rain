@@ -267,7 +267,7 @@ const IRON_FOOT := Vector2(49.5, 550.8)   # the lowest tread in the flight drawi
 const INDOOR_ONLY := ["washer", "wash_tub", "linen_table", "desk", "filing", "safe", "court_bench"]
 const OUTDOOR_ONLY := ["mailbox", "fruit_cart", "dumpster", "hydrant", "bench"]
 const BOX_ART := {"barrel": ["drum_red", Color(1.7, 1.55, 1.55)], "machine": ["dumpster", Color(0.7, 0.72, 0.78)], "bar": ["crate_long", Color(0.45, 0.32, 0.26)]}
-const ENEMY_MAG := {"post": 6, "tommy": 3, "shotgun": 4, "boss": 5, "sniper": 5, "shield": 6, "dynamite": 99, "hook": 99}   # shots (a tommy gunner's: bursts) before a reload
+const ENEMY_MAG := {"shade": 99, "post": 6, "tommy": 3, "shotgun": 4, "boss": 5, "sniper": 5, "shield": 6, "dynamite": 99, "hook": 99}   # shots (a tommy gunner's: bursts) before a reload
 const ENEMY_TINT := {"post": Color(1, 1, 1), "tommy": Color(1, 1, 1), "shotgun": Color(1, 1, 1), "boss": Color(1, 1, 1)}   # (their clothes tell them apart now)
 var ambient := AMBIENT
 const SIGHT := 2100.0   # a mobster starts shooting once the detective is this close
@@ -2968,6 +2968,8 @@ func _process(delta: float) -> void:
 	for e in enemies:   # (chapter I audit 18. 11.: black coats lost in dark doorways) a faint rim always, the full one in slowed time
 		if e["alive"] and is_instance_valid(e["node"]):
 			e["node"].set_rim(maxf(rim, 0.35))
+			if e["type"] == "shade":
+				_shade_eyes(e["node"])
 	if wide_shot > 0.0:   # a set piece bigger than the picture (the El's train over the street): the camera pulls back for it
 		want_zoom *= 1.0 - 0.28 * wide_shot
 	if Engine.time_scale < 0.8 and not over:   # (audit 17. 11.) slowed time leans in a little: the moment fills the picture
@@ -5565,11 +5567,14 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 				e["hp"] = 0
 				_kill(e, part == "head", true, part)
 				return true
-			if (part.begins_with("farm") or part.begins_with("hand")) and (slow_on or _perk("openhand")) and not e["boss"] and chapter > 0 and e["state"] != "give":
+			if e["type"] == "shade":   # no blood in him: a bullet knocks out a gust of ash and sparks
+				_shade_hit(pos)
+			elif (part.begins_with("farm") or part.begins_with("hand")) and (slow_on or _perk("openhand")) and not e["boss"] and chapter > 0 and e["state"] != "give":
 				_disarm(e, pos)   # the gun is shot out of his hand: he has nothing left to fight with
 				return true
-			fx.blood(pos, fx.hit_vel, part == "head" or e["hp"] <= 1)
-			e["node"].add_wound(pos, part)
+			if e["type"] != "shade":
+				fx.blood(pos, fx.hit_vel, part == "head" or e["hp"] <= 1)
+				e["node"].add_wound(pos, part)
 			var hm = e["node"]
 			var tint: Color = hm.modulate
 			hm.modulate = Color(2.2, 2.0, 1.9)   # a white flash: the hit registers at a glance
@@ -5824,7 +5829,9 @@ func _kill(e: Dictionary, head: bool, quiet := false, part := "") -> void:
 		var away2 := signf(m.position.x - player.position.x)
 		_flying_guns.append({"node": gg, "v": Vector2(away2 * randf_range(160.0, 320.0), -randf_range(420.0, 640.0)),
 			"spin": away2 * randf_range(8.0, 14.0), "ground": m.position.y - 10.0, "bounce": 0, "kind": "post"})
-	if head and not m.hat_lost and m.hat_path() != "":
+	if e["type"] == "shade":   # he does not fall: he comes apart into ash
+		_shade_gone(m)
+	if head and not m.hat_lost and m.hat_path() != "" and e["type"] != "shade":
 		var info: Dictionary = m.lose_hat()
 		var hh := Sprite2D.new()
 		hh.texture = info["tex"]
@@ -7927,7 +7934,7 @@ func _partner_spot(specs: Array, i: int) -> float:
 ## own few, and the boss is always Teague, the old boxer.
 const MOB_HEADS := {"fedora": 193.5, "homburg": 171.0, "cap": 136.0, "boxer": 144.0}
 const MOB_FACES := {"post": ["", "fedora", "cap", "homburg"], "tommy": ["fedora", "homburg"], "shotgun": ["cap", ""], "boss": ["boxer"],
-		"hook": ["cap", ""], "dynamite": ["cap"], "sniper": ["fedora", "homburg"]}
+		"hook": ["cap", ""], "dynamite": ["cap"], "sniper": ["fedora", "homburg"], "shade": ["cap"]}
 
 ## Eddie Doyle: the detective's body under his own head (art/eddie/head.png, art_src 127): a younger
 ## face, the pork-pie hat with the press card, the turned-up collar of the pea coat.
@@ -7944,13 +7951,13 @@ func _eddie_cfg() -> Dictionary:
 ## (audit 18. 11.: "shotgunners, tommy gunners and bosses share one silhouette") each kind its own clothes on the same rig
 ## (gen/outfits.py: art/mobster/<outfit>/ torso, arms, legs): tommy gunners in pale pinstripes and a white tie, shotgunners in
 ## a dockworker's black leather coat, a bit bigger; the police in navy uniforms (their tommy gunners in plain clothes).
-const OUTFIT := {"tommy": "torpedo", "shotgun": "docker", "hook": "docker", "dynamite": "docker", "boss": "boss"}   # (bosses: a white dinner jacket)
+const OUTFIT := {"shade": "docker", "tommy": "torpedo", "shotgun": "docker", "hook": "docker", "dynamite": "docker", "boss": "boss"}   # (bosses: a white dinner jacket)
 const COP_OUTFIT := {"post": "patrolman", "shotgun": "patrolman", "sniper": "patrolman", "shield": "patrolman"}
 func _mob_cfg(kind: String) -> Dictionary:
 	var c: Dictionary = MOBSTER.duplicate(true)
 	var cops: bool = level.get("cops", false)
 	var outfit: String = String((COP_OUTFIT if cops else OUTFIT).get(kind, ""))
-	if outfit != "" and not _unreal():
+	if outfit != "" and (not _unreal() or kind == "shade"):
 		c["base_dir"] = c["dir"]
 		c["dir"] = "res://art/mobster/%s/" % outfit
 		c["leg_tex"] = "res://art/mobster/%s/leg.png" % outfit
@@ -7970,6 +7977,8 @@ func _mob_cfg(kind: String) -> Dictionary:
 
 ## One mobster of any kind. state: post (stands and fights), wait (off-screen until his mark), run.
 func _add_enemy(at: Vector2, kind: String, state: String, goal_x: float) -> Dictionary:
+	if level.get("dream", false) and kind != "boss":
+		kind = "shade"   # (user 18. 11.) in the dream no gunmen: the dock workers who burned in there (_shade)
 	var m = PuppetScript.new()
 	m.cfg = _mob_cfg(kind)
 	m.night = _undo_night(1.0)
@@ -7977,6 +7986,8 @@ func _add_enemy(at: Vector2, kind: String, state: String, goal_x: float) -> Dict
 	m.modulate = ENEMY_TINT.get(kind, Color(1, 1, 1)) * (COP_TINT if level.get("cops", false) else Color.WHITE)
 	if _unreal():   # the men who set the fire, as he dreams them: shadows with the fire behind them
 		m.modulate = Color(0.2, 0.15, 0.14)
+	if kind == "shade":   # a burned man: pitch dark, a little see-through, smoke coming off him
+		m.modulate = Color(0.05, 0.045, 0.045, 0.9)
 	add_child(m)
 	if kind == "boss":
 		m.size = 1.15
@@ -7986,12 +7997,19 @@ func _add_enemy(at: Vector2, kind: String, state: String, goal_x: float) -> Dict
 	m.set_weapon("shotgun" if briggs else {"tommy": "tommy", "shotgun": "shotgun", "boss": "pistols", "sniper": "rifle", "hook": "hook", "dynamite": "dynamite"}.get(kind, "pistol"))
 	if briggs or kind == "shield":
 		_add_shield(m, kind == "shield")
+	if kind == "shade":
+		m.set_meta("shade", true)
+		m.disarmed = true   # empty hands, reaching for him
+		_shade_body(m)
 	m.set_state(0.0, Vector2(-1.0, 0.0), 0.0)
 	m.visible = state != "wait"
 	var e := {"node": m, "type": kind, "hp": BOSS_HP if kind == "boss" else mob_hp, "cool": randf_range(0.8, 1.6), "aim_off": 0.0,
 			"alive": true, "seen": state == "run", "cover": false if state != "post" else _has_cover(at), "up": false, "shot": false,
 			"timer": randf_range(0.5, 1.5), "state": state, "goal": goal_x, "trig": -1.0, "delay": 0.0, "boss": kind == "boss", "calls": 0,
-			"id": enemies.size(), "role": {"tommy": "suppress", "shotgun": "rush", "boss": "boss", "hook": "rush"}.get(kind, "post"), "notice": -1.0}
+			"id": enemies.size(), "role": {"tommy": "suppress", "shotgun": "rush", "boss": "boss", "hook": "rush", "shade": "rush"}.get(kind, "post"), "notice": -1.0}
+	if kind == "shade":
+		e["sought"] = true   # (no cover for the dead)
+		e["blink"] = randf_range(1.5, 3.0)
 	if briggs or kind == "shield":   # a steel shield on his arm, turned toward wherever the detective was a moment ago
 		e["shield"] = -1.0
 		e["shells"] = 5
@@ -9313,7 +9331,7 @@ func _slot_free(e: Dictionary) -> bool:
 
 ## A "?" or "!" over a mobster's hat: he has noticed something, or he has seen the detective.
 func _mark(m, text: String) -> void:
-	if m != player and not m.visible:
+	if m != player and (not m.visible or m.has_meta("shade")):   # (the dream's dead do not cry out)
 		return   # (a man behind a wall - in a room or a house he is not in - shows nothing over it)
 	var l := Label.new()
 	l.text = text
@@ -9811,6 +9829,9 @@ func _enemies(delta: float) -> void:
 		if e["type"] == "hook":   # no gun: he comes for Frank with the hook
 			_hook_man(e, m, to_player, delta)
 			continue
+		if e["type"] == "shade":
+			_shade(e, m, to_player, delta)
+			continue
 		if e.has("aim_t"):   # the marksman, sighted in: the line holds on Frank, then the shot
 			_sniper_aim(e, m, to_player, delta)
 			continue
@@ -9997,6 +10018,138 @@ func _hook_man(e: Dictionary, m, to_player: Vector2, delta: float) -> void:
 		_mark(m, "!")
 		_shots_at[int(e["id"])] = _ai_t
 	m.set_state(walk, to_player, delta)
+
+
+## THE DREAM's dead (user 18. 11.: "the workers who burned in there - shadows, souls, like Alan Wake 2's; they need not
+## shoot"): the dock workers' silhouettes, cap and work coat, pitch dark, smoke coming off them, two embers for eyes.
+## They lurch at Frank with their hands out; a touch burns him. Out of his sight they come on in a jerk - a puff of soot
+## and the shadow is suddenly nearer. A bullet knocks ash out of them; the last one takes them apart into ash and sparks.
+func _shade_body(m) -> void:
+	var smoke := CPUParticles2D.new()
+	smoke.texture = load("res://art/fx/puff3.png")
+	smoke.amount = 10
+	smoke.lifetime = 1.8
+	smoke.local_coords = false   # (it trails behind him)
+	smoke.position = Vector2(0.0, -300.0)
+	smoke.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	smoke.emission_rect_extents = Vector2(60.0, 220.0)
+	smoke.direction = Vector2(0.0, -1.0)
+	smoke.spread = 25.0
+	smoke.gravity = Vector2(0.0, -70.0)
+	smoke.initial_velocity_min = 20.0
+	smoke.initial_velocity_max = 60.0
+	smoke.scale_amount_min = 0.25
+	smoke.scale_amount_max = 0.5
+	smoke.angle_max = 360.0
+	var g := Gradient.new()
+	g.set_color(0, Color(0.06, 0.05, 0.05, 0.0))
+	g.add_point(0.25, Color(0.06, 0.05, 0.05, 0.55))
+	g.set_color(g.get_point_count() - 1, Color(0.1, 0.09, 0.09, 0.0))
+	smoke.color_ramp = g
+	smoke.show_behind_parent = true
+	m.add_child(smoke)
+	m.rim_line = Vector3(0.9, 0.42, 0.14)   # a contour of embers, not the cream ink of the living
+	var add := CanvasItemMaterial.new()
+	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	add.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+	var eye := Sprite2D.new()   # the embers where his eyes were (on the figure, off its CanvasGroup: _shade_eyes places them)
+	eye.texture = _soft_glow()
+	eye.material = add
+	eye.scale = Vector2(0.24, 0.12)
+	eye.modulate = _undo_night(1.5) * Color(1.0, 0.45, 0.12, 1.0)   # (through the night's CanvasModulate, as the flames are)
+	eye.z_index = 30
+	add_child(eye)   # (not on the figure: its near-black colour and its CanvasGroup would put the embers out)
+	m.set_meta("eyes", eye)
+
+
+const SHADE_ASH := Color(0.1, 0.09, 0.09)   # (as it shows: fx.smoke's own night lift is divided out, _ash_tint)
+func _ash_tint() -> Color:
+	return Color(SHADE_ASH.r / maxf(0.05, fx.night.r), SHADE_ASH.g / maxf(0.05, fx.night.g), SHADE_ASH.b / maxf(0.05, fx.night.b))
+func _shade_eyes(m) -> void:
+	var eye: Sprite2D = m.get_meta("eyes") if m.has_meta("eyes") else null
+	var head: Sprite2D = m._spr.get("head")
+	if eye == null or not is_instance_valid(eye) or head == null:
+		return
+	eye.visible = m.visible
+	var a: Vector2 = m.cfg["parts"]["head"]["a"]
+	var local := Vector2(head.texture.get_width() * 0.8, head.texture.get_height() * 0.47) - a   # (the profile's eye)
+	eye.global_position = head.global_transform * local
+	eye.self_modulate.a = (0.75 + 0.25 * sin(_ai_t * 5.0 + m.position.x)) * m.modulate.a / 0.9   # (smouldering; out with him)
+	if OS.get_cmdline_user_args().has("--log-sets") and fmod(_ai_t, 2.0) < 0.034: print("EYES ", eye.global_position, " head ", head.global_position, " vis ", eye.is_visible_in_tree(), " mod ", eye.modulate)
+
+
+func _shade(e: Dictionary, m, to_player: Vector2, delta: float) -> void:
+	var walk := 0.0
+	var dx: float = to_player.x
+	var same_floor: bool = absf(m.position.y - player.position.y) < 90.0
+	e["cool"] = float(e["cool"]) - delta
+	if over or cleared or _grace > 0.0:
+		m.set_state(0.0, to_player, delta)
+		return
+	# out of his sight (he looks the other way), far enough: the jerk forward in a puff of soot
+	e["blink"] = float(e["blink"]) - delta
+	if same_floor and absf(dx) > 420.0 and signf(dx) == -signf(_look) and float(e["blink"]) <= 0.0:
+		e["blink"] = randf_range(1.6, 2.8)
+		var to_x: float = m.position.x + signf(dx) * minf(300.0, absf(dx) - 260.0)
+		var clear := true
+		for bx in boxes:
+			if bx.grow(40.0).has_point(Vector2(to_x, m.position.y - 60.0)):
+				clear = false
+		if clear:
+			for at: Vector2 in [m.position, Vector2(to_x, m.position.y)]:
+				fx.smoke(at + Vector2(0.0, -260.0), Vector2(randf_range(-30.0, 30.0), -60.0), 0.9, 0.9, 0.55, _ash_tint())
+			m.position.x = to_x
+			sfx.play("flutter", -12.0, to_x, 0.1)
+	if absf(dx) > 120.0 or not same_floor:
+		walk = signf(dx) * (0.55 + 0.3 * sin(_ai_t * 2.6 + float(e["id"])))   # a lurch, not a walk
+		var step: float = walk * 300.0 * delta
+		var blocked := -1
+		for k in boxes.size():
+			if boxes[k].grow(25.0).has_point(Vector2(m.position.x + signf(dx) * 200.0, m.position.y - 60.0)):
+				blocked = k
+		if blocked >= 0 and same_floor and boxes[blocked].size.y <= 270.0:   # over the crate
+			var bx: Rect2 = boxes[blocked]
+			var far: float = (bx.end.x + 90.0) if dx > 0.0 else (bx.position.x - 90.0)
+			if absf(player.position.x - far) > 140.0:
+				_hop(e, m, bx, far)
+				return
+			walk = 0.0
+		elif blocked < 0:
+			m.position.x += step
+	elif float(e["cool"]) <= 0.0 and move_state != "dive":   # his hands on Frank: it burns
+		e["cool"] = 1.3
+		sfx.play("fire", -6.0, m.position.x, 0.1)
+		for k in 6:
+			fx.spark(player.position + Vector2(randf_range(-40.0, 40.0), randf_range(-380.0, -160.0)))
+		_burn_player(1)
+		player.position.x -= signf(dx) * 60.0   # (he tears himself free: a step back)
+	m.set_state(walk, to_player, delta)
+
+
+func _shade_hit(at: Vector2) -> void:
+	for k in 4:
+		fx.smoke(at, Vector2(fx.hit_vel.x * 0.15 + randf_range(-60.0, 60.0), randf_range(-120.0, -30.0)), 0.35, 0.8, 0.6, _ash_tint())
+	for k in 5:
+		fx.spark(at + Vector2(randf_range(-20.0, 20.0), randf_range(-20.0, 20.0)))
+
+
+func _shade_gone(m) -> void:
+	sfx.play("fire", -2.0, m.position.x, 0.1)
+	var eyes = m.get_meta("eyes") if m.has_meta("eyes") else null
+	if eyes != null and is_instance_valid(eyes):   # the embers go out first
+		eyes.create_tween().tween_property(eyes, "modulate:a", 0.0, 0.25)
+	for k in 9:   # the whole of him goes up as ash
+		fx.smoke(m.position + Vector2(randf_range(-80.0, 80.0), -randf_range(60.0, 520.0)), Vector2(randf_range(-80.0, 80.0), -randf_range(60.0, 200.0)),
+				randf_range(0.6, 1.0), randf_range(1.0, 1.6), 0.7, _ash_tint())
+	for k in 12:
+		fx.spark(m.position + Vector2(randf_range(-90.0, 90.0), -randf_range(40.0, 520.0)))
+	var tw: Tween = m.create_tween()
+	tw.tween_interval(0.1)   # (gone inside the burst of ash: a fade shows him half drawn - the contour shader lets the coat through)
+	tw.tween_callback(func() -> void:
+		m.visible = false
+		var eye = m.get_meta("eyes") if m.has_meta("eyes") else null
+		if eye != null and is_instance_valid(eye):
+			eye.queue_free())
 
 
 ## Dynamite: a lit stick lobbed to land at Frank's feet. It burns down and goes up where it lies;

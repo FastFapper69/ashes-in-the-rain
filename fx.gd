@@ -432,9 +432,9 @@ func spark(at: Vector2) -> void:
 
 ## A puff of smoke that lives its drawn life: the eight painted stages from a dense bright puff to
 ## torn wisps, drifting with `vel`, over `life` seconds.
-func smoke(at: Vector2, vel: Vector2, size: float, life: float, alpha := 0.7) -> void:
+func smoke(at: Vector2, vel: Vector2, size: float, life: float, alpha := 0.7, tint := Color.WHITE) -> void:
 	var p := _sprite(SMOKE[0], at, size)
-	p.modulate = Color(night.r, night.g, night.b, alpha)
+	p.modulate = Color(night.r * tint.r, night.g * tint.g, night.b * tint.b, alpha)
 	p.rotation = randf_range(-0.3, 0.3)
 	p.flip_h = randf() < 0.5
 	var tw := create_tween()

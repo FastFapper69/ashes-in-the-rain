@@ -7,6 +7,7 @@ const ENTRIES := [
 	["18 NOV 2026", [
 		"The docks and the subway: every map its own stretch of waterfront or line; two new dock sheds",
 		"Chapter III is a slope now, not a wall: three gunmen at once only by its end",
+		"In the dream the dead come for you: the shadows of the dock workers who burned there, ember eyes, a touch that burns",
 		"The dream's ash thickens like his guilt: the deeper in, each time round, each man shot with his hands up",
 		"Burning posts slide past right in front of the camera in the dream",
 		"The dream: flames stand on the boards, not in the dark under them; cinders rain from the roof each time round",

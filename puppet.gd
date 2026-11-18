@@ -98,13 +98,14 @@ void fragment() {
 var _outline_mat: ShaderMaterial
 var _outline_w := 1.8
 var _rim := 0.0
+var rim_line := Vector3(-1.0, 0.0, 0.0)   # (an own contour colour, the dream's shades: a glow of embers; x < 0: the usual cream)
 ## In slowed time the figures' contour thickens and brightens (audit 17. 11., Gemini: dark coats lost on dark walls).
 func set_rim(k: float) -> void:
 	if _outline_mat == null or absf(k - _rim) < 0.02:
 		return
 	_rim = k
 	_outline_mat.set_shader_parameter("width", _outline_w * (1.0 + 0.7 * k))
-	_outline_mat.set_shader_parameter("line", Vector3(0.8, 0.77, 0.7).lerp(Vector3(0.97, 0.95, 0.9), k))
+	_outline_mat.set_shader_parameter("line", rim_line if rim_line.x >= 0.0 else Vector3(0.8, 0.77, 0.7).lerp(Vector3(0.97, 0.95, 0.9), k))
 
 
 var _spr := {}
