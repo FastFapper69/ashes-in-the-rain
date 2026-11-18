@@ -517,16 +517,16 @@ func _fetch_pack() -> void:
 		var cap: Control = Paper.caption(text, font, 26, 640.0)
 		cap.position = Vector2((view.x - cap.size.x) * 0.5, view.y - 48.0 - cap.size.y)
 		box.add_child(cap)
-	var src := Packs.url(chapter)
-	crumb("fetch pack %s from %s %s" % [Packs.group(chapter), src, _mem_line()])
+	var src := Packs.url(chapter, map)
+	crumb("fetch pack %s from %s %s" % [Packs.group(chapter, map), src, _mem_line()])
 	if not OS.has_feature("web"):
-		if Packs.mount(src, chapter):
+		if Packs.mount(src, chapter, map):
 			get_tree().reload_current_scene.call_deferred()
 		else:
 			push_error("pack missing: " + src)
 		return
 	say.call("OPENING THE CASE FILE...")
-	var file := "/tmp/ashes_pack_%s.pck" % Packs.group(chapter)   # in the page's memory only: user:// would be stored in the browser and loaded back at every start
+	var file := "/tmp/ashes_pack_%s.pck" % Packs.group(chapter, map)   # in the page's memory only: user:// would be stored in the browser and loaded back at every start
 	var abs_url := String(JavaScriptBridge.eval("new URL(%s, location.href).href" % JSON.stringify(src), true))
 	var req := HTTPRequest.new()
 	req.use_threads = false
@@ -547,14 +547,14 @@ func _fetch_pack() -> void:
 		if result == HTTPRequest.RESULT_SUCCESS and code == 200 and got > 0:
 			var fa := FileAccess.open(file, FileAccess.WRITE)
 			if fa == null:   # no /tmp here: the browser's own storage then
-				file = "user://pack_%s.pck" % Packs.group(chapter)
+				file = "user://pack_%s.pck" % Packs.group(chapter, map)
 				fa = FileAccess.open(file, FileAccess.WRITE)
 			if fa != null:
 				fa.store_buffer(body)
 				fa.close()
 		body = PackedByteArray()
-		if result == HTTPRequest.RESULT_SUCCESS and code == 200 and Packs.mount(file, chapter):
-			crumb("pack %s mounted (%d bytes) %s" % [Packs.group(chapter), got, _mem_line()])
+		if result == HTTPRequest.RESULT_SUCCESS and code == 200 and Packs.mount(file, chapter, map):
+			crumb("pack %s mounted (%d bytes) %s" % [Packs.group(chapter, map), got, _mem_line()])
 			get_tree().reload_current_scene()
 		else:
 			crumb("pack fetch failed result=%d code=%d file=%d bytes, open err %d" % [result, code, got, FileAccess.get_open_error()])
@@ -651,14 +651,14 @@ func _ready() -> void:
 	# drawings the base pack holds (the 1931 tenement row, without its fire); the chapter's pack comes
 	# when a map is picked.
 	var stand_in := false
-	if in_menu and not Packs.has(chapter):
+	if in_menu and not Packs.has(chapter, map):
 		stand_in = true
 		chapter = 2
 		for k in Levels.CAMPAIGN[2]["maps"].size():
 			if String(Levels.CAMPAIGN[2]["maps"][k]["name"]) == "1931":
 				map = k
-	if not stand_in and not Packs.has(chapter):   # this part of the story's drawings are not on the page yet
-		if Packs.needs_fresh_page(chapter):
+	if not stand_in and not Packs.has(chapter, map):   # this part of the story's drawings are not on the page yet
+		if Packs.needs_fresh_page(chapter, map):
 			crumb("fresh page for %d:%d (pack %s held)" % [chapter, map, Packs.mounted])
 			set_process(false)
 			set_physics_process(false)

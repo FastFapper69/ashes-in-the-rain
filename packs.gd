@@ -7,25 +7,28 @@ const List = preload("res://packs_list.gen.gd")
 static var mounted := ""   # the group whose pack this page has loaded
 
 
-static func group(chapter: int) -> String:
+static func group(chapter: int, map := -1) -> String:
+	var key := "%d:%d" % [chapter, map]
+	if List.GROUP_OF_MAP.has(key):   # a map with a pack of its own (THE DREAM, 18. 11.)
+		return String(List.GROUP_OF_MAP[key])
 	return String(List.GROUP_OF_CHAPTER.get(chapter, ""))
 
 
 ## True when the chapter's drawings can be loaded right now (always, outside a split web build).
-static func has(chapter: int) -> bool:
-	var g := group(chapter)
+static func has(chapter: int, map := -1) -> bool:
+	var g := group(chapter, map)
 	return g == "" or not List.PROBE.has(g) or ResourceLoader.exists(String(List.PROBE[g]))
 
 
 ## The page already holds another part of the story: only a fresh page can drop it.
-static func needs_fresh_page(chapter: int) -> bool:
-	return not has(chapter) and mounted != "" and mounted != group(chapter)
+static func needs_fresh_page(chapter: int, map := -1) -> bool:
+	return not has(chapter, map) and mounted != "" and mounted != group(chapter, map)
 
 
 ## Where the pack is: next to the page, named after this build (ashes-<hash>-<group>.pck), or for
 ## desktop tests in the folder given with --packs=.
-static func url(chapter: int) -> String:
-	var g := group(chapter)
+static func url(chapter: int, map := -1) -> String:
+	var g := group(chapter, map)
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--packs="):
 			return arg.trim_prefix("--packs=").path_join("pack_%s.pck" % g)
@@ -35,10 +38,10 @@ static func url(chapter: int) -> String:
 	return ""
 
 
-static func mount(path: String, chapter: int) -> bool:
+static func mount(path: String, chapter: int, map := -1) -> bool:
 	var ok := ProjectSettings.load_resource_pack(path, true)
 	if ok:
-		mounted = group(chapter)
+		mounted = group(chapter, map)
 	return ok
 
 
