@@ -18,6 +18,7 @@ Enemies are a squad with roles that must be fair (same floor, on screen, no spaw
 
 ## Enemy types by chapter
 ch I mobsters (fedora/homburg/cap) and boxer; ch II hook men, dynamite throwers, marksmen (red sight line), crane loads; ch III police: shield + flashlight (finds Frank in the dark), police marksmen; bosses Mickey (club), Kessler (office), Briggs (cap can be shot off).
+- Each kind reads by its clothes (18. 11., user: "make new characters so they differ"): main.gd OUTFIT / COP_OUTFIT pick art/mobster/<outfit>/ (gen/outfits.py: Gemini redraws the plain suit's parts sheet, cut back onto the same rig). Plain dark suit = gunman; pale pinstripe + white tie = tommy gunner (torpedo); black leather coat, roll-neck, a bit bigger = shotgun/hook/dynamite (docker); white dinner jacket = mob boss; navy uniform = patrolman (ch III post/shotgun/sniper/shield; ch III tommy gunners and Briggs in plain clothes). No colour tints per kind any more. The 1931 dream keeps its shadow men. Check with --test=lineup.
 
 ## Non-lethal outcomes
 - **Surrender / let go**: `state == "give"`; execution scores nothing and ends the streak; letting go gives XP (guilt/ash system).

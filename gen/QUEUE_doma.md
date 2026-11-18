@@ -263,7 +263,7 @@ texty se nepřekrývají (sebrání nad vyprávěním, combo pod LEVEL), každá
 Ověřeno jako omyl Gemini: zaplavení v CATACOMBS existuje; traverzy v LAST TRAIN existují (bot jim neuhýbá - proto jeho zásahy).
 Ochozy kap. II/III jsou už samostatné kreslené vrstvy (iron_walk/gantry); mezipatro 14TH je celé patro - pravidlo 27 splněno.
 Zbývá (potřebuje tvoje rozhodnutí nebo nové kresby):
-A. Typy nepřátel nejsou poznat podle siluety (brokovník / samopal / boss vypadají stejně) - nové kresby postav, nebo aspoň jiný klobouk/kabát.
+A. HOTOVO 18. 11. (oblečení podle typu, HANDOFF 87). ~~Typy nepřátel nejsou poznat podle siluety (brokovník / samopal / boss vypadají stejně) - nové kresby postav, nebo aspoň jiný klobouk/kabát.~~
 B. 1931: oheň v ulici je malý ("plamínky u kotníků") - větší požáry oken, padající trámy (jako ve snu).
 C. LAST TRAIN: mezery mezi vagony k přeskoku, nízké návěstidla (kromě traverz).
 D. Kessler a Briggs: víc fází souboje (Briggs má štít - ověřit), výrazně jiná postava.

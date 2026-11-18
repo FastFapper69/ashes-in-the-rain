@@ -297,7 +297,10 @@ func _ready() -> void:
 		if not parts.has(part):
 			continue
 		var s := Sprite2D.new()
-		s.texture = _tex(String(cfg["head_tex"]).trim_suffix(".png")) if part == "head" and cfg.has("head_tex") else _tex(String(cfg["dir"]) + part)
+		var pdir := String(cfg["dir"])
+		if cfg.has("base_dir") and not ResourceLoader.exists(pdir + part + ".png"):   # (an outfit draws only what shows: the hidden thigh/shin from the plain suit)
+			pdir = String(cfg["base_dir"])
+		s.texture = _tex(String(cfg["head_tex"]).trim_suffix(".png")) if part == "head" and cfg.has("head_tex") else _tex(pdir + part)
 		s.centered = false
 		s.offset = -parts[part]["a"]
 		if parts[part].has("region"):   # only part of the drawing is used

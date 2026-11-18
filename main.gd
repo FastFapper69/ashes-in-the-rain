@@ -268,7 +268,7 @@ const INDOOR_ONLY := ["washer", "wash_tub", "linen_table", "desk", "filing", "sa
 const OUTDOOR_ONLY := ["mailbox", "fruit_cart", "dumpster", "hydrant", "bench"]
 const BOX_ART := {"barrel": ["drum_red", Color(1.7, 1.55, 1.55)], "machine": ["dumpster", Color(0.7, 0.72, 0.78)], "bar": ["crate_long", Color(0.45, 0.32, 0.26)]}
 const ENEMY_MAG := {"post": 6, "tommy": 3, "shotgun": 4, "boss": 5, "sniper": 5, "shield": 6, "dynamite": 99, "hook": 99}   # shots (a tommy gunner's: bursts) before a reload
-const ENEMY_TINT := {"post": Color(1, 1, 1), "tommy": Color(0.82, 0.86, 1.0), "shotgun": Color(1.0, 0.9, 0.78), "boss": Color(1, 1, 1)}
+const ENEMY_TINT := {"post": Color(1, 1, 1), "tommy": Color(1, 1, 1), "shotgun": Color(1, 1, 1), "boss": Color(1, 1, 1)}   # (their clothes tell them apart now)
 var ambient := AMBIENT
 const SIGHT := 2100.0   # a mobster starts shooting once the detective is this close
 # The automatic pictures: when (seconds of game time) and under what name.
@@ -3416,6 +3416,27 @@ func _auto_step(delta: float) -> void:
 			hud.caption(level["outro"] if chapter == 0 else level["intro"])
 			hud.boss_bar("MICKEY 'CANVAS' TEAGUE", 0.7)
 		shots = [[4.5, "caption"]]
+	elif _auto == "lineup":   # --test=lineup: every kind of man side by side in the street, Frank at the left (outfits, 18. 11.)
+		hp = max_hp
+		_grace = 99.0
+		if _auto_done & 1 == 0 and _at > 0.3:
+			_auto_done |= 1
+			for e in enemies:
+				e["alive"] = false
+				e["node"].visible = false
+			player.position = Vector2(2000.0, 0.0)
+			var kinds := ["post", "tommy", "shotgun", "boss"]
+			for i in kinds.size():
+				var e := _add_enemy(Vector2(2450.0 + i * 330.0, 0.0), kinds[i], "post", 2450.0 + i * 330.0)
+				e["cool"] = 999.0
+				e["timer"] = 999.0
+				e["role"] = "post"
+			cam.position.x = 2700.0
+		if _at > 0.3:
+			cam.position.x = 2700.0
+		shots = [[0.9, "lineup"]]
+		if _at > 1.6:
+			get_tree().quit()
 	elif _auto == "hud":   # the HUD plate in its worst case: two guns, an empty gun, a long narration and a hint
 		hp = max_hp
 		_grace = 99.0
@@ -7909,9 +7930,19 @@ func _eddie_cfg() -> Dictionary:
 	return c
 
 
+## (audit 18. 11.: "shotgunners, tommy gunners and bosses share one silhouette") each kind its own clothes on the same rig
+## (gen/outfits.py: art/mobster/<outfit>/ torso, arms, legs): tommy gunners in pale pinstripes and a white tie, shotgunners in
+## a dockworker's black leather coat, a bit bigger; the police in navy uniforms (their tommy gunners in plain clothes).
+const OUTFIT := {"tommy": "torpedo", "shotgun": "docker", "hook": "docker", "dynamite": "docker", "boss": "boss"}   # (bosses: a white dinner jacket)
+const COP_OUTFIT := {"post": "patrolman", "shotgun": "patrolman", "sniper": "patrolman", "shield": "patrolman"}
 func _mob_cfg(kind: String) -> Dictionary:
 	var c: Dictionary = MOBSTER.duplicate(true)
 	var cops: bool = level.get("cops", false)
+	var outfit: String = String((COP_OUTFIT if cops else OUTFIT).get(kind, ""))
+	if outfit != "" and not _unreal():
+		c["base_dir"] = c["dir"]
+		c["dir"] = "res://art/mobster/%s/" % outfit
+		c["leg_tex"] = "res://art/mobster/%s/leg.png" % outfit
 	var face: String = ((COP_FACES if cops else MOB_FACES).get(kind, [""]) as Array).pick_random()
 	if kind == "boss":
 		face = BOSS_FACES.get(String(level.get("boss", "")), face)
@@ -7938,6 +7969,8 @@ func _add_enemy(at: Vector2, kind: String, state: String, goal_x: float) -> Dict
 	add_child(m)
 	if kind == "boss":
 		m.size = 1.15
+	elif kind == "shotgun" and not level.get("cops", false):
+		m.size = 1.07   # (the bruiser: a head over the others)
 	var briggs: bool = kind == "boss" and String(level.get("boss", "")) == "briggs"
 	m.set_weapon("shotgun" if briggs else {"tommy": "tommy", "shotgun": "shotgun", "boss": "pistols", "sniper": "rifle", "hook": "hook", "dynamite": "dynamite"}.get(kind, "pistol"))
 	if briggs or kind == "shield":
