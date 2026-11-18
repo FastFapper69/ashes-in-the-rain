@@ -6347,10 +6347,10 @@ func _map_cleared() -> void:
 
 ## A comic-page cutscene over the game, then `then`.
 ## A comic page in the middle of a map (rule 30, like Max Payne's): the street holds still under it, then play goes
-## on where it stopped. Once per map - played again (map done before), it is not shown.
+## on where it stopped. Every time, like Max Payne's (SKIP is on the page).
 func _mid_comic(id: String) -> void:
 	if OS.get_cmdline_user_args().has("--log-sets"): print("COMIC ", id, " t ", snappedf(_at, 0.1))
-	if _auto != "" or MenuScript.is_done(chapter, map) or over:
+	if _auto != "" or over:
 		return
 	get_tree().paused = true
 	_play_cut(id, func() -> void:
