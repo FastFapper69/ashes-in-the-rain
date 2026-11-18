@@ -57,6 +57,56 @@ func place(kind: String, x: float, like: Sprite2D) -> void:
 		add_child(rosette)
 
 
+## TENEMENTS' rooftop water tower (QUEUE §15 H): its tank on its own layer over the painted legs (gen/roof_tank.py);
+## shot, it bursts in six drawn frames (art/props/roof_tank_anim.png: cells 550 x 390, the cone's tip at (190, 0)) and
+## the water comes down on the roof under it, sweeping the men there off their feet.
+const TANK_TIP := Vector2(158.5, 10.0)    # the cut tank's cone tip (its own px)
+const TANK_CELL := Vector2(550.0, 390.0)
+const TANK_CELL_TIP := Vector2(190.0, 0.0)
+const TANK_K := 141.5 / 114.0             # roof px per animation px (its body's half width in each)
+func place_roof_tank(at: Vector2, k: float, mat: Material, tone: Color) -> void:
+	var tex: Texture2D = load("res://art/props/roof_tank.png")
+	_add("roof_tank", tex, at.x, at.y, tex.get_width() * k, k, NAN, mat, tone, 1)
+	var p: Dictionary = items[items.size() - 1]
+	(p["shadow"] as Sprite2D).visible = false   # (against the sky: nothing to cast on)
+	(p["node"] as Sprite2D).z_index = -7
+	p["k"] = k
+
+
+func _shot_roof_tank(p: Dictionary, _pos: Vector2) -> void:
+	var r: Rect2 = p["rect"]
+	var k: float = p["k"]
+	var tip := r.position + TANK_TIP * k
+	var ka := k * TANK_K
+	var tex: Texture2D = load("res://art/props/roof_tank_anim.png")
+	var sp: Sprite2D = p["node"]
+	sp.texture = tex
+	sp.region_enabled = true
+	sp.scale = Vector2.ONE * ka
+	sp.position = tip - TANK_CELL_TIP * ka
+	sp.z_index = -3   # (the water falls in front of the legs and the men's feet)
+	game._impact(0.08, 0.05)
+	game._word(["crack", "splash"], tip + Vector2(0.0, -80.0), 0.22)
+	game.sfx.play("water", 4.0, tip.x, 0.05)
+	var cw := TANK_CELL.x
+	var tw := sp.create_tween()
+	for f in [0, 1, 2]:
+		tw.tween_callback(func() -> void: sp.region_rect = Rect2(cw * f, 0.0, cw, TANK_CELL.y))
+		tw.tween_interval(0.12)
+	for i in 6:
+		for f in [3, 4] if i < 5 else [4]:
+			tw.tween_callback(func() -> void: sp.region_rect = Rect2(cw * f, 0.0, cw, TANK_CELL.y))
+			tw.tween_interval(0.13)
+	tw.tween_callback(func() -> void: sp.region_rect = Rect2(cw * 5, 0.0, cw, TANK_CELL.y))
+	var floor_y: float = float(game.roof.get("y", 0.0)) if not game.roof.is_empty() else 0.0
+	get_tree().create_timer(0.3, false).timeout.connect(func() -> void:   # the wall of water reaches the roof
+		var at := Vector2(tip.x + 90.0, floor_y)
+		for kk in 10:
+			game.fx.smoke(at + Vector2(randf_range(-200.0, 260.0), -randf_range(0.0, 60.0)), Vector2(randf_range(-260.0, 360.0), randf_range(-160.0, -20.0)),
+					randf_range(0.25, 0.45), randf_range(0.6, 1.1), 0.6)
+		_knock_round(at, 520.0, 950.0))
+
+
 ## A point of a thing's drawn animation cell (shares of the cell) in the world, where the cell sits over its still.
 const TROLLEY_WIRE := Vector2(0.81, 0.263)   # where the drawing cuts the trolley wire (gen/street_props.py WIRE_CUT)
 func _cell_point(p: Dictionary, at: Vector2) -> Vector2:

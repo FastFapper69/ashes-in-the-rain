@@ -26,6 +26,7 @@ KINDS = {
     "steampipe": {"shot": True,  "floor": None,     "depth": 0.0},
     "windlass":  {"shot": True,  "floor": None,     "depth": 0.01},   # free-standing (levels "things"), docks
     "trolley":   {"shot": True,  "floor": None,     "depth": 0.0},    # free-standing: a trolley pole over a puddle (ch III)
+    "roof_tank": {"shot": True,  "floor": None,     "depth": 0.0},
     "thirdrail": {"shot": True,  "floor": None,     "depth": 0.0},    # free-standing: the subway's third rail and its junction box (ch III)
     # a fire escape: its own layer over the wall it climbs (QUEUE §11, rule 27), its landings are the piece's floors
     "fescape":   {"shot": False, "floor": None,     "depth": 0.0},

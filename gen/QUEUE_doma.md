@@ -255,4 +255,4 @@ H. Střechy TENEMENTS: muži tam stojí jako na ulici - chce to něco střešní
 Nepravdy v posudku Gemini (ověřeno): "nikdo neobchází zboku" (flank existuje, main.gd role lead/_flank_called), "věta Frankova se opakuje při každém zabití"
 (je 1x za mapu; na snímcích visí přes dva snímky), "boss bez krytů" (bar + sudy jsou), "stejná místnost 3x v DREAM" (záměr - smyčka snu).
 Stav §15 (18. 11. odpoledne): A hotovo (HANDOFF 76), B+C (78), D (79), E (80), F (81), G (82 - velký klub, lustr). Zbývá H (střechy TENEMENTS).
-
+H hotovo (HANDOFF 84). §15 celý hotový.

@@ -1315,6 +1315,7 @@ def street(mp, m, rng):
     return seq
 
 
+ROOF_TANK_X = 1110.0   # the water tower's middle on roof_a (px; gen/roof_tank.py)
 def roofs(out, mp, x, hard):
     """Up the scaffold and back the other way along the roofs: tar barrels and builders' crates for cover,
     and them coming out of the stairwell doors ahead. The map ends at the firewall at the far end."""
@@ -1346,6 +1347,17 @@ def roofs(out, mp, x, hard):
         out.enemies.append({"x": bx - 170, "y": ROOF_Y, "kind": kind, "trig": None, "from": None, "delay": 0.0, "run": False})
     # out of the stairwell door at the far end once he is halfway along
     out.enemies.append({"x": r1 - L * 0.7, "y": ROOF_Y, "kind": "post", "trig": r1 - L * 0.4, "from": r0 + 300, "delay": 0.0, "run": True})
+    # (QUEUE §15 H, chapter I audit 18. 11.: "rooftop men behave like street thugs") out of each painted stairwell door
+    # as he comes near it, and a man under the water tower (its tank can be shot: main.gd / props.gd roof_tank)
+    k = kit["scale"]
+    for name, px0 in pics:
+        door = {"roof_a": 608.0, "roof_b": 888.0}.get(name)
+        if door and r0 + 600 < px0 + door * k < r1 - 900:
+            dx = px0 + door * k
+            out.enemies.append({"x": dx + 380, "y": ROOF_Y, "kind": "shotgun" if hard > 0.5 else "post", "trig": dx + 1700,
+                                "from": dx, "delay": 0.0, "run": True})
+        if name == "roof_a" and r0 + 300 < px0 + ROOF_TANK_X * k < r1 - 300:
+            out.enemies.append({"x": px0 + ROOF_TANK_X * k + 150, "y": ROOF_Y, "kind": "post", "trig": None, "from": None, "delay": 0.0, "run": False})
     out.roof_checks = [r1 - L * 0.5]
     out.end = r1 + 400.0
 

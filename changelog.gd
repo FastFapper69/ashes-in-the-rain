@@ -6,6 +6,7 @@ extends RefCounted
 const ENTRIES := [
 	["18 NOV 2026", [
 		"The Blue Note is now a big club: the bar and the stairs, a dance hall with a gallery of private booths, then the stage where Teague waits",
+		"Tenements rooftops: shoot the water tower's tank and the water sweeps the men under it off their feet; men come out of the stairwell doors as you pass",
 		"The bar is back in the big Blue Note: dive onto the counter and skid its whole length",
 		"Shoot the chandelier over the dance floor: it comes down on whoever stands under it",
 		"When the El goes over, sparks and soot rain down and the men under it flinch",

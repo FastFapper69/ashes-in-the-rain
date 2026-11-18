@@ -3300,7 +3300,10 @@ func _auto_step(delta: float) -> void:
 		var at := _auto.trim_prefix("propshot:").split(",")
 		if _auto_done & (1 << 21) == 0:   # (a flag, not _at: the first frame after loading can be long)
 			_auto_done |= 1 << 21
-			player.position = Vector2(float(at[0]) - 700.0, 0.0)
+			player.position = Vector2(float(at[0]) + (700.0 if float(at[1]) < -1000.0 else -700.0), 0.0)   # (up on the roofs he comes from the right)
+			if float(at[1]) < -1000.0:
+				player.position.y = _floor_at(player.position.x, -3000.0)
+				_ground_y = player.position.y
 			_grace = 99.0
 			for e in enemies:
 				e["seen"] = false
@@ -8601,6 +8604,10 @@ func _build_roofs() -> void:
 		sp.material = atmo.blur_material(1.4)
 		sp.modulate = Color.WHITE * SEGMENT_MOON * 0.95
 		add_child(sp)
+		if String(pics[i][0]) == "roof_a" and props:   # its water tower's tank: its own layer, it can be shot (QUEUE §15 H)
+			var tx := float(pics[i][1]) + 950.0 * k
+			if tx > float(roof["x0"]) and tx < float(roof["x1"]):
+				props.place_roof_tank(sp.position + Vector2(950.0, 135.0) * k, k, sp.material, sp.modulate)
 
 
 ## A floor of scaffolding: bays of tubes and planks (art/props/scaffold.png, the deck walked on 735 px
