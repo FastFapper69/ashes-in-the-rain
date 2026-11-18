@@ -1263,7 +1263,7 @@ func _build_street() -> void:
 const SEGMENT_LIGHTS := {
 	# the interiors' fronts (17. 11.): a lamp over each street door - a gooseneck over the shop and warehouse doors,
 	# the club's own painted lamp by its door, a lantern on a stoop's pediment
-	"front_laundry": [[696, 812, "goose"]], "front_warehouse": [[795, 760, "goose"], [2373, 760, "goose", true]],
+	"front_laundry": [[696, 812, "goose"]], "front_laundry_l": [[696, 812, "goose"]], "front_warehouse": [[795, 760, "goose"], [2373, 760, "goose", true]],
 	"front_club": [[630, 930, "painted"]], "subway_entrance": [[1272, 690, "painted"], [1884, 690, "painted"]], "front_tenement": [[870, 760, "goose"], [2305, 760, "goose", true]],
 	"laundry": [[2110, 748, "painted"], [455, 735, "goose"], [985, 735, "goose", true]],
 	"bluenote": [[1262, 880, "painted"], [284, 852, "lantern"], [2877, 833, "goose", true]],
@@ -1324,7 +1324,7 @@ const SEGMENT_TRIM := {"alley": 134.0, "bluenote": 134.0, "warehouse": 133.0, "l
 		"platform": 132.0, "tunnel": 132.0, "yard": 132.0, "station14": 132.0,
 		"bowery": 132.0, "walkway": 132.0, "pump": 132.0, "tunnel_lo": 132.0, "signal": 132.0, "arches": 132.0}
 # evens out how light each drawing came out, so neighbours do not jump in brightness
-const SEGMENT_GAIN := {"front_laundry": 1.3, "front_warehouse": 1.35, "front_club": 1.3, "front_tenement": 1.3, "front_yard": 1.3,   # (the fronts: to their neighbours' tone, by eye 17. 11.)
+const SEGMENT_GAIN := {"front_laundry": 1.3, "front_laundry_l": 1.3, "front_laundry_mid": 1.18, "front_laundry_r": 1.3, "front_warehouse": 1.35, "front_club": 1.3, "front_tenement": 1.3, "front_yard": 1.3,   # (the fronts: to their neighbours' tone, by eye 17. 11.)
 	"alley": 0.92, "bluenote": 0.98, "warehouse": 0.9, "laundry": 1.02, "subway": 1.07, "church": 1.0, "market": 1.05, "deadend": 1.1,
 		"pier17": 0.86, "cranes": 0.91, "shipping": 0.96, "quay": 0.91, "harbor": 0.86,
 		"platform": 0.95, "tunnel": 1.12, "yard": 0.85, "station14": 0.9,
@@ -1335,7 +1335,7 @@ const SEGMENT_KIT := {"walkway_b": "walkway", "signal_b": "signal", "arches_b": 
 	"yard_b": "yard", "tunnel_b": "tunnel", "sheds_b": "sheds", "pier17_b": "pier17", "shipping_b": "shipping", "quay_b": "quay",
 	"laundry_b": "laundry", "alley_b": "alley", "warehouse_b": "warehouse", "warehouse_c": "warehouse", "church_b": "church", "subway_b": "subway", "market_b": "market", "market_c": "market", "yard_c": "yard", "tunnel_c": "tunnel",
 	"fire_d": "fire_a", "fire_e": "fire_b", "fire_f": "fire_c", "fire_g": "fire_a"}
-const SEGMENT_SIZE := {"alley_mouth": 0.8, "market_row": 0.8, "church_row": 0.8, "subway_entrance": 0.8, "warehouse_row": 0.8, "bluenote_row": 0.8, "row_house": 0.8, "front_yard": 0.8, "apartment": 0.8, "factory": 0.8, "pawn_house": 0.8, "diner_house": 0.8, "alley_wash": 0.8, "front_laundry": 0.8, "front_warehouse": 0.8, "front_club": 0.8, "front_tenement": 0.8, "hk_tailor": 0.8, "hk_grocery": 0.8, "hk_saloon": 0.8, "hk_laundry": 0.8, "deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
+const SEGMENT_SIZE := {"alley_mouth": 0.8, "market_row": 0.8, "church_row": 0.8, "subway_entrance": 0.8, "warehouse_row": 0.8, "bluenote_row": 0.8, "row_house": 0.8, "front_yard": 0.8, "apartment": 0.8, "factory": 0.8, "pawn_house": 0.8, "diner_house": 0.8, "alley_wash": 0.8, "front_laundry": 0.8, "front_laundry_l": 0.8, "front_laundry_mid": 0.8, "front_laundry_r": 0.8, "front_warehouse": 0.8, "front_club": 0.8, "front_tenement": 0.8, "hk_tailor": 0.8, "hk_grocery": 0.8, "hk_saloon": 0.8, "hk_laundry": 0.8, "deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
 	"signal": 0.52, "arches": 0.52, "sheds": 0.55, "fire_a": 0.605, "fire_b": 0.605, "fire_c": 0.605}
 # A drawing whose floor runs into the depth: where on it a man's feet go, as a share of its height (the
 # street drawings stand at the back of the pavement at SEGMENT_BASE instead).
@@ -1357,6 +1357,15 @@ const ROOM_SCALE := 0.75   # interiors: see _build_room
 const ROOM_SCALES := {"laundry": 0.8523}   # (17. 11.: the industrial laundry hall, drums taller than a man)
 # where steam bursts out of a drawn pipe in a room (fractions of the drawing): mapfx, while he is in there
 const ROOM_VENTS := {"laundry": [Vector2(0.328, 0.235), Vector2(0.436, 0.455), Vector2(0.975, 0.56)]}
+# The big laundry (QUEUE §14, user 18. 11.): its drawings one after another [picture, from px, to px, catwalk layer]
+# (= gen/levels.py LAUNDRY_PARTS; cut on painted iron columns; gen/laundry_layers.py cuts the layers)
+const ROOM_PARTS := {"laundry": [["laundry", 0.0, 2880.0, ""], ["laundry_mid", 40.0, 3100.0, "laundry_mid_catwalk"],
+	["laundry_end", 790.0, 3168.0, "laundry_end_catwalk"]]}
+const ROOM_PART_BULBS := {   # [x, y, colour, size] on each part's picture, at the glass
+	"laundry_mid": [[0.240, 0.198, "warm", "big"], [0.776, 0.198, "warm", "big"]],
+	"laundry_end": [[0.647, 0.236, "warm", "big"], [0.584, 0.585, "warm", "small"], [0.931, 0.193, "warm", "big"]]}
+const ROOM_PART_VENTS := {"laundry_mid": [Vector2(0.316, 0.469), Vector2(0.773, 0.461)]}   # the boilers' valves
+var room_vents: Array = []   # [room x0, x1, world point]: every interior's painted steam pipes (mapfx _tick_room_vents)
 const ROOM_ZOOM := 0.58    # indoors the camera comes in closer: a room is small, the people in it are not
 var _veils: Array = []   # [x0, x1, node]: the dark over each interior seen from afar
 var _room_tops: Array = []   # [x0, x1, y of the ceiling] of each interior   # the facades meet the pavement this far down each drawing
@@ -1383,7 +1392,7 @@ func _build_segments() -> void:
 	_front_spans.clear()
 	for seg in level["street"]:
 		if String(seg[0]).begins_with("front_"):
-			var fw := 3168.0 * WALL_SCALE * float(SEGMENT_SIZE.get(String(seg[0]), 1.0))
+			var fw: float = float(KitData.PIECES.get(String(seg[0]), {}).get("w", 3168.0)) * WALL_SCALE * float(SEGMENT_SIZE.get(String(seg[0]), 1.0))
 			_front_spans.append(Vector2(float(seg[1]), float(seg[1]) + fw))
 	var built := {}
 	for seg in level["street"]:
@@ -1588,6 +1597,8 @@ func _build_segments() -> void:
 				dl.color = Color(1.0, 0.8, 0.55)
 		if art.begins_with("front_"):   # a front laid over the street: a firewall pier at both its ends (the drawings under it are cut there)
 			for px in [x0, x0 + seg_w]:
+				if _front_joint(px):   # (a front in parts, the big laundry's: one building, no pier between its parts)
+					continue
 				var fp := Sprite2D.new()
 				fp.texture = BigTex.get_tex("res://art/street/pier.png")
 				fp.centered = false
@@ -1597,7 +1608,7 @@ func _build_segments() -> void:
 				fp.material = w.material
 				fp.z_index = -5
 				add_child(fp)
-		if seg != level["street"][0] and not floored and walls:   # a firewall pier over the join with the drawing before (only between two buildings' walls: never in front of open sky or water)
+		if seg != level["street"][0] and not floored and walls and not _front_joint(x0):   # a firewall pier over the join with the drawing before (only between two buildings' walls: never in front of open sky or water)
 			var pier := Sprite2D.new()
 			pier.texture = BigTex.get_tex("res://art/street/pier.png")
 			pier.centered = false
@@ -1607,6 +1618,19 @@ func _build_segments() -> void:
 			pier.material = w.material
 			pier.z_index = -10
 			add_child(pier)
+
+
+## Is x where two parts of one front meet (front_laundry_l | _mid | _r)?
+func _front_joint(x: float) -> bool:
+	var n := 0
+	for seg in level["street"]:
+		var art := String(seg[0])
+		if not art.begins_with("front_laundry_"):
+			continue
+		var w: float = float(KitData.PIECES[art].get("w", 3168.0)) * WALL_SCALE * float(SEGMENT_SIZE.get(art, 1.0))
+		if absf(float(seg[1]) - x) < 2.0 or absf(float(seg[1]) + w - x) < 2.0:
+			n += 1
+	return n >= 2
 
 
 var _front_spans: Array[Vector2] = []
@@ -2957,7 +2981,11 @@ func _auto_step(delta: float) -> void:
 				if e["alive"] and float(e["node"].position.y) < player.position.y - 200.0 and absf(float(e["node"].position.x) - player.position.x) < 900.0:
 					hud.move = 1.0
 		var lad = _bot_ladder()
-		if lad != null and (not fight or player.position.y < -10.0 and absf(near.position.y - player.position.y) > 60.0):
+		if lad == null and move_state == "jump" and _bot_lad != null and _plain_room_at(player.position) >= 0:
+			lad = _bot_lad   # (over a crate on the way back to a room's ladder: still going there)
+		_bot_lad = lad
+		var up_to_them: bool = lad != null and near != null and _plain_room_at(player.position) >= 0 and absf(near.position.y - player.position.y) > 200.0   # (indoors, men up on a catwalk: up its ladder, the big laundry)
+		if lad != null and (not fight or up_to_them or player.position.y < -10.0 and absf(near.position.y - player.position.y) > 60.0):
 			var lx: float = (lad["a"] as Vector2).x
 			hud.move = 0.0 if absf(lx - player.position.x) < 30.0 else signf(lx - player.position.x)
 			if absf(lx - player.position.x) < 50.0 and move_state == "ground":
@@ -2970,8 +2998,8 @@ func _auto_step(delta: float) -> void:
 		if near != null and absf(near.position.x - player.position.x) < 1900.0:
 			hud.fire_tapped = true
 		if hud.move != 0.0 and move_state == "ground":
-			for r in _ropes:   # a crane rope before a wall of cargo: jump for it
-				if r["kind"] == "swing" and player.position.x > (r["a"] as Vector2).x - 110.0 and player.position.x < (r["a"] as Vector2).x - 40.0:
+			for r in _ropes:   # a crane rope before a wall of cargo: jump for it (not when he is on his way up a ladder)
+				if r["kind"] == "swing" and lad == null and player.position.x > (r["a"] as Vector2).x - 110.0 and player.position.x < (r["a"] as Vector2).x - 40.0:
 					hud.jump_tapped = true
 					print("BOT swing at ", int(player.position.x))
 			_bot_stuck = _bot_stuck + delta if (player.position.x - _bot_x) * signf(hud.move) < 1.0 else 0.0
@@ -2987,7 +3015,7 @@ func _auto_step(delta: float) -> void:
 				_bot_stuck = 0.0
 		_bot_x = player.position.x
 		if OS.get_cmdline_user_args().has("--trace") and fmod(_at, 0.25) < delta:
-			print("TRACE t %.2f x %d y %d st %s move %.0f ground %d" % [_at, int(player.position.x), int(player.position.y), move_state, hud.move, int(_ground_y)])
+			print("TRACE t %.2f x %d y %d st %s move %.0f ground %d fight %s lad %s near %s" % [_at, int(player.position.x), int(player.position.y), move_state, hud.move, int(_ground_y), fight, lad != null, str(near.position) if near != null else "-"])
 		_bot_log += delta
 		if _bot_log > 10.0:
 			_bot_log = 0.0
@@ -8068,7 +8096,8 @@ func _build_room(x0: float, x1: float, style: String) -> void:
 ## Inside an interior the camera never looks past its ends (user 18. 11.: the laundry's end showed as a black
 ## band, a man at the wall cut in half by it): the picture stops at the room's walls, the drawing fills the screen.
 var _cam_room := -1
-var _drop_k := -1   # --test=sheets --drop: the shot fired last
+var _drop_k := -1
+var _bot_lad = null   # the test bot: the ladder it was heading for last frame   # --test=sheets --drop: the shot fired last
 func _room_cam_x(x: float) -> float:
 	var i := _plain_room_at(player.position)
 	if i < 0 or _section_at(player.position) >= 0:
@@ -8175,6 +8204,53 @@ func _build_room_art(x0: float, x1: float, style: String) -> void:
 	wall.light_mask = 0
 	wall.modulate = Color.WHITE * ROOM_BASE
 	add_child(wall)
+	# A hall drawn in parts (ROOM_PARTS - the big laundry, QUEUE §14): the drawings one after another, each cut on a
+	# painted iron column; a part's catwalk is its own layer a little in front of the wall, with its shadow (rule 27)
+	var bulb_list: Array = []   # [world point, colour, size] of every painted lamp
+	var parts: Array = ROOM_PARTS.get(style, []) if (x1 - x0) > tex.get_width() * rs + 10.0 else []
+	if not parts.is_empty():
+		pad = 0.0
+		src_w = float(parts[0][2]) - float(parts[0][1])
+		wall.region_rect = Rect2(float(parts[0][1]), 0.0, src_w, tex.get_height())
+		wall.position = Vector2(x0, top)
+		var ox := x0 + src_w * rs
+		for k in range(1, parts.size()):
+			var pt: Array = parts[k]
+			var a := float(pt[1])
+			var pw := float(pt[2]) - a
+			var ptex: Texture2D = BigTex.get_tex("res://art/rooms/%s.png" % pt[0])
+			for layer in ([""] if String(pt[3]) == "" else ["", String(pt[3])]):
+				var lt: Texture2D = ptex if layer == "" else BigTex.get_tex("res://art/rooms/%s.png" % layer)
+				if layer != "":   # the catwalk's shadow on the wall behind it, a step down and to the right
+					var sh := Sprite2D.new()
+					sh.texture = lt
+					sh.centered = false
+					sh.region_enabled = true
+					sh.region_rect = Rect2(a, 0.0, pw, lt.get_height())
+					sh.scale = Vector2.ONE * rs
+					sh.position = Vector2(ox + 9.0, top + 14.0)
+					sh.modulate = Color(0.0, 0.0, 0.0, 0.42)
+					sh.light_mask = 0
+					sh.z_index = -5
+					add_child(sh)
+				var ps := Sprite2D.new()
+				ps.texture = lt
+				ps.centered = false
+				ps.region_enabled = true
+				ps.region_rect = Rect2(a, 0.0, pw, lt.get_height())
+				ps.scale = Vector2.ONE * rs
+				ps.position = Vector2(ox, top)
+				ps.light_mask = 0
+				ps.modulate = Color.WHITE * ROOM_BASE * (1.06 if layer != "" else 1.0)   # (the iron in front catches a little more light)
+				ps.z_index = -5
+				add_child(ps)
+			for b in ROOM_PART_BULBS.get(String(pt[0]), []):
+				var bx: float = float(b[0]) * ptex.get_width()
+				if bx > a + 30.0 and bx < a + pw - 30.0:
+					bulb_list.append([Vector2(ox + (bx - a) * rs, top + float(b[1]) * ptex.get_height() * rs), String(b[2]), String(b[3])])
+			for v: Vector2 in ROOM_PART_VENTS.get(String(pt[0]), []):
+				room_vents.append([x0, x1, Vector2(ox + (v.x * ptex.get_width() - a) * rs, top + v.y * ptex.get_height() * rs)])
+			ox += pw * rs
 	var roof := Polygon2D.new()   # above the ceiling: the storeys over the room, the facade seen dim through the cut
 	roof.polygon = PackedVector2Array([Vector2(x0, sky_top), Vector2(x1, sky_top), Vector2(x1, top + 2.0), Vector2(x0, top + 2.0)])
 	roof.color = Color(0.0, 0.0, 0.0, 1.0)   # (only seen from inside: above the ceiling the floors over it, dark)
@@ -8237,11 +8313,19 @@ func _build_room_art(x0: float, x1: float, style: String) -> void:
 		pend["lamp"] = lamps.size() - 1
 		_swingers.append(pend)
 	for b in ROOM_BULBS.get(style, []):
-		var at := Vector2(x0 + pad + (float(b[0]) * tex.get_width() - crop_x) * rs, top + float(b[1]) * tex.get_height() * rs)
+		var bat := Vector2(x0 + pad + (float(b[0]) * tex.get_width() - crop_x) * rs, top + float(b[1]) * tex.get_height() * rs)
+		if bat.x < x0 + pad + src_w * rs - 30.0:   # (a hall in parts: only the first part's own lamps from this list)
+			bulb_list.insert(0, [bat, String(b[2]), String(b[3])])
+	for v: Vector2 in ROOM_VENTS.get(style, []):   # the steam pipes painted in the drawing (mapfx _tick_room_vents)
+		var vat := Vector2(x0 + pad + (v.x * tex.get_width() - crop_x) * rs, top + v.y * tex.get_height() * rs)
+		if vat.x < x0 + pad + src_w * rs - 30.0:
+			room_vents.append([x0, x1, vat])
+	for b in bulb_list:
+		var at: Vector2 = b[0]
 		if at.x < x0 + 60.0 or at.x > x1 - 60.0:
 			continue
-		var col: Color = BULB_COLORS.get(String(b[2]), BULB_COLORS["warm"])
-		var sky: bool = String(b[2]) == "sky"
+		var col: Color = BULB_COLORS.get(String(b[1]), BULB_COLORS["warm"])
+		var sky: bool = String(b[1]) == "sky"
 		var add := CanvasItemMaterial.new()
 		add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 		add.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
@@ -8249,7 +8333,7 @@ func _build_room_art(x0: float, x1: float, style: String) -> void:
 		var pool := Sprite2D.new()   # the pool of light on the painted room round the lamp
 		pool.texture = _soft_glow()
 		pool.position = at + Vector2(0.0, 110.0)   # spreading from the bulb itself, falling off down the wall
-		var low: bool = String(b[3]) == "small"   # a table lamp or a lantern lights its corner, a ceiling lamp the room
+		var low: bool = String(b[2]) == "small"   # a table lamp or a lantern lights its corner, a ceiling lamp the room
 		pool.scale = (Vector2(1.7, 1.6) if low else Vector2(2.8, 2.9)) if not sky else Vector2(4.2, 4.0)   # the light the lamp throws, not a halo hung in the air
 		pool.material = add
 		pool.light_mask = 0
@@ -8261,7 +8345,7 @@ func _build_room_art(x0: float, x1: float, style: String) -> void:
 			var halo := Sprite2D.new()
 			halo.texture = _soft_glow()
 			halo.position = at
-			halo.scale = Vector2.ONE * (0.32 if String(b[2]) == "candle" else 0.5)   # a warm breath round the bulb, not a white disc
+			halo.scale = Vector2.ONE * (0.32 if String(b[1]) == "candle" else 0.5)   # a warm breath round the bulb, not a white disc
 			halo.material = add
 			halo.light_mask = 0
 			halo.modulate = _undo_night(0.09) * col
@@ -8277,7 +8361,7 @@ func _build_room_art(x0: float, x1: float, style: String) -> void:
 		p.height = 140.0
 		p.range_item_cull_mask = MASK_LIT
 		add_child(p)
-		if not sky and not String(b[2]) in ["candle", "spot"]:   # (the stage spot keeps its painted beam: not shootable) a bulb can be shot out like any street lamp: the room round it goes dark
+		if not sky and not String(b[1]) in ["candle", "spot"]:   # (the stage spot keeps its painted beam: not shootable) a bulb can be shot out like any street lamp: the room round it goes dark
 			var off := Sprite2D.new()   # the painted bulb itself, dead: an ink shadow over its glow
 			off.texture = load("res://art/fx_pool.png")
 			off.position = at
@@ -8954,14 +9038,21 @@ func _bot_ladder():
 		if r["kind"] != "ladder" or not r.get("drawn", false) or player.position.y < -10.0:
 			continue
 		var lx: float = (r["a"] as Vector2).x
+		var deck := Rect2(lx - 900.0, float(r["top"]) - 5.0, 1800.0, 10.0)   # the floor the ladder leads up to (the laundry's long catwalk)
+		for c in catwalks:
+			if absf(c.position.y - float(r["top"])) < 30.0 and lx > c.position.x - 60.0 and lx < c.end.x + 60.0:
+				deck = deck.merge(c)
 		for e in enemies:
-			if e["alive"] and float(e["node"].position.y) < -300.0 and absf(float(e["node"].position.x) - lx) < 900.0 and absf(player.position.x - lx) < 1600.0:
+			var ex: float = float(e["node"].position.x)
+			if e["alive"] and not String(e["state"]) in ["give", "down"] and float(e["node"].position.y) < -300.0 and ex > deck.position.x - 200.0 and ex < deck.end.x + 200.0 					and player.position.x > deck.position.x - 1600.0 and player.position.x < deck.end.x + 200.0:   # (under the deck too: back to its ladder)
 				return r
 	if roof.is_empty() or player.position.y < float(roof["y"]) + 60.0:
 		return null
 	for r in _ropes:
 		if r["kind"] != "ladder" or absf(player.position.y - float(r["bottom"])) > 40.0:
 			continue
+		if (r["a"] as Vector2).x < float(roof["x0"]) - 2500.0 or (r["a"] as Vector2).x > float(roof["x1"]) + 2500.0:
+			continue   # (a ladder nowhere near the roofs: the big laundry's up to its catwalk)
 		if player.position.y < -10.0 or player.position.x > (r["a"] as Vector2).x - 500.0:
 			return r
 	return null
@@ -9354,6 +9445,18 @@ func _crowded(e: Dictionary, m) -> float:
 	return 0.0
 
 
+## He stands on a floor he can take a step along (the street, or a deck under him both ways).
+func _floor_under_ok(p: Vector2) -> bool:
+	if p.y == 0.0:
+		return true
+	if _plain_room_at(p) < 0:   # (only an interior's catwalk, the big laundry's: the roofs and fire escapes keep their men put)
+		return false
+	for c in catwalks:   # (not _floor_at: that one tells the player's landing what it found)
+		if absf(c.position.y - p.y) < 4.0 and p.x - 300.0 > c.position.x and p.x + 300.0 < c.end.x:
+			return true
+	return false
+
+
 ## A flanker goes in close, to just beyond the detective's crate, where he can fire down over it.
 func _go_close(o: Dictionary) -> void:
 	if o["node"].position.y != 0.0:
@@ -9530,7 +9633,9 @@ func _enemies(delta: float) -> void:
 			if was_cool > 0.32 and e["cool"] <= 0.32 and may_fire:   # a glint at the muzzle: he is about to fire
 				_glint(m)
 			# between shots a man without cover does not stand like a target: a step this way or that
-			if e["type"] == "post" and not e["boss"] and m.position.y == 0.0 and e["cool"] > 0.5:
+			# (user 18. 11. look at the big laundry: three men in one spot) every gunman in the open spreads out, on any floor
+			var spread_ok: bool = (e["type"] == "post" and m.position.y == 0.0) or (e["type"] in ["post", "tommy", "shotgun"] and _plain_room_at(m.position) >= 0 and _floor_under_ok(m.position))
+			if spread_ok and not e["boss"] and e["cool"] > 0.5:
 				if not e.has("home"):
 					e["home"] = m.position.x
 					e["wander"] = m.position.x

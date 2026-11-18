@@ -224,7 +224,7 @@ Pravidla: díl nejvýš jednou na mapu, pool mapy z její čtvrti (gen/levels.py
 5. THE LAUNDRY: velký industriální interiér prádelny (první velký interiér hry, zapamatovatelný): bubny, mandly, páry, dopravníky, prádlo na kolejnicích.
 6. Interiéry, ve kterých nic není (sklad: jen Frank) -> vybavit kryty a muži.
 
-## 14. Velká prádelna (uživatel 18. 11.: „mnohem větší místnost, traversal, víc nepřátel“; volba: dlouhá hala + kancelář nahoře)
+## 14. HOTOVO 18. 11. (HANDOFF 72) – Velká prádelna (uživatel 18. 11.: „mnohem větší místnost, traversal, víc nepřátel“; volba: dlouhá hala + kancelář nahoře)
 Hala ze tří kreseb za sebou (každá 3168x1344, ROOM_SCALES 0.8523 = 2700 px, celkem ~8100 px), spoje vždy na nakresleném sloupu (pravidlo 15):
 1. laundry (art_src 275, hotová): vstupní prací hala, vpravo železný sloup.
 2. laundry_mid (NOVÁ): kotelna + sušárna, vzadu OCHOZ (lávka) ve výšce ~0.49 výšky kresby, žebřík nahoru, nahoře kolejnice

@@ -183,7 +183,16 @@ class Chunk:
 #   fuel is kept (BARREL_OK);
 # - the men stand behind the cover, on its far side from the door (Frank comes in from the left).
 ROOM_PIC_W, ROOM_SCALE = 3168, 0.75
-ROOM_SCALES = {"laundry": 0.8523}   # (= main.gd ROOM_SCALES: the industrial laundry hall, art_src 275, shown at full size)
+ROOM_SCALES = {"laundry": 0.8523}
+# The big laundry (QUEUE §14): its drawings one after another, each shown from px a to b (cut on a painted iron column, so
+# no join shows - rule 15), = main.gd ROOM_PARTS. The catwalk's deck (drawing row 722 in parts 1 and 2) in the world.
+LAUNDRY_PARTS = [("laundry", 0, 2880), ("laundry_mid", 40, 3100), ("laundry_end", 790, 3168)]
+LAUNDRY_W = sum(b - a for _, a, b in LAUNDRY_PARTS) * 0.8523
+LAUNDRY_DECK = round(-1344 * 0.8523 * 0.92 + 722 * 0.8523, 1)
+def laundry_x(part, px):
+    """World x (from the hall's left end) of picture px in part `part` of the big laundry."""
+    off = sum(b - a for _, a, b in LAUNDRY_PARTS[:part])
+    return round((off + px - LAUNDRY_PARTS[part][1]) * 0.8523, 1)   # (= main.gd ROOM_SCALES: the industrial laundry hall, art_src 275, shown at full size)
 ROOM_CLEAR = {"yard": [(1460, 1720)],   # the tenement's back door
               "laundry": [(0, 300), (2820, 3168)],   # the hall's street doorway, the iron column at its far end   # the EXIT door, the doorway to the back
               "warehouse": [(1750, 2395)],                # the loading bay with the truck
@@ -222,6 +231,9 @@ def _room_src(style, w, x):
 
 
 def _room_free(style, w, a, b):
+    if style == "laundry" and w > 4000:   # the big laundry: its doorways and the ladder, in the hall's own x
+        clear = [(0, 300), (laundry_x(1, 400), laundry_x(1, 560)), (laundry_x(2, 2830), w)]
+        return not any(a < c1 + 60 and b > c0 - 60 for c0, c1 in clear)
     for k in range(int(a), int(b) + 1, 20):
         sx = _room_src(style, w, k)
         if any(c0 - 60 <= sx <= c1 + 60 for c0, c1 in ROOM_CLEAR.get(style, [])):
@@ -370,9 +382,31 @@ def chunk(name, hard, rng=None):
     elif name == "yard":   # a tenement's back yard through the passage: bins, crates, washing (a space seen only from inside)
         c = Chunk(2600).room(0, 2600, "yard")
         furnish(c, "yard", rng, ["post", "tommy" if hard > 0.5 else "post"])
-    elif name == "laundry":   # an interior: machines for cover, steam, a shotgunner in the back
-        c = Chunk(2700).room(0, 2700, "laundry").lamp(670).lamp(1340).lamp(2060)   # (the industrial hall: its drawing's own lamps)
-        furnish(c, "laundry", rng, ["post", "shotgun", "post"], flask=True)
+    elif name == "laundry":   # the big steam laundry (QUEUE §14, user 18. 11.: "a much bigger room, traversal, more enemies"):
+        # three drawings in a row (LAUNDRY_PARTS) - the wash hall, the boiler and drying room with its catwalk and ladder,
+        # the sorting room with the foreman's office up on the catwalk's level - men on the floor, on the catwalk, in the office
+        lx = laundry_x
+        c = Chunk(LAUNDRY_W).room(0, LAUNDRY_W, "laundry")
+        for x, y in ((670, -760), (1340, -760), (2060, -760), (lx(1, 760), -824), (lx(1, 2460), -824),
+                     (lx(2, 1850), -372), (lx(2, 2050), -781), (lx(2, 2950), -824)):
+            c.lamp(x, y)   # (the drawings' own pendants: each light has its painted lamp)
+        a, b = lx(1, 290), lx(2, 2680)
+        c.plat(a, LAUNDRY_DECK, b - a, "drawn")                              # the catwalk, on into the office's floor
+        c.ropes.append(["ladder", lx(1, 480), LAUNDRY_DECK, 0.0, 0.0, "drawn"])   # the ladder up to it
+        c.rope("swing", lx(1, 1550), -740.0)                                # the hoist's chain over the soaking vat
+        for kind, x, y in (("crate_long", 700, 0.0), ("machine", 1400, 0.0), ("crate", 2100, 0.0), ("drum", 3150, 0.0),
+                           ("crate_long", 3450, LAUNDRY_DECK), ("crate", 4250, 0.0), ("drum", 4800, 0.0),
+                           ("crate", 5250, LAUNDRY_DECK), ("crate_long", 5600, 0.0), ("drum", 6450, 0.0)):
+            c.box(kind, x, y)
+        tough = "tommy" if hard > 0.5 else "post"
+        c.foe(1000).foe(1750, kind="shotgun" if hard > 0.4 else "post").foe(2450)          # the wash hall
+        c.foe(3350).foe(4500, kind=tough).foe(5000)                                          # under the catwalk
+        c.foe(3950, LAUNDRY_DECK).foe(4550, LAUNDRY_DECK).foe(5650, LAUNDRY_DECK, kind="shotgun")   # on it, behind its cover
+        c.foe(6250, LAUNDRY_DECK, kind=tough).foe(6550, LAUNDRY_DECK)                     # the foreman's office
+        c.foe(6000).runner(6600, 5400, 7500)                                                 # the sorting room, one in from the street
+        c.pick("flask", 2300)
+        c.hint(2550, "UP THE LADDER")
+        c.checks += [3000.0, 5200.0]
     elif name == "warehouse_arena":   # a locked room: waves through both doors
         c = (Chunk(2400).room(0, 2400, "warehouse").lamp(700).lamp(1700)
              .runner(1500, 500, 2900, delay=1.5).runner(1700, 500, 3100, delay=2.5)   # (user 17. 11.: no empty room - men in it from
@@ -516,8 +550,17 @@ def front_spans(m):
         for r in m.rooms:
             if str(r[2]) == p["front"]:
                 fx = (r[0] + r[1]) / 2 - (d0 + d1) / 2 * k
-                out.append((fx, fx + seg_w(p_name)))
+                out.append((fx, fx + front_w(p_name)))
     return out
+
+
+def front_w(name):
+    """A front's whole width in the world: one drawing, or its parts laid one after another (the big laundry)."""
+    p = KIT_CAT.PIECES[name]
+    if "parts" in p:
+        last = p["parts"][-1]
+        return last[1] * 1.9 * p["size"] + seg_w(last[0])
+    return seg_w(name)
 
 
 def place_fronts(m):
@@ -532,7 +575,7 @@ def place_fronts(m):
         k = 1.9 * KIT_CAT.PIECES[f]["size"]
         d0, d1 = KIT_CAT.PIECES[f]["doors"]
         fx = (r[0] + r[1]) / 2 - (d0 + d1) / 2 * k   # the middle between its doors on the room's middle
-        fw = seg_w(f)
+        fw = front_w(f)
         hit = False
         for seg in m.street:
             p = KIT_CAT.PIECES.get(seg[0], {})
@@ -554,13 +597,14 @@ def place_fronts(m):
                 out.append([name, x0, a, fx - x0])
             if hi > fx + fw:                             # its right part, after the front
                 out.append([name, x0, fx + fw - x0, b])
-        out.append([f, fx])
+        for part, off in KIT_CAT.PIECES[f].get("parts", [[f, 0]]):
+            out.append([part, fx + off * k])
         m.street[:] = sorted(out, key=lambda s: s[1] + (s[2] if len(s) > 3 else 0.0))
         # never the old drawing of the same kind right beside it (an old laundry next to the new one): a drawing of the
         # same width and size takes its place, so nothing moves (kit pieces and the hoisted warehouse stay: things hang on them)
         same = {"laundry": ("laundry",), "warehouse": ("warehouse", "warehouse_row"), "club": ("bluenote", "bluenote_row"), "tenement": ()}.get(r[2], ())
         i = next(n for n, g in enumerate(m.street) if g[0] == f and g[1] == fx)
-        for j in (i - 1, i + 1):
+        for j in (i - 1, i + len(KIT_CAT.PIECES[f].get("parts", [0]))):
             if not 0 <= j < len(m.street):
                 continue
             g = m.street[j]
@@ -864,7 +908,7 @@ HOIST_PX = (698.0, 618.0)   # the pulley wheel's bottom in the warehouse drawing
 # escape's landings) are added, and a man is stood by each hazard (one Frank's bullet sets off).
 import kit as KIT_CAT
 for _n, _p in KIT_CAT.PIECES.items():
-    SEGMENTS[_n] = KIT_CAT.WIDTH
+    SEGMENTS[_n] = _p.get("w", KIT_CAT.WIDTH)   # (the big laundry's front parts are narrower: QUEUE §14)
     SEG_SIZE[_n] = _p["size"]
     TRIM[_n] = 0
 def street_props(m):
@@ -1503,7 +1547,7 @@ SANDBOX = [
      "graph": ["street", "yard", "street", "room:laundry", "street", "room:club", "street:wash_alley", "house"],
      "roof": True, "kit": "troof", "roofs": ["roof_b", "roof_a"],   # (rule 25, 17. 11.: the flat is in a whole house: in at
      # its street door, up its stairs, the door kick and the window onto its own fire escape, up to its roof)
-     "street_fixed": ["hk_laundry", "hk_tailor", "hk_grocery", "hk_saloon", "hk_laundry", "warehouse", "alley_mouth", "market_row"]},
+     "street_fixed": ["hk_laundry", "hk_tailor", "hk_grocery", "hk_saloon", "hk_laundry", "warehouse", "alley_mouth", "market_row", "factory", "row_house"]},   # (plain houses where the big laundry's long front goes)
 ]
 
 SEEN = set()   # a rope hint is shown once in the whole story, on the first map that has that rope

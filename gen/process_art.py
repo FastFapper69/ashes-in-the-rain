@@ -44,6 +44,7 @@ STREET = {
     # interiors' building fronts (QUEUE §10.3, 17. 11.): hk kit metrics, painted over a Blender template (gen/blender/front_template.py),
     # the two doors exactly at the room's ends (gen/levels.py FRONTS)
     'front_laundry': ('249.jpg', 0, False), 'front_warehouse': ('250.jpg', 0, False),
+    'front_laundry_mid': ('290.jpg', 0, False),   # the big laundry's longer front (QUEUE §14): set between front_laundry's two halves
     'front_club': ('251.jpg', 0, False), 'front_tenement': ('252.jpg', 0, False),
     # chapter I on one kit (17. 11.): an alley's mouth with its gate between two row houses, rendered in Blender at a man's eye
     'alley_mouth': ('253.jpg', 0, False), 'market_row': ('254.jpg', 0, False), 'church_row': ('255.jpg', 0, False),

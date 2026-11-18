@@ -374,9 +374,9 @@ func _caption_step(caps: Array, i: int) -> void:
 			w = maxf(w, (c as Control).size.x)
 	var y := 0.0
 	for k in range(i, -1, -1):
-		var c: Control = caps[k]
-		if not is_instance_valid(c):
+		if not is_instance_valid(caps[k]):   # (a new narration took the place: its boxes are gone)
 			continue
+		var c: Control = caps[k]
 		var h := c.size.y
 		var at := Vector2(roundf((w - c.size.x) * 0.5), -(y + h))
 		var keep := k == i or y + h <= CAPTION_MAX_H

@@ -134,7 +134,7 @@ func lit(p: Vector2) -> bool:
 ## Kessler's smoke: a grey wall rolling out over the quay for a few seconds.
 ## Steam out of a street manhole (THE LAUNDRY's grates): a white jet straight up out of the cover, spreading into a
 ## cloud once it has risen - it always comes out of the iron in the stones, never out of the air.
-func steam_jet(at: Vector2) -> void:
+func steam_jet(at: Vector2, indoors := false) -> void:
 	var p := CPUParticles2D.new()
 	p.texture = load("res://art/fx/puff3.png")
 	p.angle_min = 0.0
@@ -188,6 +188,15 @@ func steam_jet(at: Vector2) -> void:
 	body.color_ramp = gb
 	body.z_index = 4
 	add_child(body)
+	if indoors:   # (user 18. 11.: cut flat at the top, a straight edge at the side) under a roof: a shorter jet that spreads
+		# under the ceiling, unlit by the lamps (a lamp's light square cut it), drawn over the dark above the room
+		for q: CPUParticles2D in [p, body]:
+			q.light_mask = 0
+			q.z_index = 10
+			q.initial_velocity_min *= 0.55
+			q.initial_velocity_max *= 0.55
+			q.spread = 26.0
+			q.gravity = Vector2(60.0, 10.0)
 	get_tree().create_timer(3.6, false).timeout.connect(func() -> void: body.emitting = false)
 	get_tree().create_timer(7.5, false).timeout.connect(body.queue_free)
 	game.sfx.play("steam", 2.0, at.x, 0.1)

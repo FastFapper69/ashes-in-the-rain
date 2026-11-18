@@ -680,15 +680,13 @@ func _tick_room_vents(delta: float) -> void:
 	if _vent_t > 0.0:
 		return
 	_vent_t = randf_range(6.0, 10.0)
-	for r in game._room_art:
-		if game.player.position.x > float(r[0]) and game.player.position.x < float(r[1]):
-			var rs: float = game.ROOM_SCALES.get(here, game.ROOM_SCALE)
-			var tex_w := 3168.0 * rs
-			var x0: float = float(r[0]) + maxf(0.0, (float(r[1]) - float(r[0]) - tex_w) * 0.5)
-			var top: float = -1344.0 * rs * float(game.SEGMENT_BASE)
-			var v: Vector2 = game.ROOM_VENTS[here].pick_random()
-			game.sets.steam_jet(Vector2(x0 + v.x * tex_w, top + v.y * 1344.0 * rs))
-			return
+	var px: float = game.player.position.x
+	var near: Array = []   # a painted pipe of this room, in sight (a long hall: not one at its far end)
+	for v in game.room_vents:
+		if px > float(v[0]) and px < float(v[1]) and absf((v[2] as Vector2).x - px) < 1500.0:
+			near.append(v[2])
+	if not near.is_empty():
+		game.sets.steam_jet(near.pick_random(), true)
 
 
 func _tick_steam(delta: float) -> void:

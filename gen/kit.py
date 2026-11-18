@@ -73,8 +73,16 @@ PIECES = {
     # interiors' building fronts (QUEUE §10.3, 17. 11., Blender template + Gemini): an interior of `front` style stands
     # behind it, its street door at the room's left end and its side door at its right end (gen/levels.py places the
     # front so); nothing stands in front of either door
-    "front_laundry": {"size": 0.8, "edge": "partywall", "front": "laundry", "doors": [696, 2472], "props": [],
+    "front_laundry": {"size": 0.8, "edge": "partywall", "doors": [696, 2472], "props": [],
                       "clear": [(600, 790), (2380, 2570)]},
+    # the big laundry hall's front (QUEUE §14, user 18. 11.: "a much bigger room"): front_laundry cut in two with Gemini's
+    # middle stretch of the same building between (gen/laundry_front.py); "w" = the part's own width (picture px),
+    # "parts" = the drawings laid one after another (place_fronts), "doors" counted along the whole front
+    "front_laundry_l": {"size": 0.8, "edge": "partywall", "front": "laundry", "w": 2330, "doors": [696, 5360], "props": [],
+                        "parts": [["front_laundry_l", 0], ["front_laundry_mid", 2330], ["front_laundry_r", 5218]],
+                        "clear": [(600, 790)]},
+    "front_laundry_mid": {"size": 0.8, "edge": "partywall", "w": 2888, "props": [], "clear": []},
+    "front_laundry_r": {"size": 0.8, "edge": "partywall", "w": 838, "props": [], "clear": [(50, 240)]},
     "front_warehouse": {"size": 0.8, "edge": "partywall", "front": "warehouse", "doors": [795, 2373], "props": [],
                         "clear": [(670, 920), (2250, 2500)]},
     # (Gemini moves a door a little to line it up with the windows: the doors here are where it painted them; the
@@ -144,7 +152,7 @@ EDGES = {
     "tenrow_d": ("party_wall", "party_wall"), "warehouse": ("party_wall", "party_wall"), "warehouse_b": ("open_lot", "party_wall"),
     "warehouse_c": ("party_wall", "party_wall"), "yard": ("fence", "fence"), "yard_b": ("fence", "fence"), "yard_c": ("fence", "fence"),
 }
-EDGES["front_laundry"] = EDGES["front_warehouse"] = EDGES["front_club"] = EDGES["front_tenement"] = EDGES["alley_mouth"] = EDGES["market_row"] = EDGES["church_row"] = EDGES["subway_entrance"] = EDGES["warehouse_row"] = EDGES["bluenote_row"] = EDGES["row_house"] = EDGES["front_yard"] = EDGES["apartment"] = EDGES["factory"] = EDGES["pawn_house"] = EDGES["diner_house"] = EDGES["alley_wash"] = ("party_wall", "party_wall")
+EDGES["front_laundry_l"] = EDGES["front_laundry_mid"] = EDGES["front_laundry_r"] = EDGES["front_laundry"] = EDGES["front_warehouse"] = EDGES["front_club"] = EDGES["front_tenement"] = EDGES["alley_mouth"] = EDGES["market_row"] = EDGES["church_row"] = EDGES["subway_entrance"] = EDGES["warehouse_row"] = EDGES["bluenote_row"] = EDGES["row_house"] = EDGES["front_yard"] = EDGES["apartment"] = EDGES["factory"] = EDGES["pawn_house"] = EDGES["diner_house"] = EDGES["alley_wash"] = ("party_wall", "party_wall")
 for _n in ("arches", "arches_b", "bowery", "platform", "pump", "signal", "signal_b", "station14", "tunnel", "tunnel_b", "tunnel_c",
            "tunnel_lo", "tunnel_lo_b", "walkway", "walkway_b"):
     EDGES[_n] = ("girder", "girder")
