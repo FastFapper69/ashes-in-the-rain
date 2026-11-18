@@ -529,6 +529,7 @@ def build(mp):
         if [(xa2, xb2) for i, xa2, xb2, ya, yb in v.iron if facade(v.street, xa2, xb2, ya, yb) < 0.93] == bad:
             break
     place_fronts(v)
+    exit_door(v, mp)
     door_clear(v)   # (again: the kit and the cover moved men about after the first time)
     inside = lambda x: any(len(o) == 2 and o[1] - 50 < x < o[1] + BOX[o[0]][0] + 50 for o in v.boxes)
     for e in v.enemies:   # and nobody it moved stands inside a crate
@@ -554,6 +555,38 @@ def front_spans(m):
                 fx = (r[0] + r[1]) / 2 - (d0 + d1) / 2 * k
                 out.append((fx, fx + front_w(p_name)))
     return out
+
+
+# A street map ends at a drawn door (QUEUE §15 E, chapter I audit 18. 11.: "levels end abruptly mid-street"): the map's
+# end moves on (never back) to the nearest doorway of a building near it, which the game lights as the way out.
+def exit_door(m, mp):
+    m.exit = None
+    if mp.get("name") not in DISTRICT or m.roof or any(b > m.end - 200 for a, b, st in m.rooms):
+        return
+    pieces = set(FILLERS) | {p for d in DISTRICT.values() for p in d} | {"pawn_house", "diner_house", "subway_entrance"}
+    doors = []
+    for seg in m.street:
+        name, x0 = seg[0], seg[1]
+        if name not in pieces or name.startswith("hk_"):
+            continue
+        a, b = (seg[2], seg[3]) if len(seg) > 3 else (0.0, seg_w(name))
+        k = 1.9 * KIT_CAT.PIECES[name]["size"]
+        for c0, c1 in KIT_CAT.PIECES[name]["clear"]:
+            dx = x0 + (c0 + c1) / 2 * k
+            if x0 + a + 150 < dx < x0 + b - 150 and m.end - 150 <= dx <= m.end + 3300:
+                doors.append(dx)
+    if doors:
+        m.end = min(doors)
+        m.exit = m.end
+        # the street drawn on past the door as far as it was past the old end (a plain house not yet in the map)
+        last = m.street[-1]
+        street_end = last[1] + (last[3] if len(last) > 3 else seg_w(last[0]))
+        used = [g[0] for g in m.street]
+        while street_end < m.end + 2500:
+            nxt = [f for f in FILLERS if f not in used and KIT_CAT.joins(m.street[-1][0], f)] or [f for f in FILLERS if f != m.street[-1][0]]
+            m.street.append([nxt[0], street_end])
+            used.append(nxt[0])
+            street_end += seg_w(nxt[0])
 
 
 def front_w(name):
@@ -1554,6 +1587,7 @@ def gd(campaign):
                 if lv.get(flag): out.append('\t\t\t"%s": true,' % flag)
             if lv.get("moving"): out.append(f'\t\t\t"moving": {lv["moving"]},')
             if lv.get("cops"): out.append('\t\t\t"cops": true,')
+            if getattr(m, "exit", None): out.append(f'\t\t\t"exit": {f(m.exit)},')
             if m.roof:
                 rp_ = ", ".join(f'["{g[0]}", {f(g[1])}]' for g in m.roof[2])
                 out.append(f'\t\t\t"roof": {{"x0": {f(m.roof[0])}, "x1": {f(m.roof[1])}, "y": {f(m.kit["y"])}, "goal": {f(m.roof[3])}, '

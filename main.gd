@@ -702,6 +702,7 @@ func _ready() -> void:
 	add_child(sfx)
 	_tm("sfx")
 	_build_street()
+	_build_exit()
 	_tm("street")
 	roof = level.get("roof", {})
 	_build_roofs()
@@ -1632,6 +1633,51 @@ func _front_joint(x: float) -> bool:
 		if absf(float(seg[1]) - x) < 2.0 or absf(float(seg[1]) + w - x) < 2.0:
 			n += 1
 	return n >= 2
+
+
+## The way out of a street map (QUEUE §15 E): a drawn doorway at the map's end (gen/levels.py exit_door), lit warm from
+## inside like the interiors' doors; when the last man is down it brightens, breathes and a line says where to go.
+var _exit_nodes: Array = []
+var _exit_told := false
+func _build_exit() -> void:
+	var x: float = float(level.get("exit", -1.0))
+	if x < 0.0:
+		return
+	var ws := WALL_SCALE * 0.8
+	var foot: float = -1344.0 * ws * SEGMENT_BASE - WALL_LIFT + 1250.0 * ws
+	var dw := 150.0 * ws * 0.8
+	var dh := 360.0 * ws
+	var add := CanvasItemMaterial.new()
+	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	add.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+	var spill := Polygon2D.new()
+	spill.polygon = PackedVector2Array([Vector2(x - dw * 0.5, foot - dh), Vector2(x + dw * 0.5, foot - dh), Vector2(x + dw * 0.5, foot), Vector2(x - dw * 0.5, foot)])
+	var warm := _undo_night(0.18) * Color(1.0, 0.76, 0.46)
+	spill.vertex_colors = PackedColorArray([Color(warm, 0.0), Color(warm, 0.0), warm, warm])
+	spill.material = add
+	spill.z_index = -4
+	add_child(spill)
+	var pool := Sprite2D.new()
+	pool.texture = _soft_glow()
+	pool.position = Vector2(x, -18.0)
+	pool.scale = Vector2(2.6, 0.18)
+	pool.material = add
+	pool.modulate = _undo_night(0.22) * Color(1.0, 0.78, 0.5)
+	pool.z_index = -4
+	add_child(pool)
+	_exit_nodes = [spill, pool]
+
+
+func _tick_exit(_delta: float) -> void:
+	if _exit_nodes.is_empty() or cleared:
+		return
+	var open := _all_down()
+	var k := (0.75 + 0.25 * sin(_time * 3.0)) * 1.8 if open else 1.0
+	for n in _exit_nodes:
+		(n as CanvasItem).self_modulate = Color(k, k, k, 1.0)
+	if open and not _exit_told and absf(level_end - player.position.x) < 4000.0:
+		_exit_told = true
+		hud.hint("THE DOOR AT THE END OF THE STREET")
 
 
 ## The street drawing at x ("" past the street).
@@ -2812,6 +2858,7 @@ func _process(delta: float) -> void:
 	_map_events(delta)
 	sets.tick(delta)
 	mapfx.tick(delta)
+	_tick_exit(delta)
 	if not cleared and not over and roof.is_empty() and player.position.x > level_end and _all_down():
 		_map_cleared()
 	elif not cleared and not over and not roof.is_empty() and player.position.x < float(roof["goal"]) \
