@@ -187,12 +187,14 @@ func _tick_el(delta: float) -> void:
 		root.position.x += float(t[2]) * EL_TRAIN_SPEED * delta
 		var mid: float = root.position.x + float(t[3]) * 0.5 - fx_x
 		var near: float = 1.0 - clampf(absf(mid - game.cam.position.x) / (view_w * 0.5 + float(t[3]) * 0.5), 0.0, 1.0)
+		var indoors: bool = game._room != ""   # (user 18. 11.: the camera pulled back in a room) inside, the train is only heard and felt
 		if near > 0.0:
-			game._shake = maxf(game._shake, 0.22 * near)
+			game._shake = maxf(game._shake, (0.1 if indoors else 0.22) * near)
 			_el_loud = maxf(_el_loud, 0.6)
 			# (audit 17. 11.: the train went over above the picture, unseen) the camera pulls back and looks up while it passes
-			game.wide_shot = maxf(game.wide_shot, smoothstep(0.0, 0.5, near))
-			if near > 0.3 and not t[0].has_meta("cued"):
+			if not indoors:
+				game.wide_shot = maxf(game.wide_shot, smoothstep(0.0, 0.5, near))
+			if near > 0.3 and not indoors and not t[0].has_meta("cued"):
 				t[0].set_meta("cued", true)
 				game.cue(Vector2(game.player.position.x, EL_TOP - 250.0), 2.2, 0.9)
 		(t[1] as PointLight2D).position.x = game.cam.position.x + (mid - game.cam.position.x)
@@ -346,11 +348,142 @@ func bullet_pass(b: Dictionary, from: Vector2, to: Vector2) -> void:
 					rad += 5.0
 			holes.append(u)
 			_punch(img, u, rad, (to - from).normalized())
+			_detach(sh, u)
 			(sh["tex"] as ImageTexture).update(img)
 			_shreds(sh, p, u, (to - from).normalized())
 			sh["kick"] = maxf(float(sh["kick"]), 0.8)
 			game.sfx.play("cloth", -6.0, p.x, 0.15)
 			break
+
+
+## Cloth shot loose falls (user 18. 11.: "shot right through, the laundry should drop, or at least the shot part"):
+## whatever of the sheet hit is no longer held by the washing line - a strip below a row of holes, a corner torn
+## round - is cut out of the picture and drops to the floor; a sheet shot SHEET_DROP times or more tears off its
+## pegs and comes down whole. Worked on a coarse grid (DET px cells) over that one sheet only.
+const DET := 4
+const SHEET_DROP := 7
+func _detach(sh: Dictionary, u: Vector2) -> void:
+	var img: Image = sh["img"]
+	var span := _sheet_span(img, int(u.x))
+	if span.x < 0:
+		return
+	var n := 0
+	for h in sh["holes"]:
+		if (h as Vector2).x >= span.x and (h as Vector2).x < span.y:
+			n += 1
+	var gw := (span.y - span.x) / DET + 1
+	var gh := img.get_height() / DET
+	var solid := PackedByteArray()
+	solid.resize(gw * gh)
+	var line := PackedInt32Array()   # per column: the washing line (the first cloth from the top)
+	line.resize(gw)
+	for gx in gw:
+		line[gx] = -1
+		var x := mini(span.x + gx * DET + DET / 2, img.get_width() - 1)
+		for gy in gh:
+			if img.get_pixel(x, gy * DET + DET / 2).a > 0.4:
+				solid[gy * gw + gx] = 1
+				if line[gx] < 0:
+					line[gx] = gy
+	var off := n >= SHEET_DROP   # off its pegs: the line keeps only itself and the pegs, all the cloth comes down
+	var held := PackedByteArray()
+	held.resize(gw * gh)
+	var todo: Array[int] = []
+	for gx in gw:
+		if line[gx] >= 0:
+			for gy in range(line[gx], mini(line[gx] + 3, gh)):   # the line and the pegs on it
+				if solid[gy * gw + gx] == 1 and held[gy * gw + gx] == 0:
+					held[gy * gw + gx] = 1
+					todo.append(gy * gw + gx)
+	while not todo.is_empty():
+		var c: int = todo.pop_back()
+		var cx := c % gw
+		var cy := c / gw
+		for d: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var nx := cx + d.x
+			var ny := cy + d.y
+			if nx < 0 or ny < 0 or nx >= gw or ny >= gh:
+				continue
+			var k := ny * gw + nx
+			if solid[k] == 1 and held[k] == 0 and not (off and ny > line[nx] + 2):
+				held[k] = 1
+				todo.append(k)
+	var lo := Vector2i(gw, gh)
+	var hi := Vector2i(-1, -1)
+	var loose := 0
+	for k in gw * gh:
+		if solid[k] == 1 and held[k] == 0:
+			loose += 1
+			lo = Vector2i(mini(lo.x, k % gw), mini(lo.y, k / gw))
+			hi = Vector2i(maxi(hi.x, k % gw), maxi(hi.y, k / gw))
+	if loose < 12:   # a thread or two: left hanging
+		return
+	var box := Rect2i(span.x + lo.x * DET, lo.y * DET, (hi.x - lo.x + 1) * DET, (hi.y - lo.y + 1) * DET).intersection(Rect2i(Vector2i.ZERO, img.get_size()))
+	var piece := img.get_region(box)
+	for gy in range(lo.y, hi.y + 1):
+		for gx in range(lo.x, hi.x + 1):
+			var k := gy * gw + gx
+			var cell := Rect2i(span.x + gx * DET, gy * DET, DET, DET)
+			if solid[k] == 1 and held[k] == 0:
+				img.fill_rect(cell, Color(0, 0, 0, 0))   # out of the hanging sheet
+			else:
+				piece.fill_rect(Rect2i(cell.position - box.position, cell.size), Color(0, 0, 0, 0))
+	_fall_cloth(sh, piece, box)
+
+
+## The sheet's own column (picture px) round x: [x0, x1), or x0 < 0 between sheets.
+func _sheet_span(img: Image, x: int) -> Vector2i:
+	var y := img.get_height() / 2
+	if img.get_pixel(clampi(x, 0, img.get_width() - 1), y).a < 0.4:
+		y = int(img.get_height() * 0.7)
+	var a := x
+	var b := x
+	var gap := 0
+	while a > 0 and gap < 24:   # (a hole may sit on the probe row: only a long gap ends the sheet)
+		a -= 1
+		gap = gap + 1 if img.get_pixel(a, y).a < 0.4 and img.get_pixel(a, img.get_height() / 3).a < 0.4 else 0
+	a += gap
+	gap = 0
+	while b < img.get_width() - 1 and gap < 24:
+		b += 1
+		gap = gap + 1 if img.get_pixel(b, y).a < 0.4 and img.get_pixel(b, img.get_height() / 3).a < 0.4 else 0
+	b -= gap
+	if b - a < 40:
+		return Vector2i(-1, -1)
+	return Vector2i(maxi(0, a - DET), mini(img.get_width(), b + DET + 1))
+
+
+## A loose piece of cloth drops, swaying a little as it goes, slumps in a heap on the floor and stays a while.
+func _fall_cloth(sh: Dictionary, piece: Image, box: Rect2i) -> void:
+	var node: Sprite2D = sh["node"]
+	var r: Rect2 = sh["rect"]
+	var bit := Sprite2D.new()
+	bit.texture = ImageTexture.create_from_image(piece)
+	bit.centered = false
+	bit.scale = Vector2.ONE * SHEET_SCALE
+	bit.offset = Vector2(-box.size.x * 0.5, -box.size.y)   # (pivot at its foot: it slumps onto the floor)
+	var foot := r.position + Vector2(box.position.x + box.size.x * 0.5, box.end.y) * SHEET_SCALE
+	bit.position = foot
+	bit.modulate = node.modulate
+	bit.z_index = node.z_index
+	game.add_child(bit)
+	if not sh.has("bits"):
+		sh["bits"] = []
+	(sh["bits"] as Array).append(bit)
+	game.sfx.play("cloth", -2.0, foot.x, 0.15)
+	var floor_y := 0.0
+	var t := clampf(sqrt(maxf(floor_y - foot.y, 1.0) / 1400.0), 0.25, 0.8)
+	var side := randf_range(-1.0, 1.0)
+	var tw := bit.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(bit, "position", Vector2(foot.x + side * 40.0, floor_y + 6.0), t).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_property(bit, "skew", side * 0.25, t)
+	tw.tween_property(bit, "rotation", side * 0.08, t)
+	tw.chain().tween_property(bit, "scale", Vector2(SHEET_SCALE * 1.15, SHEET_SCALE * 0.22), 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)   # a heap of cloth
+	tw.parallel().tween_property(bit, "skew", side * 0.5, 0.28)
+	tw.chain().tween_interval(8.0)
+	tw.chain().tween_property(bit, "modulate:a", 0.0, 1.5)
+	tw.chain().tween_callback(bit.queue_free)
 
 
 ## Punch a ragged hole into the sheet's picture at u (picture px), the cloth round it frayed and darkened.

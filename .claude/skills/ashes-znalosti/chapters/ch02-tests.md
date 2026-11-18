@@ -14,6 +14,7 @@ Repeat UI-relevant shots at 1280 wide too.
 - **Look/framing**: `look:x [--high] [--inner] [--smoke]`, `tops`, `rooms` (every street drawing), `bulbs:x`, `pin:i`, `give`, `fall:x[,player]`.
 - **Mechanics**: `men:hook|dynamite|sniper|shield|load`, `kick`, `ricochet`, `rope:climb|zip|swing`, `pipe`, `disarm`, `hat`, `bag`, `coatdive`, `jumpseq`, `fxsheet`, `aicover --chapter=2 --map=1`.
 - **Map FX**: `el`, `fog`, `oncoming`, `sheets`, `neondrop`, `storm`, `rock`, `sea`, `steam`, `rats`, `freight`, `flood`, `girder`.
+- **18. 11.**: `hud` (HUD plate worst case), `sheets --drop` (sheets shot loose), `el --indoors` (train over a room), `look:x --probe=x,y` (prints every visible drawing over that world point: what covers it). A look/el test that goes silent near a diary page is the page pausing the game, not a hang - move x.
 - **Flags**: `--guilt=N`, `--perks=all|id,id`, `--xp=N`, `--instincts=all`, `--figscale=`, `--lift=`, `--cones` (rejected look, comparison only), `--texdump`, `--timing`, `--log-sound`, `--packs=<dir>` with `--main-pack build/index.pck` (split-build test).
 
 ## Rules

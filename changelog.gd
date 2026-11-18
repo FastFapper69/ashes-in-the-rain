@@ -8,6 +8,10 @@ const ENTRIES := [
 		"Frank's picture, health, rounds and guns sit together on one plate",
 		"Frank's narration moved low in the middle, under the street, out of the way of the fight",
 		"The boss's name and health never cover the gun card",
+		"Inside a room the picture stops at its walls: no black band at the end of the laundry",
+		"Laundry sheets shot through come down: the loose part drops, a sheet shot to rags falls whole",
+		"The burst steam pipe's cloud is no longer cut off at the top",
+		"The El's train no longer pulls the camera back while you are indoors",
 	]],
 	["17 NOV 2026", [
 		"A dive starts with a push-off; in slowed time everyone's outline burns brighter",

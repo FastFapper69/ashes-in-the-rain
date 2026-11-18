@@ -56,6 +56,48 @@ SHRINK = {"hydrant": 0.72, "kegs": 0.5, "windlass": 0.5, "trolley": 0.6, "thirdr
 # pixels only, in a band round it, so smoke there stays), the game draws it on from there (props.gd TROLLEY_WIRE).
 WIRE_CUT = {"trolley": (705, 140, 240)}   # x, rows y0..y1 in the cell, full size   # drawn bigger than shown: a hydrant cell is ~360 px wide on the street
 DESPILL = {"thirdrail"}
+# A grid sheet whose frames reach over the line between the rows (the steam pipe's clouds rise into the row above,
+# user 18. 11.: "the steam is cut off at the top"): each inked piece goes whole to the frame it belongs to (the cell
+# holding most of it), every cell taller by a row above it, so a cloud is never cut and its top never shows up
+# under the frame above.
+SPILL = {"steampipe"}
+def spill_cells(rgba, n, rows):
+    cols = n // rows
+    W, H = rgba.shape[1] // cols, rgba.shape[0] // rows
+    lab, k = ndimage.label(ndimage.binary_dilation(rgba[..., 3] > 20, iterations=3))
+    sizes = ndimage.sum(np.ones_like(lab), lab, range(k + 1))
+    owner = np.full(k + 1, -1)
+    for c in range(1, k + 1):
+        if sizes[c] < 6000:
+            continue
+        ys, xs = np.where(lab == c)
+        counts = np.bincount(np.minimum(ys // H, rows - 1) * cols + np.minimum(xs // W, cols - 1), minlength=n)
+        owner[c] = int(np.argmax(counts))
+    # a loose drop or splinter goes with the nearest big piece (a droplet off a cloud is that cloud's)
+    big = owner[lab] >= 0
+    _, (iy, ix) = ndimage.distance_transform_edt(~big, return_indices=True)
+    for c in range(1, k + 1):
+        if owner[c] < 0:
+            ys, xs = np.where(lab == c)
+            owner[c] = owner[lab[iy[ys[0], xs[0]], ix[ys[0], xs[0]]]]
+    cells = []
+    for i in range(n):
+        r0, c0 = (i // cols) * H, (i % cols) * W
+        cell = np.zeros((3 * H, W + 2 * W // 4, 4), np.uint8)   # room above for the cloud, and round it to slide it
+        top = max(0, r0 - H)
+        part = rgba[top:r0 + H, c0:c0 + W].copy()
+        mine = owner[lab[top:r0 + H, c0:c0 + W]] == i
+        part[..., 3] = np.where(mine, part[..., 3], 0)
+        # the frames drawn on a grid do not stand the pipe at the same place: line each up on the pipe's
+        # left end and its foot (its dark iron), so it never jumps between the frames
+        iron = (part[..., 3] > 200) & (part[..., :3].astype(float).mean(axis=2) < 110)
+        ys, xs = np.where(iron)
+        y0, x0 = 2 * H - 1 - ys.max(), W // 4 + 20 - xs.min()   # the foot on one line, the left end on one column
+        cell[y0:y0 + part.shape[0], x0:x0 + W] = part
+        cells.append(cell)
+    return cells
+
+
 def anim(kind, f, n=6, rows=1, pick=None):
     a = np.asarray(Image.open(os.path.join(SRC, f)).convert("RGB")).astype(float)
     r, g, b = a[..., 0], a[..., 1], a[..., 2]
@@ -66,7 +108,10 @@ def anim(kind, f, n=6, rows=1, pick=None):
     rgba = np.dstack([np.clip(a, 0, 255), alpha * 255]).astype(np.uint8)
     cols = n // rows
     W, H = rgba.shape[1] // cols, rgba.shape[0] // rows
-    cells = [rgba[(i // cols) * H:(i // cols + 1) * H, (i % cols) * W:(i % cols + 1) * W].copy() for i in range(n)]
+    if kind in SPILL and rows > 1:
+        cells = spill_cells(rgba, n, rows)
+    else:
+        cells = [rgba[(i // cols) * H:(i // cols + 1) * H, (i % cols) * W:(i % cols + 1) * W].copy() for i in range(n)]
     if pick:
         cells = [cells[i] for i in pick]
     ys, xs = np.where(np.max([c[..., 3] for c in cells], axis=0) > 20)

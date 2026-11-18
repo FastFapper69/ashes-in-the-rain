@@ -148,8 +148,8 @@ func landed_on(pos: Vector2) -> void:
 ## Play a kind's drawn animation (art/props/hk_<kind>_anim.png, 6 equal cells, gen/street_props.py) over the thing:
 ## (cells 0-2 the hit, `loop` repeated for `hold` seconds, 4-5 the end) - the strip's cells are scaled so the thing in them matches the thing on the street (its width share ANIM_W), the
 ## foot on the same line; `hold` (seconds) on the given loop cells, then it ends on the last cell and stays there.
-const ANIM_W := {"hydrant": 0.5, "kegs": 0.849, "steampipe": 0.91, "windlass": 0.869, "trolley": 0.902, "thirdrail": 0.925}   # the thing's width in a cell, as a share of the cell
-const ANIM_X0 := {"kegs": 0.112, "windlass": 0.061, "trolley": 0.054, "thirdrail": 0.05}   # where the thing starts in a cell (its still IS the first cell, cropped); else centred
+const ANIM_W := {"hydrant": 0.5, "kegs": 0.849, "steampipe": 0.9359, "windlass": 0.869, "trolley": 0.902, "thirdrail": 0.925}   # the thing's width in a cell, as a share of the cell
+const ANIM_X0 := {"kegs": 0.112, "steampipe": 0.019, "windlass": 0.061, "trolley": 0.054, "thirdrail": 0.05}   # where the thing starts in a cell (its still IS the first cell, cropped); else centred
 const ANIM_GAP := {"windlass": 0.055, "thirdrail": 0.052}   # empty cell below its foot, as a share of the cell's height (gen/street_props.py still())
 func _animate(p: Dictionary, loop: Array, hold: float) -> bool:
 	var path := "res://art/props/hk_%s_anim.png" % String(p["kind"])

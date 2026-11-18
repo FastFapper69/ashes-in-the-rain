@@ -2821,6 +2821,10 @@ func _process(delta: float) -> void:
 	var in_sec := _section_at(player.position) >= 0
 	if in_sec:   # in a building: the street's zoom, the storey he stands on held where the pavement is
 		want_zoom = ZOOM
+	else:
+		var ri := _plain_room_at(player.position)
+		if ri >= 0:   # a room narrower than the screen: just close enough that its walls are the screen's edges
+			want_zoom = maxf(want_zoom, (get_viewport().get_visible_rect().size.x + 60.0) / (float(_room_art[ri][1]) - float(_room_art[ri][0])))
 	var rim := clampf((0.85 - Engine.time_scale) / 0.5, 0.0, 1.0) if not over else 0.0
 	player.set_rim(rim)
 	for e in enemies:
@@ -2852,8 +2856,13 @@ func _process(delta: float) -> void:
 		var k := _cue_w * clampf(_cue_t / 0.5, 0.0, 1.0) * clampf((_cue_len - _cue_t) / 0.35, 0.0, 1.0)
 		want_x = lerpf(want_x, _cue_at.x, k)
 		want_y = lerpf(want_y, _cue_at.y, k * 0.5)
+	want_x = _room_cam_x(want_x)
 	cam.position = Vector2(lerpf(cam.position.x, want_x, 1.0 - exp(-5.5 * real)),
 			lerpf(cam.position.y, want_y, 1.0 - exp(-3.0 * real)))
+	var held := _room_cam_x(cam.position.x)   # (through the door the room is simply there: never a glimpse past its walls)
+	if held != cam.position.x and _plain_room_at(player.position) != _cam_room:
+		cam.position.x = held
+	_cam_room = _plain_room_at(player.position)
 	if _cam_snap:   # a hard cut (out through a window): the camera is simply there
 		_cam_snap = false
 		cam.position = Vector2(want_x, want_y)
@@ -3672,6 +3681,8 @@ func _auto_step(delta: float) -> void:
 		if _at < 0.05:
 			if _auto == "el":
 				mapfx._el_t = 0.3
+				if OS.get_cmdline_user_args().has("--indoors") and not rooms.is_empty():   # the train goes over a room: no pull-back in there
+					player.position.x = float(rooms[0][0]) + 400.0   # (not on a diary page: reading pauses the test)
 			elif _auto == "fog":
 				mapfx._fog_phase = 2
 				mapfx._fog_t = 99.0
@@ -3710,14 +3721,27 @@ func _auto_step(delta: float) -> void:
 								e["alive"] = false
 								e["node"].visible = false
 						break
-		if _auto == "sheets" and _at > 0.8 and _at < 1.6 and fmod(_at, 0.25) < 0.04:   # a few shots through the sheets
+		if _auto == "sheets" and OS.get_cmdline_user_args().has("--drop") and _at > 0.8 and _at < 3.4 and not mapfx._sheets.is_empty():
+			# --drop: a row of shots across the first sheet (its foot comes down), then seven into the next (it comes off its pegs)
+			var kk := int((_at - 0.8) / 0.1)
+			if kk != _drop_k:
+				_drop_k = kk
+				var sr: Rect2 = mapfx._sheets[0]["rect"]
+				var uu := Vector2(160.0 + kk * 26.0, 470.0) if kk < 16 else Vector2(700.0 + (kk - 16) * 40.0, 300.0 + (kk % 3) * 120.0)
+				if kk < 26:
+					mag = 6   # (the test never reloads)
+					reloading = 0.0
+					_aim_point = sr.position + uu * mapfx.SHEET_SCALE
+					player.scale.x = -absf(player.scale.x)
+					_fire(player, true)
+		elif _auto == "sheets" and _at > 0.8 and _at < 1.6 and fmod(_at, 0.25) < 0.04:   # a few shots through the sheets
 			if not mapfx._sheets.is_empty():
 				var sr: Rect2 = mapfx._sheets[0]["rect"]
 				_aim_point = sr.get_center() + Vector2(140.0 + randf_range(-50.0, 50.0), randf_range(-90.0, 40.0))   # (through the middle of the nearest sheet)
 				player.scale.x = -absf(player.scale.x)
 			_fire(player, true)
 		shots = {"el": [[1.6, "el_0"], [2.4, "el_1"], [3.2, "el_2"]], "fog": [[1.2, "fog_0"], [2.5, "fog_1"]],
-			"oncoming": [[1.2, "onc_0"], [2.3, "onc_1"], [2.7, "onc_2"], [3.3, "onc_3"]], "sheets": [[0.6, "sheets_0"], [1.05, "sheets_m"], [2.0, "sheets_1"]],
+			"oncoming": [[1.2, "onc_0"], [2.3, "onc_1"], [2.7, "onc_2"], [3.3, "onc_3"]], "sheets": [[0.6, "sheets_0"], [1.05, "sheets_m"], [2.0, "sheets_1"], [2.7, "sheets_2"], [3.3, "sheets_3"], [3.7, "sheets_4"], [5.0, "sheets_5"]],
 			"girder": [[0.9, "girder_0"], [1.3, "girder_1"], [1.7, "girder_2"]],
 			"storm": [[0.36, "storm_0"], [0.42, "storm_1"], [0.5, "storm_2"], [0.75, "storm_3"]], "rock": [[1.0, "rock_0"], [4.0, "rock_1"]], "steam": [[1.2, "steam_0"], [2.4, "steam_1"]],
 			"rats": [[0.5, "rats_0"], [1.0, "rats_1"]], "freight": [[3.0, "freight_0"], [5.0, "freight_1"]], "sea": [[0.95, "sea_0"], [1.3, "sea_1"]],
@@ -4076,6 +4100,22 @@ func _auto_step(delta: float) -> void:
 				var r := sp.get_global_transform() * sp.get_rect()
 				if r.intersects(sky_band):
 					print("SKY ", sp.get_path(), " ", sp.texture.resource_path, " z ", sp.z_index, " mod ", sp.modulate, " mat ", sp.material)
+		for arg in OS.get_cmdline_user_args():   # --probe=x,y: every visible drawing over that world point (what covers it)
+			if arg.begins_with("--probe=") and fmod(_at, 2.6) > 2.2 and _auto_done & (1 << (k + 24)) == 0:
+				_auto_done |= 1 << (k + 24)
+				var pt := Vector2(float(arg.split("=")[1].split(",")[0]), float(arg.split("=")[1].split(",")[1]))
+				for n in get_tree().root.find_children("*", "CanvasItem", true, false):
+					var ci := n as CanvasItem
+					if not ci.is_visible_in_tree():
+						continue
+					var hit := false
+					if ci is Sprite2D and (ci as Sprite2D).texture != null:
+						hit = (ci.get_global_transform() * (ci as Sprite2D).get_rect()).has_point(pt)
+					elif ci is Polygon2D:
+						hit = Geometry2D.is_point_in_polygon(ci.get_global_transform().affine_inverse() * pt, (ci as Polygon2D).polygon)
+					if hit:
+						var rr := (ci.get_global_transform() * (ci as Sprite2D).get_rect()) if ci is Sprite2D else Rect2()
+						print("PROBE ", ci.get_path(), " ", ci.get_class(), " z ", ci.z_index, " mod ", ci.modulate, " ", (ci as Sprite2D).texture.resource_path if ci is Sprite2D else str((ci as Polygon2D).color), " rect ", rr, " poly ", (ci as Polygon2D).polygon if ci is Polygon2D else PackedVector2Array())
 		if OS.get_cmdline_user_args().has("--center"):   # gen/tests/audit_maps.py: the seam right in the middle
 			cam.position.x = float(xs[k].split("@")[0])
 		if OS.get_cmdline_user_args().has("--high"):   # the camera as high as a jump off a stack takes it
@@ -5570,7 +5610,7 @@ func _knocked(e: Dictionary, delta: float) -> void:
 ## A mobster goes down: counted for the score, his gun left on the pavement.
 func _kill(e: Dictionary, head: bool, quiet := false, part := "") -> void:
 	e["alive"] = false
-	var mk = e["node"].get_meta("mark", null)
+	var mk = e["node"].get_meta("mark") if e["node"].has_meta("mark") else null
 	if mk != null and is_instance_valid(mk):
 		mk.queue_free()
 	_buzz(25 if head else 18)
@@ -8023,6 +8063,22 @@ func _build_room(x0: float, x1: float, style: String) -> void:
 	_room_art.append([x0, x1, holder])
 
 
+## Inside an interior the camera never looks past its ends (user 18. 11.: the laundry's end showed as a black
+## band, a man at the wall cut in half by it): the picture stops at the room's walls, the drawing fills the screen.
+var _cam_room := -1
+var _drop_k := -1   # --test=sheets --drop: the shot fired last
+func _room_cam_x(x: float) -> float:
+	var i := _plain_room_at(player.position)
+	if i < 0 or _section_at(player.position) >= 0:
+		return x
+	var half: float = get_viewport().get_visible_rect().size.x * 0.5 / cam.zoom.x + 30.0   # (+ the tilt and shake)
+	var x0: float = float(_room_art[i][0]) + half
+	var x1: float = float(_room_art[i][1]) - half
+	if x0 > x1:
+		return (x0 + x1) * 0.5
+	return clampf(x, x0, x1)
+
+
 ## Which interior (index into _room_art) a point is in, or -1 out in the street.
 func _plain_room_at(p: Vector2) -> int:
 	if p.y <= GROUND_STOREY:
@@ -8080,6 +8136,9 @@ func _tick_rooms() -> void:
 		for sh in mapfx._sheets:
 			var r: Rect2 = sh["rect"]
 			(sh["node"] as CanvasItem).visible = _plain_room_at(Vector2(r.get_center().x, -100.0)) == here
+			for bit in sh.get("bits", []):   # cloth shot down onto the floor: part of the room too
+				if is_instance_valid(bit):
+					(bit as CanvasItem).visible = (sh["node"] as CanvasItem).visible
 
 
 func _build_room_art(x0: float, x1: float, style: String) -> void:
@@ -8983,7 +9042,7 @@ func _mark(m, text: String) -> void:
 	l.z_index = 20
 	add_child(l)
 	if m != player:   # (audit 17. 11.: a "!" left floating over a man already falling dead)
-		var old = m.get_meta("mark", null)
+		var old = m.get_meta("mark") if m.has_meta("mark") else null
 		if old != null and is_instance_valid(old):
 			old.queue_free()
 		m.set_meta("mark", l)

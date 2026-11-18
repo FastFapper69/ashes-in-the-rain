@@ -64,7 +64,7 @@ How a new piece or map joins the rest so no break shows - in this order, never s
    A new drawing gets its EDGES entry the same day (check the edge sheet by eye).
 3. **Thresholds.** A change of kind of space passes a drawn opening: an interior's building front (two doors exactly at
    the room's ends), a house's facade door (cross-section), an alley gate, subway stairs, a dock gate. Until a front is
-   drawn, an interior is entered by a dip through black and is seen only from inside (main.gd `_tick_rooms`).
+   drawn, an interior is entered by a dip through black and is seen only from inside (main.gd `_tick_rooms`). Inside, the camera never looks past the room's walls (`_room_cam_x`; a room narrower than the screen is zoomed to fill it) - no black band at its ends (user 18. 11.).
 4. **No fight across a door.** levels.py `door_clear` keeps street men DOOR_CLEAR (700) from an interior's doors; the
    audit checks it (research ch15: transitions only without enemies on).
 5. **Map as a graph of spaces** (next, §10.4): street -> alley mouth -> yard -> back door -> stairwell -> flat -> window ->
