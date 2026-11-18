@@ -194,6 +194,18 @@ func _tick_el(delta: float) -> void:
 			# (audit 17. 11.: the train went over above the picture, unseen) the camera pulls back and looks up while it passes
 			if not indoors:
 				game.wide_shot = maxf(game.wide_shot, smoothstep(0.0, 0.5, near))
+			if not indoors and randf() < near * get_process_delta_time() * 16.0:
+				# (chapter I audit 18. 11.: the El was only scenery) sparks off the third rail and soot shaken down out of the
+				# ties rain onto the street under the passing train
+				var sx: float = mid + randf_range(-0.5, 0.5) * minf(float(t[3]), view_w)
+				var sy: float = EL_TOP + EL_DECK_H * EL_SCALE * 0.8
+				game.fx.spark(Vector2(sx, sy))
+				game.fx.smoke(Vector2(sx + randf_range(-60.0, 60.0), sy), Vector2(randf_range(-30.0, 30.0), randf_range(120.0, 260.0)), randf_range(0.18, 0.3), randf_range(0.9, 1.4), 0.45)
+			if near > 0.6 and not indoors and not t[0].has_meta("flinch"):
+				t[0].set_meta("flinch", true)   # the men under it duck their heads from the din and the soot: a moment to take them
+				for e in game.enemies:
+					if e["alive"] and e["node"].position.y > -100.0 and absf(float(e["node"].position.x) - game.player.position.x) < view_w * 0.6:
+						e["cool"] = maxf(float(e["cool"]), randf_range(0.9, 1.5))
 			if near > 0.3 and not indoors and not t[0].has_meta("cued"):
 				t[0].set_meta("cued", true)
 				game.cue(Vector2(game.player.position.x, EL_TOP - 250.0), 2.2, 0.9)

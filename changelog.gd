@@ -5,6 +5,9 @@ extends RefCounted
 
 const ENTRIES := [
 	["18 NOV 2026", [
+		"The Blue Note is now a big club: the bar and the stairs, a dance hall with a gallery of private booths, then the stage where Teague waits",
+		"Shoot the chandelier over the dance floor: it comes down on whoever stands under it",
+		"When the El goes over, sparks and soot rain down and the men under it flinch",
 		"Street maps end at a lit doorway; when the last man is down it glows and tells you where to go",
 		"Easier to read on a phone: a light rim round every mobster, bigger narration, the score popup away from the pause button, the dream's flames no longer hide the men",
 		"No long empty streets: a fight every screen or so; shotgunners and tommy gunners from the first maps on",

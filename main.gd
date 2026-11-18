@@ -1266,7 +1266,7 @@ const SEGMENT_LIGHTS := {
 	# the interiors' fronts (17. 11.): a lamp over each street door - a gooseneck over the shop and warehouse doors,
 	# the club's own painted lamp by its door, a lantern on a stoop's pediment
 	"front_laundry": [[696, 812, "goose"]], "front_laundry_l": [[696, 812, "goose"]], "front_warehouse": [[795, 760, "goose"], [2373, 760, "goose", true]],
-	"front_club": [[630, 930, "painted"]], "subway_entrance": [[1272, 690, "painted"], [1884, 690, "painted"]], "front_tenement": [[870, 760, "goose"], [2305, 760, "goose", true]],
+	"front_club": [[630, 930, "painted"]], "front_club_l": [[630, 930, "painted"]], "subway_entrance": [[1272, 690, "painted"], [1884, 690, "painted"]], "front_tenement": [[870, 760, "goose"], [2305, 760, "goose", true]],
 	"laundry": [[2110, 748, "painted"], [455, 735, "goose"], [985, 735, "goose", true]],
 	"bluenote": [[1262, 880, "painted"], [284, 852, "lantern"], [2877, 833, "goose", true]],
 	"alley": [[507, 908, "painted"], [2034, 766, "goose"], [2365, 766, "goose", true]],
@@ -1326,7 +1326,7 @@ const SEGMENT_TRIM := {"alley": 134.0, "bluenote": 134.0, "warehouse": 133.0, "l
 		"platform": 132.0, "tunnel": 132.0, "yard": 132.0, "station14": 132.0,
 		"bowery": 132.0, "walkway": 132.0, "pump": 132.0, "tunnel_lo": 132.0, "signal": 132.0, "arches": 132.0}
 # evens out how light each drawing came out, so neighbours do not jump in brightness
-const SEGMENT_GAIN := {"front_laundry": 1.3, "front_laundry_l": 1.3, "front_laundry_mid": 1.18, "front_laundry_r": 1.3, "front_warehouse": 1.35, "front_club": 1.3, "front_tenement": 1.3, "front_yard": 1.3,   # (the fronts: to their neighbours' tone, by eye 17. 11.)
+const SEGMENT_GAIN := {"front_club_l": 1.3, "front_club_mid": 1.3, "front_club_r": 1.3, "front_laundry": 1.3, "front_laundry_l": 1.3, "front_laundry_mid": 1.18, "front_laundry_r": 1.3, "front_warehouse": 1.35, "front_club": 1.3, "front_tenement": 1.3, "front_yard": 1.3,   # (the fronts: to their neighbours' tone, by eye 17. 11.)
 	"alley": 0.92, "bluenote": 0.98, "warehouse": 0.9, "laundry": 1.02, "subway": 1.07, "church": 1.0, "market": 1.05, "deadend": 1.1,
 		"pier17": 0.86, "cranes": 0.91, "shipping": 0.96, "quay": 0.91, "harbor": 0.86,
 		"platform": 0.95, "tunnel": 1.12, "yard": 0.85, "station14": 0.9,
@@ -1337,7 +1337,7 @@ const SEGMENT_KIT := {"walkway_b": "walkway", "signal_b": "signal", "arches_b": 
 	"yard_b": "yard", "tunnel_b": "tunnel", "sheds_b": "sheds", "pier17_b": "pier17", "shipping_b": "shipping", "quay_b": "quay",
 	"laundry_b": "laundry", "alley_b": "alley", "warehouse_b": "warehouse", "warehouse_c": "warehouse", "church_b": "church", "subway_b": "subway", "market_b": "market", "market_c": "market", "yard_c": "yard", "tunnel_c": "tunnel",
 	"fire_d": "fire_a", "fire_e": "fire_b", "fire_f": "fire_c", "fire_g": "fire_a"}
-const SEGMENT_SIZE := {"alley_mouth": 0.8, "market_row": 0.8, "church_row": 0.8, "subway_entrance": 0.8, "warehouse_row": 0.8, "bluenote_row": 0.8, "row_house": 0.8, "front_yard": 0.8, "apartment": 0.8, "factory": 0.8, "pawn_house": 0.8, "diner_house": 0.8, "alley_wash": 0.8, "stable_row": 0.8, "rear_walkup": 0.8, "el_garage": 0.8, "rooming_house": 0.8, "boiler_works": 0.8, "machine_shop": 0.8, "brownstones": 0.8, "bay_tenement": 0.8, "hotel_front": 0.8, "dance_hall": 0.8, "front_laundry": 0.8, "front_laundry_l": 0.8, "front_laundry_mid": 0.8, "front_laundry_r": 0.8, "front_warehouse": 0.8, "front_club": 0.8, "front_tenement": 0.8, "hk_tailor": 0.8, "hk_grocery": 0.8, "hk_saloon": 0.8, "hk_laundry": 0.8, "deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
+const SEGMENT_SIZE := {"alley_mouth": 0.8, "market_row": 0.8, "church_row": 0.8, "subway_entrance": 0.8, "warehouse_row": 0.8, "bluenote_row": 0.8, "row_house": 0.8, "front_yard": 0.8, "apartment": 0.8, "factory": 0.8, "pawn_house": 0.8, "diner_house": 0.8, "alley_wash": 0.8, "stable_row": 0.8, "rear_walkup": 0.8, "el_garage": 0.8, "rooming_house": 0.8, "boiler_works": 0.8, "machine_shop": 0.8, "brownstones": 0.8, "bay_tenement": 0.8, "hotel_front": 0.8, "dance_hall": 0.8, "front_club_l": 0.8, "front_club_mid": 0.8, "front_club_r": 0.8, "front_laundry": 0.8, "front_laundry_l": 0.8, "front_laundry_mid": 0.8, "front_laundry_r": 0.8, "front_warehouse": 0.8, "front_club": 0.8, "front_tenement": 0.8, "hk_tailor": 0.8, "hk_grocery": 0.8, "hk_saloon": 0.8, "hk_laundry": 0.8, "deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
 	"signal": 0.52, "arches": 0.52, "sheds": 0.55, "fire_a": 0.605, "fire_b": 0.605, "fire_c": 0.605}
 # A drawing whose floor runs into the depth: where on it a man's feet go, as a share of its height (the
 # street drawings stand at the back of the pavement at SEGMENT_BASE instead).
@@ -1356,16 +1356,22 @@ const SEGMENT_MOON := 1.6   # how much brighter than the bare night the drawn st
 const SEGMENT_BASE := 0.92
 const GROUND_STOREY := -900.0   # above this height a street room is not where he is (a roof over it)
 const ROOM_SCALE := 0.75   # interiors: see _build_room
-const ROOM_SCALES := {"laundry": 0.8523}   # (17. 11.: the industrial laundry hall, drums taller than a man)
+const ROOM_SCALES := {"laundry": 0.8523, "club": 0.8523}   # (17. 11.: the industrial laundry hall, drums taller than a man)
 # where steam bursts out of a drawn pipe in a room (fractions of the drawing): mapfx, while he is in there
 const ROOM_VENTS := {"laundry": [Vector2(0.328, 0.235), Vector2(0.436, 0.455), Vector2(0.975, 0.56)]}
 # The big laundry (QUEUE §14, user 18. 11.): its drawings one after another [picture, from px, to px, catwalk layer]
 # (= gen/levels.py LAUNDRY_PARTS; cut on painted iron columns; gen/laundry_layers.py cuts the layers)
 const ROOM_PARTS := {"laundry": [["laundry", 0.0, 2880.0, ""], ["laundry_mid", 40.0, 3100.0, "laundry_mid_catwalk"],
-	["laundry_end", 790.0, 3168.0, "laundry_end_catwalk"]]}
+	["laundry_end", 790.0, 3168.0, "laundry_end_catwalk"]],
+	# the big Blue Note (user 18. 11.): the bar room and its stairs, the dance hall's gallery, the stage (= gen/levels.py CLUB_PARTS)
+	"club": [["club_bar", 0.0, 3050.0, "club_bar_gallery"], ["club_hall", 0.0, 3168.0, "club_hall_gallery"], ["club", 1765.0, 3168.0, ""]]}
+const CHANDELIER_BOX := Rect2(1418.0, 0.0, 307.0, 463.0)   # where gen/club_layers.py cut the chandelier from the hall (px)
 const ROOM_PART_BULBS := {   # [x, y, colour, size] on each part's picture, at the glass
 	"laundry_mid": [[0.240, 0.198, "warm", "big"], [0.776, 0.198, "warm", "big"]],
-	"laundry_end": [[0.647, 0.236, "warm", "big"], [0.584, 0.585, "warm", "small"], [0.931, 0.193, "warm", "big"]]}
+	"laundry_end": [[0.647, 0.236, "warm", "big"], [0.584, 0.585, "warm", "small"], [0.931, 0.193, "warm", "big"]],
+	"club_bar": [[0.033, 0.397, "warm", "small"], [0.369, 0.44, "warm", "small"], [0.629, 0.44, "warm", "small"],
+		[0.4, 0.38, "warm", "small"], [0.491, 0.38, "warm", "small"], [0.594, 0.38, "warm", "small"]],
+	"club_hall": [[0.18, 0.352, "warm", "small"], [0.348, 0.354, "warm", "small"], [0.676, 0.356, "warm", "small"], [0.831, 0.353, "warm", "small"]]}
 const ROOM_PART_VENTS := {"laundry_mid": [Vector2(0.316, 0.469), Vector2(0.773, 0.461)]}   # the boilers' valves
 var room_vents: Array = []   # [room x0, x1, world point]: every interior's painted steam pipes (mapfx _tick_room_vents)
 const ROOM_ZOOM := 0.58    # indoors the camera comes in closer: a room is small, the people in it are not
@@ -1627,12 +1633,59 @@ func _front_joint(x: float) -> bool:
 	var n := 0
 	for seg in level["street"]:
 		var art := String(seg[0])
-		if not art.begins_with("front_laundry_"):
+		if not (art.begins_with("front_laundry_") or art.begins_with("front_club_")):
 			continue
 		var w: float = float(KitData.PIECES[art].get("w", 3168.0)) * WALL_SCALE * float(SEGMENT_SIZE.get(art, 1.0))
 		if absf(float(seg[1]) - x) < 2.0 or absf(float(seg[1]) + w - x) < 2.0:
 			n += 1
 	return n >= 2
+
+
+## The Blue Note's chandelier (user 18. 11., the big club): its own layer on its chain from the beam, lit, a lamp to the
+## aim - a shot drops it: it crashes onto the dance floor and takes down whoever stands under it.
+var _chandeliers: Array = []
+func _chandelier(at: Vector2, rs: float) -> void:
+	var sp := Sprite2D.new()
+	sp.texture = load("res://art/rooms/club_chandelier.png")
+	sp.centered = false
+	sp.scale = Vector2.ONE * rs
+	sp.position = at
+	sp.light_mask = 0
+	sp.modulate = Color.WHITE * ROOM_BASE * 1.08
+	sp.z_index = -4
+	add_child(sp)
+	var glass := at + Vector2(CHANDELIER_BOX.size.x * 0.5, CHANDELIER_BOX.size.y * 0.72) * rs
+	var p := _lamp_light(glass)
+	lamps.append(glass)
+	lamp_info.append({"nodes": [], "light": p, "on": true, "glass": 0.0, "r": 90.0, "chandelier": sp})   # (not in "nodes": an out lamp hides those)
+	_chandeliers.append(sp)
+
+
+func _drop_chandelier(sp: Sprite2D) -> void:
+	if sp.has_meta("down"):
+		return
+	sp.set_meta("down", true)
+	var h := sp.texture.get_height() * sp.scale.y
+	var land := Vector2(sp.position.x, -h + 30.0)
+	var tw := sp.create_tween()
+	tw.tween_property(sp, "position", land, 0.42).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_callback(func() -> void:
+		var foot := Vector2(sp.position.x + sp.texture.get_width() * sp.scale.x * 0.5, 0.0)
+		_impact(0.12, 0.05)
+		_shake = maxf(_shake, 0.5)
+		sfx.play("glass", 2.0, foot.x, 0.05)
+		_word(["crash", "smash"], foot + Vector2(0.0, -360.0), 0.25)
+		for k in 14:
+			fx.chip(foot + Vector2(randf_range(-160.0, 160.0), randf_range(-60.0, 0.0)))
+		fx.dust(foot, 0.6)
+		for e in enemies:
+			if e["alive"] and absf(float(e["node"].position.y)) < 10.0 and absf(float(e["node"].position.x) - foot.x) < 230.0:
+				_knock_down(e, 700.0 * signf(float(e["node"].position.x) - foot.x + 0.01))
+		sp.rotation = 0.06
+		sp.z_index = 1   # (in front of the kegs it smashed onto, a wreck on the boards)
+		sp.scale.y *= 0.7
+		sp.position.y = 24.0 - sp.texture.get_height() * sp.scale.y
+		sp.modulate = Color.WHITE * ROOM_BASE * 0.8)
 
 
 ## The way out of a street map (QUEUE §15 E): a drawn doorway at the map's end (gen/levels.py exit_door), lit warm from
@@ -6069,6 +6122,8 @@ func _blast(at: Vector2, reach: float, hurt_reach: float, hits: int) -> void:
 ## A lamp shot out: its glow and light go, glass rains down, and the street around it is dark.
 func _lamp_out(i: int) -> void:
 	var rec: Dictionary = lamp_info[i]
+	if rec.has("chandelier"):   # the chain snaps: it comes down (its light goes with it below)
+		_drop_chandelier(rec["chandelier"])
 	if rec.has("pend"):   # the shot jolts it on its cord; the swing dies away and it hangs dead still
 		var pd: Dictionary = rec["pend"]
 		pd["kick"] = deg_to_rad(14.0)
@@ -8289,11 +8344,10 @@ func _build_room_art(x0: float, x1: float, style: String) -> void:
 	var parts: Array = ROOM_PARTS.get(style, []) if (x1 - x0) > tex.get_width() * rs + 10.0 else []
 	if not parts.is_empty():
 		pad = 0.0
-		src_w = float(parts[0][2]) - float(parts[0][1])
-		wall.region_rect = Rect2(float(parts[0][1]), 0.0, src_w, tex.get_height())
-		wall.position = Vector2(x0, top)
-		var ox := x0 + src_w * rs
-		for k in range(1, parts.size()):
+		wall.visible = false   # (every part, the first too, is laid by the loop: the first need not be the style's own drawing)
+		src_w = 0.0
+		var ox := x0
+		for k in range(parts.size()):
 			var pt: Array = parts[k]
 			var a := float(pt[1])
 			var pw := float(pt[2]) - a
@@ -8323,11 +8377,15 @@ func _build_room_art(x0: float, x1: float, style: String) -> void:
 				ps.modulate = Color.WHITE * ROOM_BASE * (1.06 if layer != "" else 1.0)   # (the iron in front catches a little more light)
 				ps.z_index = -5
 				add_child(ps)
-			for b in ROOM_PART_BULBS.get(String(pt[0]), []):
+			if String(pt[0]) == "club_hall":   # the chandelier over the dance floor: its own layer, it can be shot down
+				_chandelier(Vector2(ox + (CHANDELIER_BOX.position.x - a) * rs, top + CHANDELIER_BOX.position.y * rs), rs)
+			var own: Array = ROOM_BULBS.get(String(pt[0]), []) if String(pt[0]) == style else ROOM_PART_BULBS.get(String(pt[0]), [])
+			var own_v: Array = ROOM_VENTS.get(String(pt[0]), []) if String(pt[0]) == style else ROOM_PART_VENTS.get(String(pt[0]), [])
+			for b in own:
 				var bx: float = float(b[0]) * ptex.get_width()
 				if bx > a + 30.0 and bx < a + pw - 30.0:
 					bulb_list.append([Vector2(ox + (bx - a) * rs, top + float(b[1]) * ptex.get_height() * rs), String(b[2]), String(b[3])])
-			for v: Vector2 in ROOM_PART_VENTS.get(String(pt[0]), []):
+			for v: Vector2 in own_v:
 				room_vents.append([x0, x1, Vector2(ox + (v.x * ptex.get_width() - a) * rs, top + v.y * ptex.get_height() * rs)])
 			ox += pw * rs
 	var roof := Polygon2D.new()   # above the ceiling: the storeys over the room, the facade seen dim through the cut
@@ -8391,14 +8449,11 @@ func _build_room_art(x0: float, x1: float, style: String) -> void:
 		lamp_info.append({"nodes": [pend["bulb"]], "light": plight, "on": true, "glass": -6.0, "r": 34.0, "pend": pend})
 		pend["lamp"] = lamps.size() - 1
 		_swingers.append(pend)
-	for b in ROOM_BULBS.get(style, []):
+	for b in (ROOM_BULBS.get(style, []) if parts.is_empty() else []):
 		var bat := Vector2(x0 + pad + (float(b[0]) * tex.get_width() - crop_x) * rs, top + float(b[1]) * tex.get_height() * rs)
-		if bat.x < x0 + pad + src_w * rs - 30.0:   # (a hall in parts: only the first part's own lamps from this list)
-			bulb_list.insert(0, [bat, String(b[2]), String(b[3])])
-	for v: Vector2 in ROOM_VENTS.get(style, []):   # the steam pipes painted in the drawing (mapfx _tick_room_vents)
-		var vat := Vector2(x0 + pad + (v.x * tex.get_width() - crop_x) * rs, top + v.y * tex.get_height() * rs)
-		if vat.x < x0 + pad + src_w * rs - 30.0:
-			room_vents.append([x0, x1, vat])
+		bulb_list.insert(0, [bat, String(b[2]), String(b[3])])
+	for v: Vector2 in (ROOM_VENTS.get(style, []) if parts.is_empty() else []):   # the steam pipes painted in the drawing (mapfx _tick_room_vents)
+		room_vents.append([x0, x1, Vector2(x0 + pad + (v.x * tex.get_width() - crop_x) * rs, top + v.y * tex.get_height() * rs)])
 	for b in bulb_list:
 		var at: Vector2 = b[0]
 		if at.x < x0 + 60.0 or at.x > x1 - 60.0:
@@ -9123,7 +9178,7 @@ func _bot_ladder():
 				deck = deck.merge(c)
 		for e in enemies:
 			var ex: float = float(e["node"].position.x)
-			if e["alive"] and not String(e["state"]) in ["give", "down"] and float(e["node"].position.y) < -300.0 and ex > deck.position.x - 200.0 and ex < deck.end.x + 200.0 					and player.position.x > deck.position.x - 1600.0 and player.position.x < deck.end.x + 200.0:   # (under the deck too: back to its ladder)
+			if e["alive"] and not String(e["state"]) in ["give", "down"] and float(e["node"].position.y) < -300.0 					and float(e["node"].position.y) > float(r["top"]) - 800.0 and ex > deck.position.x - 200.0 and ex < deck.end.x + 200.0 					and player.position.x > deck.position.x - 1600.0 and player.position.x < deck.end.x + 200.0:   # (under the deck too: back to its ladder)
 				return r
 	if roof.is_empty() or player.position.y < float(roof["y"]) + 60.0:
 		return null
@@ -9523,12 +9578,12 @@ const SEPARATE := 90.0
 func _separate(delta: float) -> void:
 	for i in enemies.size():
 		var a: Dictionary = enemies[i]
-		if not a["alive"] or a["boss"] or not String(a["state"]) in ["post", "move"]:
+		if not a["alive"] or a["boss"] or not String(a["state"]) in ["post", "move", "run"]:
 			continue
 		var ma = a["node"]
 		for j in range(i + 1, enemies.size()):
 			var b: Dictionary = enemies[j]
-			if not b["alive"] or b["boss"] or not String(b["state"]) in ["post", "move"]:
+			if not b["alive"] or b["boss"] or not String(b["state"]) in ["post", "move", "run"]:
 				continue
 			var mb = b["node"]
 			var dx: float = float(mb.position.x) - float(ma.position.x)

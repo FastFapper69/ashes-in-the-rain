@@ -185,7 +185,35 @@ class Chunk:
 #   fuel is kept (BARREL_OK);
 # - the men stand behind the cover, on its far side from the door (Frank comes in from the left).
 ROOM_PIC_W, ROOM_SCALE = 3168, 0.75
-ROOM_SCALES = {"laundry": 0.8523}
+ROOM_SCALES = {"laundry": 0.8523, "club": 0.8523}
+# The big Blue Note (user 18. 11.): the bar room with its stairs, the dance hall with the gallery, the stage (the old club
+# drawing from its arch on) = main.gd ROOM_PARTS["club"]. The gallery's deck at drawing row 670 in both new parts.
+CLUB_PARTS = [("club_bar", 0, 3050), ("club_hall", 0, 3168), ("club", 1765, 3168)]
+CLUB_W = sum(b - a for _, a, b in CLUB_PARTS) * 0.8523
+CLUB_DECK = round(-1344 * 0.8523 * 0.92 + 670 * 0.8523, 1)
+def club_x(part, px):
+    off = sum(b - a for _, a, b in CLUB_PARTS[:part])
+    return round((off + px - CLUB_PARTS[part][1]) * 0.8523, 1)
+def big_club(c, hard, boss=False):
+    """The Blue Note's rooms in a chunk whose room starts at 0: the stairs, the gallery, cover, the men (and Teague)."""
+    cx = club_x
+    c.ramps.append([cx(0, 2040), 0.0, cx(0, 2650), CLUB_DECK, "station"])          # the stairs along the back wall
+    c.plat(cx(0, 2640), CLUB_DECK, cx(1, 3060) - cx(0, 2640), "drawn")            # the gallery, on through the hall
+    for x, y in ((cx(0, 420), -824), (cx(0, 1600), -824), (cx(1, 900), -824), (cx(1, 2300), -824)):
+        c.lamp(x, y)
+    # (room x: the bar room 0-2600, the hall 2600-5300, the stage room 5300-6495; the stairs 1739-2259)
+    for kind, x in (("crate", 900), ("crate_long", 3000), ("crate", 3900), ("crate_long", 4700), ("crate", 5380)):
+        c.box(kind, x)
+    tough = "tommy" if hard > 0.5 else "post"
+    c.foe(1450).foe(3450, kind="shotgun" if hard > 0.4 else "post").foe(4300, kind=tough).foe(5150)   # bar, dance floor
+    c.foe(3600, CLUB_DECK).foe(4800, CLUB_DECK, kind="shotgun").foe(5100, CLUB_DECK, kind=tough)       # the gallery
+    c.runner(4000, 2400, 5900, kind="post", delay=1.0)
+    if boss:
+        c.foe(6020, kind="boss").foe(5700)
+    else:
+        c.foe(5850, kind="shotgun").foe(6150)
+    c.hint(cx(0, 1800), "UP THE STAIRS TO THE GALLERY")
+    c.checks += [cx(1, 200)]
 # The big laundry (QUEUE §14): its drawings one after another, each shown from px a to b (cut on a painted iron column, so
 # no join shows - rule 15), = main.gd ROOM_PARTS. The catwalk's deck (drawing row 722 in parts 1 and 2) in the world.
 LAUNDRY_PARTS = [("laundry", 0, 2880), ("laundry_mid", 40, 3100), ("laundry_end", 790, 3168)]
@@ -233,6 +261,9 @@ def _room_src(style, w, x):
 
 
 def _room_free(style, w, a, b):
+    if style == "club" and w > 4000:   # the big Blue Note: the street door, the stairs, the stage
+        clear = [(0, 350), (club_x(0, 1950), club_x(0, 2700)), (club_x(2, 2380), w)]
+        return not any(a < c1 + 60 and b > c0 - 60 for c0, c1 in clear)
     if style == "laundry" and w > 4000:   # the big laundry: its doorways and the ladder, in the hall's own x
         clear = [(0, 300), (laundry_x(1, 400), laundry_x(1, 560)), (laundry_x(2, 2830), w)]
         return not any(a < c1 + 60 and b > c0 - 60 for c0, c1 in clear)
@@ -418,10 +449,9 @@ def chunk(name, hard, rng=None):
     elif name == "tenement":   # the third-floor hallway: the drawing has no landing, so the fight is on its boards
         c = Chunk(2300).room(0, 2300, "tenement")
         furnish(c, "tenement", rng, ["post", "shotgun" if hard > 0.5 else "post", "post"], flask=True)
-    elif name == "club":   # the Blue Note: the bar for cover, tables, a stage at the back
-        c = Chunk(2600).room(0, 2600, "club").lamp(500).lamp(1400).lamp(2300).runner(1100, 900, -800, delay=2.0)
-        c.plats.append(bar_floor(0, 2600))   # the bar counter along the back bar: dive onto it and skid its length
-        furnish(c, "club", rng, ["post", "shotgun", "tommy"])
+    elif name == "club":   # the big Blue Note (18. 11.): bar, stairs, the dance hall's gallery, the stage
+        c = Chunk(CLUB_W).room(0, CLUB_W, "club")
+        big_club(c, hard)
     # ---- the docks -------------------------------------------------------------------------------
     elif name == "live_wire":   # a trolley pole over a puddle, two of them standing in it (ch III hazard, art_src 242)
         c = Chunk(2300).box("crate", 0).thing("trolley", 700).foe(1100).foe(1450, kind="tommy" if hard > 0.5 else "post").foe(2150)
@@ -746,26 +776,42 @@ def _build(mp, nudge):
     elif extra:
         extra(out, x)
     elif mp.get("boss"):
-        if mp.get("boss_room"):   # the fight in a room of its own
-            out.rooms.append([x - 200, x + 2700, mp["boss_room"]])
-            out.lamps += [[x + 400, -760.0], [x + 1400, -760.0], [x + 2300, -760.0]]
-            if mp["boss_room"] == "club":   # the bar counter along the back bar: dive onto it and skid its length
-                out.plats.append(bar_floor(x - 200, 2900))
-        first, second = ("crate", "crate_long") if mp.get("boss_room") == "club" else ("crate", "crate_long" if mp.get("boss_room") else "dumpster")
-        a, b = x + 300, x + 1500
-        if mp.get("boss_room"):   # nothing in front of the room's doors (ROOM_CLEAR): along to the nearest clear floor
-            st, r0, rw = mp["boss_room"], x - 200, 2900
-            for d in range(0, 900, 20):
-                if _room_free(st, rw, a - d - r0, a - d - r0 + BOX[first][0]) and a - d - r0 > 300:
-                    a -= d; break
-            for d in range(0, 900, 20):
-                if _room_free(st, rw, b - d - r0, b - d - r0 + BOX[second][0]):
-                    b -= d; break
-        out.boxes += [[second, b]] if mp.get("boss_room") == "club" else [[first, a], [second, b]]   # (in the club the bar counter is the cover by the door)
-        out.enemies += [{"x": x + 1050, "y": 0.0, "kind": "post", "trig": None, "from": None, "delay": 0.0, "run": False},
-                        {"x": x + 2050, "y": 0.0, "kind": "boss", "trig": None, "from": None, "delay": 0.0, "run": False}]
-        out.checks.append(x - 100)
-        out.end = x + 2300
+        if mp.get("boss_room") == "club":   # the big Blue Note: Teague waits by the stage at its far end
+            club = Chunk(CLUB_W).room(0, CLUB_W, "club")
+            big_club(club, mp["end"], boss=True)
+            out.rooms.append([x - 200, x - 200 + CLUB_W, "club"])
+            out.lamps += [[x - 200 + l[0], l[1]] for l in club.lamps]
+            out.boxes += [[b[0], x - 200 + b[1]] + b[2:] for b in club.boxes]
+            out.plats += [[x - 200 + p[0]] + p[1:] for p in club.plats]
+            out.ramps += [[x - 200 + r[0], r[1], x - 200 + r[2]] + r[3:] for r in club.ramps]
+            for e in club.enemies:
+                e = dict(e); e["x"] += x - 200
+                if e["trig"] is not None: e["trig"] += x - 200
+                if e["from"] is not None: e["from"] += x - 200
+                out.enemies.append(e)
+            out.events += [[ev[0], x - 200 + ev[1]] + ev[2:] for ev in club.events]
+            out.hints += [[x - 200 + h[0], h[1]] for h in club.hints]
+            out.checks += [x - 100] + [x - 200 + k for k in club.checks]
+            out.end = x - 200 + CLUB_W - 400
+        else:
+            if mp.get("boss_room"):   # the fight in a room of its own
+                out.rooms.append([x - 200, x + 2700, mp["boss_room"]])
+                out.lamps += [[x + 400, -760.0], [x + 1400, -760.0], [x + 2300, -760.0]]
+            first, second = ("crate", "crate_long") if mp.get("boss_room") == "club" else ("crate", "crate_long" if mp.get("boss_room") else "dumpster")
+            a, b = x + 300, x + 1500
+            if mp.get("boss_room"):   # nothing in front of the room's doors (ROOM_CLEAR): along to the nearest clear floor
+                st, r0, rw = mp["boss_room"], x - 200, 2900
+                for d in range(0, 900, 20):
+                    if _room_free(st, rw, a - d - r0, a - d - r0 + BOX[first][0]) and a - d - r0 > 300:
+                        a -= d; break
+                for d in range(0, 900, 20):
+                    if _room_free(st, rw, b - d - r0, b - d - r0 + BOX[second][0]):
+                        b -= d; break
+            out.boxes += [[first, a], [second, b]]
+            out.enemies += [{"x": x + 1050, "y": 0.0, "kind": "post", "trig": None, "from": None, "delay": 0.0, "run": False},
+                            {"x": x + 2050, "y": 0.0, "kind": "boss", "trig": None, "from": None, "delay": 0.0, "run": False}]
+            out.checks.append(x - 100)
+            out.end = x + 2300
     else:
         out.boxes += [["crate", x], ["drum", x + 560]]
         out.enemies += [{"x": x + 880, "y": 0.0, "kind": "post", "trig": None, "from": None, "delay": 0.0, "run": False},

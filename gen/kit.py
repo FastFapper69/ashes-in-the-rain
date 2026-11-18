@@ -87,8 +87,13 @@ PIECES = {
                         "clear": [(670, 920), (2250, 2500)]},
     # (Gemini moves a door a little to line it up with the windows: the doors here are where it painted them; the
     # front is placed on the middle between them, so each door is within ~60 world px of the room's end)
-    "front_club": {"size": 0.8, "edge": "partywall", "front": "club", "doors": [806, 2440], "props": [],
+    "front_club": {"size": 0.8, "edge": "partywall", "doors": [806, 2440], "props": [],
                    "clear": [(690, 920), (2330, 2550)]},
+    # the big Blue Note (18. 11., user: "make the club bigger like the laundry"): front_club cut, Gemini's middle between
+    "front_club_l": {"size": 0.8, "edge": "partywall", "front": "club", "w": 2310, "doors": [806, 5079], "props": [],
+                     "parts": [["front_club_l", 0], ["front_club_mid", 2310], ["front_club_r", 4949]], "clear": [(690, 920)]},
+    "front_club_mid": {"size": 0.8, "edge": "partywall", "w": 2639, "props": [], "clear": []},
+    "front_club_r": {"size": 0.8, "edge": "partywall", "w": 858, "props": [], "clear": [(20, 240)]},
     "front_tenement": {"size": 0.8, "edge": "partywall", "front": "tenement", "doors": [870, 2305], "props": [],
                        "clear": [(740, 1000), (2175, 2435)]},
     # chapter I's street on one kit (17. 11.): an alley's mouth between two row houses, its iron gate half open; the
@@ -163,7 +168,7 @@ EDGES = {
     "tenrow_d": ("party_wall", "party_wall"), "warehouse": ("party_wall", "party_wall"), "warehouse_b": ("open_lot", "party_wall"),
     "warehouse_c": ("party_wall", "party_wall"), "yard": ("fence", "fence"), "yard_b": ("fence", "fence"), "yard_c": ("fence", "fence"),
 }
-EDGES["stable_row"] = EDGES["rear_walkup"] = EDGES["el_garage"] = EDGES["rooming_house"] = EDGES["boiler_works"] = EDGES["machine_shop"] = EDGES["brownstones"] = EDGES["bay_tenement"] = EDGES["hotel_front"] = EDGES["dance_hall"] = EDGES["front_laundry_l"] = EDGES["front_laundry_mid"] = EDGES["front_laundry_r"] = EDGES["front_laundry"] = EDGES["front_warehouse"] = EDGES["front_club"] = EDGES["front_tenement"] = EDGES["alley_mouth"] = EDGES["market_row"] = EDGES["church_row"] = EDGES["subway_entrance"] = EDGES["warehouse_row"] = EDGES["bluenote_row"] = EDGES["row_house"] = EDGES["front_yard"] = EDGES["apartment"] = EDGES["factory"] = EDGES["pawn_house"] = EDGES["diner_house"] = EDGES["alley_wash"] = ("party_wall", "party_wall")
+EDGES["stable_row"] = EDGES["rear_walkup"] = EDGES["el_garage"] = EDGES["rooming_house"] = EDGES["boiler_works"] = EDGES["machine_shop"] = EDGES["brownstones"] = EDGES["bay_tenement"] = EDGES["hotel_front"] = EDGES["dance_hall"] = EDGES["front_club_l"] = EDGES["front_club_mid"] = EDGES["front_club_r"] = EDGES["front_laundry_l"] = EDGES["front_laundry_mid"] = EDGES["front_laundry_r"] = EDGES["front_laundry"] = EDGES["front_warehouse"] = EDGES["front_club"] = EDGES["front_tenement"] = EDGES["alley_mouth"] = EDGES["market_row"] = EDGES["church_row"] = EDGES["subway_entrance"] = EDGES["warehouse_row"] = EDGES["bluenote_row"] = EDGES["row_house"] = EDGES["front_yard"] = EDGES["apartment"] = EDGES["factory"] = EDGES["pawn_house"] = EDGES["diner_house"] = EDGES["alley_wash"] = ("party_wall", "party_wall")
 for _n in ("arches", "arches_b", "bowery", "platform", "pump", "signal", "signal_b", "station14", "tunnel", "tunnel_b", "tunnel_c",
            "tunnel_lo", "tunnel_lo_b", "walkway", "walkway_b"):
     EDGES[_n] = ("girder", "girder")
