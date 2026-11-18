@@ -3447,7 +3447,11 @@ func _auto_step(delta: float) -> void:
 			cam.position.x = 2700.0
 		if _at > 0.3:
 			cam.position.x = 2700.0
-		shots = [[0.9, "lineup"]]
+		if _at > 0.4 and OS.get_cmdline_user_args().has("--shieldoff"):   # (Briggs's shield torn off, QUEUE §16 D)
+			for e in enemies:
+				if e["alive"] and e["boss"] and e.has("shield"):
+					_shield_off(e)
+		shots = [[0.9, "lineup"], [1.4, "lineup_b"]]
 		if _at > 1.6:
 			get_tree().quit()
 	elif _auto == "hud":   # the HUD plate in its worst case: two guns, an empty gun, a long narration and a hint
@@ -5382,7 +5386,7 @@ func _enemy_fire(e: Dictionary) -> void:
 					sfx.play("reload_shells", 0.0, m.position.x, 0.05)
 				return
 			_boss_fire(m)
-			e["cool"] = randf_range(1.4, 2.3)
+			e["cool"] = randf_range(1.4, 2.3) * (0.55 if e.get("frantic", false) else 1.0)
 		"tommy":
 			for k in 6:
 				get_tree().create_timer(0.09 * k, false).timeout.connect(func() -> void:
@@ -5551,6 +5555,10 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 				fx.spark(pos)
 				sfx.play("hit_cover", -2.0, pos.x, 0.12)
 				_word(["zing"], pos + Vector2(0.0, -90.0), 0.16)
+				if e["boss"]:   # (QUEUE §16 D) Briggs's: every round dents it, and at last it is torn off his arm
+					e["shield_hp"] = int(e.get("shield_hp", BRIGGS_SHIELD)) - 1
+					if int(e["shield_hp"]) <= 0:
+						_shield_off(e)
 				return true
 			if e["state"] == "down":   # a man on his back takes one bullet
 				e["hp"] = 1
@@ -5590,6 +5598,9 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 						sets.smoke(e["node"].position)
 					_spawn_runner(e["node"].position.x + 1700.0, e["node"].position.x - 450.0)
 					_spawn_runner(e["node"].position.x + 2000.0, e["node"].position.x - 750.0)
+				if e["hp"] > 0 and e["hp"] <= BOSS_HP / 3 and not e.get("last_third", false):
+					e["last_third"] = true
+					_boss_last_third(e)
 				if e["hp"] <= 0:
 					hud.boss_bar("", -1.0)
 					if e.has("shield"):   # Briggs goes down, but not out: the detective decides
@@ -8063,7 +8074,7 @@ func _add_shield(m, lamp := false) -> void:
 ## Briggs's shield is between his chest and anything fired from the side it faces; not his head, and
 ## not while he has it down to thumb shells into the gun.
 func _shield_stops(e: Dictionary, part: String) -> bool:
-	if not e.has("shield") or part == "head" or float(e["reload_t"]) > 0.0:
+	if not e.has("shield") or e.get("shield_off", false) or part == "head" or float(e["reload_t"]) > 0.0:
 		return false
 	return signf(player.position.x - e["node"].position.x) * float(e["shield"]) > 0.2
 
@@ -9181,6 +9192,74 @@ func _briggs_down(e: Dictionary) -> void:
 	add_child(c)
 
 
+## The bosses' last third (QUEUE §16 D, user 18. 11. "go on"): each turns into another fight.
+## Teague throws his pistols away and comes in with his fists - the old boxer; Kessler backs off to the far wall of his
+## office (between Frank and his papers) and fires from there as fast as he can pull; Briggs's is his shield (_shield_off).
+const BRIGGS_SHIELD := 12   # rounds into Briggs's shield before it is torn off his arm
+func _boss_last_third(e: Dictionary) -> void:
+	var m = e["node"]
+	print("BOSS LAST THIRD ", level.get("boss", ""), " at x ", int(m.position.x), " t ", snappedf(_at, 0.1))
+	match String(level.get("boss", "")):
+		"teague":
+			for g in [m._gun, m._gun2]:   # both pistols to the floor, away from him
+				if g != null and g.visible:
+					var gg := Sprite2D.new()
+					gg.texture = g.texture
+					gg.offset = g.offset
+					gg.global_scale = g.global_scale.abs()
+					gg.global_position = g.global_position
+					gg.global_rotation = g.global_rotation
+					gg.modulate = _undo_night(0.55)
+					gg.z_index = 1
+					add_child(gg)
+					var away := signf(m.position.x - player.position.x)
+					_flying_guns.append({"node": gg, "v": Vector2(away * randf_range(160.0, 300.0), -randf_range(380.0, 560.0)),
+						"spin": away * randf_range(8.0, 14.0), "ground": m.position.y - 10.0, "bounce": 0, "kind": "post"})
+			m.disarmed = true
+			e["type"] = "hook"   # (_hook_man: in close, the arm back and the blow - here a fist)
+			e["role"] = "rush"
+			e["cool"] = 0.9
+			_say(m, "NO MORE GUNS, MALONE. COME HERE.")
+			sfx.play("clink", 0.0, m.position.x, 0.05)
+		"kessler":
+			var far: float = m.position.x + signf(m.position.x - player.position.x) * 900.0
+			for r in rooms:   # the far wall of the room he is in
+				if m.position.x > float(r[0]) and m.position.x < float(r[1]):
+					far = (float(r[1]) - 260.0) if m.position.x > player.position.x else (float(r[0]) + 260.0)
+			e["retreat"] = far
+			e["frantic"] = true
+			sets.smoke(m.position)
+			_say(m, "YOU'LL NEVER SEE THAT DRAWER.")
+		"briggs":
+			if not e.get("shield_off", false):
+				_say(m, "STILL COUNTING, MALONE.")
+
+
+## Briggs's shield, dented through, is torn off his arm and clangs down: from now he is open from the front.
+func _shield_off(e: Dictionary) -> void:
+	if e.get("shield_off", false):
+		return
+	e["shield_off"] = true
+	var m = e["node"]
+	print("BOSS SHIELD OFF at x ", int(m.position.x), " t ", snappedf(_at, 0.1))
+	var sh: Node2D = m.get_node_or_null("Shield")
+	sfx.play("hit_cover", 4.0, m.position.x, 0.05)
+	sfx.play("clink", 2.0, m.position.x, 0.05)
+	_word(["clink", "wham"], m.position + Vector2(0.0, -420.0), 0.25)
+	_shake = maxf(_shake, 0.3)
+	if sh:
+		var at: Vector2 = sh.global_position
+		m.remove_child(sh)
+		add_child(sh)
+		sh.global_position = at
+		sh.z_index = 1
+		var away := signf(m.position.x - player.position.x)
+		var tw := sh.create_tween().set_parallel(true)
+		tw.tween_property(sh, "position", Vector2(at.x + away * 220.0, m.position.y - 40.0), 0.55).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tw.tween_property(sh, "rotation", away * 1.45, 0.55)
+	_say(m, "...FINE. FACE TO FACE.")
+
+
 func _boss_fire(m) -> void:
 	_fire(m, false)
 	for k in [1, 2]:
@@ -9730,6 +9809,7 @@ func _enemies(delta: float) -> void:
 	_ai_t += delta
 	_separate(delta)
 	_tick_sticks(delta)
+	_tick_bottles(delta)
 	_tick_loads(delta)
 	var crouched: bool = _player_covered(1.0) or _player_covered(-1.0)
 	_cover_t = _cover_t + delta if crouched else 0.0
@@ -9826,6 +9906,14 @@ func _enemies(delta: float) -> void:
 		_squad(e, m, to_player, delta)
 		if e["state"] == "move":   # on his way somewhere: he does not stop to shoot
 			continue
+		if e.has("retreat"):   # Kessler, the last third: back to the far wall of his office, not a shot on the way
+			var rx: float = float(e["retreat"])
+			if absf(rx - m.position.x) > 30.0 and not over:
+				m.position.x += signf(rx - m.position.x) * 420.0 * delta
+				m.set_state(signf(rx - m.position.x), to_player, delta)
+				continue
+			e.erase("retreat")
+			e["cool"] = 0.4
 		if e["type"] == "hook":   # no gun: he comes for Frank with the hook
 			_hook_man(e, m, to_player, delta)
 			continue
@@ -9915,20 +10003,20 @@ func _enemies(delta: float) -> void:
 				m.position.x += walk * 300.0 * delta
 			var in_range: bool = e["type"] != "shotgun" or absf(to_player.x) < 760.0
 			if e.has("shield"):   # Briggs: walks in behind his shield, turns slowly, and counts every shell
-				e["shield"] = move_toward(float(e["shield"]), signf(to_player.x), delta * 1.5)
+				e["shield"] = move_toward(float(e["shield"]), signf(to_player.x), delta * (3.0 if e.get("shield_off", false) else 1.5))
 				if float(e["reload_t"]) > 0.0:
 					e["reload_t"] = float(e["reload_t"]) - delta
 					may_fire = false
 					if float(e["reload_t"]) <= 0.0:
 						e["shells"] = 5
 						_say(m, "LOADED.")
-				if signf(float(e["shield"])) != signf(to_player.x):
+				if signf(float(e["shield"])) != signf(to_player.x) and not e.get("shield_off", false):
 					may_fire = false
 				if absf(to_player.x) > 420.0 and absf(m.position.y - player.position.y) < 60.0:
 					walk = signf(to_player.x)
 					m.position.x += walk * 210.0 * delta
 				var sh: Node2D = m.get_node_or_null("Shield")
-				if sh:
+				if sh and not e.get("shield_off", false):
 					sh.position.y = -200.0 + (120.0 if float(e["reload_t"]) > 0.0 else 0.0)   # lowered while he loads
 				in_range = absf(to_player.x) < 900.0
 			if e["cool"] <= 0.0 and may_fire and in_range:
@@ -9997,6 +10085,11 @@ func _hook_man(e: Dictionary, m, to_player: Vector2, delta: float) -> void:
 				fx.hit_vel = Vector2(-signf(m.position.x - player.position.x), 0.0) * 900.0
 				_bullet_hit(player.position + Vector2(0.0, SHOULDER.y + 40.0), false)
 			e["cool"] = 1.2
+	elif e["boss"] and not same_floor and absf(dx) < 1500.0:   # Teague with his fists, Frank up out of his reach: bottles off the bar
+		if float(e["cool"]) <= 0.0:
+			e["cool"] = randf_range(1.1, 1.6)
+			m.recoil = 0.9
+			_throw_bottle(m)
 	elif absf(dx) > 150.0 or not same_floor:
 		walk = signf(dx)
 		var step: float = walk * 360.0 * delta
@@ -10173,6 +10266,46 @@ func _throw_stick(m) -> void:
 	_sticks.append({"node": st, "vel": v, "fuse": 1.6, "down": false, "spark": 0.0})
 	sfx.play("match", -6.0, m.position.x, 0.1)
 	m.recoil = 0.8
+
+
+## Teague's bottles (QUEUE §16 D): thrown at Frank where his fists cannot reach him (the club's gallery). A whiskey
+## bottle (art/props/bottle.png, art_src 319) in an arc onto him; it bursts on him (a hit) or on the boards.
+var _bottles: Array = []
+func _throw_bottle(m) -> void:
+	var from: Vector2 = m.position + Vector2(0.0, -330.0)
+	var target: Vector2 = player.position + Vector2(randf_range(-60.0, 60.0), -200.0)
+	var t := clampf(absf(target.x - from.x) / 1000.0, 0.55, 1.1)
+	var g := 2400.0
+	var b := Sprite2D.new()
+	b.texture = load("res://art/props/bottle.png")
+	b.scale = Vector2.ONE * (110.0 / b.texture.get_width())
+	b.position = from
+	b.modulate = _undo_night(0.6)
+	b.z_index = 4
+	add_child(b)
+	_bottles.append({"node": b, "vel": Vector2((target.x - from.x) / t, (target.y - from.y - 0.5 * g * t * t) / t), "g": g})
+	sfx.play("whiz", -6.0, m.position.x, 0.1)
+	if OS.get_cmdline_user_args().has("--log-sets"): print("BOTTLE at t ", snappedf(_at, 0.1))
+
+
+func _tick_bottles(delta: float) -> void:
+	for k in range(_bottles.size() - 1, -1, -1):
+		var bt: Dictionary = _bottles[k]
+		var n: Sprite2D = bt["node"]
+		bt["vel"] = (bt["vel"] as Vector2) + Vector2(0.0, float(bt["g"])) * delta
+		n.position += (bt["vel"] as Vector2) * delta
+		n.rotation += 11.0 * delta * signf((bt["vel"] as Vector2).x)
+		var on_him: bool = not over and absf(n.position.x - player.position.x) < 70.0 and n.position.y > player.position.y - 430.0 * (1.0 - 0.45 * player.duck) and n.position.y < player.position.y
+		var floor_y := _floor_at(n.position.x, n.position.y - 30.0)
+		if on_him or n.position.y >= floor_y - 6.0 or n.position.y > 3000.0:
+			if on_him and move_state != "dive":
+				fx.hit_vel = Vector2(signf((bt["vel"] as Vector2).x), 0.0) * 700.0
+				_bullet_hit(player.position + Vector2(0.0, SHOULDER.y + 40.0), false)   # (as a hook blow lands: on his chest)
+			sfx.play("glass", -2.0, n.position.x, 0.1)
+			for c in 8:
+				fx.chip(n.position)
+			n.queue_free()
+			_bottles.remove_at(k)
 
 
 func _tick_sticks(delta: float) -> void:
