@@ -15,6 +15,7 @@ const FIRES := {"shipping": [Vector2(0.11, 0.193), Vector2(0.21, 0.193), Vector2
 		Vector2(0.92, 0.5), Vector2(0.86, 0.76), Vector2(0.97, 0.76), Vector2(0.93, 0.12)],   # (art_src 317: its burning windows' sills, both sides)
 	"pier17": [Vector2(0.14, 0.34), Vector2(0.25, 0.34), Vector2(0.36, 0.34), Vector2(0.2, 0.68)]}
 
+const MenuGuilt = preload("res://menu.gd")
 var game   # main.gd
 var _events: Array = []   # {kind, trig, done, ...}
 var _beams: Array = []    # {sprite, light, pivot, base, swing, speed, phase, len, half}
@@ -88,6 +89,9 @@ func tick(delta: float) -> void:
 			"knock":
 				_knock(ev)
 	_tick_blazes(delta)
+	if game.level.get("dream", false):
+		_tick_guilt_ash(delta)
+		_tick_posts()
 	if _loops > 0 and not game.over:   # (18. 11.) each time round worse: the burning roof sheds cinders, more often every loop
 		_cinder_t -= delta
 		if _cinder_t <= 0.0:
@@ -1059,13 +1063,64 @@ func _beam_drop(x: float) -> void:
 		_blaze(x - 280.0, 560.0, 7.0))   # it burns where it lies, then smoulders out
 
 
+## THE DREAM's burning posts sliding past right by the lens (user 18. 11.: "it must not look awful, and they must come
+## up from the bottom of the screen - never seen to start in the middle of nothing"): the charred post (art/fore/dream_post.png,
+## gen/dream_post.py) in main.gd's fore layer (1.35x the camera), each frame stretched as a whole to more than the screen's
+## height and centred on it, so neither end is ever in the picture. Off with DREAM_POSTS = false.
+const DREAM_POSTS := true
+var _posts: Array = []
+func _make_posts() -> void:
+	var tex: Texture2D = load("res://art/fore/dream_post.png")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1931
+	var x := 2600.0
+	while x < (float(game.level_end) + 3000.0) * 1.35:
+		var s := Sprite2D.new()
+		s.texture = tex
+		s.centered = false
+		s.flip_h = rng.randf() < 0.5
+		s.modulate = game._undo_night(0.62)   # nearer than the fires, in their shadow - its char and its embers still read
+		s.material = game.atmo.blur_material(1.4)   # nearer than the focus: a little soft (more and it is a black stripe)
+		s.position.x = x
+		game.fore.add_child(s)
+		_posts.append(s)
+		x += rng.randf_range(3400.0, 5600.0)
+
+
+func _tick_posts() -> void:
+	if not DREAM_POSTS:
+		return
+	if _posts.is_empty():
+		_make_posts()
+	var inv: Transform2D = game.get_viewport().get_canvas_transform().affine_inverse()
+	var vs: Vector2 = game.get_viewport().get_visible_rect().size
+	var top: float = (inv * Vector2(0.0, 0.0)).y
+	var bot: float = (inv * Vector2(0.0, vs.y)).y
+	var h: float = (bot - top) * 1.16   # 8 % past the top and the bottom edge, whatever the zoom or the shake
+	for s in _posts:
+		var sp := s as Sprite2D
+		var sc: float = h / sp.texture.get_height()
+		sp.scale = Vector2(sc, sc)
+		sp.position.y = top - (h - (bot - top)) * 0.5 - game.fore.position.y
+
+
 var _cinder_t := 2.0
+var _guilt_ash := 0.0
+## The dream's ash thickens like his guilt (user 18. 11.): thin at the door, thicker the deeper he goes, thicker each time
+## it starts over, and thicker still for every man he has shot with his hands up (MenuScript.guilt, 0-10).
+func _tick_guilt_ash(delta: float) -> void:
+	var prog: float = clampf(game.player.position.x / maxf(1.0, float(game.level_end)), 0.0, 1.0)
+	var want: float = clampf(0.22 + 0.45 * prog + 0.12 * _loops + 0.05 * MenuGuilt.guilt(), 0.15, 1.0)
+	_guilt_ash = move_toward(_guilt_ash, want, delta * 0.25)   # (slowly: it settles, it does not jump)
+	for p in game.atmo.ash:
+		(p as CanvasItem).modulate.a = _guilt_ash
+	if OS.get_cmdline_user_args().has("--log-sets") and fmod(_t, 5.0) < delta: print("GUILT ASH ", snappedf(_guilt_ash, 0.01), " layers ", game.atmo.ash.size(), " amount ", game.atmo.ash[0].amount if not game.atmo.ash.is_empty() else 0)
 ## A shower of glowing cinders and charred splinters out of the burning roof (the dream, from its first loop on).
 func _cinders(x: float) -> void:
 	if OS.get_cmdline_user_args().has("--log-sets"): print("CINDERS ", int(x), " t ", snappedf(_t, 0.05))
 	var c := CPUParticles2D.new()
 	c.texture = game._soft_glow()
-	c.amount = 30
+	c.amount = 30 + 12 * mini(_loops, 4)   # (each time round a heavier shower)
 	c.lifetime = 1.6
 	c.one_shot = true
 	c.explosiveness = 0.55

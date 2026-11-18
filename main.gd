@@ -791,7 +791,8 @@ func _ready() -> void:
 		atmo.set_dream(0.55)
 		_dream_vfx.call_deferred()
 	# the ash thickens with what Frank has done: men shot with their hands up stay in the air
-	atmo.add_ash(cam, MenuScript.ash_level() if in_menu else minf(1.2, float(level.get("ash", 0.3)) + MenuScript.guilt() * 0.06), float(level.get("embers", 0.0)))
+	# (the dream, 18. 11.: the ash thickens the way his guilt does - made at its thickest, setpieces fades it in, _tick_guilt_ash)
+	atmo.add_ash(cam, MenuScript.ash_level() if in_menu else (1.5 if level.get("dream", false) else minf(1.2, float(level.get("ash", 0.3)) + MenuScript.guilt() * 0.06)), float(level.get("embers", 0.0)))
 	steps = atmo.add_steps(player, _undo_night(0.6))
 	if rain > 0.0:
 		_hat_rain = atmo.add_hat_rain(self, _undo_night(0.7))
