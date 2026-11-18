@@ -270,3 +270,11 @@ D. HOTOVO 18. 11. (HANDOFF 93). ~~Kessler a Briggs: víc fází souboje (Briggs 
 E. HOTOVO 18. 11. (HANDOFF 94). ~~Úvodní obrazovky map v docích by mohly mít vlastní "establishing" kresbu (lávka na loď, vrata Kesslerova skladu).~~
 F. HOTOVO 18. 11. (HANDOFF 89; LAST TRAIN samostatně 5-10 zásahů místo ~20). ~~Bot: neuhýbá traverzám ani nepoužívá shootdodge při 2+ mužích - zásahy v kap. III jsou proto vyšší než u hráče.~~
 
+## 17. NÁPAD (uživatel 18. 11.): mapy mají vždy význam + komiks uprostřed hry jako Max Payne 1 a 2 (pravidlo 30)
+Pár míst v každé kapitole: krátká komiksová stránka přímo ve hře ukáže, co se ve scéně děje a proč Frank udělá další krok. Konec mapy = začátek další.
+První návrh od uživatele (zatím nestavěno, čeká na schválení rozsahu):
+- konec THE LAUNDRY: komiks - dorazí hromada nepřátel, musí utéct -> uteče do činžáku do 1. patra -> komiks -> konec mapy;
+- začátek TENEMENTS: útěk pokračuje skokem z okna v 1. patře, chytí se šňůry na prádlo a sjede po ní na zem.
+Opraveno hned (HANDOFF 95): v TENEMENTS vcházel do přízemí a vyskakoval z okna v patře - teď vyskočí z okna v přízemí.
+Potřeba: komiksové panely uprostřed mapy (cutscene.gd umí stránky; nové je spuštění na místě v mapě + navázání stavu), Gemini panely, šňůra na prádlo jako lano ke sjetí (existuje zip/rope mechanika: zip_mast/zip_winch).
+

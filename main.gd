@@ -7101,7 +7101,9 @@ const ROOM_EXIT_WINDOW := {"tenement": [2850.0, 3040.0, 920.0, 280.0]}
 # stops him and says so; a jump into it: a beat of stillness on the glass, then a hard cut (no fade) to the same window
 # seen from the street, high in the front over the side door, and he comes out of it head first in slowed time in a cloud
 # of glass, falls to the pavement and lands heavy.
-const FRONT_EXIT_WINDOW := {"tenement": Rect2(2258.0, 560.0, 102.0, 168.0)}   # the window over the front's side door (front picture px)
+# (user 18. 11.: "I go in on the ground floor and jump out of a window upstairs") the ground-floor window right of the
+# front's side door - he came in off the street, he goes out at street level (front picture px)
+const FRONT_EXIT_WINDOW := {"tenement": Rect2(2660.0, 905.0, 85.0, 170.0)}
 var _room_windows_broken := {}
 var _room_windows_lit := {}
 var _win_hint_t := -99.0
@@ -7232,6 +7234,7 @@ func _crash_out(r: Array, opening: Rect2) -> void:
 
 
 func _crash_out_street(r: Array) -> void:
+	if OS.get_cmdline_user_args().has("--log-sets"): print("CRASH OUT t ", snappedf(_at, 0.05))
 	# the same window from the street: over the front's side door (the front whose span holds the room's right end)
 	var style := String(r[2])
 	var out_rect := Rect2(float(r[1]) - 60.0, -1080.0, 160.0, 250.0)

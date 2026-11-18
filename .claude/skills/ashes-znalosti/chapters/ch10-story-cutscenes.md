@@ -10,6 +10,10 @@ A story-driven noir told as an animated comic: narration over painted panels, be
 - Nothing Czech in the story; inspired by Max Payne / Alan Wake / L.A. Noire, never copying; original characters, bestseller-level ambition (Sam Lake / Kojima).
 - Interludes between chapters: recurring nightmare in the burning 1939 warehouse (eleven knocks), 1931 tenement fire memory, Rosie / Eddie memory after ch III.
 
+## In-game comic panels (idea, user 18. 11., rule 30; QUEUE §17)
+- Like Max Payne 1/2: a few times a chapter, mid-map, a short comic page shows what is happening in the scene and why Frank does the next thing (a horde arrives, he runs for a house, he jumps). The map hands over: map N ends in the panel, map N+1 opens with its consequence.
+- First instance the user sketched: end of THE LAUNDRY - panel: a crowd of men pours in; he has to run - he gets into a tenement, up to the first floor - panel, end of map. TENEMENTS opens with that escape: out of the first-floor window, he catches a washing line and slides down it to the street.
+
 ## Cutscenes (cutscene.gd)
 - Panels 1920×815 in `art/cut`, WebP (never Basis). `LIVE` = live fire/smoke spots per panel. Ids: eddie, interlude, teague, dream, kessler, underground, briggs, docks, memory.
 - Narration: letters paced to voice length; a line waits until the voice ends (`voice_on()`), a tap never cuts Frank mid-sentence. Captions: Paper.caption stamp top-right, corners "tr" start under SKIP.
