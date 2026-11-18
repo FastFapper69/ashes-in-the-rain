@@ -1102,8 +1102,9 @@ func _build_street() -> void:
 				for sp in _front_spans:
 					if sx > sp.x - 300.0 and sx < sp.y + 300.0:
 						ok = false
-				for seg in level["street"]:   # (the Blue Note's own drawing has its own neon)
-					if String(seg[0]) == "bluenote_row" and sx > float(seg[1]) - 200.0 and sx < float(seg[1]) + 3168.0 * 1.52 + 200.0:
+				for seg in level["street"]:   # (the Blue Note's own drawing has its own neon; the dance hall its marquee, the hotel
+					# its canopy - user 18. 11. look: a CAFE sign over the dance hall's poster case made no sense)
+					if String(seg[0]) in ["bluenote_row", "dance_hall", "hotel_front"] and sx > float(seg[1]) - 200.0 and sx < float(seg[1]) + 3168.0 * 1.52 + 200.0:
 						ok = false
 				if ok:
 					var nm: String = signs[k % signs.size()][0]
@@ -1335,7 +1336,7 @@ const SEGMENT_KIT := {"walkway_b": "walkway", "signal_b": "signal", "arches_b": 
 	"yard_b": "yard", "tunnel_b": "tunnel", "sheds_b": "sheds", "pier17_b": "pier17", "shipping_b": "shipping", "quay_b": "quay",
 	"laundry_b": "laundry", "alley_b": "alley", "warehouse_b": "warehouse", "warehouse_c": "warehouse", "church_b": "church", "subway_b": "subway", "market_b": "market", "market_c": "market", "yard_c": "yard", "tunnel_c": "tunnel",
 	"fire_d": "fire_a", "fire_e": "fire_b", "fire_f": "fire_c", "fire_g": "fire_a"}
-const SEGMENT_SIZE := {"alley_mouth": 0.8, "market_row": 0.8, "church_row": 0.8, "subway_entrance": 0.8, "warehouse_row": 0.8, "bluenote_row": 0.8, "row_house": 0.8, "front_yard": 0.8, "apartment": 0.8, "factory": 0.8, "pawn_house": 0.8, "diner_house": 0.8, "alley_wash": 0.8, "front_laundry": 0.8, "front_laundry_l": 0.8, "front_laundry_mid": 0.8, "front_laundry_r": 0.8, "front_warehouse": 0.8, "front_club": 0.8, "front_tenement": 0.8, "hk_tailor": 0.8, "hk_grocery": 0.8, "hk_saloon": 0.8, "hk_laundry": 0.8, "deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
+const SEGMENT_SIZE := {"alley_mouth": 0.8, "market_row": 0.8, "church_row": 0.8, "subway_entrance": 0.8, "warehouse_row": 0.8, "bluenote_row": 0.8, "row_house": 0.8, "front_yard": 0.8, "apartment": 0.8, "factory": 0.8, "pawn_house": 0.8, "diner_house": 0.8, "alley_wash": 0.8, "stable_row": 0.8, "rear_walkup": 0.8, "el_garage": 0.8, "rooming_house": 0.8, "boiler_works": 0.8, "machine_shop": 0.8, "brownstones": 0.8, "bay_tenement": 0.8, "hotel_front": 0.8, "dance_hall": 0.8, "front_laundry": 0.8, "front_laundry_l": 0.8, "front_laundry_mid": 0.8, "front_laundry_r": 0.8, "front_warehouse": 0.8, "front_club": 0.8, "front_tenement": 0.8, "hk_tailor": 0.8, "hk_grocery": 0.8, "hk_saloon": 0.8, "hk_laundry": 0.8, "deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
 	"signal": 0.52, "arches": 0.52, "sheds": 0.55, "fire_a": 0.605, "fire_b": 0.605, "fire_c": 0.605}
 # A drawing whose floor runs into the depth: where on it a man's feet go, as a share of its height (the
 # street drawings stand at the back of the pavement at SEGMENT_BASE instead).
@@ -1631,6 +1632,18 @@ func _front_joint(x: float) -> bool:
 		if absf(float(seg[1]) - x) < 2.0 or absf(float(seg[1]) + w - x) < 2.0:
 			n += 1
 	return n >= 2
+
+
+## The street drawing at x ("" past the street).
+func street_piece_at(x: float) -> String:
+	var name := ""
+	for seg in level.get("street", []):
+		var a := float(seg[1]) + (float(seg[2]) if (seg as Array).size() > 3 else 0.0)
+		var w: float = float(KitData.PIECES.get(String(seg[0]), {}).get("w", 3168.0)) * WALL_SCALE * float(SEGMENT_SIZE.get(String(seg[0]), 1.0))
+		var b := float(seg[1]) + (float(seg[3]) if (seg as Array).size() > 3 else w)
+		if x >= a and x < b:
+			name = String(seg[0])   # (a front laid over the street comes later in the list: it wins)
+	return name
 
 
 var _front_spans: Array[Vector2] = []

@@ -124,6 +124,17 @@ PIECES = {
         "men": [(1080, 747, "post")],
         "clear": [(820, 1320), (1330, 1840)],
     },
+    # each district its own buildings (QUEUE §15 A, 18. 11., art_src 291-301): Blender template + Gemini, measured doors
+    "stable_row": {"size": 0.8, "edge": "partywall", "props": [], "clear": [(700, 1100), (2068, 2468)]},       # THE ALLEY: livery stable
+    "rear_walkup": {"size": 0.8, "edge": "partywall", "props": [], "clear": [(1050, 1330)]},                  # THE ALLEY: tenement's back
+    "el_garage": {"size": 0.8, "edge": "partywall", "props": [], "clear": [(2100, 3000)]},                    # BACK STREETS: auto garage
+    "rooming_house": {"size": 0.8, "edge": "partywall", "props": [], "clear": [(400, 1120), (2180, 2400)]},   # BACK STREETS
+    "boiler_works": {"size": 0.8, "edge": "partywall", "props": [], "clear": [(2300, 2650)]},                 # THE LAUNDRY: boiler house
+    "machine_shop": {"size": 0.8, "edge": "partywall", "props": [], "clear": [(690, 1100), (2070, 2750)]},    # THE LAUNDRY
+    "brownstones": {"size": 0.8, "edge": "partywall", "props": [], "clear": [(650, 960), (2160, 2470)]},      # TENEMENTS: two stoops
+    "bay_tenement": {"size": 0.8, "edge": "partywall", "props": [], "clear": [(700, 1000)]},                  # TENEMENTS
+    "hotel_front": {"size": 0.8, "edge": "partywall", "props": [], "clear": [(360, 1130), (2180, 2420)]},     # THE BLUE NOTE: hotel
+    "dance_hall": {"size": 0.8, "edge": "partywall", "props": [], "clear": [(880, 1290), (1890, 2270)]},      # THE BLUE NOTE
     "pawn_house": {"size": 0.8, "edge": "partywall", "props": [], "clear": [(760, 960), (1960, 2660)]},
     "diner_house": {"size": 0.8, "edge": "partywall", "props": [], "clear": [(400, 1100), (2160, 2440)]},
     "front_yard": {"size": 0.8, "edge": "partywall", "front": "yard", "doors": [810, 2320], "props": [],
@@ -152,7 +163,7 @@ EDGES = {
     "tenrow_d": ("party_wall", "party_wall"), "warehouse": ("party_wall", "party_wall"), "warehouse_b": ("open_lot", "party_wall"),
     "warehouse_c": ("party_wall", "party_wall"), "yard": ("fence", "fence"), "yard_b": ("fence", "fence"), "yard_c": ("fence", "fence"),
 }
-EDGES["front_laundry_l"] = EDGES["front_laundry_mid"] = EDGES["front_laundry_r"] = EDGES["front_laundry"] = EDGES["front_warehouse"] = EDGES["front_club"] = EDGES["front_tenement"] = EDGES["alley_mouth"] = EDGES["market_row"] = EDGES["church_row"] = EDGES["subway_entrance"] = EDGES["warehouse_row"] = EDGES["bluenote_row"] = EDGES["row_house"] = EDGES["front_yard"] = EDGES["apartment"] = EDGES["factory"] = EDGES["pawn_house"] = EDGES["diner_house"] = EDGES["alley_wash"] = ("party_wall", "party_wall")
+EDGES["stable_row"] = EDGES["rear_walkup"] = EDGES["el_garage"] = EDGES["rooming_house"] = EDGES["boiler_works"] = EDGES["machine_shop"] = EDGES["brownstones"] = EDGES["bay_tenement"] = EDGES["hotel_front"] = EDGES["dance_hall"] = EDGES["front_laundry_l"] = EDGES["front_laundry_mid"] = EDGES["front_laundry_r"] = EDGES["front_laundry"] = EDGES["front_warehouse"] = EDGES["front_club"] = EDGES["front_tenement"] = EDGES["alley_mouth"] = EDGES["market_row"] = EDGES["church_row"] = EDGES["subway_entrance"] = EDGES["warehouse_row"] = EDGES["bluenote_row"] = EDGES["row_house"] = EDGES["front_yard"] = EDGES["apartment"] = EDGES["factory"] = EDGES["pawn_house"] = EDGES["diner_house"] = EDGES["alley_wash"] = ("party_wall", "party_wall")
 for _n in ("arches", "arches_b", "bowery", "platform", "pump", "signal", "signal_b", "station14", "tunnel", "tunnel_b", "tunnel_c",
            "tunnel_lo", "tunnel_lo_b", "walkway", "walkway_b"):
     EDGES[_n] = ("girder", "girder")

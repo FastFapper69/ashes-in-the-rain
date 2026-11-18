@@ -745,6 +745,8 @@ func _hang_neon() -> void:
 		var x: float = e["node"].position.x
 		if x < game.level_end * 0.35 or e["node"].position.y < -100.0 or game._room_at(x) != "":
 			continue   # (a street sign: over the street, never inside a room or a yard)
+		if game.street_piece_at(x) in ["stable_row", "el_garage", "boiler_works", "machine_shop", "alley_wash"]:
+			continue   # (a hotel's sign on a hotel or a walk-up, never on a stable or a workshop - 18. 11. look)
 		var n := 0
 		for o in game.enemies:
 			if absf(o["node"].position.x - x) < 380.0 and o["node"].position.y > -100.0:

@@ -51,6 +51,10 @@ STREET = {
     'subway_entrance': ('256.jpg', 0, False), 'warehouse_row': ('257.jpg', 0, False), 'bluenote_row': ('258.jpg', 0, False), 'row_house': ('259.jpg', 0, False), 'front_yard': ('260.jpg', 0, False),
     'apartment': ('264.jpg', 0, False), 'factory': ('265.jpg', 0, False),
     'alley_wash': ('284.jpg', 0, False),   # (269 with the fire escape taken off: gen/fire_escape_layer.py alley_wash)   # the washing-line alley: a fire escape beside an alley mouth (THE ALLEY's stunt)
+    # chapter I's districts each their own buildings (QUEUE §15 A, 18. 11.: no piece in two maps): Blender template + Gemini
+    'stable_row': ('291.jpg', 0, False), 'rear_walkup': ('292.jpg', 0, False), 'el_garage': ('293.jpg', 0, False),
+    'rooming_house': ('294.jpg', 0, False), 'boiler_works': ('295.jpg', 0, False), 'machine_shop': ('296.jpg', 0, False),
+    'brownstones': ('297.jpg', 0, False), 'bay_tenement': ('298.jpg', 0, False), 'hotel_front': ('299.jpg', 0, False), 'dance_hall': ('301.jpg', 0, False),
     'pawn_house': ('267.jpg', 0, False), 'diner_house': ('268.jpg', 0, False),   # one shop a building (user 17. 11.)   # plain buildings (user 17. 11.: no rows of shops)
 }
 KIT = {'yard_c': 'yard', 'tunnel_c': 'tunnel', 'walkway_b': 'walkway', 'signal_b': 'signal', 'arches_b': 'arches', 'yard_b': 'yard', 'tunnel_b': 'tunnel', 'tunnel_lo_b': 'tunnel_lo',
@@ -150,7 +154,7 @@ def neon_mask(rgb, box, mode):
     return im, (x0 - pad, y0 - pad)
 
 
-TONE = {'front_warehouse': 0.78, 'front_club': 0.9, 'diner_house': 1.2}   # gamma < 1 lifts the midtones to the kit's (measured 17. 11.: 44 / 52 vs the kit's ~58)
+TONE = {'front_warehouse': 0.78, 'front_club': 0.9, 'diner_house': 1.2, 'hotel_front': 1.18, 'dance_hall': 1.2, 'rooming_house': 1.15, 'bay_tenement': 0.92}   # gamma < 1 lifts the midtones to the kit's (measured 17. 11.: 44 / 52 vs the kit's ~58)
 ONLY = sys.argv[1:]
 for name, (f, trim, towers) in STREET.items():
     if ONLY and name not in ONLY:
