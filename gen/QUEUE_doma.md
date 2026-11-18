@@ -235,3 +235,22 @@ Fasáda: front_laundry rozdělit (levá část s dveřmi + nový střed fasády 
 Engine: _build_room_art umí víc kreseb za sebou (ROOM_PARTS), lampy/páry/ochoz po částech; plošina ochozu "drawn", žebříky,
 swing z kladkostroje; ventily páry (steampipe) uvnitř. Muži: 10-12 (zem, ochoz, kancelář: shotgun + tommy), běžci z dálky.
 Postup: TEST LAB (pravidlo 21) -> THE LAUNDRY. Ověřit: boti, audit_maps, look 1280/1560, joins_shots.
+
+## 15. Audit kapitoly I (18. 11., vlastní + Gemini, snímky _shots/audit_ch1/map0-5.png, bot 3,3 s/snímek)
+Čísla: ALLEY 24,7k px 19 mužů (18 pistolníků) 0,77/1000px, 2 prázdné úseky >2500 px | BACK STREETS 29,2k 22 (20 pist.) 0,75, 3 prázdné |
+LAUNDRY 29,8k 35 1,18 | TENEMENTS 27,1k 29 1,07 (17 z 29 v poslední třetině) | BLUE NOTE 18,1k 18 | DREAM 25,7k 13 0,51, 3 prázdné. Bot 48-79 s/mapa, zásahů 0-4.
+Ověřená zjištění (Gemini se v pár věcech mýlil - viz níže):
+A. Opakování kusů ulice napříč kapitolou: hk_tailor (TAILOR) ve 4 mapách, hk_grocery ve 2, hk_laundry (HAND LAUNDRY) na konci ALLEY i LAUNDRY,
+   sklad (warehouse room + červený sud) v LAUNDRY i BLUE NOTE. Porušuje pravidlo 20/no-forced-shop-rows -> každá čtvrť své kusy, kus max 1x za kapitolu.
+B. Málo druhů nepřátel na začátku: ALLEY 18/19, BACK STREETS 20/22 obyčejní pistolníci; žádný typ, který nutí měnit taktiku (brokovník blízko, běžec,
+   vrhač). -> ALLEY: 1-2 brokovníci v 2. půlce; BACK STREETS: první tommy/běžci, zbytek kapitoly stupňovat.
+C. Prázdné úseky: ALLEY 2, BACK STREETS 3, TENEMENTS 3, DREAM 3 úseky >2500 px bez nikoho; TENEMENTS má 17 z 29 mužů v poslední třetině.
+   -> rozložit muže / zkrátit / mikro-události (muž vyrazí ze dveří, stín na okně, auto).
+D. Čitelnost na telefonu: tmaví muži v tmavých uličkách a průchodech (ALLEY ř3s4, BACK STREETS ř3s1) čitelní hlavně podle obrysu;
+   DREAM: oranžové plameny přes postavy (muži v ohni zmizí). Vyprávění 22 px je na iPhonu malé; combo nápis vpravo nahoře hned u pauzy.
+E. Konce map: mapy končí uprostřed ulice bez zřetelného cíle (ALLEY, LAUNDRY, DREAM). -> konec u dveří/auta/nakreslené brány + nápis.
+F. BACK STREETS: nadzemka je jen kulisa (pouze "výstřely neslyšet" + kamera); chybí hratelný háček (prach/jiskry, blik světel, otřesy, kdy vlak jede).
+G. BLUE NOTE boss: v klubu jen bar a sudy (7 krytů na celou mapu), boss stojí; přidat 1-2 kryty v sále, pomocníky při 50 % zdraví, hazard (reflektor/lustr).
+H. Střechy TENEMENTS: muži tam stojí jako na ulici - chce to něco střešního (výlez z poklopu, skok mezi střechami, vodojem).
+Nepravdy v posudku Gemini (ověřeno): "nikdo neobchází zboku" (flank existuje, main.gd role lead/_flank_called), "věta Frankova se opakuje při každém zabití"
+(je 1x za mapu; na snímcích visí přes dva snímky), "boss bez krytů" (bar + sudy jsou), "stejná místnost 3x v DREAM" (záměr - smyčka snu).
