@@ -17,6 +17,8 @@ SRC = sys.argv[1] if len(sys.argv) > 1 else _SRC
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "art", "section")
 SEC_ROWS = 1112          # one storey, top of the slab above to the top of its own black floor cut (a multiple of 4)
 PIECES = {               # art_src number: name (main.gd SEC_KIT)
+    # (216 "tenement_stairs_b" below: its stairs doorway was filled afterwards from art_src 328 by gen/stairwell_fill.py -
+    # regenerating it brings the black hole back: run stairwell_fill.py tenement_stairs_b 328 700 1700 after)
     # 212 "tenement_stairs_a" is no longer cut from here (user 19. 11.: its door 2B was cut in half by the storey's end
     # wall): art_src 326 (Gemini, the piece without 2B) registered onto it, the original's floor strip kept - do not regenerate
     213: "tenement_hall_a",     # hallway, three doors, payphone
