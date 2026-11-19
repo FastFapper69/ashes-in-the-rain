@@ -7,6 +7,7 @@ const ENTRIES := [
 	["18 NOV 2026", [
 		"The docks and the subway: every map its own stretch of waterfront or line; two new dock sheds",
 		"Chapter III is a slope now, not a wall: three gunmen at once only by its end",
+		"The tenement's stairwells are lit - no black holes in the walls, no doors cut in half at the ends",
 		"The Laundry ends on the run: three cars of men, a comic page, a tenement and its stairs - Tenements opens in that flat, out of the window and down a washing line",
 		"Every dock map opens on its own comic panel: the cranes, the Santa Lucia, the hold, the harbor master's light",
 		"The bosses change in their last third: Teague drops his guns for his fists (and bottles), Kessler falls back and fires wild, Briggs's shield can be shot off his arm",
