@@ -289,3 +289,7 @@ Porušení:
 Návrhy komiksů ve hře (Max Payne): konec LAUNDRY útěk (uživatel), start TENEMENTS okno + šňůra, BACK STREETS výslech ("one of them talked"), konec TENEMENTS pohled na JAZZ, PIER 17 sklad Vail se vzňal, SANTA LUCIA nalodění po lávce, CARGO HOLD jedenáct beden, TUNNELS tma + Briggs počítá náboje, konec TRAIN YARD skok na rozjetý vlak, konec LAST TRAIN vlak vyjede z tunelu.
 Rozšíření: TENEMENTS celý jako řez domem (útěk z prádelny nahoru, byt, okno, šňůra, střechy); SANTA LUCIA paluba lodi (lávka nahoru, paluba, podpalubí); CARGO HOLD = zaplavované podpalubí s bednami (petrolej 1939 = důkaz); PIER 17 dovnitř hořícího skladu Vail.
 
+## 19. Komiksy - až nakonec všechny najednou (uživatel 19. 11.: "zatím komix neřeš, ty pak uděláme na konec všechny")
+Známé chyby: po THE LAUNDRY (interlude) první panel ukazuje Franka v autě s účtenkou, ale mapa teď končí v bytě v činžáku -> pořadí a obrázky stránek musí odpovídat tomu, kde mapa skončila. Projít všechny stránky (před/po mapách, uprostřed map) proti toku map (pravidlo 30).
+Opraveno hned (HANDOFF 97): konce pater v řezu domem - dveře 2B přeříznuté koncovou zdí (díl tenement_stairs_a překreslen bez nich).
+
