@@ -5,6 +5,12 @@ extends RefCounted
 
 const ENTRIES := [
 	["21 NOV 2026", [
+		"Swapping big guns: the one you pick up has only the rounds left in it",
+		"A man whose gun you shot away, who is kicked flat or puts his hands up stops firing at once",
+		"Teague no longer freezes after jumping a crate; the dream's shades push you away from them, not into them",
+		"Nothing can kill you once a map is won; a mobster's stray round no longer sets off the drum next to you",
+		"SECOND WIND is on the board; HOT STREAK gives a round back to the revolver too; LAST ROUND no longer empties slowed time",
+		"When a group's leader falls, another man takes over; a man gone round the block comes back if you leave the street",
 		"A house you go into stands where the street's drawing ends: no door of the house next to it cut in half",
 		"Men on another floor of a house stop aiming at you through the ceiling: they face the stairs and come up (or down) after you, two at a time",
 		"Houses in cross-section: a shut door stops a jump too and has to be kicked in; no walking in through a back wall; the window breaks only when you go at it in the air",

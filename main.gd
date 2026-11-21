@@ -5320,6 +5320,7 @@ func _switch_gun() -> void:
 		var old := _big_gun()
 		var st: Dictionary = {"mag": mag, "ammo": ammo} if weapon == old else _bag[old]
 		var kind := String(_swap_offer["kind"])
+		var total := int(_swap_offer.get("left", WEAPONS[kind]["ammo"]))   # (audit 21. 11.) what is left in the one on the ground
 		(_swap_offer["node"] as Node2D).queue_free()
 		pickups.erase(_swap_offer)
 		_swap_offer = null
@@ -5330,7 +5331,7 @@ func _switch_gun() -> void:
 			weapon = "revolver"   # so _equip keeps nothing of the old gun
 			mag = int(_bag.get("revolver", {}).get("mag", _mag_size("revolver")))
 			_bag.erase("revolver")
-		_bag[kind] = {"mag": _mag_size(kind), "ammo": int(WEAPONS[kind]["ammo"]) - int(WEAPONS[kind]["mag"])}
+		_bag[kind] = {"mag": mini(total, _mag_size(kind)), "ammo": maxi(0, total - _mag_size(kind))}
 		_equip(kind)
 		sfx.play("pickup", 0.0)
 		return
@@ -5450,7 +5451,7 @@ func _fire(shooter, from_player: bool, kind := "") -> void:
 	if from_player:
 		if mag == 1 and _sperk("last") and gun == "revolver":   # the last round: it finds its man
 			_last_round_t = 0.6
-			slow_on = true
+			_free_slow = maxf(_free_slow, 0.6)   # (audit 21. 11.: slow_on drained the whole meter for one round)
 		mag -= 1
 		_idle_fire = 0.0
 		_clicked = false
@@ -5476,7 +5477,7 @@ func _enemy_fire(e: Dictionary) -> void:
 		"tommy":
 			for k in 6:
 				get_tree().create_timer(0.09 * k, false).timeout.connect(func() -> void:
-					if e["alive"] and not over:
+					if _still_firing(e):
 						e["aim_off"] = randf_range(-110.0, 80.0) * _aim_spread()
 						_fire(m, false, "tommy"))
 			e["cool"] = randf_range(2.4, 3.2)
@@ -5504,7 +5505,7 @@ func _enemy_fire(e: Dictionary) -> void:
 			_fire(m, false)
 			for k in range(1, n):
 				get_tree().create_timer(gap * k, false).timeout.connect(func() -> void:
-					if e["alive"] and not over and not cleared:
+					if _still_firing(e):
 						e["aim_off"] = float(e["aim_off"]) + randf_range(-45.0, 45.0) * _aim_spread()   # (each shot of a salvo kicks a bit off)
 						_fire(m, false))
 			e["mag"] = left - (n - 1)   # (the last one is counted below)
@@ -5601,6 +5602,9 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 				continue
 			if from_player and _ricochet(i, pos):
 				return true
+			if not from_player and box_info[i]["kind"] == "barrel":
+				fx.chip(pos)   # (audit 21. 11.) it rings off the steel
+				return true
 			_hit_box(i, pos)
 			return true
 	if from_player and props and props.shot(pos):
@@ -5623,7 +5627,7 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 		if sets != null and sets.shoot_light(pos):
 			return true
 		for e in enemies:
-			if not e["alive"] or e["state"] == "wait":
+			if not e["alive"] or e["state"] == "wait" or not e["node"].visible:   # (audit 21. 11.: not a man out of the picture)
 				continue
 			if from_player and not e["node"].hat_lost and e["node"].hat_hit(pos):
 				_hat_off(e, pos)   # through the hat and nothing else: it goes, the bullet flies on
@@ -5646,8 +5650,8 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 					if int(e["shield_hp"]) <= 0:
 						_shield_off(e)
 				return true
-			if e["state"] == "down":   # a man on his back takes one bullet
-				e["hp"] = 1
+			if e["state"] == "down":   # a man on his back takes one bullet (any gun: two Berettas' 0.75 left him standing)
+				e["hp"] = 0.01
 			if e["state"] == "give" and float(e["give_t"]) >= 0.0:   # an execution: quick to pay, slow to forget
 				fx.blood(pos, fx.hit_vel, true)
 				e["node"].add_wound(pos, part)
@@ -5670,7 +5674,9 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 				fx.blood(pos, fx.hit_vel, part == "head" or e["hp"] <= 1)
 				e["node"].add_wound(pos, part)
 			var hm = e["node"]
-			var tint: Color = hm.modulate
+			if not e.has("tint0"):
+				e["tint0"] = hm.modulate
+			var tint: Color = e["tint0"]   # (audit 21. 11.: two hits in 0.12 s kept him white)
 			hm.modulate = Color(2.2, 2.0, 1.9)   # a white flash: the hit registers at a glance
 			hm.create_tween().tween_property(hm, "modulate", tint, 0.12)
 			sfx.play("hit_flesh", 0.0, pos.x)
@@ -5869,7 +5875,7 @@ func _knocked(e: Dictionary, delta: float) -> void:
 		var step := push * delta
 		var blocked := false
 		for bx in boxes:
-			if bx.grow(30.0).has_point(Vector2(m.position.x + step * 4.0, -60.0)):
+			if bx.grow(30.0).has_point(Vector2(m.position.x + step * 4.0, m.position.y - 60.0)):
 				blocked = true
 		if not blocked:
 			m.position.x += step
@@ -5962,9 +5968,14 @@ func _kill(e: Dictionary, head: bool, quiet := false, part := "") -> void:
 	_fallen.append([String(e.get("name", "")), m.position.x, _ai_t])
 	_cry(e, m, head)
 	if e.get("role", "") == "lead":   # the man who gave the orders is down: the rest falter
+		var next = null
 		for o in enemies:
 			if o["alive"] and o != e and absf(o["node"].position.x - m.position.x) < GROUP:
 				o["shaken"] = true
+				if o.get("role", "") == "flank" and (next == null or absf(o["node"].position.x - m.position.x) < absf(next["node"].position.x - m.position.x)):
+					next = o
+		if next != null:   # (audit 21. 11.) ... and then one of them gives the orders
+			next["role"] = "lead"
 	_witness(e, m)
 	_morale(m.position, head or slow_on)
 
@@ -5989,7 +6000,7 @@ func _gain_xp(n: int) -> void:
 
 
 func _score(e: Dictionary, head: bool, part: String) -> void:
-	if e["state"] == "give" or _stand or diff_step < 0:
+	if (e["state"] == "give" and float(e.get("give_t", 0.0)) >= 0.0) or _stand or diff_step < 0:
 		_combo = 0
 		_combo_t = 0.0
 		return
@@ -6021,9 +6032,13 @@ func _score(e: Dictionary, head: bool, part: String) -> void:
 	if _combo == 2 and chapter == 1 and map == 0 and not _streak_told:   # once: what the numbers up top are
 		_streak_told = true
 		hud.hint("KILLS CLOSE TOGETHER BUILD A STREAK. IN THE AIR AND TO THE HEAD SCORE MORE. THE SCORE IS YOUR XP.", true)
-	if _combo == 3 and _perk("hotstreak") and ammo < int(WEAPONS[weapon]["ammo"]):   # HOT STREAK: a round back
-		ammo += 1
-		_show_ammo()
+	if _combo == 3 and _perk("hotstreak"):   # HOT STREAK: a round back, in the gun (audit 21. 11.: the side gun got none)
+		if weapon == "revolver":
+			mag = mini(mag + 1, _mag_size(weapon))
+			_show_ammo()
+		elif ammo < int(WEAPONS[weapon]["ammo"]):
+			ammo += 1
+			_show_ammo()
 	if air and _perk("acrobat"):   # ACROBAT: a kill in the air gives back slowed time
 		slow_left = minf(1.0, slow_left + 0.25)
 
@@ -6139,6 +6154,8 @@ func _executed(e: Dictionary, at: Vector2) -> void:
 ## He drops the gun and puts his hands up. Shot like that, he is an execution; left alone, he backs
 ## off and is gone, and what he saw is Frank's to use later.
 func _give_up(e: Dictionary, delay := 0.0) -> void:
+	e["node"].slide = 0.0
+	e["node"].roll = 0.0
 	if e["state"] == "give" or _unreal():   # in the dream nobody gives up
 		return
 	if e.has("witness") and level.has("witness_house") and not e.get("holed_up", false) and int(e["hp"]) >= mob_hp:
@@ -6253,7 +6270,7 @@ func _blast(at: Vector2, reach: float, hurt_reach: float, hits: int) -> void:
 					continue
 				hud.boss_bar("", -1.0)
 			_kill(e, false, true, "blast")
-	if not over and player.position.distance_to(at + Vector2(0.0, 60.0)) < hurt_reach and _auto == "":
+	if not over and not cleared and player.position.distance_to(at + Vector2(0.0, 60.0)) < hurt_reach and _auto == "":
 		hp -= hits
 		stats["hits"] += 1
 		hud.set_health(float(hp) / max_hp)
@@ -8430,7 +8447,7 @@ func _tick_flames(delta: float) -> void:
 
 ## The fire gets him: a hit, the screen jolts, a grunt. Not in the tests (the bot does not jump fires).
 func _burn_player(hits: int) -> void:
-	if over or _auto != "":
+	if over or cleared or _grace > 0.0 or _auto != "":
 		return
 	hp -= hits
 	stats["hits"] += 1
@@ -9444,8 +9461,15 @@ func _boss_fire(m) -> void:
 	_fire(m, false)
 	for k in [1, 2]:
 		get_tree().create_timer(0.13 * k, false).timeout.connect(func() -> void:
-			if boss["alive"] and not over:
+			if _still_firing(boss):
 				_fire(m, false))
+
+
+## (audit 21. 11.) The rest of a burst: only from a man still up, with his gun, not giving up (his gun shot out of his
+## hand, kicked flat, hands going up - the rounds already "on their way" used to come out of an empty hand).
+func _still_firing(e: Dictionary) -> bool:
+	return not e.is_empty() and e["alive"] and not over and not cleared and String(e["state"]) not in ["give", "down", "hop", "stairs"] \
+		and not e["node"].disarmed
 
 
 ## Cover = something tall standing just in front of (to the left of) a mobster, on his floor.
@@ -9774,21 +9798,23 @@ func _on_stairs(e: Dictionary, m, delta: float) -> void:
 				e["cool"] = maxf(float(e["cool"]), 1.0)
 
 
-func _hop(e: Dictionary, m, bx: Rect2, far: float) -> void:
+func _hop(e: Dictionary, m, bx: Rect2, far: float, back_to := "move") -> void:
 	e["state"] = "hop"
 	var x0: float = m.position.x
+	var y0: float = m.position.y   # (his own floor, not always the street)
 	var top: float = bx.position.y - 30.0
 	var tw: Tween = m.create_tween()
 	tw.tween_method(func(k: float) -> void:
-		if not e["alive"]:
+		if not e["alive"] or e["state"] != "hop":
 			return
 		m.position.x = lerpf(x0, far, k)
-		m.position.y = minf(0.0, lerpf(0.0, top, sin(k * PI) * 1.15))
+		m.position.y = minf(y0, lerpf(y0, top, sin(k * PI) * 1.15))
 		m.duck = sin(k * PI) * 0.6, 0.0, 1.0, 0.6)
 	tw.tween_callback(func() -> void:
-		if e["alive"] and e["state"] == "hop":
-			m.position.y = 0.0
-			e["state"] = "move")
+		if e["alive"]:
+			m.position.y = y0   # (exactly: a float left over kept him out of every "on the street" test)
+			if e["state"] == "hop":
+				e["state"] = back_to)
 
 
 ## The wooden crate the detective is crouched behind on the side `side` (toward the man), or -1.
@@ -9994,6 +10020,11 @@ func _going_round(e: Dictionary, m, delta: float) -> void:
 		return
 	if _room != "" or absf(player.position.y) > 60.0:   # the detective moved on somewhere he cannot follow: he waits
 		e["around_t"] = 1.0
+		e["around_wait"] = float(e.get("around_wait", 0.0)) + 1.0
+		if float(e["around_wait"]) > 6.0:   # (audit 21. 11.) ... not for ever: back where he went off, on his own, where he can be found
+			m.visible = true
+			e["state"] = "post"
+			e["cover"] = _has_cover(m.position)
 		return
 	var half: float = get_viewport().get_visible_rect().size.x * 0.5 / cam.zoom.x
 	var x: float = player.position.x - side * (half + 250.0)
@@ -10109,6 +10140,11 @@ func _enemies(delta: float) -> void:
 					_taunt_t = _ai_t
 					_bark(near, "taunt")
 	for e in enemies:
+		if e.has("line") and (not e["alive"] or e["state"] != "post"):   # (audit 21. 11.) the marksman's line goes with him
+			if is_instance_valid(e["line"]):
+				(e["line"] as Node).queue_free()
+			e.erase("line")
+			e.erase("aim_t")
 		if not e["alive"]:
 			continue
 		var m = e["node"]
@@ -10396,7 +10432,7 @@ func _hook_man(e: Dictionary, m, to_player: Vector2, delta: float) -> void:
 			var bx: Rect2 = boxes[blocked]
 			var far: float = (bx.end.x + 90.0) if walk > 0.0 else (bx.position.x - 90.0)
 			if absf(player.position.x - far) > 140.0:
-				_hop(e, m, bx, far)
+				_hop(e, m, bx, far, "post")
 				return
 			walk = 0.0
 		elif blocked < 0:
@@ -10499,7 +10535,7 @@ func _shade(e: Dictionary, m, to_player: Vector2, delta: float) -> void:
 			var bx: Rect2 = boxes[blocked]
 			var far: float = (bx.end.x + 90.0) if dx > 0.0 else (bx.position.x - 90.0)
 			if absf(player.position.x - far) > 140.0:
-				_hop(e, m, bx, far)
+				_hop(e, m, bx, far, "post")
 				return
 			walk = 0.0
 		elif blocked < 0:
@@ -10510,7 +10546,13 @@ func _shade(e: Dictionary, m, to_player: Vector2, delta: float) -> void:
 		for k in 6:
 			fx.spark(player.position + Vector2(randf_range(-40.0, 40.0), randf_range(-380.0, -160.0)))
 		_burn_player(1)
-		player.position.x -= signf(dx) * 60.0   # (he tears himself free: a step back)
+		var back: float = player.position.x + signf(dx) * 60.0   # (he tears himself free: a step back, away from it)
+		var free_way := true
+		for bx in boxes:
+			if bx.grow(20.0).has_point(Vector2(back, player.position.y - 60.0)):
+				free_way = false
+		if free_way:
+			player.position.x = back
 	m.set_state(walk, to_player, delta)
 
 

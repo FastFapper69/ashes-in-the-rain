@@ -769,10 +769,13 @@ func _instincts(back_to := Callable()) -> void:
 	var gap := 14.0
 	var top := 122.0
 	var bottom := view.y - M - 60.0 - 16.0
-	var h := minf((bottom - top - 2.0 * 12.0) / 3.0, ((view.x - 2.0 * M - tag_w - GAP - 4.0 * gap) / 5.0) * 1096.0 / 1496.0)
+	var cols := 5   # (audit 21. 11.: SECOND WIND, the sixth trick, was never on the board)
+	for b in Instincts.BOARD:
+		cols = maxi(cols, Instincts.tiers(b))
+	var h := minf((bottom - top - 2.0 * 12.0) / 3.0, ((view.x - 2.0 * M - tag_w - GAP - (cols - 1) * gap) / cols) * 1096.0 / 1496.0)
 	var w := roundf(h * 1496.0 / 1096.0)
 	h = roundf(h)
-	var x0 := (view.x - (tag_w + GAP + 5.0 * w + 4.0 * gap)) * 0.5
+	var x0 := (view.x - (tag_w + GAP + cols * w + (cols - 1) * gap)) * 0.5
 	var rows := ["frank", "guns", "instinct"]
 	for bi in 3:
 		var branch: String = rows[bi]
@@ -783,7 +786,7 @@ func _instincts(back_to := Callable()) -> void:
 		_page.add_child(tag)
 		Paper.write(tag, "GUNS" if branch == "guns" else String(Instincts.BRANCH_NAMES[branch]), _font_head, 18, INK)
 		if branch == "guns":   # the guns are upgraded at the gunsmith: one wide sheet that opens it
-			var gw := 5.0 * w + 4.0 * gap
+			var gw := cols * w + (cols - 1) * gap
 			var smith := _paper("panel", Vector2(x0 + tag_w + GAP, y), Vector2(gw, h), TILT[4] * 0.4, func() -> void:
 				_smith_back = _instincts
 				_gunsmith("gun", 0))
@@ -811,7 +814,7 @@ func _instincts(back_to := Callable()) -> void:
 				smith.move_child(smith.get_node("Hit"), smith.get_child_count() - 1)
 			continue
 		var pins: Array = []
-		for t in 5:
+		for t in Instincts.tiers(branch):
 			var at := Vector2(x0 + tag_w + GAP + t * (w + gap), y)
 			var why := Instincts.why_locked(branch, t)
 			var have := Instincts.owned(branch, t)

@@ -13,7 +13,7 @@ const BOARD := ["frank", "instinct"]   # the rows on the cork board
 const GUNS := ["gun", "beretta", "shotgun", "tommy"]   # the gunsmith's: the revolver's row is "gun"
 const BRANCH_NAMES := {"frank": "FRANK", "gun": "REVOLVER", "instinct": "TRICKS", "beretta": "BERETTA", "shotgun": "SHOTGUN", "tommy": "TOMMY GUN"}
 const GUN_FROM := {"gun": 1, "beretta": 1, "shotgun": 2, "tommy": 3}   # a gun is found from this chapter on (and upgraded from then)
-const FROM_CHAPTER := [1, 1, 2, 2, 3]   # a tier opens once the story has reached this chapter
+const FROM_CHAPTER := [1, 1, 2, 2, 3, 3]   # a tier opens once the story has reached this chapter
 # name, text, effect id (main.gd _perk), icon (art/ui/instincts/icon_<icon>.png)
 const CARDS := {
 	"frank": [
