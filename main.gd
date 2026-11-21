@@ -777,7 +777,7 @@ func _ready() -> void:
 			get_tree().create_timer(float(level["break_in"]), false).timeout.connect(func() -> void:
 				var f := _flat_at_storey(float(sxy[1]))
 				if not f.is_empty() and not f["open"] and not over:
-					_kick_door(f)
+					_kick_door(f, false)
 					_say_near(f))
 	sets = SetpiecesScript.new()
 	add_child(sets)
@@ -2970,8 +2970,9 @@ func _process(delta: float) -> void:
 	_tick_exit(delta)
 	if level.has("goal"):   # (rule 30, 18. 11.) a map won by getting somewhere: the flat he runs into, the crowd behind him
 		var gl: Array = level["goal"]
+		var settled := _witness_settled(delta)   # (ticks every frame: the 2.6 s run from when he was dealt with)
 		if not cleared and not over and player.position.x > float(gl[0]) and absf(player.position.y - float(gl[1])) < 80.0 \
-				and _witness_settled(delta):
+				and settled:
 			_map_cleared()
 	elif not cleared and not over and roof.is_empty() and player.position.x > level_end and _all_down():
 		_map_cleared()
@@ -4937,6 +4938,14 @@ func _floor_at(x: float, feet: float) -> float:
 
 ## Crates and the like stop him when he runs, slides or dives into their side.
 func _block(before_x: float) -> void:
+	for s in sections:   # (audit 21. 11.) from outside its right end: the wall, unless back in through the window he broke
+		var x1 := float(s[1])
+		if before_x >= x1 - 1.0 and player.position.x < x1 and player.position.y > -float(s[2]) * section_h + 20.0:
+			var fb := _flat_at_storey(_ground_y)
+			if fb.is_empty() or not fb["broken"] or move_state not in ["jump", "dive"] or absf(fb["wx1"] - x1) > 900.0:
+				player.position.x = x1
+				run = 0.0
+				glide = maxf(glide, 0.0)
 	var si := _section_at(Vector2(before_x, player.position.y))
 	if si >= 0:   # a building's outer walls: the street door on the ground floor's left is the only way out
 		var sec: Array = sections[si]
@@ -6026,14 +6035,16 @@ func _morale(at: Vector2, ugly: bool) -> void:
 	if _stand or chapter == 0 or over:
 		return
 	for e2 in enemies:
-		if not e2["alive"] or e2["boss"] or e2["state"] in ["wait", "give", "run"] or not e2["seen"]:
+		if not e2["alive"] or e2["boss"] or e2["state"] in ["wait", "give", "run", "stairs", "around", "hop", "down"] or not e2["seen"] \
+				or e2.has("witness"):
 			continue
 		var p2: Vector2 = e2["node"].position
-		if absf(p2.x - at.x) > GROUP:
+		if absf(p2.x - at.x) > GROUP or absf(p2.y - at.y) > 300.0:   # (audit 21. 11.) his own floor: not a storey away
 			continue
 		var others := 0
 		for e3 in enemies:
-			if e3 != e2 and e3["alive"] and e3["state"] != "give" and absf(e3["node"].position.x - p2.x) < GROUP:
+			if e3 != e2 and e3["alive"] and e3["state"] != "give" and not e3.has("witness") and absf(e3["node"].position.x - p2.x) < GROUP \
+					and absf(e3["node"].position.y - p2.y) < 300.0:
 				others += 1
 		if others > 0:
 			continue
@@ -7126,15 +7137,21 @@ func _flat_at_storey(y: float) -> Dictionary:
 ## 16. 11.); the kick meets the door: the picture stops for a beat, CRACK, splinters, and the door goes in.
 func _flat_door_block(before_x: float) -> void:
 	var f := _flat_at_storey(_ground_y)
-	if f.is_empty() or f["open"] or absf(player.position.y - float(f["y"])) > 60.0:
+	# (audit 21. 11.) the door is as high as it is drawn: a jump at it no longer goes over a 60 px line through it
+	if f.is_empty() or f["open"] or player.position.y < float(f["y"]) - float(f["h"]) - 40.0 or player.position.y > float(f["y"]) + 60.0:
 		return
 	var face := float(f["hinge"]) - float(f["dw"]) - 30.0
+	var inner := float(f["hinge"]) + 30.0
 	if before_x <= face + 1.0 and player.position.x > face:
 		if move_state in ["dive", "slide"] or absf(glide) > 200.0:
 			_kick_door(f)
 		else:
 			player.position.x = face
 			run = 0.0
+	elif before_x >= inner - 1.0 and player.position.x < inner:   # from inside the flat it opens only by being kicked in from the stairs
+		player.position.x = inner
+		run = 0.0
+		glide = maxf(glide, 0.0)
 
 
 const FLAT_DOOR_HINGE := 65.0   # the door's hinge: on the painted post, this far right of the passage's middle
@@ -7150,7 +7167,7 @@ func _say_near(f: Dictionary) -> void:   # the first man through the door he bro
 		_say(best["node"], "THERE HE IS!")
 
 
-func _kick_door(f: Dictionary) -> void:
+func _kick_door(f: Dictionary, by_player := true) -> void:
 	f["open"] = true
 	var d: Polygon2D = f["door"]
 	var contact := Vector2(float(f["hinge"]) - float(f["dw"]) * 0.8, float(f["y"]) - float(f["h"]) * 0.45)
@@ -7162,13 +7179,14 @@ func _kick_door(f: Dictionary) -> void:
 		fx.chip(contact + Vector2(randf_range(-30.0, 30.0), randf_range(-90.0, 90.0)))
 	fx.dust(Vector2(contact.x, float(f["y"])), 0.5)
 	_shake = 0.3
-	_free_slow = 1.2
-	glide *= 0.25   # the kick takes his speed: he lands in the doorway
+	if by_player:   # (audit 21. 11.: the men's break-in behind him took his dive's speed in mid air)
+		_free_slow = 1.2
+		glide *= 0.25   # the kick takes his speed: he lands in the doorway
 	var tw := d.create_tween()
 	tw.tween_interval(0.06)
 	tw.tween_callback(func() -> void:
 		d.texture = load("res://art/section/flat_door_broken.png"))
-	if _perk("doorram"):   # BATTERING RAM: torn off its hinges, it flies on the way he kicked, falls flat, flattens whoever is there
+	if by_player and _perk("doorram"):   # BATTERING RAM: torn off its hinges, it flies on the way he kicked, falls flat, flattens whoever is there
 		d.z_index = 3
 		tw.tween_method(func(t: float) -> void:
 			var fly := Vector2(float(f["dw"]) * 0.9 + FLAT_RAM_FLY * t, -60.0 * sin(t * PI))
@@ -7446,8 +7464,10 @@ func _crash_out_street(r: Array) -> void:
 ## Through the flat's window: only in the air (the sill is above the boards); the glass bursts out with him.
 func _through_window() -> bool:
 	var f := _flat_at_storey(_ground_y)
-	if f.is_empty() or move_state == "ground" or player.position.x < float(f["wx0"]) - 70.0:
+	if f.is_empty() or move_state not in ["jump", "dive"] or player.position.x < float(f["wx0"]) - 70.0:
 		return false
+	if not f["broken"] and (player.position.x < float(f["wx0"]) - 20.0 or glide + run < 150.0):
+		return false   # (audit 21. 11.) through the glass going out at it, not a hop against the wall under it
 	if player.position.y > float(f["y"]) + 10.0:
 		return false
 	if not f["broken"]:
@@ -7596,9 +7616,14 @@ func _tick_sections(real: float) -> void:
 		art["veil_a"] = move_toward(by, 1.0 if beside else 0.0, real * 2.0)
 		(art["veil"] as Node2D).modulate.a = maxf(open, float(art["veil_a"]))
 		(art["void"] as Node2D).modulate.a = maxf(open, float(art["veil_a"]))
-		for f in _flats:   # the flat's door and glass show with the storeys
-			for key in ["door", "glass"]:
-				(f[key] as CanvasItem).visible = open > 0.5
+		for f in _flats:   # the flat's door and glass show with the storeys (of its own house: audit 21. 11.)
+			if float(f["x"]) >= float((sections[i] as Array)[0]) and float(f["x"]) <= sx1:
+				for key in ["door", "glass"]:
+					(f[key] as CanvasItem).visible = open > 0.5
+		for bi in boxes.size():   # (audit 21. 11.) a crate in there stood in front of the closed facade
+			var bc: float = boxes[bi].get_center().x
+			if bc > float((sections[i] as Array)[0]) and bc < sx1 and box_info[bi]["sprite"] != null and is_instance_valid(box_info[bi]["sprite"]):
+				(box_info[bi]["sprite"] as CanvasItem).visible = open > 0.3
 		for e in enemies:   # whoever is inside is behind the facade until it opens: nobody floats in front of it
 			if e["state"] != "wait" and _section_at(e["node"].position) == i:
 				e["node"].visible = open > 0.3
@@ -9253,7 +9278,7 @@ func _witness(dead: Dictionary, dm) -> void:
 	var best = null
 	var best_d := 1800.0
 	for o in enemies:
-		if not o["alive"] or o == dead or o["boss"] or o["state"] in ["give", "wait", "around", "down"]:
+		if not o["alive"] or o == dead or o["boss"] or o["state"] in ["give", "wait", "around", "down"] or o.has("witness"):
 			continue
 		var on = o["node"]
 		if not o["seen"] and not _on_screen(on.position) and absf(on.position.x - dm.position.x) > 900.0:
@@ -9820,7 +9845,7 @@ func _send_round(lead: Dictionary, lm) -> void:
 	var far := 0.0
 	var group := 0
 	for o in enemies:
-		if not o["alive"] or o["boss"] or o["state"] not in ["post", "move"] or o["node"].position.y != 0.0:
+		if not o["alive"] or o["boss"] or o["state"] not in ["post", "move"] or o["node"].position.y != 0.0 or o.has("witness"):
 			continue
 		if signf(o["node"].position.x - player.position.x) != side or absf(o["node"].position.x - lm.position.x) > GROUP:
 			continue
@@ -9905,7 +9930,8 @@ func _witness_tick(e: Dictionary, m, delta: float) -> bool:
 	var house: Array = level.get("witness_house", [])
 	if not house.is_empty():
 		if e.get("holed_up", false):   # in his room: the door between them until Frank kicks it in
-			if absf(player.position.y - m.position.y) < 80.0 and player.position.x > float(house[1]) - 900.0 and dx < 900.0:
+			if absf(player.position.y - m.position.y) < 80.0 and player.position.x > float(house[1]) - 900.0 and dx < 900.0 \
+					and not _flat_closed_between(m.position, player.position):
 				_give_up(e)
 				if OS.get_cmdline_user_args().has("--log-sets"): print("WITNESS CORNERED in his room at ", int(m.position.x))
 			else:
@@ -10065,7 +10091,7 @@ func _enemies(delta: float) -> void:
 		var near = _nearest_enemy()
 		if near != null:
 			for o in enemies:
-				if o["node"] == near and o["alive"] and o["seen"] and o["state"] == "post":
+				if o["node"] == near and o["alive"] and o["seen"] and o["state"] == "post" and not o.has("witness"):
 					_taunt_t = _ai_t
 					_bark(near, "taunt")
 	for e in enemies:
@@ -10596,7 +10622,7 @@ func _place_loads() -> void:
 	var n := 0
 	for e in enemies:
 		var m = e["node"]
-		if e["state"] != "post" or e["boss"] or m.position.y != 0.0 or m.position.x < 2600.0 or m.position.x - last < 1600.0:
+		if e["state"] != "post" or e["boss"] or m.position.y != 0.0 or m.position.x < 2600.0 or m.position.x - last < 1600.0 or e.has("witness"):
 			continue
 		if _room_at(m.position.x, m.position.y) != "" or _has_cover(m.position) or n >= 3:
 			continue

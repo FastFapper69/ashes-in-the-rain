@@ -5,6 +5,8 @@ extends RefCounted
 
 const ENTRIES := [
 	["21 NOV 2026", [
+		"Houses in cross-section: a shut door stops a jump too and has to be kicked in; no walking in through a back wall; the window breaks only when you go at it in the air",
+		"Sammy Blue gives up only when you are in his room with him - not from two floors down, not through his shut door",
 		"Checkpoints keep what you did: the men you let go or shot, your XP and the big guns you carried come back with you after a death",
 		"After a death nothing replays: no car of men again, no blackout again, no opening comic again",
 		"A checkpoint at least every few blocks; you come back on the street, not up on a catwalk or a gallery",
