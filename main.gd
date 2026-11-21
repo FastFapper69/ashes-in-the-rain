@@ -179,6 +179,10 @@ static var checkpoint_y := 0.0   # and how high: up on the roof he comes back on
 # scene still ran ~2 s after the travel reset and set its checkpoint again). A checkpoint from another map is dropped.
 static var checkpoint_map := ""
 static var _ground_cp := -1.0   # the last checkpoint down in the street, kept while he is up on the roof
+## (audit 21. 11.) what he had done by the checkpoint: the scene reload after a death would forget it, but the men behind
+## the checkpoint are not put back - so mercy, executions, kills, XP and the big guns he carried come back with him
+static var _cp_keep := {}
+static var _cut_seen := ""     # the before-map comic already played for this map (a death before the first checkpoint: not again)
 # the guns (range = life x BULLET_SPEED 4200: a side gun about one screen, 2600 px; the shotgun two
 # thirds of one, its pellets spreading; 2026-11-16, they used to cross the whole map): seconds between shots, rounds when picked up, pellets per shot, spread (radians), how long a
 # bullet flies, the kick of the arm, the sound
@@ -707,7 +711,17 @@ func _ready() -> void:
 	if _auto_arg() != "" or checkpoint_map != "%d:%d" % [chapter, map]:
 		checkpoint = -1.0
 		checkpoint_y = 0.0
+		_ground_cp = -1.0
+	if checkpoint < 0.0 or String(_cp_keep.get("map", "")) != "%d:%d" % [chapter, map]:
+		_cp_keep = {}
+	if in_menu:
+		_cut_seen = ""
 	checkpoint_map = "%d:%d" % [chapter, map]
+	for arg in OS.get_cmdline_user_args():   # (test) as if he came back from a death at this checkpoint: --cp=x,y
+		if arg.begins_with("--cp="):
+			var v := arg.substr(5).split(",")
+			checkpoint = float(v[0])
+			checkpoint_y = float(v[1]) if v.size() > 1 else 0.0
 	ambient = ch["ambient"]
 	atmo = AtmosphereScript.new()
 	add_child(atmo)
@@ -751,7 +765,8 @@ func _ready() -> void:
 		if player._skirt_mesh:
 			player._skirt_mesh.modulate *= Color(0.34, 0.4, 0.58)
 	if checkpoint > 0.0 and not in_menu:
-		player.position = Vector2(checkpoint, _floor_at(checkpoint, checkpoint_y - 10.0 if checkpoint_y < 0.0 else -2000.0))
+		player.position = Vector2(checkpoint, _floor_at(checkpoint, checkpoint_y - 10.0 if checkpoint_y < 0.0 else -1.0))
+		if OS.get_cmdline_user_args().has("--log-sets"): print("RESPAWN AT ", player.position)
 		cam_start = player.position.x
 	elif level.has("start_xy") and not in_menu:   # (TENEMENTS, 18. 11.: he starts where THE LAUNDRY left him - in the flat upstairs)
 		var sxy: Array = level["start_xy"]
@@ -850,6 +865,13 @@ func _ready() -> void:
 		var n: int = int(Instincts.BIG_START[big])
 		_bag[big] = {"mag": mini(n, _mag_size(big)), "ammo": maxi(0, n - _mag_size(big))}
 		hud.toast("%s IN THE COAT: %d ROUNDS" % [String(WEAPONS[big]["name"]), n])
+	if not in_menu and checkpoint > 0.0 and not _cp_keep.is_empty():
+		stats = (_cp_keep["stats"] as Dictionary).duplicate(true)
+		_xp_run = int(_cp_keep["xp"])
+		var kept: Dictionary = (_cp_keep["bag"] as Dictionary).duplicate(true)
+		kept.erase("revolver")   # the side gun comes back loaded, in his hand
+		for k in kept:
+			_bag[k] = kept[k]
 	if not in_menu:
 		_show_guns()
 	hud.target_at = _man_under
@@ -883,7 +905,9 @@ func _ready() -> void:
 		cam.position = Vector2(_menu_x, CAM_Y)
 	elif checkpoint > 0.0:
 		hud.toast("CHECKPOINT")
-	elif _auto_arg() == "" and CUTS_BEFORE.has("%d:%d" % [chapter, map]) and not MenuScript.is_done(chapter, map):
+	elif _auto_arg() == "" and CUTS_BEFORE.has("%d:%d" % [chapter, map]) and not MenuScript.is_done(chapter, map) \
+			and _cut_seen != "%d:%d" % [chapter, map]:
+		_cut_seen = "%d:%d" % [chapter, map]
 		get_tree().paused = true   # the story first, the street holds still under it
 		_play_cut(CUTS_BEFORE["%d:%d" % [chapter, map]], func() -> void:
 			get_tree().paused = false
@@ -6325,11 +6349,22 @@ func _player_down() -> void:
 				_travel(true)))
 		return
 	get_tree().create_timer(0.6, true, false, true).timeout.connect(hud.banner.bind("LIGHTS OUT"))
-	if checkpoint_y < 0.0 and not roof.is_empty() and player.position.y > float(roof["y"]) + 300.0:
+	if checkpoint_y < 0.0 and not roof.is_empty() and absf(checkpoint_y - float(roof["y"])) < 1.0 and player.position.y > float(roof["y"]) + 300.0:
 		checkpoint = _ground_cp   # he went back down and died below: he comes back below, not up on the roof
 		checkpoint_y = 0.0
 	if _auto == "":
 		get_tree().create_timer(2.0, true, false, true).timeout.connect(_restart)
+
+
+## (audit 21. 11.) A checkpoint: where he comes back, and what he had done by then (see _cp_keep).
+func _take_checkpoint(x: float, y: float, toast := true) -> void:
+	checkpoint = x
+	checkpoint_y = y
+	var bag := _bag.duplicate(true)
+	bag[weapon] = {"mag": mag, "ammo": ammo}
+	_cp_keep = {"map": "%d:%d" % [chapter, map], "stats": stats.duplicate(true), "xp": _xp_run, "bag": bag}
+	if toast:
+		hud.toast("CHECKPOINT")
 
 
 ## A dive, a roll, a slide, or running in slowed time leaves a short string of ink silhouettes of
@@ -6494,16 +6529,11 @@ func _map_events(delta: float) -> void:
 			if player.position.x < float(cx) and (checkpoint_y >= 0.0 or float(cx) < checkpoint):
 				if checkpoint_y >= 0.0:
 					_ground_cp = checkpoint   # where he would come back if he ends up down in the street again
-				checkpoint = float(cx)
-				checkpoint_y = float(roof["y"])
-				if not _win_landing:   # (not over a stunt in mid air: Gemini review 17. 11.)
-					hud.toast("CHECKPOINT")
+				_take_checkpoint(float(cx), float(roof["y"]), not _win_landing)   # (no toast over a stunt in mid air: Gemini review 17. 11.)
 	var cps: Array = level["checkpoints"]
 	while _check_i < cps.size() and player.position.x > float(cps[_check_i]) and checkpoint_y >= 0.0:
 		if float(cps[_check_i]) > checkpoint and not over and checkpoint_y >= 0.0:
-			checkpoint = float(cps[_check_i])
-			if not _win_landing:   # (not over a stunt in mid air)
-				hud.toast("CHECKPOINT")
+			_take_checkpoint(float(cps[_check_i]), 0.0, not _win_landing)   # (no toast over a stunt in mid air)
 		_check_i += 1
 	var hints: Array = level["hints"]
 	while _hint_i < hints.size() and player.position.x > float(hints[_hint_i][0]):
@@ -7586,12 +7616,23 @@ func _tick_sections(real: float) -> void:
 	_steps_above = maxf(0.0, _steps_above - real)
 	if inside < 0 or over:
 		return
-	for c in _xy_checks:   # a checkpoint on each storey, where he comes up the stairs
-		if absf(player.position.y - float(c[1])) < 60.0 and absf(player.position.x - float(c[0])) < 160.0 \
-				and (absf(float(c[0]) - checkpoint) > 1.0 or absf(float(c[1]) - checkpoint_y) > 1.0) and move_state == "ground":
-			checkpoint = float(c[0])
-			checkpoint_y = float(c[1])
-			hud.toast("CHECKPOINT")
+	var held := _xy_index(checkpoint, checkpoint_y)   # (audit 21. 11.) only ever on up: going back down takes none
+	for ci in _xy_checks.size():   # a checkpoint on each storey, where he comes up the stairs
+		var c: Array = _xy_checks[ci]
+		if ci > held and absf(player.position.y - float(c[1])) < 60.0 and absf(player.position.x - float(c[0])) < 160.0 \
+				and move_state == "ground":
+			if checkpoint_y >= 0.0:
+				_ground_cp = checkpoint
+			_take_checkpoint(float(c[0]), float(c[1]))
+
+
+## The storey checkpoint he holds (its index in xy_checks), or -1 for none.
+func _xy_index(x: float, y: float) -> int:
+	var xs: Array = level.get("xy_checks", [])
+	for i in xs.size():
+		if absf(float(xs[i][0]) - x) < 1.0 and absf(float(xs[i][1]) - y) < 1.0:
+			return i
+	return -1
 
 
 ## The way on along the storey he is on: the ground floor and the second go right, the first left.
@@ -7746,7 +7787,21 @@ func _build_level() -> void:
 	for spec in _cast(level["enemies"]):
 		var goal := Vector2(float(spec["x"]), float(spec["y"]))
 		var runner: bool = spec["run"]
-		if checkpoint_y < 0.0 and checkpoint > 0.0:   # back on the roof: all below him, and those he passed up here, are done with
+		if checkpoint_y < 0.0 and checkpoint > 0.0 and _xy_index(checkpoint, checkpoint_y) >= 0:   # (audit 21. 11.) a storey of a house
+			var house := []
+			for s in level.get("sections", []):
+				if checkpoint >= float(s[0]) and checkpoint <= float(s[1]):
+					house = s
+			var way := 1.0 if roundi(-checkpoint_y / section_h) % 2 == 0 else -1.0   # as _section_dir
+			if house.is_empty() or goal.x < float(house[0]):
+				if goal.x < checkpoint + 300.0 and (not runner or float(spec["trig"]) < checkpoint):
+					continue   # the street before the house
+			elif goal.x <= float(house[1]):
+				if goal.y > checkpoint_y + 100.0:
+					continue   # the storeys below him
+				if absf(goal.y - checkpoint_y) < 100.0 and (goal.x - checkpoint) * way < 300.0:
+					continue   # behind him on his storey
+		elif checkpoint_y < 0.0 and checkpoint > 0.0:   # back on the roof: all below him, and those he passed up here, are done with
 			if goal.y > checkpoint_y + 100.0 or (goal.x > checkpoint - 300.0 and not runner):
 				continue
 		elif checkpoint > 0.0 and goal.x < checkpoint + 300.0 and (not runner or float(spec["trig"]) < checkpoint):
@@ -9805,7 +9860,11 @@ func _add_witness() -> void:
 		return
 	var w: Array = WITNESS[key]
 	var x: float = maxf(level_end * float(w[1]), checkpoint + 1500.0)
-	if x > level_end - 700.0:
+	var house: Array = level.get("witness_house", [])
+	var holed := not house.is_empty() and (x >= float(house[0]) - 40.0 or checkpoint_y < 0.0)   # (audit 21. 11.)
+	if holed:
+		x = float(house[1])
+	elif x > level_end - 700.0:
 		return
 	var e := _add_enemy(Vector2(x, 0.0), "post", "post", x)
 	e["witness"] = true
@@ -9815,7 +9874,7 @@ func _add_witness() -> void:
 	m.disarmed = true   # no gun on him: he only knows things
 	if m._gun != null:
 		m._gun.visible = false
-	if OS.get_cmdline_user_args().has("--witness-holed") and level.has("witness_house"):   # (test: already up in his room)
+	if holed or OS.get_cmdline_user_args().has("--witness-holed") and level.has("witness_house"):   # (test: already up in his room)
 		e["holed_up"] = true
 		m.position = Vector2(float(level["witness_house"][1]), float(level["witness_house"][2]))
 	if OS.get_cmdline_user_args().has("--log-sets"): print("WITNESS ", w[0], " at ", int(x))

@@ -61,6 +61,12 @@ func setup(main) -> void:
 		var end: float = float(game.level["end"])
 		for k in 11:
 			_events.append({"kind": "knock", "trig": end * (0.06 + 0.86 * k / 10.0), "n": k, "done": false})
+	if game.checkpoint > 0.0:   # (audit 21. 11.) back from a death: what happened before the checkpoint does not happen again
+		for ev in _events:
+			if float(ev["trig"]) < game.checkpoint:
+				ev["done"] = true
+				if ev["kind"] == "loop":
+					_loops += 1
 	_speed = float(game.level.get("moving", 0.0))
 	if _speed > 0.0:
 		_make_moving.call_deferred()   # after main.gd has made its camera

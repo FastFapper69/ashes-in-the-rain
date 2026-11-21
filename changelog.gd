@@ -5,6 +5,10 @@ extends RefCounted
 
 const ENTRIES := [
 	["21 NOV 2026", [
+		"Checkpoints keep what you did: the men you let go or shot, your XP and the big guns you carried come back with you after a death",
+		"After a death nothing replays: no car of men again, no blackout again, no opening comic again",
+		"A checkpoint at least every few blocks; you come back on the street, not up on a catwalk or a gallery",
+		"Back Streets: die in the rooming house and Sammy Blue is still up in his room; the men ahead of you upstairs are still there",
 		"The gunsmith shows the big guns as they are: the shotgun's long tube, the tommy gun's drum and compensator, in every view",
 		"The last train: open couplings between some cars - run and jump them, or you go down between the cars",
 		"The red warning on the last train is a real signal on the tunnel wall now, its red lamp flashing before a girder",

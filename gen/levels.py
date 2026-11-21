@@ -918,6 +918,18 @@ def _build(mp, nudge):
         else:   # nothing to climb: it lies where the fight is thickest, halfway along
             out.pickups.append(["page", out.end * 0.55, 0.0])
     out.checks = sorted(set(round(c) for c in out.checks if 800 < c < out.end - 500))
+    # (audit 21. 11.) none behind where he starts or behind a bulkhead he cannot go back through (CARGO HOLD), and two
+    # either side of one door are one checkpoint (the second toast a step later said nothing)
+    floor_x = max([getattr(out, "sealed", None) or 0.0] + ([out.start_xy[0]] if getattr(out, "start_xy", None) else []))
+    kept = []
+    for c in out.checks:
+        if c <= floor_x + 200:
+            continue
+        if kept and c - kept[-1] < 800:
+            continue
+        kept.append(c)
+    out.checks = kept
+    fill_checks(out, floor_x)
     door_clear(out)
     out.street = street(mp, out, rng)
     door_into(out, mp)
@@ -1272,6 +1284,36 @@ def _main_consts(A):
 
 
 DOOR_CLEAR = 700.0   # (research ch15: a change of scene only when no fight is on) nobody waits in the street this close to an interior's door
+CHECK_GAP = 6000.0   # (audit 21. 11.) the longest way between two checkpoints (it was over 10 000 px on BACK STREETS)
+
+
+def fill_checks(m, x_from):
+    """A checkpoint at least every CHECK_GAP px: in each longer gap, the spot nearest its middle that is out on the open
+    street - not by a crate, not under a deck, a stair or a roof, not in a room or a house, no man within 600 px."""
+    def free(x):
+        if any(b[1] - 250 < x < b[1] + 500 for b in m.boxes):
+            return False
+        if any(-2000 < p[1] < 0 and p[0] - 150 < x < p[0] + p[2] + 150 for p in m.plats):
+            return False
+        if any(min(r[0], r[2]) - 150 < x < max(r[0], r[2]) + 150 for r in m.ramps):
+            return False
+        if any(r[0] - 300 < x < r[1] + 300 for r in m.rooms) or any(s[0] - 300 < x < s[1] + 300 for s in m.sections):
+            return False
+        return not any(e["y"] == 0.0 and abs(e["x"] - x) < 600 for e in m.enemies)
+    pts = [max(x_from, 0.0)] + list(m.checks) + [m.end - 500]
+    added = []
+    for a, b in zip(pts, pts[1:]):
+        n = int((b - a) // CHECK_GAP)
+        for k in range(1, n + 1):
+            mid = a + (b - a) * k / (n + 1)
+            for d in range(0, 2400, 100):
+                hit = next((x for x in (mid - d, mid + d) if a + 800 < x < b - 800 and free(x)), None)
+                if hit is not None:
+                    added.append(round(hit))
+                    break
+    m.checks = sorted(m.checks + added)
+
+
 def door_clear(m):
     """No fight across the dip through black at an interior's door: a man standing in the street within DOOR_CLEAR of
     a door steps back along the street, away from it (he still covers the way there)."""
