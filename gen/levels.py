@@ -42,21 +42,22 @@ ONE_MAP = {p for d in DISTRICT.values() for p in d} - set(FILLERS) | {"hk_tailor
 # (audit 18. 11.: the Margarethe opened four maps, SAILORS REST and NORTH RIVER COLD STORAGE in three) each dock map its
 # own stretch of the waterfront; the plain sheds are the fillers. Same identity checks on DOCKS_POOL stay (pool=).
 DOCK_DISTRICT = {"PIER 17": ["pier17_b", "sheds", "quay_b", "sheds_b"],
-                 "THE CRANES": ["sheds_b", "shipping", "sheds", "pier17_b"],
-                  "SANTA LUCIA": ["shipping_b", "sheds_b", "cranes", "sheds"],
+                 "THE CRANES": ["sheds_b", "sheds_c", "sheds", "pier17_b"],   # (21. 11.: Vail Shipping burns in PIER 17 - not here again)
+                 "SANTA LUCIA": ["deck_a", "deck_b"],   # (QUEUE §18, 21. 11.) aboard: the deck from the bow aft (deck_c, the midship house, at the end)
                  "CARGO HOLD": ["sheds", "quay", "sheds_b", "pier17_b"],
                  "HARBOR MASTER": ["pier17_b", "quay_b", "sheds"],
                  # chapter III the same (audit 18. 11.: THE CATACOMBS looked like THE TUNNELS): each line its own stations
                  "14TH STREET": ["signal", "walkway", "arches"],
                  "THE TUNNELS": ["tunnel_lo_b", "signal_b"],
                  "THE CATACOMBS": ["walkway_b", "arches_b", "signal"]}
-DISTRICT_PLAIN = {"14TH STREET": ["signal", "walkway", "arches"], "THE TUNNELS": ["tunnel_lo_b", "signal_b", "tunnel_lo"],
+DISTRICT_PLAIN = {"SANTA LUCIA": ["deck_b", "deck_a"], "14TH STREET": ["signal", "walkway", "arches"], "THE TUNNELS": ["tunnel_lo_b", "signal_b", "tunnel_lo"],
                   "THE CATACOMBS": ["walkway_b", "arches_b", "bowery"]}
 DOCKS_POOL = ["pier17", "cranes", "shipping", "quay", "sheds", "pier17_b", "shipping_b", "quay_b", "sheds_b"]   # (the harbor with its lighthouse: only the Harbor Master's own)
 # variants (2026-11-15): the same kit redrawn with other details over the same floor, rails, edges and lamps,
 # so a map does not show one drawing again and again; everything about them but the picture is the kit's
 KIT = {"walkway_b": "walkway", "signal_b": "signal", "arches_b": "arches", "tunnel_lo_b": "tunnel_lo",
        "yard_b": "yard", "tunnel_b": "tunnel", "sheds_b": "sheds", "sheds_c": "sheds", "sheds_d": "sheds", "pier17_b": "pier17", "shipping_b": "shipping", "quay_b": "quay",
+       "deck_a": "sheds", "deck_b": "sheds", "deck_c": "sheds",   # (QUEUE §18, 21. 11.) the Santa Lucia's deck, drawn to the sheds' frame
        "laundry_b": "laundry", "alley_b": "alley", "alley_fire": "alley", "warehouse_b": "warehouse", "warehouse_c": "warehouse", "church_b": "church", "subway_b": "subway", "market_b": "market", "market_c": "market", "yard_c": "yard", "tunnel_c": "tunnel",
        # the dream's rooms gone wrong (gen/process_dream.py): the burning warehouse's own cut and floor
        "fire_d": "fire_a", "fire_e": "fire_b", "fire_f": "fire_c", "fire_g": "fire_a"}
@@ -168,6 +169,9 @@ class Chunk:
         self.hoists = []       # where a swing rope is wanted from a warehouse hoist (hoist_ropes)
         self.kits = []         # (x, piece): a street-kit drawing wanted with its things at x (kit_pieces)
         self.things = []       # [kind, x]: a free-standing thing to shoot (props.gd place: windlass...), its foot on the street
+        self.break_in = 3.5    # (with start_xy) the men on the stairs kick the flat's door in after this long; None: no one
+        self.sealed = None     # a drawn wall he may not pass going left (the hold's bulkhead), from the chunk's start
+        self.end_at = None     # the map ends here (a way out drawn in a room: the passage's ladder)
         self.flats = []        # a flat to kick into and jump out of: [door x, storey y, door h, window x0, x1, sill, lintel]
 
     def thing(self, kind, x): self.things.append([kind, x]); return self
@@ -239,18 +243,27 @@ def laundry_x(part, px):
     """World x (from the hall's left end) of picture px in part `part` of the big laundry."""
     off = sum(b - a for _, a, b in LAUNDRY_PARTS[:part])
     return round((off + px - LAUNDRY_PARTS[part][1]) * 0.8523, 1)   # (= main.gd ROOM_SCALES: the industrial laundry hall, art_src 275, shown at full size)
+# Below decks on the Santa Lucia (QUEUE §18, 21. 11.): the hold (art_src 47, to its after frame), the engine room (338) and
+# the tween-deck passage (337), each new part with a riveted pillar down both edges = main.gd ROOM_PARTS["hold"]
+BELOW_PARTS = [("hold", 0, 3088), ("engine", 0, 3168), ("tween", 0, 3168)]
+BELOW_W = sum(b - a for _, a, b in BELOW_PARTS) * ROOM_SCALE
+def below_x(part, px):
+    off = sum(b - a for _, a, b in BELOW_PARTS[:part])
+    return round((off + px - BELOW_PARTS[part][1]) * ROOM_SCALE, 1)
 ROOM_CLEAR = {"yard": [(1460, 1720)],   # the tenement's back door
               "laundry": [(0, 300), (2820, 3168)],   # the hall's street doorway, the iron column at its far end   # the EXIT door, the doorway to the back
               "warehouse": [(1750, 2395)],                # the loading bay with the truck
               "club": [(90, 1317), (1380, 1810)],         # the bar counter (BAR_PX), the arch to the back (art_src 245)
               "hold": [(1670, 1925)],                     # the ladder up to the hatch
               "office": [(90, 230)],                      # the door
+              "purser": [(40, 440)],                      # the bulkhead door he comes in by
+              "vail": [],
               "cityhall": [(1230, 1830)],                 # the two tunnel mouths
               "catacombs": [(2230, 2960)],                # the stage under the arch
               "tenement": [(970, 1370), (1770, 2210)]}    # the open door of 3B, the stairs
 ROOM_KINDS = {"yard": ["crate", "drum", "dumpster", "crate_long"], "laundry": ["machine", "crate", "crate_long", "drum"], "warehouse": ["crate", "crate_long", "barrel", "drum"],
               "club": ["crate", "crate_long"], "hold": ["crate", "crate_long", "drum", "barrel"],
-              "office": ["crate_long", "machine", "crate"], "cityhall": ["crate", "machine", "crate_long"],
+              "office": ["crate_long", "machine", "crate"], "purser": ["crate_long", "crate", "drum"], "vail": ["crate", "crate_long", "drum"], "cityhall": ["crate", "machine", "crate_long"],
               "catacombs": ["crate", "crate_long"], "tenement": ["crate", "crate_long"]}
 BIG = ("machine",)
 
@@ -513,6 +526,35 @@ def chunk(name, hard, rng=None):
         c = Chunk(2700).room(0, 2700, "hold").lamp(500).lamp(1400).lamp(2250)
         furnish(c, "hold", rng, ["post", "shotgun", "post", "tommy" if hard > 0.5 else "post"], flask=True)
         c.hint(600, "ELEVEN CRATES. 'MACHINE PARTS'. THEY REEK OF KEROSENE.")
+    elif name == "purser":   # (QUEUE §18, 21. 11.) SANTA LUCIA's end: the purser's office in the midship house, where Kessler
+        # keeps the ledgers - in through the house's steel door on deck (door_into deck_c), the map ends at its far wall
+        c = Chunk(2700).room(0, 2700, "purser")
+        furnish(c, "purser", rng, ["post", "shotgun" if hard > 0.5 else "post", "post"], flask=True)
+        c.hint(1500, "KESSLER'S LEDGERS. ONE PAGE IS GONE.")
+    elif name == "vail_fire":   # (QUEUE §18, 21. 11.) PIER 17's end: Vail Shipping, set alight minutes ago - in through its door
+        # (door_into shipping) after what is burning: the files. The fire does the rest (a strip of floor alight, a beam)
+        c = Chunk(2900).room(0, 2900, "vail")
+        furnish(c, "vail", rng, ["post", "shotgun", "tommy" if hard > 0.5 else "post", "post"], flask=False)
+        c.event("blaze", 2250, 260).event("beam", 1500)   # (deep inside: never seen burning out on the street from the door)
+        c.hint(500, "THEY'RE BURNING VAIL'S FILES.")
+    elif name == "below":   # (QUEUE §18, 21. 11.) CARGO HOLD: below decks on the Santa Lucia, one long hall (main.gd ROOM_PARTS
+        # "hold"): down the hatch into the hold where the 1939 crates are, aft through the engine room and the tween-deck
+        # passage to its ladder up and out. He starts at the foot of the hold's ladder (the comic before shows him going down)
+        bx = below_x
+        c = Chunk(BELOW_W).room(0, BELOW_W, "hold")
+        c.start_xy = [bx(0, 1800), 0.0]
+        c.break_in = None
+        c.sealed = 60.0   # the hold's forward bulkhead: no way back but up the ladder
+        c.end_at = bx(2, 1700)   # the passage's ladder up to the deck
+        for kind, x in (("crate", bx(0, 620)), ("crate_long", bx(0, 2420)), ("crate", bx(1, 2350)), ("crate_long", bx(2, 700)), ("drum", bx(2, 2400))):
+            c.box(kind, x)
+        tough = "tommy" if hard > 0.5 else "post"
+        c.foe(bx(0, 2780)).foe(bx(0, 3000), kind="shotgun")                                     # the hold, by the crates
+        c.foe(bx(1, 700), kind="shotgun").foe(bx(1, 1500)).foe(bx(1, 2100)).foe(bx(1, 2750), kind=tough)   # the engine room
+        c.foe(bx(2, 450)).foe(bx(2, 1250), kind="shotgun" if hard > 0.5 else "post").foe(bx(2, 2150))   # the passage (the last
+        c.runner(bx(2, 1500), bx(1, 2600), bx(2, 2700), kind=tough, delay=1.0)                    # one past the ladder, in reach)
+        c.hint(bx(0, 1950), "ELEVEN CRATES. 'MACHINE PARTS'. THEY REEK OF KEROSENE.")
+        c.checks += [bx(1, 300), bx(2, 300)]
     elif name == "office":   # the harbor master's: filing cabinets and a counter for cover
         c = Chunk(2400).room(0, 2400, "office").lamp(600).lamp(1700)
         furnish(c, "office", rng, ["post", "shotgun", "post"], flask=True)
@@ -761,7 +803,7 @@ def _build(mp, nudge):
     x = 1900.0   # the first of them out of sight of the start
     out = Chunk(0)
     picks = mp.get("pre", []) + (graph_chunks(mp["graph"]) if mp.get("graph") else list(mp["fixed"]))
-    ROOMY = ("yard", "laundry", "warehouse_arena", "tenement", "club", "hold", "office", "cityhall", "catacombs", "section")
+    ROOMY = ("yard", "laundry", "warehouse_arena", "tenement", "club", "hold", "office", "cityhall", "catacombs", "section", "purser", "vail_fire", "below")
     for a, b in zip(picks, picks[1:]):   # (chapter I and the lab: the docks and the underground get their fronts later)
         if a in ROOMY and b in ROOMY and mp.get("pool") not in (DOCKS_POOL, UNDER_POOL):
             raise ValueError(f"{mp['name']}: {a} -> {b} with no street between")
@@ -785,7 +827,9 @@ def _build(mp, nudge):
         for rp_ in c.ramps: out.ramps.append([x + rp_[0], rp_[1], x + rp_[2], rp_[3]] + list(rp_[4:]))
         for a, b, st in c.rooms: out.rooms.append([x + a, x + b, st])
         for a, b, n, st in c.sections: out.sections.append([x + a, x + b, n, st])
-        if getattr(c, "start_xy", None): out.start_xy = [x + c.start_xy[0], c.start_xy[1]]
+        if getattr(c, "start_xy", None): out.start_xy = [x + c.start_xy[0], c.start_xy[1]]; out.break_in = c.break_in
+        if c.sealed is not None: out.sealed = x + c.sealed
+        if c.end_at is not None: out.end_at = x + c.end_at
         if getattr(c, "wash_from", None): out.wash_from = [x + c.wash_from[0], c.wash_from[1]]
         for cx, cy in c.xy_checks: out.xy_checks.append([x + cx, cy])
         for sx, sy, ty in c.stairdoors: out.stairdoors.append([x + sx, sy, ty])
@@ -873,6 +917,7 @@ def _build(mp, nudge):
     out.checks = sorted(set(round(c) for c in out.checks if 800 < c < out.end - 500))
     door_clear(out)
     out.street = street(mp, out, rng)
+    door_into(out, mp)
     wash_line(out)
     if not mp.get("plain"):
         for g in out.street:
@@ -1484,6 +1529,51 @@ def wash_line(m):
     m.ropes.append(["wash", fx, fy, best[0], best[1], fy + 95.0])
 
 
+# The door into a room at a map's end (QUEUE §18, 21. 11., rule 25): the drawing whose painted door he goes in by is laid over
+# the street so that door stands at the room's left end (the cut through black happens on it). [piece, door px, room style]
+TRIM_L = {"shipping": 132.0, "sheds": 112.0}   # = main.gd SEGMENT_TRIM: the frame main.gd takes off a dock drawing's left
+def door_into(m, mp):
+    """The door drawing takes the place of a whole street drawing (no cut through the middle of one: the decks join only
+    at their edges), and the room with all in it moves on to stand behind its door."""
+    d = mp.get("door_into")
+    if not d:
+        return
+    piece, door_px, style = d
+    r = next(r for r in m.rooms if r[2] == style)
+    kit = KIT.get(piece, piece)
+    trim, wpic = TRIM_L.get(kit, 0.0), SEGMENTS[kit]
+    door = (door_px - trim) * wpic / (wpic - trim) * 1.9 * SEG_SIZE.get(kit, 1.0)   # the door from the drawing's left
+    fx = r[0] - door
+    i = next(i for i, g in enumerate(m.street) if g[1] >= fx - 1.0)   # the first drawing that starts at or past it
+    delta = m.street[i][1] - fx
+    x0 = r[0] - 1.0
+    for o in m.boxes + m.pickups:
+        if o[1] >= x0: o[1] += delta
+    for o in m.hints + m.lamps + m.plats:
+        if o[0] >= x0: o[0] += delta
+    for o in m.events:
+        if len(o) > 1 and isinstance(o[1], (int, float)) and o[1] >= x0: o[1] += delta
+    for e in m.enemies:
+        if e["x"] >= x0:
+            e["x"] += delta
+            if e["trig"] is not None: e["trig"] += delta
+            if e["from"] is not None: e["from"] += delta
+    m.checks = [c + delta if c >= x0 - 100 else c for c in m.checks]
+    for rr in m.rooms:
+        if rr[0] >= x0: rr[0] += delta; rr[1] += delta
+    if m.end >= x0: m.end += delta
+    grow = seg_w(piece) - seg_w(m.street[i][0])
+    m.street[i] = [piece, m.street[i][1]]
+    for g in m.street[i + 1:]:
+        g[1] += grow
+
+
+def room_end(out, x):
+    """A map that ends inside its last room (PIER 17, SANTA LUCIA, CARGO HOLD): at its far wall, or where a chunk drew the
+    way out (end_at)."""
+    out.end = getattr(out, "end_at", None) or out.rooms[-1][1] - 380.0
+
+
 def refuge(out, x):
     """THE LAUNDRY's end (user 18. 11., rule 30: "a comic, a pile of them turns up, I have to run - into a house, up to
     the first floor, a comic, the end of the map"): a comic page as the street fills (event "comic" horde), men running
@@ -1648,8 +1738,10 @@ CAMPAIGN = [
   ]},
   {"title": "CHAPTER II", "name": "THE DOCKS", "ready": True, "hero": "frank", "ambient": [0.16, 0.18, 0.25], "rain": 1.5, "maps": [
     {"name": "PIER 17", "seed": 201, "feature": "pier17", "pool": DOCKS_POOL, "fog": True, "start": 0.45, "end": 0.7, "ash": 1.0, "embers": 0.6,
-     "fixed": ["dock_crates", "crane_swing", "car_ambush", "breather", "barrel_trap", "searchlight_yard", "pistols_cache", "gauntlet"],
+     "fixed": ["dock_crates", "crane_swing", "car_ambush", "breather", "barrel_trap", "searchlight_yard", "pistols_cache", "gauntlet", "vail_fire"],
      "events": [["burn", "shipping"]],
+     # (QUEUE §18, 21. 11., rule 30) the fresh fire is Vail Shipping's: he goes in through its door after the files they are burning
+     "door_into": ["shipping", 564.0, "vail"], "extra": room_end,
      "intro": ["Pier 17. Eight years cold, and it still smelled of smoke.", "Somebody had lit a fresh fire to keep it company."],
      "diary": "Nov 24. Went down to Pier 17 at night. You can still see where the doors were chained. Nobody chains a door to keep a fire in by accident.",
      "outro": ["Vail Shipping burned like a confession nobody would ever read. Cornelius Vail owned it. The papers called him the Saint.", "Kessler's men fell back to the cranes."]},
@@ -1658,13 +1750,19 @@ CAMPAIGN = [
      "intro": ["The cranes stood over the yard with their heads bowed, like men at a wake."],
      "diary": "Nov 29. A crane man named Sully told me Kessler had the keys that night. Sully drinks. Sully also cried when he said it.",
      "outro": ["A dock rat with a broken arm told me the rest for a dollar.", "The Santa Lucia. Kessler kept his ledgers aboard."]},
-    {"name": "SANTA LUCIA", "seed": 203, "rock": True, "feature": "quay", "pool": DOCKS_POOL, "start": 0.55, "end": 0.8, "ash": 0.7, "embers": 0.2,
-     "fixed": ["dock_crates", "crane_swing", "catwalk", "hold", "breather", "blackout", "gauntlet"],
+    # (QUEUE §18, 21. 11., rule 30) all of it aboard (the panel before shows him at the gangway, them on deck): the deck from
+    # the bow aft to the midship house, in at its steel door to the purser's office where the ledgers are; the hold below
+    # is CARGO HOLD's
+    {"name": "SANTA LUCIA", "seed": 203, "rock": True, "feature": "deck_a", "pool": ["deck_a", "deck_b"], "start": 0.55, "end": 0.8, "ash": 0.7, "embers": 0.2,
+     "fixed": ["dock_crates", "breather", "gauntlet", "blackout", "rush", "drum_duo", "purser"],
+     "door_into": ["deck_c", 2395.0, "purser"], "extra": room_end,
      "intro": ["The Santa Lucia. Registered in Panama, owned in Manhattan, prayed for on Sundays."],
      "diary": "Dec 2. The Santa Lucia sails under the Saint's flag. Its manifest for August '39 lists eleven crates of 'machine parts'. Eleven.",
      "outro": ["The ledger had a page torn out. The stub said August 1939."]},
-    {"name": "CARGO HOLD", "seed": 204, "rock": True, "feature": "shipping", "pool": DOCKS_POOL, "start": 0.6, "end": 0.85, "ash": 0.8, "embers": 0.3,
-     "fixed": ["crane_swing", "dock_crates", "warehouse_arena", "searchlight_yard", "hold_crates"],   # (QUEUE §18: one hold, the one with the 1939 cargo - SANTA LUCIA's is its own)
+    # (QUEUE §18, 21. 11.) all of it below decks (the panel before shows him going down the hatch): the hold with the 1939
+    # crates, the engine room, the passage aft to its ladder up - one hall (chunk "below", main.gd ROOM_PARTS "hold")
+    {"name": "CARGO HOLD", "seed": 204, "rock": True, "feature": "sheds", "pool": DOCKS_POOL, "start": 0.6, "end": 0.85, "ash": 0.8, "embers": 0.3,
+     "fixed": ["below"], "extra": room_end,
      "intro": ["The stub said August 1939. Whatever went aboard that month never came off.", "Kessler's men were already down in the hold, and they hadn't come to unload."],
      "diary": "Dec 5. Frank asked me why I keep at this. I said a reporter's job is to write down what everybody already knows. He didn't laugh.",
      "outro": ["Eleven crates of machine parts that never left the hold. Every one of them stank of kerosene.", "Kessler ran for the harbor office. Men like him always run toward their paperwork."]},
@@ -1774,7 +1872,8 @@ def gd(campaign):
             if lv.get("cops"): out.append('\t\t\t"cops": true,')
             if getattr(m, "exit", None): out.append(f'\t\t\t"exit": {f(m.exit)},')
             if getattr(m, "goal", None): out.append(f'\t\t\t"goal": [{f(m.goal[0])}, {f(m.goal[1])}],')
-            if getattr(m, "start_xy", None): out.append(f'\t\t\t"start_xy": [{f(m.start_xy[0])}, {f(m.start_xy[1])}], "break_in": 3.5,')
+            if getattr(m, "start_xy", None): out.append(f'\t\t\t"start_xy": [{f(m.start_xy[0])}, {f(m.start_xy[1])}],' + (f' "break_in": {m.break_in},' if m.break_in is not None else ''))
+            if getattr(m, "sealed", None) is not None: out.append(f'\t\t\t"sealed": {f(m.sealed)},')
             if m.roof:
                 rp_ = ", ".join(f'["{g[0]}", {f(g[1])}]' for g in m.roof[2])
                 out.append(f'\t\t\t"roof": {{"x0": {f(m.roof[0])}, "x1": {f(m.roof[1])}, "y": {f(m.kit["y"])}, "goal": {f(m.roof[3])}, '

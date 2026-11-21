@@ -241,6 +241,8 @@ const ROOM_BULBS := {   # [x, y, colour, size]: measured on each painting at the
 	"club": [[0.536, 0.173, "spot", "big"], [0.461, 0.66, "warm", "small"], [0.528, 0.589, "warm", "small"], [0.591, 0.614, "warm", "small"], [0.609, 0.662, "warm", "small"]],
 	"hold": [[0.511, 0.325, "warm", "big"]],
 	"office": [[0.541, 0.54, "green", "small"]],
+	"purser": [[0.617, 0.47, "green", "small"]],   # (QUEUE §18, 21. 11.) the Santa Lucia's purser's desk lamp
+	"vail": [[0.675, 0.63, "candle", "big"], [0.755, 0.34, "candle", "big"]],   # Vail Shipping's files on fire, the burning post
 	"cityhall": [[0.801, 0.308, "warm", "big"], [0.5, 0.12, "sky", "big"]],
 	"catacombs": [[0.392, 0.325, "warm", "small"], [0.412, 0.379, "warm", "small"], [0.587, 0.382, "warm", "small"], [0.604, 0.337, "warm", "small"],
 			[0.07, 0.53, "candle", "small"], [0.25, 0.53, "candle", "small"]],
@@ -1360,6 +1362,7 @@ const SEGMENT_GAIN := {"front_club_l": 1.3, "front_club_mid": 1.3, "front_club_r
 # variants of a kit (gen/levels.py KIT, art_src 164-168): their own picture, the kit's everything else
 const SEGMENT_KIT := {"walkway_b": "walkway", "signal_b": "signal", "arches_b": "arches", "tunnel_lo_b": "tunnel_lo",
 	"yard_b": "yard", "tunnel_b": "tunnel", "sheds_b": "sheds", "sheds_c": "sheds", "sheds_d": "sheds", "pier17_b": "pier17", "shipping_b": "shipping", "quay_b": "quay",
+	"deck_a": "sheds", "deck_b": "sheds", "deck_c": "sheds",   # (QUEUE §18, 21. 11.) the Santa Lucia's deck
 	"laundry_b": "laundry", "alley_b": "alley", "alley_fire": "alley", "warehouse_b": "warehouse", "warehouse_c": "warehouse", "church_b": "church", "subway_b": "subway", "market_b": "market", "market_c": "market", "yard_c": "yard", "tunnel_c": "tunnel",
 	"fire_d": "fire_a", "fire_e": "fire_b", "fire_f": "fire_c", "fire_g": "fire_a"}
 const SEGMENT_SIZE := {"alley_mouth": 0.8, "market_row": 0.8, "church_row": 0.8, "subway_entrance": 0.8, "warehouse_row": 0.8, "bluenote_row": 0.8, "row_house": 0.8, "front_yard": 0.8, "apartment": 0.8, "factory": 0.8, "pawn_house": 0.8, "diner_house": 0.8, "alley_wash": 0.8, "stable_row": 0.8, "rear_walkup": 0.8, "el_garage": 0.8, "rooming_house": 0.8, "boiler_works": 0.8, "machine_shop": 0.8, "brownstones": 0.8, "bay_tenement": 0.8, "hotel_front": 0.8, "dance_hall": 0.8, "front_club_l": 0.8, "front_club_mid": 0.8, "front_club_r": 0.8, "front_laundry": 0.8, "front_laundry_l": 0.8, "front_laundry_mid": 0.8, "front_laundry_r": 0.8, "front_warehouse": 0.8, "front_club": 0.8, "front_tenement": 0.8, "hk_tailor": 0.8, "hk_grocery": 0.8, "hk_saloon": 0.8, "hk_laundry": 0.8, "deadend": 0.8, "tenrow_a": 0.675, "tenrow_b": 0.675, "tenrow_c": 0.675, "tenrow_d": 0.675, "station14": 0.52, "walkway": 0.52, "bowery": 0.52, "tunnel_lo": 0.52,
@@ -1389,9 +1392,13 @@ const ROOM_VENTS := {"laundry": [Vector2(0.328, 0.235), Vector2(0.436, 0.455), V
 const ROOM_PARTS := {"laundry": [["laundry", 0.0, 2880.0, ""], ["laundry_mid", 40.0, 3100.0, "laundry_mid_catwalk"],
 	["laundry_end", 790.0, 3168.0, "laundry_end_catwalk"]],
 	# the big Blue Note (user 18. 11.): the bar room and its stairs, the dance hall's gallery, the stage (= gen/levels.py CLUB_PARTS)
-	"club": [["club_bar", 0.0, 3050.0, "club_bar_gallery"], ["club_hall", 0.0, 3168.0, "club_hall_gallery"], ["club", 1765.0, 3168.0, ""]]}
+	"club": [["club_bar", 0.0, 3050.0, "club_bar_gallery"], ["club_hall", 0.0, 3168.0, "club_hall_gallery"], ["club", 1765.0, 3168.0, ""]],
+	# below decks on the Santa Lucia (QUEUE §18, 21. 11.; = gen/levels.py BELOW_PARTS): the hold, the engine room, the passage
+	"hold": [["hold", 0.0, 3088.0, ""], ["engine", 0.0, 3168.0, ""], ["tween", 0.0, 3168.0, ""]]}
 const CHANDELIER_BOX := Rect2(1418.0, 0.0, 307.0, 463.0)   # where gen/club_layers.py cut the chandelier from the hall (px)
 const ROOM_PART_BULBS := {   # [x, y, colour, size] on each part's picture, at the glass
+	"engine": [[0.109, 0.35, "warm", "small"], [0.616, 0.43, "warm", "small"], [0.69, 0.145, "warm", "small"]],
+	"tween": [[0.26, 0.355, "warm", "small"], [0.80, 0.36, "warm", "small"]],
 	"laundry_mid": [[0.240, 0.198, "warm", "big"], [0.776, 0.198, "warm", "big"]],
 	"laundry_end": [[0.647, 0.236, "warm", "big"], [0.584, 0.585, "warm", "small"], [0.931, 0.193, "warm", "big"]],
 	"club_bar": [[0.033, 0.397, "warm", "small"], [0.369, 0.44, "warm", "small"], [0.629, 0.44, "warm", "small"],
@@ -4917,6 +4924,8 @@ func _block(before_x: float) -> void:
 			player.position.x = maxf(player.position.x, float(sec[0]) + 70.0)
 	_flat_door_block(before_x)
 	_room_window_block(before_x)
+	if level.has("sealed"):   # (CARGO HOLD) the hold's forward bulkhead: the way he came in is the hatch up, not back
+		player.position.x = maxf(player.position.x, float(level["sealed"]))
 	for c in level["floors"]:   # a fire escape landing's railing (drawn at its outer end) stops him: no flying off it
 		if String(c[3]) != "fescape":
 			continue

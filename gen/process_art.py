@@ -57,10 +57,13 @@ STREET = {
     'rooming_house': ('294.jpg', 0, False), 'boiler_works': ('295.jpg', 0, False), 'machine_shop': ('296.jpg', 0, False),
     'brownstones': ('297.jpg', 0, False), 'bay_tenement': ('298.jpg', 0, False), 'hotel_front': ('299.jpg', 0, False), 'dance_hall': ('301.jpg', 0, False),
     'alley_fire': ('317.jpg', 140, True),   # (QUEUE §16 B, 18. 11.) the alley's tenements ablaze (316 = left only; 317 both sides): the end of the 1931 memory
+    # (QUEUE §18, 21. 11.) aboard the Santa Lucia: the foredeck, the well deck with its hatch, the midship house (SANTA LUCIA)
+    'deck_a': ('333.jpg', 125, False), 'deck_b': ('334.jpg', 125, False), 'deck_c': ('335.jpg', 125, False),
     'pawn_house': ('267.jpg', 0, False), 'diner_house': ('268.jpg', 0, False),   # one shop a building (user 17. 11.)   # plain buildings (user 17. 11.: no rows of shops)
 }
 KIT = {'yard_c': 'yard', 'tunnel_c': 'tunnel', 'walkway_b': 'walkway', 'signal_b': 'signal', 'arches_b': 'arches', 'yard_b': 'yard', 'tunnel_b': 'tunnel', 'tunnel_lo_b': 'tunnel_lo',
        'sheds_b': 'sheds', 'sheds_c': 'sheds', 'sheds_d': 'sheds', 'pier17_b': 'pier17', 'shipping_b': 'shipping', 'quay_b': 'quay',
+       'deck_a': 'sheds', 'deck_b': 'sheds', 'deck_c': 'sheds',
        'laundry_b': 'laundry', 'alley_b': 'alley', 'alley_fire': 'alley', 'warehouse_b': 'warehouse', 'church_b': 'church', 'subway_b': 'subway', 'market_b': 'market', 'market_c': 'market'}
 # measured on the whole picture, before the right frame comes off: scaled to the trimmed one below
 FULL = 3168.0
@@ -87,7 +90,10 @@ DEEP = {'subway_entrance': [(0.445, 0.6, 0.113, 0.33)], 'alley_mouth': [(0.425, 
 # parts of a drawing taken out of it to come alive in the game (the crate on the crane's chains)
 CUT = {'cranes': [_sc((0.37, 0.2, 0.075, 0.255))]}
 ROOMS = {'yard': '261.jpg', 'laundry': '275.jpg',   # (the industrial steam laundry hall, 17. 11.)
-         'warehouse': '30.png', 'tenement': '31.png', 'club': '245b.png', 'hold': '47.png', 'office': '48.png', 'catacombs': '69.png', 'cityhall': '73.png'}
+         'warehouse': '30.png', 'tenement': '31.png', 'club': '245b.png', 'hold': '47.png', 'office': '48.png', 'catacombs': '69.png', 'cityhall': '73.png',
+         # (QUEUE §18, 21. 11.) the purser's office aboard the Santa Lucia, below decks (the passage, the engine room: parts of
+         # one hall with the hold, main.gd ROOM_PARTS "below"), the Vail Shipping warehouse on fire (PIER 17)
+         'purser': '336.jpg', 'tween': '337.jpg', 'engine': '338.jpg', 'vail': '339.jpg'}
 
 
 def sky_alpha(rgb, pockets=False):
@@ -164,7 +170,7 @@ for name, (f, trim, towers) in STREET.items():
     rgb = np.asarray(Image.open(SRC + f).convert('RGB'))
     if rgb.shape[:2] != (1344, 3168):   # Gemini sometimes hands back another aspect: stretched back onto the kit's frame
         rgb = np.asarray(Image.fromarray(rgb).resize((3168, 1344), Image.LANCZOS))
-    alpha = sky_alpha(rgb, f in ('42.png', '43.png', '44.png', '45.png', '46.png', '68.png', '167.jpg', '190.jpg', '174.jpg', '176.jpg', '178.jpg')).copy()
+    alpha = sky_alpha(rgb, f in ('42.png', '43.png', '44.png', '45.png', '46.png', '68.png', '167.jpg', '190.jpg', '174.jpg', '176.jpg', '178.jpg', '333.jpg', '334.jpg', '335.jpg')).copy()
     roof = remove_towers(rgb, alpha) if towers else -1
     rgb, alpha = rgb[:, :rgb.shape[1] - trim], alpha[:, :alpha.shape[1] - trim]
     for (x, y, w, h) in CUT.get(name, []):

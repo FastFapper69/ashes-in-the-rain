@@ -280,8 +280,9 @@ Potřeba: komiksové panely uprostřed mapy (cutscene.gd umí stránky; nové je
 
 ## 18. Audit smyslu map kap. I-III (18. 11., pravidla 10, 12, 14, 25, 30)
 Stav 21. 11. (HANDOFF 101): CARGO HOLD má cíl (bedny 1939, jedno podpalubí), BACK STREETS a THE CRANES nese svědek (utíká, vzdá se, řekne stopu),
-TRAIN YARD -> LAST TRAIN navazuje textem (naskočí na expres), 1931 a Briggs/Catacombs texty opraveny. Zbývá: P14 (řez domem v kampani mimo TENEMENTS),
-rozšíření (SANTA LUCIA paluba, PIER 17 dovnitř skladu) a komiksy (§19).
+TRAIN YARD -> LAST TRAIN navazuje textem (naskočí na expres), 1931 a Briggs/Catacombs texty opraveny. Zbývá: P14 (řez domem v kampani mimo LAUNDRY/TENEMENTS – chce nové kresby domu, čeká na rozhodnutí) a komiksy (§19).
+21. 11. večer (HANDOFF 102): SANTA LUCIA celá na palubě (příď -> nástavba -> kancelář s knihami), CARGO HOLD celé v podpalubí
+(nákladový prostor -> strojovna -> chodba k žebříku), PIER 17 končí uvnitř hořícího Vail Shipping.
 Porušení:
 - P14: řez domem (vstup dveřmi, schody v zadní stěně, kopnutí do bytu, oknem na požární schodiště) je JEN v SECTION a TEST LAB - žádná mapa kampaně ho nemá; mapy jsou hlavně ulice.
 - P10/P30: TENEMENTS má 2x stejnou chodbu "tenement" (x 1900 a 16050); generátor ji sám popisuje jako 3. patro (dveře 3A-3C, neon za oknem), ale stojí na úrovni ulice.
