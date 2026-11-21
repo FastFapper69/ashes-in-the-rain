@@ -9677,24 +9677,38 @@ func _take_stairs(e: Dictionary, m) -> bool:
 	var si := _section_at(player.position)
 	if si < 0 or _section_at(m.position) != si or move_state != "ground" or _ai_t - _storey_since < STAIRS_WAIT:
 		return false
-	if _ai_t - float(e.get("stairs_t", -99.0)) < 10.0:
+	if _ai_t - float(e.get("stairs_t", -99.0)) < 6.0:
 		return false
+	var going := 0
 	for o in enemies:
 		if o["alive"] and o["state"] == "stairs":
-			return false
-	for d in _stairdoors:
-		if absf(float(d[1]) - m.position.y) < 12.0 and absf(float(d[2]) - _ground_y) < 12.0:
-			e["sd"] = {"x": float(d[0]), "to": float(d[2]), "phase": 0, "t": 0.0, "tint": m.modulate}
-			e["state"] = "stairs"
-			e["stairs_t"] = _ai_t
-			if float(d[2]) > float(d[1]):   # coming down to him: heard before he is seen
-				_steps_above = 0.5
-				sfx.play("step1", -4.0, m.position.x, 0.1)
-				_bark(m, "comedown", "", true)
-			else:
-				_bark(m, "goup", "", true)
-			return true
+			going += 1
+	if going >= 2:   # (user 21. 11.: "they keep me locked in their aim instead of coming my way") two at a time
+		return false
+	var d := _stairs_toward(m)
+	if not d.is_empty():
+		e["sd"] = {"x": float(d[0]), "to": float(d[2]), "phase": 0, "t": 0.0, "tint": m.modulate}
+		e["state"] = "stairs"
+		e["stairs_t"] = _ai_t
+		if float(d[2]) > float(d[1]):   # coming down to him: heard before he is seen
+			_steps_above = 0.5
+			sfx.play("step1", -4.0, m.position.x, 0.1)
+			_bark(m, "comedown", "", true)
+		else:
+			_bark(m, "goup", "", true)
+		return true
 	return false
+
+
+## The stairs from his storey one storey on toward Frank's (the house's storeys are joined one to the next).
+func _stairs_toward(m) -> Array:
+	var way := signf(_ground_y - m.position.y)
+	if way == 0.0:
+		return []
+	for d in _stairdoors:
+		if absf(float(d[1]) - m.position.y) < 12.0 and signf(float(d[2]) - float(d[1])) == way:
+			return d
+	return []
 
 
 func _on_stairs(e: Dictionary, m, delta: float) -> void:
@@ -9708,7 +9722,7 @@ func _on_stairs(e: Dictionary, m, delta: float) -> void:
 	sd["t"] = float(sd["t"]) + delta
 	match int(sd["phase"]):
 		0:   # along his storey to the opening
-			if move_state == "stairs" or (absf(_ground_y - to_y) > 12.0 and move_state == "ground"):
+			if move_state == "stairs" or (move_state == "ground" and (absf(_ground_y - m.position.y) < 12.0 					or signf(_ground_y - m.position.y) != signf(to_y - m.position.y))):
 				# (18. 11.: they came down the stairs as he went up, and missed him for good) he is leaving, or has left, the
 				# storey this man was going to: he stays on his own and takes him on from here, or follows him later
 				e["state"] = "post"
@@ -10174,6 +10188,15 @@ func _enemies(delta: float) -> void:
 			if _seek_cover(e, m):
 				continue
 		if _take_stairs(e, m):
+			continue
+		var msi := _section_at(m.position)
+		if msi >= 0 and msi == _section_at(player.position) and not _same_floor(m) and e["state"] == "post" and not e["boss"]:
+			# (user 21. 11.) Frank on another storey of the house: no gun on him through the floor - he faces the stairs
+			# that lead to him, ready for whoever comes out of them, until it is his turn to go up (or down) them
+			var sd := _stairs_toward(m)
+			var look := Vector2(float(sd[0]) - m.position.x, 0.0) if not sd.is_empty() and absf(float(sd[0]) - m.position.x) > 120.0 				else Vector2(signf(player.position.x - m.position.x) * 400.0, 0.0)
+			m.set_state(0.0, look, delta)
+			m.duck = move_toward(m.duck, 0.0, delta * 7.0)
 			continue
 		_squad(e, m, to_player, delta)
 		if e["state"] == "move":   # on his way somewhere: he does not stop to shoot

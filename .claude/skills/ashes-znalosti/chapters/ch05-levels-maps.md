@@ -78,3 +78,5 @@ subway_entrance, warehouse_row (hoist), bluenote_row, and the interiors' fronts.
 Gemini in a NEW chat with hk_tailor as style only ("a DIFFERENT building"; words it paints are legible if short and
 spelled out), process_art STREET entry, kit.py PIECES (+ clear, not_beside, hoist), EDGES, main.gd SEGMENT_SIZE,
 basis_imports + import, then audit, bots, shots.
+
+**Houses in cross-section sit on street joints** (user 21. 11., rule 15): `seat_sections` in gen/levels.py moves a house (and all of the map after it) so its facade starts exactly where a street drawing starts - the facade never covers half of a drawn door. A new map with a section needs nothing extra; a test map with a walked roof over the house is skipped.

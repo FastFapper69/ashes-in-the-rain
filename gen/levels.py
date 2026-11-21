@@ -931,7 +931,13 @@ def _build(mp, nudge):
     out.checks = kept
     fill_checks(out, floor_x)
     door_clear(out)
+    st = rng.getstate()
     out.street = street(mp, out, rng)
+    for _ in range(4):   # (user 21. 11., phone shot: a door of the street drawing cut by the house's facade) houses on joints
+        if not seat_sections(out):
+            break
+        rng.setstate(st)
+        out.street = street(mp, out, rng)
     door_into(out, mp)
     wash_line(out)
     if not mp.get("plain"):
@@ -1312,6 +1318,68 @@ def fill_checks(m, x_from):
                     added.append(round(hit))
                     break
     m.checks = sorted(m.checks + added)
+
+
+def shift_from(m, lim, d):
+    """Everything of the map at or past x = lim moves on by d (a house, its men and stairs, the goal, the end...)."""
+    num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool)
+    def mv(lst, *idx):
+        for o in lst:
+            for i in idx:
+                if i < len(o) and num(o[i]) and o[i] >= lim:
+                    o[i] += d
+    mv(m.boxes, 1); mv(m.pickups, 1); mv(m.things, 1); mv(m.hints, 0); mv(m.lamps, 0); mv(m.plats, 0)
+    mv(m.ramps, 0, 2); mv(m.rooms, 0, 1); mv(m.sections, 0, 1); mv(m.flats, 0, 3, 4); mv(m.stairdoors, 0)
+    mv(m.xy_checks, 0); mv(m.ropes, 1, 3); mv(m.events, 1, 2)
+    m.kits = [(x + d if x >= lim else x, pc) for x, pc in m.kits]
+    for e in m.enemies:
+        if e["x"] >= lim:
+            e["x"] += d
+            if e["trig"] is not None and e["trig"] >= lim: e["trig"] += d
+            if e["from"] is not None: e["from"] += d
+    m.checks = [c + d if c >= lim else c for c in m.checks]
+    m.roof_checks = [c + d if c >= lim else c for c in m.roof_checks]
+    for k in ("goal", "witness_house"):
+        v = getattr(m, k, None)
+        if v:
+            setattr(m, k, [v[0] + d if v[0] >= lim else v[0]] + ([v[1] + d if v[1] >= lim else v[1]] if k == "witness_house" else [v[1]]) + list(v[2:]))
+    for k in ("start_xy", "wash_from"):
+        v = getattr(m, k, None)
+        if v and v[0] >= lim:
+            setattr(m, k, [v[0] + d] + list(v[1:]))
+    for k in ("end", "end_at", "sealed", "up_end"):
+        v = getattr(m, k, None)
+        if num(v) and v >= lim:
+            setattr(m, k, v + d)
+
+
+def seat_sections(m):
+    """A house in cross-section starts where a street drawing starts: its facade never covers half of a drawn door or
+    window (rule 15). Moves the first house that is off a joint, and all after it, to the nearest joint (back only when
+    nothing stands in the way it moves over). True if anything moved."""
+    joints = [g[1] for g in m.street]
+    for s in sorted(m.sections, key=lambda s: s[0]):
+        x0 = s[0]
+        if any(abs(j - x0) < 1.0 for j in joints):
+            continue
+        lim = x0 - 950.0
+        if m.roof and m.roof[1] >= lim and m.roof[0] <= s[1] + 950.0:   # (the test maps' walked roofs run over the house: they stay as they are)
+            continue
+        nxt = min((j for j in joints if j > x0), default=None)
+        prv = max((j for j in joints if j < x0), default=None)
+        best = nxt - x0 if nxt is not None else None
+        if prv is not None:
+            d = prv - x0
+            lo = lim + d - 300.0
+            busy = any(lo < b[1] < lim for b in m.boxes) or any(lo < e["x"] < lim and not e["run"] for e in m.enemies) \
+                or any(lo < c < lim for c in m.checks) or any(lo < h[0] < lim for h in m.hints) or any(r[1] > lo and r[0] < lim for r in m.rooms)
+            if not busy and (best is None or -d < best):
+                best = d
+        if best is None:
+            continue
+        shift_from(m, lim, best)
+        return True
+    return False
 
 
 def door_clear(m):
