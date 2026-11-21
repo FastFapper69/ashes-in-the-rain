@@ -89,7 +89,7 @@ const TESTIMONY := {
 ## either way, but only mercy hears it from his mouth. [name, where he waits (share of the map), what he says
 ## running, what he tells, what Frank finds on him dead]
 const WITNESS := {
-	"1:1": ["SAMMY BLUE", 0.45, ["NOT ME, MALONE!", "I DON'T KNOW NOTHING!", "LEAVE ME OUTTA THIS!"],
+	"1:1": ["SAMMY BLUE", 0.8, ["NOT ME, MALONE!", "I DON'T KNOW NOTHING!", "LEAVE ME OUTTA THIS!"],
 		["He talked with his hands still up.", "\"Tenth Avenue. A laundry. Mickey's laundry. They count the money there at night.\""],
 		["Sammy Blue didn't talk. His pockets did.", "A claim ticket from a laundry on Tenth Avenue."]],
 	"2:1": ["SULLY", 0.5, ["I DIDN'T SEE NOTHING!", "I JUST RUN THE CRANE!", "NOT AGAIN, NOT AGAIN!"],
@@ -424,7 +424,7 @@ var sections: Array = []      # buildings in cross-section: [x0, x1, storeys, st
 var section_h := 700.0
 var _bot_esc_up := false      # the test bot on a fire escape: turned back to the foot of the flight
 var _free_slow := 0.0         # real seconds of slowed time a stunt gives for free (door kick 1.2 s, swing 1 s)
-var _flat_art: Array = []     # [storey y, the flat's drawing]: tenement_flat_open replaces it when the window goes
+var _flat_art: Array = []     # [storey y, the flat's drawing, its kit]: <kit>_flat_open replaces it when the window goes
 var _flats: Array = []        # the flats to kick into and jump out of (gen/levels.py flats)
 var _stairdoors: Array = []   # the stairs in a building's back wall: [x, storey y, the y they lead to]
 var _sd: Dictionary = {}       # on those stairs: where from, the door, where to, how long
@@ -2946,7 +2946,8 @@ func _process(delta: float) -> void:
 	_tick_exit(delta)
 	if level.has("goal"):   # (rule 30, 18. 11.) a map won by getting somewhere: the flat he runs into, the crowd behind him
 		var gl: Array = level["goal"]
-		if not cleared and not over and player.position.x > float(gl[0]) and absf(player.position.y - float(gl[1])) < 80.0:
+		if not cleared and not over and player.position.x > float(gl[0]) and absf(player.position.y - float(gl[1])) < 80.0 \
+				and _witness_settled(delta):
 			_map_cleared()
 	elif not cleared and not over and roof.is_empty() and player.position.x > level_end and _all_down():
 		_map_cleared()
@@ -6105,6 +6106,8 @@ func _executed(e: Dictionary, at: Vector2) -> void:
 func _give_up(e: Dictionary, delay := 0.0) -> void:
 	if e["state"] == "give" or _unreal():   # in the dream nobody gives up
 		return
+	if e.has("witness") and level.has("witness_house") and not e.get("holed_up", false) and int(e["hp"]) >= mob_hp:
+		return   # (BACK STREETS) Sammy runs for his room: not the street's morale - only a bullet or his own door stops him
 	e["state"] = "give"
 	e["give_t"] = -delay
 	e["said"] = false
@@ -6833,6 +6836,12 @@ const SEC_KIT_LAYOUT := [      # per storey: the two pieces, then the end walls 
 	["tenement_stairs_b", "tenement_flat", "L", ""]]   # (the flat has its own outer wall and window)
 const SEC_KIT_STUNT := [["tenement_entry", "tenement_flat", "", ""]]   # SANDBOX STUNTS: one storey, the flat by the door
 func _build_section_kit(x0: float, x1: float, storeys: int, holder: Node2D, style := "tenement") -> void:
+	# (21. 11.) another house on the same frame: "rooming" (BACK STREETS, gen/rooming_art.py) - each of its pieces where
+	# it has one (the end wall and the fire escape are the tenement's)
+	var kit := "rooming" if style.begins_with("rooming") else "tenement"
+	var own := func(n: String) -> String:
+		var k := n.replace("tenement_", kit + "_")
+		return k if ResourceLoader.exists("res://art/section/%s.png" % k) else n
 	var s := section_h / SEC_KIT_ROWS
 	var start := x0 - SEC_KIT_X0
 	var facade := Node2D.new()   # the front seen from the street: under the storeys, which open over it from the door
@@ -6846,12 +6855,12 @@ func _build_section_kit(x0: float, x1: float, storeys: int, holder: Node2D, styl
 		storey.modulate = Color(ROOM_BASE, ROOM_BASE, ROOM_BASE, 1.0)
 		holder.add_child(storey)
 		for i in 2:
-			var piece := _kit_piece(String(lay[i]), Rect2(0.0, 0.0, SEC_KIT_W, SEC_KIT_ROWS), Vector2(start + i * SEC_KIT_W * s, top), s, false)
+			var piece := _kit_piece(own.call(String(lay[i])), Rect2(0.0, 0.0, SEC_KIT_W, SEC_KIT_ROWS), Vector2(start + i * SEC_KIT_W * s, top), s, false)
 			storey.add_child(piece)
 			if String(lay[i]) == "tenement_flat":   # its window bursts: swapped for the drawing with the empty hole
-				_flat_art.append([-section_h * k, piece])
+				_flat_art.append([-section_h * k, piece, kit])
 			var front := "tenement_facade_ground" if k == 0 and i == 0 else "tenement_facade"
-			facade.add_child(_kit_piece(front, Rect2(0.0, 0.0, SEC_KIT_W, SEC_KIT_ROWS), Vector2(start + i * SEC_KIT_W * s, top), s, false))
+			facade.add_child(_kit_piece(own.call(front), Rect2(0.0, 0.0, SEC_KIT_W, SEC_KIT_ROWS), Vector2(start + i * SEC_KIT_W * s, top), s, false))
 		var cap := Rect2(0.0, 0.0, SEC_KIT_WALL.y, SEC_KIT_ROWS)
 		if String(lay[2]) == "L":
 			storey.add_child(_kit_piece("tenement_end", cap, Vector2(start, top), s, false))
@@ -7414,8 +7423,8 @@ func _through_window() -> bool:
 	if not f["broken"]:
 		f["broken"] = true
 		for fa in _flat_art:   # nothing left in the frame: all of it goes out with him
-			if absf(float(fa[0]) - float(f["y"])) < 10.0:
-				(fa[1] as Sprite2D).texture = BigTex.get_tex("res://art/section/tenement_flat_open.png")
+			if absf(float(fa[0]) - float(f["y"])) < 10.0 and absf((fa[1] as Sprite2D).global_position.x - float(f["wx0"])) < 9000.0:
+				(fa[1] as Sprite2D).texture = BigTex.get_tex("res://art/section/%s_flat_open.png" % String(fa[2]))
 		var mid := Vector2(float(f["gx"]), float(f["y"]) - (float(f["sill"]) + float(f["lintel"])) * 0.5)
 		_impact(0.06, 0.05)
 		_word(["crash", "smash"], mid + Vector2(60.0, -200.0), 0.24, Vector2.RIGHT)
@@ -9396,6 +9405,8 @@ func _nearest_enemy(side := 0.0):
 	for e in enemies:
 		if not e["alive"] or e["state"] in ["wait", "give"] or not e["node"].visible:
 			continue
+		if e.has("witness") and _auto != "" and OS.get_cmdline_user_args().has("--spare-witness"):
+			continue   # (test: the bot lets the witness run, to follow him into his house)
 		var dx: float = e["node"].position.x - player.position.x
 		if absf(dx) > SIGHT * (1.0 - 0.6 * (mapfx.fog if mapfx else 0.0)) or (side != 0.0 and signf(dx) != side):
 			continue
@@ -9804,15 +9815,58 @@ func _add_witness() -> void:
 	m.disarmed = true   # no gun on him: he only knows things
 	if m._gun != null:
 		m._gun.visible = false
+	if OS.get_cmdline_user_args().has("--witness-holed") and level.has("witness_house"):   # (test: already up in his room)
+		e["holed_up"] = true
+		m.position = Vector2(float(level["witness_house"][1]), float(level["witness_house"][2]))
 	if OS.get_cmdline_user_args().has("--log-sets"): print("WITNESS ", w[0], " at ", int(x))
 
 
-## The witness: never fires. Frank close, he runs on down the street; at its end, cornered, he gives up.
+## (BACK STREETS, 21. 11.) A map won in the witness's room ("goal_witness"): only once he is let go or dead, and a
+## moment after, so what he says (or what Frank finds on him) is read before the page turns.
+var _witness_t := 0.0
+func _witness_settled(delta: float) -> bool:
+	if not level.get("goal_witness", false):
+		return true
+	for e in enemies:
+		if e.has("witness") and e["alive"]:
+			_witness_t = 0.0
+			return false
+	_witness_t += delta
+	return _witness_t > 2.6
+
+
+## The witness: never fires. Frank close, he runs on down the street; at its end, cornered, he gives up. Where the map
+## has his house ("witness_house": its street door, where he hides, that storey), he runs to its door and goes in, up to
+## his room; there, Frank in the room with him, he gives up.
 func _witness_tick(e: Dictionary, m, delta: float) -> bool:
 	if e["state"] != "post":
 		return false   # (running: the runner's own walk; giving up: as any man)
 	var to_player: Vector2 = player.position - m.position
 	var dx: float = absf(to_player.x)
+	var house: Array = level.get("witness_house", [])
+	if not house.is_empty():
+		if e.get("holed_up", false):   # in his room: the door between them until Frank kicks it in
+			if absf(player.position.y - m.position.y) < 80.0 and player.position.x > float(house[1]) - 900.0 and dx < 900.0:
+				_give_up(e)
+				if OS.get_cmdline_user_args().has("--log-sets"): print("WITNESS CORNERED in his room at ", int(m.position.x))
+			else:
+				m.set_state(0.0, to_player, delta)
+			return true
+		if m.position.x >= float(house[0]) - 40.0:   # at the house's door: in, and up the stairs to his room
+			e["holed_up"] = true
+			m.position = Vector2(float(house[1]), float(house[2]))
+			e["post_x"] = m.position.x
+			if OS.get_cmdline_user_args().has("--log-sets"): print("WITNESS HOLES UP at ", int(m.position.x), ",", int(m.position.y))
+			return true
+		if dx < 2800.0:   # (sooner than on an open street, and all the way: he knows where he is going)
+			e["state"] = "run"
+			e["goal"] = float(house[0])
+			e["seen"] = true
+			_say(m, (WITNESS["%d:%d" % [chapter, map]][2] as Array).pick_random())
+			if OS.get_cmdline_user_args().has("--log-sets"): print("WITNESS RUNS to ", int(e["goal"]))
+			return true
+		m.set_state(0.0, to_player, delta)
+		return true
 	if m.position.x < level_end - 600.0 and dx < 1900.0:   # (as soon as Frank is in sight)
 		e["state"] = "run"
 		e["goal"] = minf(m.position.x + 1700.0, level_end - 350.0)

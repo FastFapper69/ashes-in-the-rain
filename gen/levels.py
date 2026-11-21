@@ -648,9 +648,12 @@ def build(mp):
     exit_door(v, mp)
     door_clear(v)   # (again: the kit and the cover moved men about after the first time)
     inside = lambda x: any(len(o) == 2 and o[1] - 50 < x < o[1] + BOX[o[0]][0] + 50 for o in v.boxes)
-    for e in v.enemies:   # and nobody it moved stands inside a crate
+    doors = [d for a, b, st in v.rooms if not str(st).startswith("section_") for d in (a, b)]
+    by_door = lambda x: any(0 < abs(x - d) < DOOR_CLEAR for d in doors) and not any(a < x < b for a, b, st in v.rooms)
+    for e in v.enemies:   # and nobody it moved stands inside a crate (nor is moved back to a door door_clear kept him from)
         if e["y"] == 0.0 and inside(e["x"]):
-            e["x"] = next(x for d in range(0, 3000, 40) for x in (e["x"] + d, e["x"] - d) if not inside(x))
+            e["x"] = next((x for d in range(0, 3000, 40) for x in (e["x"] + d, e["x"] - d) if not inside(x) and not by_door(x)),
+                          next(x for d in range(0, 3000, 40) for x in (e["x"] + d, e["x"] - d) if not inside(x)))
     return v
 
 
@@ -1604,6 +1607,34 @@ def refuge(out, x):
     out.end = x0 + SEC_W - 60.0   # (the street may not end before the stairs at the house's far end: main.gd holds him at end + 500)
 
 
+def chase_house(out, x):
+    """BACK STREETS' end (QUEUE §18 P14, user 21. 11. "udělej to"): the witness Sammy Blue runs for a rooming house and holes
+    up in his room on the top floor (main.gd WITNESS + level "witness_house"); Frank goes in after him - the street door,
+    the stairs in the back wall, a man on each storey, the room's door kicked in. The map is won through that door once
+    Sammy is dealt with (let go or shot: "goal_witness"). The rooming house is its own drawings (gen/rooming_art.py)."""
+    x0 = x + 1400
+    out.sections.append([x0, x0 + SEC_W, 3, "rooming"])
+    for k in (1, 2):
+        out.plats.append([x0, -SEC_H * k, SEC_W, "section"])
+    r, l = SEC_STAIRS_A, SEC_STAIRS_B
+    out.stairdoors += [[x0 + r, 0.0, -SEC_H], [x0 + r, -SEC_H, 0.0], [x0 + l, -SEC_H, -SEC_H * 2], [x0 + l, -SEC_H * 2, -SEC_H]]
+    out.flats.append([x0 + SEC_FLAT_DOOR, -SEC_H * 2, 476.0, x0 + SEC_WIN[0], x0 + SEC_WIN[1], 178.0, 501.0])
+    e0 = esc(570.0)   # (the room's window onto the house's own fire escape, rule 25)
+    for k in (1, 2):
+        out.plats.append([x0 + e0, -SEC_H * k, esc(1160.0) - e0, "fescape"])
+    out.ramps.append([x0 + esc(820.0), -SEC_H, x0 + esc(1050.0), -SEC_H * 2, "fescape"])
+    out.enemies += [{"x": x0 + 1900, "y": 0.0, "kind": "post", "trig": None, "from": None, "delay": 0.0, "run": False},   # the landlady's
+                    {"x": x0 + 1300, "y": -SEC_H, "kind": "shotgun", "trig": None, "from": None, "delay": 0.0, "run": False},   # friends
+                    {"x": x0 + 900, "y": -SEC_H * 2, "kind": "post", "trig": None, "from": None, "delay": 0.0, "run": False}]
+    out.xy_checks += [[x0 + r, -SEC_H], [x0 + l, -SEC_H * 2]]
+    out.checks.append(x0 - 60)
+    out.hints.append([x0 - 900, "HE RAN INTO THE ROOMING HOUSE"])
+    out.goal = [x0 + SEC_FLAT_DOOR + 140.0, -SEC_H * 2]   # through his room's door
+    out.goal_witness = True                               # ... and Sammy dealt with
+    out.witness_house = [x0 + 60.0, x0 + SEC_FLAT_DOOR + 820.0, -SEC_H * 2]   # the street door; where he hides in his room
+    out.end = x0 + SEC_W - 60.0
+
+
 def last_stand(out, x):   # the prologue's end: a dead-end alley and more of them than Eddie has bullets
     out.boxes += [["crate", x + 200], ["dumpster", x + 1150]]
     out.hints.append([x, "NOWHERE LEFT TO RUN"])
@@ -1707,11 +1738,11 @@ CAMPAIGN = [
      "intro": ["The shooters hadn't gone far. Rain doesn't wash a trail away that fast.", "Eddie had left a trail too: pages torn from his diary, nailed up where only I would look."],
      "diary": "Nov 3. Rosie showed me Tommy's photo again. Eleven men burned in '39 and the papers called it bad wiring. Bad wiring doesn't lock doors from the outside.",
      "outro": ["The shooters ran east. So did I."]},
-    {"name": "BACK STREETS", "seed": 102, "start": 0.2, "end": 0.5, "el": True,
+    {"name": "BACK STREETS", "seed": 102, "start": 0.2, "end": 0.5, "el": True, "extra": chase_house,   # (21. 11.) Sammy Blue holes up in a rooming house
      "fixed": ["dumpster_alley", "crate_cover", "fire_escape", "ambush_behind", "barrel_trap", "gauntlet", "catwalk", "car_ambush", "drum_duo"],   # (the back yard is THE ALLEY's)
      "intro": ["Hell's Kitchen doesn't sleep. It just lies there with its eyes open."],
      "diary": "Nov 11. Pulled the Pier 17 file from records. Half of it is missing. The half that's left smells like money.",
-     "outro": ["One of them talked before he stopped talking. A laundry on Tenth Avenue."]},
+     "outro": ["A laundry on Tenth Avenue. Sammy Blue gave it to me, one way or the other."]},   # (21. 11.: he is cornered in his room - let go or shot)
     {"name": "THE LAUNDRY", "seed": 103, "start": 0.35, "end": 0.6, "steam": True,   # (its landmark: steam out of the grates, QUEUE §12)   # (no feature drawing: its laundry is the interior's front now)
      "fixed": ["crate_cover", "barrel_trap", "laundry", "blackout", "breather", "warehouse_arena", "drum_duo", "rush"],   # (the tailor's fire escape: BACK STREETS only)
      "extra": refuge,   # (user 18. 11.: the street fills, he runs into a tenement and up - TENEMENTS opens in its flat)
@@ -1872,6 +1903,8 @@ def gd(campaign):
             if lv.get("cops"): out.append('\t\t\t"cops": true,')
             if getattr(m, "exit", None): out.append(f'\t\t\t"exit": {f(m.exit)},')
             if getattr(m, "goal", None): out.append(f'\t\t\t"goal": [{f(m.goal[0])}, {f(m.goal[1])}],')
+            if getattr(m, "goal_witness", False): out.append('\t\t\t"goal_witness": true,')
+            if getattr(m, "witness_house", None): out.append(f'\t\t\t"witness_house": [{f(m.witness_house[0])}, {f(m.witness_house[1])}, {f(m.witness_house[2])}],')
             if getattr(m, "start_xy", None): out.append(f'\t\t\t"start_xy": [{f(m.start_xy[0])}, {f(m.start_xy[1])}],' + (f' "break_in": {m.break_in},' if m.break_in is not None else ''))
             if getattr(m, "sealed", None) is not None: out.append(f'\t\t\t"sealed": {f(m.sealed)},')
             if m.roof:

@@ -9,6 +9,7 @@ const ENTRIES := [
 		"The last train: open couplings between some cars - run and jump them, or you go down between the cars",
 		"The red warning on the last train is a real signal on the tunnel wall now, its red lamp flashing before a girder",
 		"Back Streets and The Cranes: a man who knows runs ahead of you. Corner him and let him go, and he tells you where to go next",
+		"Back Streets ends in a rooming house: Sammy Blue runs for his room on the top floor - up the stairs after him, kick the door in",
 		"Pier 17 ends inside Vail Shipping as it burns: in through its door after the files they are setting alight",
 		"The Santa Lucia is played aboard now: along her deck from the bow to the midship house, in at its door to the purser's office and the ledgers",
 		"Cargo Hold is all below decks: the hold with the eleven crates from August 1939, the engine room, the passage to the ladder up",

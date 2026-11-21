@@ -280,7 +280,8 @@ Potřeba: komiksové panely uprostřed mapy (cutscene.gd umí stránky; nové je
 
 ## 18. Audit smyslu map kap. I-III (18. 11., pravidla 10, 12, 14, 25, 30)
 Stav 21. 11. (HANDOFF 101): CARGO HOLD má cíl (bedny 1939, jedno podpalubí), BACK STREETS a THE CRANES nese svědek (utíká, vzdá se, řekne stopu),
-TRAIN YARD -> LAST TRAIN navazuje textem (naskočí na expres), 1931 a Briggs/Catacombs texty opraveny. Zbývá: P14 (řez domem v kampani mimo LAUNDRY/TENEMENTS – chce nové kresby domu, čeká na rozhodnutí) a komiksy (§19).
+TRAIN YARD -> LAST TRAIN navazuje textem (naskočí na expres), 1931 a Briggs/Catacombs texty opraveny. P14 hotovo 21. 11. (HANDOFF 103): BACK STREETS končí v podnájmu (vlastní kresby řezu "rooming"), Sammy Blue se zavře v pokoji.
+Zbývají jen komiksy (§19).
 21. 11. večer (HANDOFF 102): SANTA LUCIA celá na palubě (příď -> nástavba -> kancelář s knihami), CARGO HOLD celé v podpalubí
 (nákladový prostor -> strojovna -> chodba k žebříku), PIER 17 končí uvnitř hořícího Vail Shipping.
 Porušení:
