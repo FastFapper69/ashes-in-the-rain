@@ -1015,6 +1015,21 @@ const SMITH_PIECES := {
 }
 var _smith_pieces := {}   # part -> its Sprite2D on the stage
 const SMITH_ART := {"gun": ["revolver", "revolver_open"], "beretta": ["revolver", "revolver"], "shotgun": ["shotgun", "shotgun_open"], "tommy": ["tommy", "tommy_drum"]}
+## The big guns' drawings as they are now (rule 28, gen/big_gun_states.py): the shotgun's tube short or long,
+## the tommy gun's stick or drum and plain muzzle or compensator - every view shows the parts fitted, nothing
+## else. The second drawing is what the picked card shows at work: the part fitted (a preview of it), or for
+## BUCKSHOT the open action with the same tube.
+func _big_art(gun: String, pick: int, fitted_too := false) -> Array:
+	var a := Instincts.owned(gun, 0) or (fitted_too and pick == 0)
+	var b := Instincts.owned(gun, 1) or (fitted_too and pick == 1)
+	if gun == "shotgun":
+		var tube := "long" if a else "short"
+		var alt := "shotgun_open_" + tube if pick == 1 else "shotgun_long"
+		return ["shotgun_" + tube, alt]
+	var mag := "drum" if a else "stick"
+	var muz := "comp" if b else "plain"
+	var alt2 := "tommy_drum_" + muz if pick == 0 else "tommy_%s_comp" % mag
+	return ["tommy_%s_%s" % [mag, muz], alt2]
 # per upgrade: the part (pixels on the drawing), how close to go, its name, the drawing to show
 # ("" closed, "alt" the second), the word that pops, the sound, and an extra: shells fly in, a second gun
 const SMITH_PARTS := {
@@ -1033,7 +1048,7 @@ const SMITH_PARTS := {
 		[Vector2(650, 380), 0.8, "A SECOND BERETTA", "", "", "reload_done", "second"],
 	],
 	"shotgun": [
-		[Vector2(1240, 118), 1.6, "THE TUBE", "", "", "reload_shells", ""],
+		[Vector2(1430, 128), 1.6, "THE TUBE", "alt", "kachak", "reload_shells", ""],
 		[Vector2(800, 80), 1.9, "THE SHELLS", "alt", "kachak", "shell_in", "shells"],
 	],
 	"tommy": [
@@ -1099,7 +1114,7 @@ func _gunsmith(gun := "", pick := -1) -> void:
 	var holder := Node2D.new()
 	panel_c.add_child(holder)
 	_smith_stage = holder
-	var names: Array = SMITH_ART[_smith_gun]
+	var names: Array = _big_art(_smith_gun, _smith_pick) if _smith_gun in ["shotgun", "tommy"] else SMITH_ART[_smith_gun]
 	var part: Array = SMITH_PARTS[_smith_gun][_smith_pick]
 	var have := Instincts.owned(_smith_gun, _smith_pick)
 	_smith_sprites = []
@@ -1116,8 +1131,7 @@ func _gunsmith(gun := "", pick := -1) -> void:
 		for k in 2:
 			var sp := Sprite2D.new()
 			sp.texture = load("res://art/ui/gunsmith/%s.png" % names[k])
-			var drum_on := _smith_gun == "tommy" and Instincts.owned("tommy", 0)   # a fitted drum stays on the gun
-			sp.visible = (k == 1) == drum_on
+			sp.visible = k == 0   # (the gun as it is; the second is the part at work)
 			holder.add_child(sp)
 			_smith_sprites.append(sp)
 		tex_size = (_smith_sprites[0] as Sprite2D).texture.get_size()
@@ -1757,6 +1771,27 @@ func _smith_buy() -> void:
 		Instincts.set_side("revolver" if fx == "twoguns" else "beretta", true)
 	if SMITH_PIECES.has(_smith_gun) and _smith_pick < (SMITH_PIECES[_smith_gun] as Array).size():
 		_smith_swap(String(SMITH_PIECES[_smith_gun][_smith_pick][0]))
+		return
+	if _smith_gun in ["shotgun", "tommy"] and _smith_pick < 2 and not _smith_sprites.is_empty():
+		# the part goes on: the gun as it is now fitted comes in over the old one (only the part changes - the
+		# drawings are registered on one frame), a flash and the hammer, then the stamp
+		var now_tex: Texture2D = load("res://art/ui/gunsmith/%s.png" % _big_art(_smith_gun, _smith_pick)[0])
+		var cur: Sprite2D = _smith_sprites[0]
+		var fresh := Sprite2D.new()
+		fresh.texture = now_tex
+		fresh.modulate.a = 0.0
+		_smith_stage.add_child(fresh)
+		for sp in _smith_sprites:
+			if sp != cur:
+				(sp as CanvasItem).visible = false
+		cur.visible = true
+		var ft := fresh.create_tween()
+		ft.tween_property(fresh, "modulate:a", 1.0, 0.45)
+		ft.tween_callback(func() -> void:
+			_smith_flash()
+			_snd("hammer"))
+		ft.tween_interval(0.3)
+		ft.tween_callback(_smith_stamp)
 		return
 	if sound.is_valid():
 		sound.call("hammer")

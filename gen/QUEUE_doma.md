@@ -13,7 +13,7 @@ Dialogy v komiksu, voice/<key>.mp3 (22050 Hz mono 64k):
 - 88914502ac  vypravěč (Gravity)    01a1e43e-ed0e-70d0-89cf-de6cac3185f4
 Pak v cutscene.gd přepsat Rourkův řádek: "Up in the Saint's tower, two old men were drinking to me. One of them was Declan Rourke." + "\"He'll come. He always comes. He's his father's son.\"" (klíče 88914502ac, 5dc0a2b459). Mluvené repliky už se přehrávají, jakmile soubor existuje.
 
-## 2. Gemini (art_src 205+), zelené pozadí #00FF00, stejná póza jako gunsmith kresby
+## 2. HOTOVO 21. 11. (HANDOFF 99, jinak: díl překreslen na kopii kresby, art_src 329-331). ~~Gemini (art_src 205+), zelené pozadí #00FF00, stejná póza jako gunsmith kresby~~
 - 205/206 brokovnice nová / ošoupaná (edit 205 → 206): vstup art/ui/gunsmith/shotgun.png
 - 207/208 tommy nový / ošoupaný: vstup art/ui/gunsmith/tommy.png
 Pak gen/gun_parts.py rozšířit (díly: brokovnice pažba/předpažbí/hlaveň/pouzdro, tommy pažba/buben/hlaveň/tělo).
@@ -265,7 +265,7 @@ Ochozy kap. II/III jsou už samostatné kreslené vrstvy (iron_walk/gantry); mez
 Zbývá (potřebuje tvoje rozhodnutí nebo nové kresby):
 A. HOTOVO 18. 11. (oblečení podle typu, HANDOFF 87). ~~Typy nepřátel nejsou poznat podle siluety (brokovník / samopal / boss vypadají stejně) - nové kresby postav, nebo aspoň jiný klobouk/kabát.~~
 B. HOTOVO 18. 11. (HANDOFF 88). ~~1931: oheň v ulici je malý ("plamínky u kotníků") - větší požáry oken, padající trámy (jako ve snu).~~
-C. LAST TRAIN: mezery mezi vagony k přeskoku, nízké návěstidla (kromě traverz).
+C. HOTOVO 21. 11. (HANDOFF 100). ~~LAST TRAIN: mezery mezi vagony k přeskoku, nízké návěstidla (kromě traverz).~~
 D. HOTOVO 18. 11. (HANDOFF 93). ~~Kessler a Briggs: víc fází souboje (Briggs má štít - ověřit), výrazně jiná postava.~~
 E. HOTOVO 18. 11. (HANDOFF 94). ~~Úvodní obrazovky map v docích by mohly mít vlastní "establishing" kresbu (lávka na loď, vrata Kesslerova skladu).~~
 F. HOTOVO 18. 11. (HANDOFF 89; LAST TRAIN samostatně 5-10 zásahů místo ~20). ~~Bot: neuhýbá traverzám ani nepoužívá shootdodge při 2+ mužích - zásahy v kap. III jsou proto vyšší než u hráče.~~
@@ -279,6 +279,9 @@ Opraveno hned (HANDOFF 95): v TENEMENTS vcházel do přízemí a vyskakoval z ok
 Potřeba: komiksové panely uprostřed mapy (cutscene.gd umí stránky; nové je spuštění na místě v mapě + navázání stavu), Gemini panely, šňůra na prádlo jako lano ke sjetí (existuje zip/rope mechanika: zip_mast/zip_winch).
 
 ## 18. Audit smyslu map kap. I-III (18. 11., pravidla 10, 12, 14, 25, 30)
+Stav 21. 11. (HANDOFF 101): CARGO HOLD má cíl (bedny 1939, jedno podpalubí), BACK STREETS a THE CRANES nese svědek (utíká, vzdá se, řekne stopu),
+TRAIN YARD -> LAST TRAIN navazuje textem (naskočí na expres), 1931 a Briggs/Catacombs texty opraveny. Zbývá: P14 (řez domem v kampani mimo TENEMENTS),
+rozšíření (SANTA LUCIA paluba, PIER 17 dovnitř skladu) a komiksy (§19).
 Porušení:
 - P14: řez domem (vstup dveřmi, schody v zadní stěně, kopnutí do bytu, oknem na požární schodiště) je JEN v SECTION a TEST LAB - žádná mapa kampaně ho nemá; mapy jsou hlavně ulice.
 - P10/P30: TENEMENTS má 2x stejnou chodbu "tenement" (x 1900 a 16050); generátor ji sám popisuje jako 3. patro (dveře 3A-3C, neon za oknem), ale stojí na úrovni ulice.
@@ -291,5 +294,7 @@ Rozšíření: TENEMENTS celý jako řez domem (útěk z prádelny nahoru, byt, 
 
 ## 19. Komiksy - až nakonec všechny najednou (uživatel 19. 11.: "zatím komix neřeš, ty pak uděláme na konec všechny")
 Známé chyby: po THE LAUNDRY (interlude) první panel ukazuje Franka v autě s účtenkou, ale mapa teď končí v bytě v činžáku -> pořadí a obrázky stránek musí odpovídat tomu, kde mapa skončila. Projít všechny stránky (před/po mapách, uprostřed map) proti toku map (pravidlo 30).
+Ke komiksům přidat (21. 11., HANDOFF 101): konec TRAIN YARD = skok na poslední vagon rozjetého expresu (text už to říká, obraz ne);
+svědek SAMMY BLUE / SULLY - panel s výslechem jen když ho nechal žít; CARGO HOLD - bedny "MACHINE PARTS" s petrolejem.
 Opraveno hned (HANDOFF 97): konce pater v řezu domem - dveře 2B přeříznuté koncovou zdí (díl tenement_stairs_a překreslen bez nich).
 

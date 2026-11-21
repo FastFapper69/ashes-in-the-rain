@@ -61,7 +61,7 @@ for m in re.finditer(r'\n\t"(\w+)": \[(.*?)\n\t\]', body, re.S):
 EXTRA = {'a': ['art/props/el_span.png', 'art/props/sheets.png', 'art/props/neon_hotel.png', 'art/props/neon_hotel_glow.png'],
          'b': ['art/props/wave.png'],
          'e': ['art/fore/dream_post.png'],   # (THE DREAM's burning posts in the foreground, 18. 11.)
-         'c': ['art/props/girder.png', 'art/props/boxcars.png', 'art/props/sewer_water.png', 'art/props/rat.png']}
+         'c': ['art/props/girder.png', 'art/props/tunnel_signal.png', 'art/props/boxcars.png', 'art/props/sewer_water.png', 'art/props/rat.png']}
 for g, lst in EXTRA.items():
     for f in lst:
         files[f] = {g}

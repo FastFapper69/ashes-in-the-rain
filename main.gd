@@ -83,6 +83,19 @@ const TESTIMONY := {
 	"3:3": "\"The trains run late tonight because somebody paid them to. Somebody wants you in the tunnels.\"",
 	"3:4": "\"The Saint's throwing a ball Christmas Eve. Rourke's the guest of honour.\"",
 }
+## The witness of a map (QUEUE §18, rule 30, 2026-11-21): the map is a chase after the one man who knows where Frank
+## goes next. He carries no gun and runs on ahead as Frank comes; at the end of the street he is cornered and gives
+## up. Let go, he talks (the lead, and it counts as mercy); shot, Frank finds the lead on him - the story goes on
+## either way, but only mercy hears it from his mouth. [name, where he waits (share of the map), what he says
+## running, what he tells, what Frank finds on him dead]
+const WITNESS := {
+	"1:1": ["SAMMY BLUE", 0.45, ["NOT ME, MALONE!", "I DON'T KNOW NOTHING!", "LEAVE ME OUTTA THIS!"],
+		["He talked with his hands still up.", "\"Tenth Avenue. A laundry. Mickey's laundry. They count the money there at night.\""],
+		["Sammy Blue didn't talk. His pockets did.", "A claim ticket from a laundry on Tenth Avenue."]],
+	"2:1": ["SULLY", 0.5, ["I DIDN'T SEE NOTHING!", "I JUST RUN THE CRANE!", "NOT AGAIN, NOT AGAIN!"],
+		["Sully stopped shaking long enough to say it.", "\"The Santa Lucia. Kessler keeps the books aboard. He never lets 'em off the ship.\""],
+		["Sully had a pay slip in his coat. Vail Shipping.", "Signed for by the master of the Santa Lucia."]],
+}
 const CUTS := {"0:0": "eddie", "1:2": "interlude", "1:4": "teague", "2:4": "kessler", "3:4": "briggs"}   # the cutscene after a map ("chapter:map")
 const CUTS_BEFORE := {"0:0": "opening", "1:5": "dream", "2:0": "docks", "2:1": "cranes", "2:2": "lucia", "2:3": "hold", "2:4": "harbor", "2:5": "memory", "3:0": "underground"}   # and before one, the first time it is played
 const BOSS_HP := 16
@@ -3141,6 +3154,21 @@ func _auto_step(delta: float) -> void:
 					_fire_buf = 0.0
 					_queued_shot = false
 					hud.move = 0.0   # (still: running into it, a duck is a slide, and a slide comes up again)
+		if sets != null and move_state == "jump":
+			for g in sets.gaps:   # (and the stick held on over it: let go in the air and he drops in)
+				if player.position.x > g.x - 300.0 and player.position.x < g.y + 40.0:
+					hud.move = 1.0
+		if sets != null and move_state == "ground" and not hud.duck:
+			for g in sets.gaps:   # the last train's open couplings: a run at the edge and a jump over (a standing jump falls short)
+				var to_gap: float = g.x - player.position.x
+				if to_gap > -10.0 and to_gap < 260.0:
+					hud.move = 1.0
+					hud.fire_tapped = false
+					_fire_buf = 0.0
+					_queued_shot = false
+					if to_gap < 70.0:
+						hud.jump_tapped = true
+						print("BOT gap jump at ", int(player.position.x))
 		if hud.move != 0.0 and move_state == "ground":
 			for r in _ropes:   # a crane rope before a wall of cargo: jump for it (not when he is on his way up a ladder)
 				if r["kind"] == "swing" and lad == null and player.position.x > (r["a"] as Vector2).x - 110.0 and player.position.x < (r["a"] as Vector2).x - 40.0:
@@ -3909,7 +3937,7 @@ func _auto_step(delta: float) -> void:
 			elif _auto == "neondrop" and not mapfx._neon.is_empty():
 				player.position.x = (mapfx._neon["root"] as Node2D).position.x - 700.0
 			elif _auto == "girder":
-				sets._beam_t = 0.4
+				sets._beam_t = 2.0   # (the signal first, then its girder)
 				sets._oncoming_t = 99.0
 			elif _auto == "oncoming":
 				sets._oncoming_t = 2.0
@@ -3944,7 +3972,7 @@ func _auto_step(delta: float) -> void:
 			_fire(player, true)
 		shots = {"el": [[1.6, "el_0"], [2.4, "el_1"], [3.2, "el_2"]], "fog": [[1.2, "fog_0"], [2.5, "fog_1"]],
 			"oncoming": [[1.2, "onc_0"], [2.3, "onc_1"], [2.7, "onc_2"], [3.3, "onc_3"]], "sheets": [[0.6, "sheets_0"], [1.05, "sheets_m"], [2.0, "sheets_1"], [2.7, "sheets_2"], [3.3, "sheets_3"], [3.7, "sheets_4"], [5.0, "sheets_5"]],
-			"girder": [[0.9, "girder_0"], [1.3, "girder_1"], [1.7, "girder_2"]],
+			"girder": [[0.55, "signal_0"], [0.8, "signal_1"], [1.05, "signal_2"], [2.5, "girder_0"], [2.9, "girder_1"], [3.3, "girder_2"]],
 			"storm": [[0.36, "storm_0"], [0.42, "storm_1"], [0.5, "storm_2"], [0.75, "storm_3"]], "rock": [[1.0, "rock_0"], [4.0, "rock_1"]], "steam": [[1.2, "steam_0"], [2.4, "steam_1"]],
 			"rats": [[0.5, "rats_0"], [1.0, "rats_1"]], "freight": [[3.0, "freight_0"], [5.0, "freight_1"]], "sea": [[0.95, "sea_0"], [1.3, "sea_1"]],
 			"flood": [[1.0, "flood_0"]], "neondrop": [[0.95, "neon_0"], [1.5, "neon_1"], [2.6, "neon_2"]], "levelup": [[0.6, "levelup_0"], [2.2, "levelup_1"]],
@@ -5623,6 +5651,8 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 						return true
 			else:
 				e["hp"] -= (_head_dmg() if part == "head" else mob_hp) if (part == "head" or _last_round_t > 0.0) else _body_dmg()   # a head shot kills (two Berettas: two of them)
+				if e["hp"] > 0 and e.has("witness"):   # (he is no fighter: hit, his hands go up)
+					_give_up(e)
 				if e["hp"] > 0:   # still up: knocked back a step, off his aim for a moment
 					var m2 = e["node"]
 					var back: float = signf(m2.position.x - player.position.x) * (70.0 if part == "torso" else 40.0)
@@ -5822,6 +5852,14 @@ func _knocked(e: Dictionary, delta: float) -> void:
 ## A mobster goes down: counted for the score, his gun left on the pavement.
 func _kill(e: Dictionary, head: bool, quiet := false, part := "") -> void:
 	e["alive"] = false
+	if e.has("witness"):   # the lead is found on him: the story goes on, but not from his mouth
+		if OS.get_cmdline_user_args().has("--log-sets"): print("WITNESS KILLED at ", int(e["node"].position.x), " state ", e["state"], " head ", head)
+		var lines: Array = WITNESS["%d:%d" % [chapter, map]][4]
+		get_tree().create_timer(1.2, false).timeout.connect(func() -> void:
+			if not over:
+				hud.caption(lines))
+		if _auto == "":
+			MenuScript.set_story("witness_%d-%d" % [chapter, map], "dead")
 	var mk = e["node"].get_meta("mark") if e["node"].has_meta("mark") else null
 	if mk != null and is_instance_valid(mk):
 		mk.queue_free()
@@ -7700,6 +7738,7 @@ func _build_level() -> void:
 		e["delay"] = float(spec["delay"])
 		if e["boss"]:
 			boss = e
+	_add_witness()
 	_place_loads()
 	if not roof.is_empty():   # what is on the roof only matters up there, and the street only down here
 		var lo: Array[Rect2] = []
@@ -9740,6 +9779,46 @@ func _send_round(lead: Dictionary, lm) -> void:
 	pick["around_side"] = side
 
 
+func _add_witness() -> void:
+	var key := "%d:%d" % [chapter, map]
+	if not WITNESS.has(key) or _auto == "give":
+		return
+	var w: Array = WITNESS[key]
+	var x: float = maxf(level_end * float(w[1]), checkpoint + 1500.0)
+	if x > level_end - 700.0:
+		return
+	var e := _add_enemy(Vector2(x, 0.0), "post", "post", x)
+	e["witness"] = true
+	e["name"] = String(w[0])
+	e["role"] = "witness"
+	var m = e["node"]
+	m.disarmed = true   # no gun on him: he only knows things
+	if m._gun != null:
+		m._gun.visible = false
+	if OS.get_cmdline_user_args().has("--log-sets"): print("WITNESS ", w[0], " at ", int(x))
+
+
+## The witness: never fires. Frank close, he runs on down the street; at its end, cornered, he gives up.
+func _witness_tick(e: Dictionary, m, delta: float) -> bool:
+	if e["state"] != "post":
+		return false   # (running: the runner's own walk; giving up: as any man)
+	var to_player: Vector2 = player.position - m.position
+	var dx: float = absf(to_player.x)
+	if m.position.x < level_end - 600.0 and dx < 1900.0:   # (as soon as Frank is in sight)
+		e["state"] = "run"
+		e["goal"] = minf(m.position.x + 1700.0, level_end - 350.0)
+		e["seen"] = true
+		_say(m, (WITNESS["%d:%d" % [chapter, map]][2] as Array).pick_random())
+		if OS.get_cmdline_user_args().has("--log-sets"): print("WITNESS RUNS to ", int(e["goal"]))
+		return true
+	if m.position.x >= level_end - 600.0 and dx < 900.0:   # nowhere left to run
+		_give_up(e)
+		if OS.get_cmdline_user_args().has("--log-sets"): print("WITNESS CORNERED at ", int(m.position.x))
+		return true
+	m.set_state(0.0, to_player, delta)
+	return true
+
+
 func _going_round(e: Dictionary, m, delta: float) -> void:
 	var side: float = float(e["around_side"])
 	if m.visible:   # walking off, away from the fight, until he is out of the picture
@@ -9882,6 +9961,8 @@ func _enemies(delta: float) -> void:
 			continue
 		if e["state"] == "around":   # gone round the block: out of sight, then in from behind him
 			_going_round(e, m, delta)
+			continue
+		if e.has("witness") and _witness_tick(e, m, delta):
 			continue
 		if e["state"] == "wait":   # a runner holds back, out of sight, until the detective passes his mark
 			var passed: bool = player.position.x > float(e["trig"])
@@ -11072,6 +11153,12 @@ func _giving_up(e: Dictionary, delta: float) -> void:
 				if page_x != INF:
 					hud.caption(["He told me where to look.", "Eddie's page: %s." % ("up ahead" if page_x > player.position.x else "back the way I came")])
 			var key := "%d:%d" % [chapter, map]
+			if e.has("witness"):   # the lead, from his own mouth
+				if OS.get_cmdline_user_args().has("--log-sets"): print("WITNESS SPARED")
+				hud.caption(WITNESS[key][3])
+				if _auto == "":
+					MenuScript.set_story("witness_" + key.replace(":", "-"), "spared")
+				return
 			if stats["spared"] == 1 and TESTIMONY.has(key):   # the first man let go on a map talks on his way out
 				hud.caption(["He talked before he ran.", String(TESTIMONY[key])])
 				var was := _pages_held()

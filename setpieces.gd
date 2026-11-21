@@ -673,6 +673,10 @@ func _make_moving() -> void:
 
 
 const BAND_ART := ["tunnel", "tunnel_b", "tunnel_c"]
+const SIGNAL_LENS := Vector2(283.2, 474.0)   # the red lens in art/props/tunnel_signal.png (gen/tunnel_signal.py)
+const SIGNAL_SCALE := 0.62
+const SIGNAL_Y := -720.0   # the lens over the roofs, a head above a man standing: up on the wall where it is seen
+var _signal_x := INF
 
 
 ## The last train: the tunnel wall pours past behind the cars, which carry the fight on their roofs.
@@ -717,16 +721,34 @@ func _make_band() -> void:
 		g.material = add
 		g.modulate = game._undo_night(0.5)
 		_band.add_child(g)
-	_signal = Node2D.new()   # the red lamp of a signal ahead: it means a girder is coming, get down
+	# the signal ahead of a girder (2026-11-21, QUEUE §16 C, rule 6): a drawn signal head on its bracket on the tunnel
+	# wall, its red lens lit, comes by with the wall - the warning is that red light, and it has its source
+	_signal = Node2D.new()
+	var head := Sprite2D.new()
+	head.texture = load("res://art/props/tunnel_signal.png")
+	head.centered = false
+	head.scale = Vector2.ONE * SIGNAL_SCALE
+	head.position = -SIGNAL_LENS * SIGNAL_SCALE   # (the node sits on the lens)
+	head.modulate = Color(0.95, 0.95, 1.0)   # (lit by the tunnel lamps like the wall it hangs on)
+	head.material = game.atmo.blur_material(1.6)   # going by fast
+	_signal.add_child(head)
 	var lamp := Sprite2D.new()
 	lamp.texture = load("res://art/light_blob.png")
 	lamp.material = add
 	lamp.modulate = Color(1.0, 0.15, 0.1, 0.0)
-	lamp.scale = Vector2.ONE * 0.9
+	lamp.scale = Vector2.ONE * 0.55
 	lamp.name = "Lamp"
 	_signal.add_child(lamp)
-	_signal.z_index = 5
-	game.cam.add_child(_signal)
+	var lens := Sprite2D.new()   # the lens itself glowing: the light is the lens's shape
+	lens.texture = load("res://art/light_blob.png")
+	lens.material = add
+	lens.modulate = Color(1.0, 0.25, 0.15, 0.0)
+	lens.scale = Vector2.ONE * (76.0 * SIGNAL_SCALE * 2.0 / 256.0)
+	lens.name = "Lens"
+	_signal.add_child(lens)
+	_signal.z_index = -3   # on the wall: behind the cars, above their roofs
+	_signal.visible = false
+	add_child(_signal)
 	game.sfx.add_loop("train_loop", 0.0, -2.0, 1.0e9)
 
 
@@ -742,7 +764,18 @@ func _make_train() -> void:
 	var add := CanvasItemMaterial.new()
 	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	add.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+	# (QUEUE §16 C, 2026-11-21) between some cars the coupling is open: a gap of dark track to jump. Only where no
+	# crate, vent or man stands within a stride of it, never in the first stretch (the hint and the first girder)
+	# nor at the end. Fall in and he hangs off the coupling: a hit, and he is back on the car he came from.
 	var x := -3000.0
+	var keep: Array = []
+	for b in game.boxes:
+		keep.append([b.position.x - 200.0, b.end.x + 200.0])
+	for e in game.level["enemies"]:
+		if not e.get("run", false):
+			keep.append([float(e["x"]) - 150.0, float(e["x"]) + 150.0])
+	gaps.clear()
+	var k := 0
 	while x < float(game.level_end) + 4000.0:
 		var car := Sprite2D.new()
 		car.texture = tex
@@ -759,25 +792,96 @@ func _make_train() -> void:
 		glow.material = add
 		glow.modulate = game._undo_night(0.4)
 		_cars.add_child(glow)
-		x += w + 26.0
+		x += w
+		k += 1
+		var wide := x > 3200.0 and x < float(game.level_end) - 1500.0 and (gaps.is_empty() or x - gaps[-1].y > w * 1.5)
+		for r in keep:
+			if x + CAR_GAP > float(r[0]) and x < float(r[1]):
+				wide = false
+		if wide:
+			gaps.append(Vector2(x, x + CAR_GAP))
+			x += CAR_GAP
+		else:
+			x += 26.0
+	if OS.get_cmdline_user_args().has("--log-sets"): print("CAR GAPS ", gaps.size(), " ", gaps)
+
+
+const CAR_GAP := 190.0   # the open coupling: a run and a jump clears it, a standing step does not
+var gaps: Array[Vector2] = []   # world x from - to of every open coupling (the bot reads them too)
+var _gap_cool := 0.0
+
+
+## Off the roof into an open coupling: he catches the coupling with a hand - a hit, the shake - and hauls
+## himself back up onto the car he came from. A man of theirs is never left standing over a gap.
+func _tick_gaps(delta: float) -> void:
+	_gap_cool -= delta
+	var p: Node2D = game.player
+	if game.move_state == "ground" and p.position.y > -4.0 and _gap_cool <= 0.0:
+		for g in gaps:
+			if p.position.x > g.x + 34.0 and p.position.x < g.y - 34.0:
+				_gap_cool = 1.0
+				if OS.get_cmdline_user_args().has("--log-sets"): print("CAR GAP FALL at ", int(p.position.x))
+				game._bullet_hit(p.position + Vector2(0.0, -200.0), false)
+				game._shake = 0.6
+				game.sfx.play("body_fall", 0.0, p.position.x, 0.05)
+				var back := g.x - 70.0 if p.position.x - g.x < g.y - p.position.x else g.y + 70.0
+				p.position.x = back
+				game.fx.spark(Vector2(back, -10.0))
+				break
+	for e in game.enemies:   # theirs: one on the move leaps it (an arc over the gap), one standing is never left over it
+		var n: Node2D = e["node"]
+		if not e["alive"] or not is_instance_valid(n) or n.position.y < -400.0:
+			continue
+		var last: float = e.get("gap_x", n.position.x)
+		e["gap_x"] = n.position.x
+		var over := false
+		for g in gaps:
+			var a: float = g.x - 50.0
+			var b: float = g.y + 50.0
+			if n.position.x > a and n.position.x < b:
+				over = true
+				if absf(n.position.x - last) > 0.5:
+					var f: float = (n.position.x - a) / (b - a)
+					n.position.y = -sin(f * PI) * 150.0
+					if "air" in n:
+						n.air = 1.0
+				else:
+					n.position.y = 0.0
+					n.position.x = a if n.position.x < (a + b) * 0.5 else b
+				e["gap_over"] = true
+		if not over and e.get("gap_over", false):
+			e["gap_over"] = false
+			n.position.y = 0.0
+			if "air" in n:
+				n.air = 0.0
 
 
 func _tick_moving(delta: float) -> void:
 	var cam_x: float = game.cam.position.x
 	_band.position = Vector2(-fposmod(cam_x + _t * _speed, _band_w * BAND_ART.size()), _band_top - game.cam.position.y)
 	_cars.position.y = sin(_t * 9.0) * 3.0 + sin(_t * 2.3) * 2.0   # it rocks along the rails
+	_tick_gaps(delta)
 	game._shake = maxf(game._shake, 0.04)
 	var lamp: Sprite2D = _signal.get_node("Lamp")
+	var lens: Sprite2D = _signal.get_node("Lens")
 	var view: Vector2 = get_viewport().get_visible_rect().size / game.cam.zoom
-	_signal.position = Vector2(view.x * 0.5 - 140.0, -view.y * 0.5 + 260.0)
 	if game.over or game.cleared:
-		lamp.modulate.a = 0.0
+		_signal.visible = false
 		return
+	var was_t := _beam_t
 	_beam_t -= delta
-	if _beam_t < 1.3 and _beam_t > 0.0:   # the warning: the red lamp blinking
-		lamp.modulate.a = 0.95 if fmod(_beam_t, 0.3) < 0.15 else 0.15
-	else:
-		lamp.modulate.a = 0.0
+	if was_t >= 1.6 and _beam_t < 1.6:   # the signal comes up out of the dark ahead, red: a girder behind it
+		_signal_x = cam_x + view.x * 0.6
+	if _signal_x != INF:
+		_signal_x -= _speed * delta   # (on the wall: it goes by with the wall)
+		_signal.position = Vector2(_signal_x, SIGNAL_Y)
+		_signal.visible = true
+		var on: float = 1.0 if fmod(_t, 0.3) < 0.18 else 0.35   # its lamp flashing
+		lamp.modulate.a = 0.8 * on
+		lens.modulate.a = 0.95 * on
+		if _signal_x < cam_x - view.x:
+			_signal_x = INF
+			_signal.visible = false
 	_tick_oncoming(delta, cam_x, view)
 	if _beam_t <= 0.0 and _oncoming == null:
 		_beam_t = randf_range(6.0, 9.5)

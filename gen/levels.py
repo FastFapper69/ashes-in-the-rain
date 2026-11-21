@@ -508,6 +508,11 @@ def chunk(name, hard, rng=None):
     elif name == "hold":   # below decks on the Santa Lucia: crates lashed down, lamps swinging
         c = Chunk(2700).room(0, 2700, "hold").lamp(500).lamp(1400).lamp(2250)
         furnish(c, "hold", rng, ["post", "shotgun", "tommy" if hard > 0.5 else "post"], flask=True)
+    elif name == "hold_crates":   # (QUEUE §18, rule 30) CARGO HOLD's reason: the hold where the August 1939 cargo still is -
+        # the eleven crates of "machine parts" that were kerosene; Kessler's men are down there to get rid of them
+        c = Chunk(2700).room(0, 2700, "hold").lamp(500).lamp(1400).lamp(2250)
+        furnish(c, "hold", rng, ["post", "shotgun", "post", "tommy" if hard > 0.5 else "post"], flask=True)
+        c.hint(600, "ELEVEN CRATES. 'MACHINE PARTS'. THEY REEK OF KEROSENE.")
     elif name == "office":   # the harbor master's: filing cabinets and a counter for cover
         c = Chunk(2400).room(0, 2400, "office").lamp(600).lamp(1700)
         furnish(c, "office", rng, ["post", "shotgun", "post"], flask=True)
@@ -1659,10 +1664,10 @@ CAMPAIGN = [
      "diary": "Dec 2. The Santa Lucia sails under the Saint's flag. Its manifest for August '39 lists eleven crates of 'machine parts'. Eleven.",
      "outro": ["The ledger had a page torn out. The stub said August 1939."]},
     {"name": "CARGO HOLD", "seed": 204, "rock": True, "feature": "shipping", "pool": DOCKS_POOL, "start": 0.6, "end": 0.85, "ash": 0.8, "embers": 0.3,
-     "fixed": ["hold", "crane_swing", "dock_crates", "hold", "warehouse_arena", "searchlight_yard"],
-     "intro": ["Down in the hold the rain sounded like applause for somebody else."],
+     "fixed": ["crane_swing", "dock_crates", "warehouse_arena", "searchlight_yard", "hold_crates"],   # (QUEUE §18: one hold, the one with the 1939 cargo - SANTA LUCIA's is its own)
+     "intro": ["The stub said August 1939. Whatever went aboard that month never came off.", "Kessler's men were already down in the hold, and they hadn't come to unload."],
      "diary": "Dec 5. Frank asked me why I keep at this. I said a reporter's job is to write down what everybody already knows. He didn't laugh.",
-     "outro": ["Kessler ran for the harbor office. Men like him always run toward their paperwork."]},
+     "outro": ["Eleven crates of machine parts that never left the hold. Every one of them stank of kerosene.", "Kessler ran for the harbor office. Men like him always run toward their paperwork."]},
     {"name": "HARBOR MASTER", "seed": 205, "sea": True, "feature": "harbor", "pool": DOCKS_POOL, "start": 0.65, "end": 0.9, "boss": "kessler", "boss_room": "office", "ash": 1.0, "embers": 0.5,
      "fixed": ["dock_crates", "crane_swing", "breather", "searchlight_yard", "rush"],
      "intro": ["Bruno Kessler. Dock master since '38. He hadn't closed a door in eight years."],
@@ -1676,7 +1681,7 @@ CAMPAIGN = [
      "fixed": ["smoke_men", "blaze", "arsonists", "beam_fall", "breather", "blaze", "smoke_men", "beam_fall", "arsonists", "blaze", "smoke_men"],
      "finale": "alley_fire",
      "events": [["burn", "laundry"], ["burn", "market"], ["burn", "alley_fire"]],
-     "intro": ["I've told this one to myself so many times I can't tell any more which parts are true.", "In the version I tell, I get past the firemen."],
+     "intro": ["I've told this one to myself so many times I can't tell any more which parts are true.", "In the version I tell, I get past the firemen. In the version I tell, I had a gun."],
      "outro": ["My father brought out three of the Kowalczyk kids. He went back up for the fourth. The roof came down at ten past two.", "Declan Rourke held me back by the collar. He smelled of smoke and of something else. Kerosene. I was seventeen. I didn't know what it meant."]},
   ]},
   {"title": "CHAPTER III", "name": "UNDERGROUND", "ready": True, "hero": "frank", "ambient": [0.17, 0.16, 0.2], "rain": 0.0, "maps": [
@@ -1695,7 +1700,7 @@ CAMPAIGN = [
      "fixed": ["drum_duo", "car_ambush", "searchlight_yard", "crane_swing", "crate_cover", "live_wire", "blackout", "gauntlet"],
      "intro": ["The yard was the only way out that didn't have a badge standing in it."],
      "diary": "Dec 15. 1931. A tenement on West 47th burned with nine families inside. Engine 54 got there first. One fireman went in for the kids and didn't come out. Patrick Malone.",
-     "outro": ["The last train out of the yard was an empty one. I've never been so glad of an empty thing."]},
+     "outro": ["An express was pulling out of the yard, empty, going nowhere I knew. I caught the last car.", "So did Briggs's men."]},
     {"name": "THE LAST TRAIN", "seed": 304, "feature": "tunnel", "pool": ["tunnel", "tunnel_b", "tunnel_c"], "under": True, "cops": True, "moving": 2600, "start": 0.55, "end": 0.85, "ash": 0.0,
      "fixed": ["roof_vents", "breather", "roof_rush", "roof_vents", "breather", "roof_rush", "roof_vents"],
      "intro": ["They caught up with me on the roof of the express. Fifty feet of tunnel to every second, and the girders hang low."],
@@ -1705,7 +1710,7 @@ CAMPAIGN = [
     {"name": "THE CATACOMBS", "seed": 305, "flood": True, "rats": True, "feature": "bowery", "pool": UNDER_POOL, "under": True, "cops": True, "start": 0.6, "end": 0.9, "ash": 0.3,
      "boss": "briggs", "boss_room": "catacombs",
      "fixed": ["crate_cover", "catacombs", "breather", "train_platform", "rush", "catacombs"],
-     "intro": ["Lieutenant Harlan Briggs. Four Bronze Stars and not one bent dollar. The only honest man who ever hunted me."],
+     "intro": ["Lieutenant Harlan Briggs. Four Bronze Stars and not one bent dollar. The only honest man who ever hunted me.", "He was waiting under the Bowery. Rourke had given him my file, and the file knew where Eddie and I used to hide."],
      "diary": "Dec 17, morning. Tonight I'll know. If it's who I think it is, Frank, I'm sorry. Not for finding it. For it being you.",
      "outro": ["The Catacombs went quiet. Somewhere above us the rain was coming down harder."]},
   ]},

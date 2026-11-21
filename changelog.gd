@@ -4,6 +4,14 @@ extends RefCounted
 ## (knowledge ch01). The build number and date come from version.gen.gd (written by gen/deploy/deploy_pc.sh).
 
 const ENTRIES := [
+	["21 NOV 2026", [
+		"The gunsmith shows the big guns as they are: the shotgun's long tube, the tommy gun's drum and compensator, in every view",
+		"The last train: open couplings between some cars - run and jump them, or you go down between the cars",
+		"The red warning on the last train is a real signal on the tunnel wall now, its red lamp flashing before a girder",
+		"Back Streets and The Cranes: a man who knows runs ahead of you. Corner him and let him go, and he tells you where to go next",
+		"Cargo Hold has its own reason: the hold with the eleven crates from August 1939",
+		"Train Yard ends on the express that the last train map starts on; the Catacombs say how Briggs knew where to wait",
+	]],
 	["18 NOV 2026", [
 		"The docks and the subway: every map its own stretch of waterfront or line; two new dock sheds",
 		"Chapter III is a slope now, not a wall: three gunmen at once only by its end",
