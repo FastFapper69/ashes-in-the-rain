@@ -13,6 +13,11 @@ const ENTRIES := [
 		"No shots from inside the stairwell; no being pulled up through a deck from below",
 		"Chapter I streets are laid out with the men you actually meet: fewer, better spaced, no longer half shotguns and tommies",
 		"Nobody waits in the fire, under a falling beam, under the station stairs or past the end of a map; no flask inside a crate",
+		"SKIP on a comic stops Frank's voice too",
+		"A chapter's drawings that fail to load: TRY AGAIN or BACK TO THE TITLE; the download takes half the memory it did",
+		"Your checkpoint is kept when the page is closed: CONTINUE brings you back there",
+		"The prologue counts as finished before its last comic; the evidence counts what can really be found (30)",
+		"The tally card stays until you tap it; locked chapter cards say which chapter to close first",
 	]],
 	["21 NOV 2026", [
 		"Swapping big guns: the one you pick up has only the rounds left in it",

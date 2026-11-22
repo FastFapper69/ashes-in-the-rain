@@ -26,3 +26,8 @@ Fixed sticks (no floating joysticks), jump right beside the aim stick, dive and 
 1. Reward style, not grind: every multiplier is a skill expression.
 2. HP/damage are purchases; nothing grows automatically.
 3. Any change to body size or jumps → re-run the bot on all maps.
+
+## Save: checkpoint and evidence (audit 22. 11.)
+- The last checkpoint of the map being played is in the save (`menu.gd save_cp/saved_cp/clear_cp`, section "checkpoint": map, x, y, ground, keep = `_cp_keep`). `main.gd _start_map` (CONTINUE or the case file) and a fresh page (`take_resume`) restore it through `_saved_cp()`; `_map_cleared` clears it. Not in tests or sandboxes.
+- The prologue is marked done when Eddie goes down, before the last comic.
+- `evidence_total()` counts what exists: a page per map with a `diary`, a statement per `main.gd TESTIMONY` key, ready chapters only (30 now). The diary's "PAGE N OF M" counts only maps with a page.

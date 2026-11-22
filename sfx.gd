@@ -269,6 +269,12 @@ func voice_on() -> bool:
 	return _voice != null and _voice.playing
 
 
+## SKIP: Frank stops mid-sentence with the page (audit 22. 11.: the voice ran on over the street).
+func voice_stop() -> void:
+	if _voice != null:
+		_voice.stop()
+
+
 ## The ambience under a story panel: these loops at these levels (dB), everything else faded out.
 ## {} lets the street come back.
 func bed(want: Dictionary) -> void:

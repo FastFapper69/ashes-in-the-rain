@@ -166,6 +166,26 @@ static func set_story(key: String, value: String) -> void:
 	_store()
 
 
+## (audit 22. 11.) The last checkpoint of the map being played, kept in the save: a phone that kills the tab (or
+## QUIT TO TITLE, then CONTINUE) brings him back there and not to the map's start. Cleared when the map is closed.
+static func save_cp(data: Dictionary) -> void:
+	var cfg := _save()
+	cfg.set_value("checkpoint", "at", data)
+	_store()
+
+
+static func saved_cp() -> Dictionary:
+	var v = _save().get_value("checkpoint", "at", {})
+	return v if v is Dictionary else {}
+
+
+static func clear_cp() -> void:
+	var cfg := _save()
+	if cfg.has_section("checkpoint"):
+		cfg.erase_section("checkpoint")
+		_store()
+
+
 static func story(key: String) -> String:
 	var cfg := _save()
 	return String(cfg.get_value("story", key, ""))
@@ -276,11 +296,25 @@ static func evidence() -> int:
 
 ## The ending the player has earned so far: "snow" (low ash, Briggs alive, at least half the
 ## evidence) or "ash". Chapter IV reads this when it is built.
+## (22. 11.) The largest size up to `size` at which each line of `text` fits a card's inner width on one line
+## (1280 wide: six cards of 160 px wrapped "CLOSE CASE 4 FIRST" into three lines over the card's inner line).
+func _fit(card: Control, text: String, size: int, air: float) -> int:
+	var room: float = (card.get_meta("inner") as Rect2).size.x - 2.0 * air - 2.0
+	var s := size
+	while s > 14 and Array(text.split("\n")).any(func(t: String) -> bool: return _font_head.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, s).x > room):
+		s -= 1
+	return s
+
+
 static func evidence_total() -> int:
-	var total := 0
+	var total := 0   # (audit 22. 11.) what can really be found: a page where a map has one, a statement where a man has one to give (it counted 2 a map: 42, of 30)
+	var said: Dictionary = load("res://main.gd").TESTIMONY
 	for c in Levels.CAMPAIGN.size():
-		for mp in Levels.CAMPAIGN[c]["maps"]:
-			total += 0 if mp.get("dream", false) or mp.get("memory", false) else 2
+		if not Levels.CAMPAIGN[c]["ready"]:
+			continue
+		for m in Levels.CAMPAIGN[c]["maps"].size():
+			total += 1 if String(Levels.CAMPAIGN[c]["maps"][m].get("diary", "")) != "" else 0
+			total += 1 if said.has("%d:%d" % [c, m]) else 0
 	return total
 
 
@@ -701,7 +735,7 @@ func _case_file() -> void:
 			(card.get_node("Drawing") as TextureRect).modulate = Color(0.58, 0.56, 0.53)   # an unopened file, in the dark
 		var ink: Color = INK
 		Paper.write(card, str(m + 1), _font_head, 64, ink, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0, 1, 0.36), 4.0)
-		Paper.write(card, String(maps[m]["name"]), _font_head, 22, ink, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0.36, 1, 0.28), 10.0)   # (audit 17. 11.: the typed name read too small on a phone)
+		Paper.write(card, String(maps[m]["name"]), _font_head, _fit(card, String(maps[m]["name"]), 22, 10.0), ink, HORIZONTAL_ALIGNMENT_CENTER, Rect2(0, 0.36, 1, 0.28), 10.0)   # (audit 17. 11.: the typed name read too small on a phone)
 		var low := Rect2(0, 0.64, 1, 0.36)
 		if not ch["ready"]:
 			Paper.write(card, "SOON", _font_head, 30, Color(0.1, 0.1, 0.1), HORIZONTAL_ALIGNMENT_CENTER, low, 10.0)
@@ -715,7 +749,8 @@ func _case_file() -> void:
 			card.scale = Vector2(1.05, 1.05)
 			card.z_index = 1
 		else:   # locked: it says why
-			Paper.write(card, "LOCKED\nCLOSE CASE %d FIRST" % m, _font_head, 20, INK, HORIZONTAL_ALIGNMENT_CENTER, low, 10.0)
+			var why := "CLOSE CASE %d FIRST" % m if m > 0 else "AFTER %s" % String(Levels.CAMPAIGN[maxi(0, _chapter - 1)]["title"])   # (audit 22. 11.: "CASE 0")
+			Paper.write(card, "LOCKED\n" + why, _font_head, _fit(card, why, 20, 10.0), INK, HORIZONTAL_ALIGNMENT_CENTER, low, 10.0)
 
 	if not ch["ready"]:
 		var soon := _label("THE INVESTIGATION CONTINUES SOON", _font_type, 24, PAPER, 6)

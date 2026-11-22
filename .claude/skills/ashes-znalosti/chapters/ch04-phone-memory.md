@@ -22,7 +22,7 @@ iPhone Safari silently kills the tab when textures + wasm heap + decoded audio g
 | First glyph rasterisation ~100 ms | `main._warm_text()` draws fonts at 1 % alpha for 2 frames on screen at map load; add new font sizes to `specs` |
 
 ## Packs
-`gen/packs.py`: base + pack a (prologue + ch I), b (ch II), c (ch III). Drawings used by one group's maps/cutscenes go into that pack. `_ready` checks `Packs.has(chapter)`, fetches (`HTTPRequest accept_gzip=false`, write to /tmp, `load_resource_pack`, reload, caption "OPENING THE CASE FILE…"); another group already loaded → `Packs.fresh_page` (localStorage `ashes_resume`). Chapter IV: add scenes to CUTS, group "d". Next step if crashes continue: pack per map.
+`gen/packs.py`: base + pack a (prologue + ch I), b (ch II), c (ch III). Drawings used by one group's maps/cutscenes go into that pack. `_ready` checks `Packs.has(chapter)`, fetches (since 22. 11. `main.gd _pull`: HTTPClient, read_chunk_size 1 MB, up to 8 MB a frame, each chunk written straight into /tmp - the pack sits in memory ONCE; HTTPRequest held the whole body plus the file, ~2x the pack; `download_file` does not work on the web), `load_resource_pack`, reload, caption "OPENING THE CASE FILE… N %"; a failure shows TRY AGAIN / BACK TO THE TITLE (test `--test=packfail`, web: Playwright route abort). The title builds no house in cross-section (sections/flats/stairdoors/ropes emptied in menu: −20 MB); another group already loaded → `Packs.fresh_page` (localStorage `ashes_resume`). Chapter IV: add scenes to CUTS, group "d". Next step if crashes continue: pack per map.
 
 ## Anti-patterns
 - Reading a street sprite's `.texture` after build assuming it is loaded (streaming may have dropped it).

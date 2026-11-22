@@ -746,6 +746,7 @@ func _finish() -> void:
 		return
 	_ending = true
 	if audio != null:   # the street comes back as the page goes dark
+		audio.voice_stop()
 		audio.bed({})
 		audio.story = false
 	var tw := create_tween()

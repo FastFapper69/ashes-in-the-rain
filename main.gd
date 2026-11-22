@@ -55,8 +55,9 @@ var _assist := true
 const FLAME_FRAMES := 8
 var _flames: Array = []
 var _flame_mat: CanvasItemMaterial
+static var ARGS: PackedStringArray = OS.get_cmdline_user_args()   # (audit 22. 11.) read once: it was asked 50 times, some every frame per man
 static var _erased := false   # test: the erase went through, this is the title after it
-var _cones: bool = "--cones" in OS.get_cmdline_user_args()   # test comparisons: inked light cones
+var _cones: bool = "--cones" in ARGS   # test comparisons: inked light cones
 static var _retry := false     # the scene reloads for a retry after death: everything fast
 static var _card_up := false   # a title card is covering the screen across the reload: lift it once built
 var sets   # setpieces.gd: cars, blackouts, searchlights, fires, the crane's crate
@@ -306,7 +307,7 @@ const SLOW_SCALE := 0.3   # how fast time runs while it is slowed
 const CAM_Y_BASE := -508.0     # puts the pavement about four fifths of the way down the screen
 ## Feedback round 17. 11. (user: "turn them all on"): the pavement higher on the screen, clear of the thumb buttons;
 ## the backgrounds pushed back (BG_DIM); a light contour round the figures (puppet.gd). --oldlook shows the old one.
-static var LOOK2 := not OS.get_cmdline_user_args().has("--oldlook")
+static var LOOK2 := not ARGS.has("--oldlook")
 static var CAM_Y: float = CAM_Y_BASE + (150.0 if LOOK2 else 0.0)
 const BG_DIM := 0.86
 const CAM_LEAD := 400.0   # the camera looks ahead of the detective
@@ -523,6 +524,9 @@ func _add_print_sheet() -> void:
 
 ## The pack with this part of the story's drawings: fetched next to the page (or read from --packs=
 ## on a desktop test), then the scene starts again with it. A paper caption says what is happening.
+## (audit 22. 11.) The bytes go into the file as they come, so the page holds the pack once and not twice
+## (HTTPRequest kept the whole body and the file beside it: ~180 MB for pack a on a phone); a failure says
+## so and offers TRY AGAIN or BACK TO THE TITLE, instead of retrying blind for ever.
 func _fetch_pack() -> void:
 	set_process(false)
 	set_physics_process(false)
@@ -542,48 +546,116 @@ func _fetch_pack() -> void:
 		box.add_child(cap)
 	var src := Packs.url(chapter, map)
 	crumb("fetch pack %s from %s %s" % [Packs.group(chapter, map), src, _mem_line()])
+	var failed := func() -> void:   # the caption and two ways on
+		say.call("THE CASE FILE WOULDN'T OPEN. CHECK THE CONNECTION.")
+		var head := FontVariation.new()
+		head.base_font = load("res://fonts/Oswald.ttf")
+		head.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): 600}
+		var row := [["TRY AGAIN", func() -> void:
+				box.queue_free()
+				layer.queue_free()
+				_fetch_pack()],
+			["BACK TO THE TITLE", func() -> void:
+				in_menu = true
+				get_tree().reload_current_scene()]]
+		var w := 300.0
+		var cap: Control = box.get_child(box.get_child_count() - 1)
+		var y := cap.position.y - 32.0 - 72.0   # (above the caption, with air)
+		for k in row.size():
+			var b: Control = Paper.button("tape", Vector2(w, 72.0), row[k][1], func(_n: String) -> void: pass)
+			Paper.write(b, String(row[k][0]), head, 26, Paper.INK)
+			b.position = Vector2(view.x * 0.5 + (-w - 8.0 if k == 0 else 8.0), y)
+			box.add_child(b)
+		if "--test=packfail" in ARGS:
+			get_tree().create_timer(1.0).timeout.connect(func() -> void:
+				await _shot("packfail")
+				get_tree().quit())
 	if not OS.has_feature("web"):
-		if Packs.mount(src, chapter, map):
+		if not "--test=packfail" in ARGS and Packs.mount(src, chapter, map):
 			get_tree().reload_current_scene.call_deferred()
 		else:
-			push_error("pack missing: " + src)
+			push_warning("pack missing: " + src)
+			failed.call()
 		return
 	say.call("OPENING THE CASE FILE...")
 	var file := "/tmp/ashes_pack_%s.pck" % Packs.group(chapter, map)   # in the page's memory only: user:// would be stored in the browser and loaded back at every start
+	var fa := FileAccess.open(file, FileAccess.WRITE)
+	if fa == null:   # no /tmp here: the browser's own storage then
+		file = "user://pack_%s.pck" % Packs.group(chapter, map)
+		fa = FileAccess.open(file, FileAccess.WRITE)
 	var abs_url := String(JavaScriptBridge.eval("new URL(%s, location.href).href" % JSON.stringify(src), true))
-	var req := HTTPRequest.new()
-	req.use_threads = false
-	req.accept_gzip = false   # the browser has already unpacked what GitHub sent gzipped
-	req.download_chunk_size = 4 * 1024 * 1024   # (the default 64 KB a frame: a 68 MB pack took ~1000 frames, 17 s at 60 fps)
-	add_child(req)
-	var tick := Timer.new()
-	tick.wait_time = 0.3
-	tick.autostart = true
-	add_child(tick)
-	tick.timeout.connect(func() -> void:
-		var total := req.get_body_size()
-		if total > 0:
-			say.call("OPENING THE CASE FILE... %d %%" % int(100.0 * req.get_downloaded_bytes() / total)))
-	req.request_completed.connect(func(result: int, code: int, _h: PackedStringArray, body: PackedByteArray) -> void:
-		tick.stop()
-		var got := body.size()   # the web's HTTPRequest won't write a file itself: the bytes go to one here
-		if result == HTTPRequest.RESULT_SUCCESS and code == 200 and got > 0:
-			var fa := FileAccess.open(file, FileAccess.WRITE)
-			if fa == null:   # no /tmp here: the browser's own storage then
-				file = "user://pack_%s.pck" % Packs.group(chapter, map)
-				fa = FileAccess.open(file, FileAccess.WRITE)
-			if fa != null:
-				fa.store_buffer(body)
-				fa.close()
-		body = PackedByteArray()
-		if result == HTTPRequest.RESULT_SUCCESS and code == 200 and Packs.mount(file, chapter, map):
-			crumb("pack %s mounted (%d bytes) %s" % [Packs.group(chapter, map), got, _mem_line()])
-			get_tree().reload_current_scene()
-		else:
-			crumb("pack fetch failed result=%d code=%d file=%d bytes, open err %d" % [result, code, got, FileAccess.get_open_error()])
-			say.call("THE CASE FILE WOULDN'T OPEN. CHECK THE CONNECTION.")
-			get_tree().create_timer(3.0).timeout.connect(func() -> void: req.request(abs_url)))
-	req.request(abs_url)
+	var err := await _pull(abs_url, fa, func(pc: int) -> void: say.call("OPENING THE CASE FILE... %d %%" % pc))
+	if fa != null:
+		fa.close()
+	if err == "" and Packs.mount(file, chapter, map):
+		crumb("pack %s mounted %s" % [Packs.group(chapter, map), _mem_line()])
+		get_tree().reload_current_scene()
+	else:
+		crumb("pack fetch failed: %s, open err %d" % [err if err != "" else "mount", FileAccess.get_open_error()])
+		DirAccess.remove_absolute(file)
+		failed.call()
+
+
+## A file over HTTP straight into fa, a few MB a frame (HTTPClient: the web's fetch, the browser has
+## already unpacked what GitHub sent gzipped). Returns "" or what went wrong.
+func _pull(url: String, fa: FileAccess, progress: Callable) -> String:
+	if fa == null:
+		return "no file"
+	var tls := url.begins_with("https://")
+	var rest := url.substr(8 if tls else 7)
+	var cut := rest.find("/")
+	var host := rest.substr(0, cut)
+	var path := rest.substr(cut)
+	var port := -1
+	if host.contains(":"):
+		port = int(host.get_slice(":", 1))
+		host = host.get_slice(":", 0)
+	var http := HTTPClient.new()
+	http.read_chunk_size = 1024 * 1024
+	if http.connect_to_host(("https://" if tls else "http://") + host, port) != OK:
+		return "connect"
+	var t0 := Time.get_ticks_msec()
+	while http.get_status() in [HTTPClient.STATUS_RESOLVING, HTTPClient.STATUS_CONNECTING]:
+		http.poll()
+		await get_tree().process_frame
+		if Time.get_ticks_msec() - t0 > 20000:
+			return "connect timeout"
+	if http.get_status() != HTTPClient.STATUS_CONNECTED:
+		return "connect status %d" % http.get_status()
+	if http.request(HTTPClient.METHOD_GET, path, []) != OK:
+		return "request"
+	while http.get_status() == HTTPClient.STATUS_REQUESTING:
+		http.poll()
+		await get_tree().process_frame
+	if not http.has_response() or http.get_response_code() != 200:
+		return "code %d status %d" % [http.get_response_code(), http.get_status()]
+	var total := http.get_response_body_length()   # (the gzipped size from GitHub, or -1: the per cent is a guide)
+	var got := 0
+	var last := Time.get_ticks_msec()
+	var shown := -1
+	while http.get_status() == HTTPClient.STATUS_BODY:
+		http.poll()
+		var frame := 0
+		while frame < 8 * 1024 * 1024:   # several chunks a frame: 64 KB a frame took 17 s for 68 MB
+			var chunk := http.read_response_body_chunk()
+			if chunk.is_empty():
+				break
+			fa.store_buffer(chunk)
+			got += chunk.size()
+			frame += chunk.size()
+			last = Time.get_ticks_msec()
+		if total > 0 and mini(99, 100 * got / total) != shown:
+			shown = mini(99, 100 * got / total)
+			progress.call(shown)
+		if Time.get_ticks_msec() - last > 30000:   # nothing for half a minute: the line is gone
+			return "stalled at %d bytes" % got
+		await get_tree().process_frame
+	if http.get_status() != HTTPClient.STATUS_CONNECTED and http.get_status() != HTTPClient.STATUS_DISCONNECTED:
+		return "body status %d" % http.get_status()
+	if got == 0 or (total > 0 and got < total):
+		return "short %d of %d" % [got, total]
+	crumb("pack %d bytes in %d ms" % [got, Time.get_ticks_msec() - t0])
+	return ""
 
 
 ## A line for the crash report (web only): what the game was doing, kept in the browser's storage so
@@ -591,7 +663,7 @@ func _fetch_pack() -> void:
 ## Startup timing (--timing): how long each part of building the page took.
 static var _tm_last := 0
 func _tm(what: String) -> void:
-	if "--timing" in OS.get_cmdline_user_args():
+	if "--timing" in ARGS:
 		var now := Time.get_ticks_msec()
 		print("TIMING %-14s %5d ms  (at %d)" % [what, now - _tm_last, now])
 		_tm_last = now
@@ -631,7 +703,7 @@ func _ready() -> void:
 	if _auto_arg() == "hops": print("READY ", chapter, ":", map)
 	(func() -> void: crumb("ready " + _mem_line())).call_deferred()
 	_add_print_sheet()
-	for arg in OS.get_cmdline_user_args():
+	for arg in ARGS:
 		if arg.begins_with("--chapter="):
 			chapter = int(arg.trim_prefix("--chapter="))
 		if arg.begins_with("--map="):
@@ -642,7 +714,7 @@ func _ready() -> void:
 		if arg.begins_with("--test="):
 			in_menu = arg == "--test=menu" or arg == "--test=whatsnew" or arg == "--test=instincts" or arg == "--test=gunsmith" or arg == "--test=titleset" or arg == "--test=erase" or arg == "--test=neon" or arg == "--test=paperkit" or arg.begins_with("--test=ui")
 	var picked := false
-	for arg in OS.get_cmdline_user_args():
+	for arg in ARGS:
 		picked = picked or arg.begins_with("--chapter=")
 	if not _booted:   # a fresh page asked for by the last one (another part of the story): straight back to it
 		_booted = true
@@ -653,6 +725,7 @@ func _ready() -> void:
 			in_menu = r.y < 0
 			if r.y >= 0:
 				map = r.y
+				_saved_cp()   # (a fresh page for another part of the story: the statics are gone)
 	if in_menu and not picked:   # the title stands in the street where the story has got to
 		var p := MenuScript.progress()
 		if p[0] >= 0 and Levels.CAMPAIGN[p[0]]["ready"]:
@@ -663,7 +736,7 @@ func _ready() -> void:
 			while chapter > 0 and not Levels.CAMPAIGN[chapter]["ready"]:
 				chapter -= 1
 			map = Levels.CAMPAIGN[chapter]["maps"].size() - 1
-	if "--test=curve" in OS.get_cmdline_user_args():   # prints the difficulty curve over the whole story
+	if "--test=curve" in ARGS:   # prints the difficulty curve over the whole story
 		_print_curve()
 		set_process(false)
 		set_physics_process(false)
@@ -693,6 +766,9 @@ func _ready() -> void:
 			set_process_unhandled_input(false)
 			_fetch_pack()
 		return
+	if "--test=packfail" in ARGS and not in_menu:   # the caption and buttons of a failed pack
+		_fetch_pack()
+		return
 	var ch: Dictionary = Levels.CAMPAIGN[chapter]
 	level = ch["maps"][map]
 	if _sandbox >= 0:
@@ -709,6 +785,9 @@ func _ready() -> void:
 		level["pickups"] = []
 		level["rooms"] = []
 		level["events"] = []
+		for k in ["sections", "flats", "stairdoors", "ropes"]:   # (audit 22. 11.) no house in cross-section held in memory under the title
+			if level.has(k):
+				level[k] = []
 	level_end = level["end"]
 	_set_difficulty(String(ch["hero"]))
 	rooms = level["rooms"]
@@ -721,7 +800,7 @@ func _ready() -> void:
 	if in_menu:
 		_cut_seen = ""
 	checkpoint_map = "%d:%d" % [chapter, map]
-	for arg in OS.get_cmdline_user_args():   # (test) as if he came back from a death at this checkpoint: --cp=x,y
+	for arg in ARGS:   # (test) as if he came back from a death at this checkpoint: --cp=x,y
 		if arg.begins_with("--cp="):
 			var v := arg.substr(5).split(",")
 			checkpoint = float(v[0])
@@ -770,7 +849,7 @@ func _ready() -> void:
 			player._skirt_mesh.modulate *= Color(0.34, 0.4, 0.58)
 	if checkpoint > 0.0 and not in_menu:
 		player.position = Vector2(checkpoint, _floor_at(checkpoint, checkpoint_y - 10.0 if checkpoint_y < 0.0 else -1.0))
-		if OS.get_cmdline_user_args().has("--log-sets"): print("RESPAWN AT ", player.position)
+		if ARGS.has("--log-sets"): print("RESPAWN AT ", player.position)
 		cam_start = player.position.x
 	elif level.has("start_xy") and not in_menu:   # (TENEMENTS, 18. 11.: he starts where THE LAUNDRY left him - in the flat upstairs)
 		var sxy: Array = level["start_xy"]
@@ -828,7 +907,7 @@ func _ready() -> void:
 	atmo.add_post(self)
 	atmo.set_ash(MenuScript.guilt() / 10.0)
 	atmo.set_lift(0.2)   # the darkest darks opened a little: walls in the dark keep their lines (the user: a fifth of the trial)
-	for a in OS.get_cmdline_user_args():
+	for a in ARGS:
 		if a.begins_with("--lift="):
 			atmo.set_lift(float(a.trim_prefix("--lift=")))
 	if level.get("dream", false):   # (not in the street memories: there it turns every lit shop window orange)
@@ -927,17 +1006,17 @@ func _ready() -> void:
 		get_tree().create_timer(3.6).timeout.connect(hud.caption.bind(level["intro"]))
 	if not OS.has_feature("web"):
 		DirAccess.make_dir_recursive_absolute("res://_shots")
-	for arg in OS.get_cmdline_user_args():
+	for arg in ARGS:
 		if arg.begins_with("--test="):
 			_auto = arg.trim_prefix("--test=")
 			if _auto.begins_with("dive:"):   # --test=dive:1300 taps the dive button at that x
 				_dive_at = float(_auto.get_slice(":", 1))
 				_auto = "dive"
-	if "--newgame" in OS.get_cmdline_user_args() and in_menu and not _card_up:   # debug: erase, then start the story as a player would
+	if "--newgame" in ARGS and in_menu and not _card_up:   # debug: erase, then start the story as a player would
 		get_tree().create_timer(2.0).timeout.connect(func() -> void:
 			MenuScript.erase_progress()
 			_start_map(0, 0))
-	if "--newgame" in OS.get_cmdline_user_args() and not in_menu:
+	if "--newgame" in ARGS and not in_menu:
 		get_tree().create_timer(6.0, true, false, true).timeout.connect(func() -> void:
 			print("NEWGAME ALIVE ", chapter, ":", map, " in_cut ", _in_cut)
 			get_tree().quit())
@@ -2454,6 +2533,17 @@ func _add_window_light(bottom_center: Vector2, width: float) -> void:
 	add_child(p)
 
 
+var _after_tally := Callable()   # what a tap on the cleared map's tally card does: on to the next map or its comic
+var _tally_ms := 0
+func _input(event: InputEvent) -> void:
+	if not _after_tally.is_valid() or not cleared or Time.get_ticks_msec() - _tally_ms < 1500:
+		return
+	if (event is InputEventScreenTouch and event.pressed) or (event is InputEventMouseButton and event.pressed and event.device != InputEvent.DEVICE_ID_EMULATION) \
+			or (event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_SPACE, KEY_ENTER]):
+		get_viewport().set_input_as_handled()
+		_after_tally.call()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_0:
 		_show_fps = not _show_fps
@@ -2750,14 +2840,14 @@ func _process(delta: float) -> void:
 				_auto_done = 1
 				for b in Instincts.BRANCHES:   # a clean board, then what --pin=lead0,time1,... asks for
 					Instincts.unpin(b, 0)
-				for arg in OS.get_cmdline_user_args():
+				for arg in ARGS:
 					if arg.begins_with("--pin="):
 						for k in arg.trim_prefix("--pin=").split(","):
 							Instincts.pin(k.rstrip("0123456789"), int(k.right(1)))
 				for c in get_children():
 					if c.has_method("_instincts"):
 						c._instincts()
-						for arg in OS.get_cmdline_user_args():
+						for arg in ARGS:
 							if arg.begins_with("--detail="):   # one card picked up: --detail=lead4
 								var k := arg.trim_prefix("--detail=")
 								c._card_detail(k.rstrip("0123456789"), int(k.right(1)))
@@ -2772,23 +2862,23 @@ func _process(delta: float) -> void:
 				_auto_done = 1
 				var g := "gun"
 				var pk := 0
-				for arg in OS.get_cmdline_user_args():
+				for arg in ARGS:
 					if arg.begins_with("--gun="): g = arg.trim_prefix("--gun=")
 					if arg.begins_with("--pick="): pk = int(arg.trim_prefix("--pick="))
 				for b in Instincts.BRANCHES:
 					Instincts.unpin(b, 0)
-				for arg in OS.get_cmdline_user_args():
+				for arg in ARGS:
 					if arg.begins_with("--pin="):
 						for k in arg.trim_prefix("--pin=").split(","):
 							Instincts.pin(k.rstrip("0123456789"), int(k.right(1)))
 				for c in get_children():
 					if c.has_method("_gunsmith"):
 						c._gunsmith(g, pk)
-			if "--mash" in OS.get_cmdline_user_args() and _at > 7.0 and _at < 9.0 and fmod(_at, 0.2) < 0.04:   # quick taps across the cards
+			if "--mash" in ARGS and _at > 7.0 and _at < 9.0 and fmod(_at, 0.2) < 0.04:   # quick taps across the cards
 				for c in get_children():
 					if c.has_method("_gunsmith"):
 						c._gunsmith("", int(_at * 5.0) % 4)
-			if "--buy" in OS.get_cmdline_user_args() and _at > 7.0 and _auto_done == 2:
+			if "--buy" in ARGS and _at > 7.0 and _auto_done == 2:
 				for c in get_children():
 					if c.has_method("_smith_buy"):
 						c._smith_buy()
@@ -2796,7 +2886,7 @@ func _process(delta: float) -> void:
 				if _at > 6.6 + [0.3, 0.62, 0.9, 1.2, 1.5, 2.9][k] and _auto_done == k + 1:
 					_auto_done = k + 2
 					_shot("smith_%d" % k)
-			if _at > (11.0 if "--mash" in OS.get_cmdline_user_args() else 9.8):
+			if _at > (11.0 if "--mash" in ARGS else 9.8):
 				get_tree().quit()
 		if _auto == "whatsnew":   # --test=whatsnew: the title, then the WHAT'S NEW card
 			_at += delta
@@ -2819,6 +2909,9 @@ func _process(delta: float) -> void:
 				_auto_done = 3
 				for c in get_children():
 					if c.has_method("_case_file"):
+						for a in ARGS:   # (test) another chapter's page: --casepage=N
+							if a.begins_with("--casepage="):
+								c._chapter = int(a.trim_prefix("--casepage="))
 						c._case_file()
 			if _at > 6.85 and _auto_done == 3:
 				_auto_done = 2
@@ -3115,7 +3208,7 @@ func _process(delta: float) -> void:
 var _film_i := 0
 func _auto_step(delta: float) -> void:
 	_at += delta
-	for a in OS.get_cmdline_user_args():   # --film=start,step,count: a strip of frames of any test, for review (film_00..)
+	for a in ARGS:   # --film=start,step,count: a strip of frames of any test, for review (film_00..)
 		if a.begins_with("--film="):
 			var f := a.trim_prefix("--film=").split(",")
 			if _film_i < int(f[2]) and _at >= float(f[0]) + float(f[1]) * _film_i:
@@ -3127,7 +3220,7 @@ func _auto_step(delta: float) -> void:
 			player.position.x = 900.0
 			cam.position.x = player.position.x + _lead
 		hud.move = 1.0 if _at < 2.2 else 0.0
-		if OS.get_cmdline_user_args().has("--fwd"):   # aimed ahead, the way he dives (the usual case on the phone)
+		if ARGS.has("--fwd"):   # aimed ahead, the way he dives (the usual case on the phone)
 			_test_aim = player.position + Vector2(1400.0, -250.0)
 		if player.position.x > _dive_at and _auto_done & 1 == 0:
 			_auto_done |= 1
@@ -3239,7 +3332,7 @@ func _auto_step(delta: float) -> void:
 		if hud.move != 0.0 and move_state == "jump" and _wall_t > 0.0 and fall > -200.0:   # against a tall stack in the air: kick up off it
 			hud.jump_tapped = true
 		_bot_x = player.position.x
-		if OS.get_cmdline_user_args().has("--trace") and fmod(_at, 0.25) < delta:
+		if ARGS.has("--trace") and fmod(_at, 0.25) < delta:
 			print("TRACE t %.2f x %d y %d st %s move %.0f ground %d fight %s lad %s near %s" % [_at, int(player.position.x), int(player.position.y), move_state, hud.move, int(_ground_y), fight, lad != null, str(near.position) if near != null else "-"])
 		_bot_log += delta
 		if _bot_log > 10.0:
@@ -3254,11 +3347,11 @@ func _auto_step(delta: float) -> void:
 					near_e.append("%s/%s@%d" % [e.get("boss", false), e["state"], int(e["node"].position.x)])
 			print("BOT near ", near_e)
 		if DisplayServer.get_name() != "headless":   # with a screen: a few pictures of the chapter in play, then stop
-			var film := OS.get_cmdline_user_args().has("--film")   # a strip of frames, every 0.15 s from 6 s
+			var film := ARGS.has("--film")   # a strip of frames, every 0.15 s from 6 s
 			if film:
 				var f0 := 6.0   # --film-at=T: the strip from T seconds, a frame every --film-step (0.15 s)
 				var fs := 0.15
-				for arg in OS.get_cmdline_user_args():
+				for arg in ARGS:
 					if arg.begins_with("--film-at="):
 						f0 = float(arg.trim_prefix("--film-at="))
 					if arg.begins_with("--film-step="):
@@ -3543,7 +3636,7 @@ func _auto_step(delta: float) -> void:
 			cam.position.x = 2700.0
 		if _at > 0.3:
 			cam.position.x = 2700.0
-		if _at > 0.4 and OS.get_cmdline_user_args().has("--shieldoff"):   # (Briggs's shield torn off, QUEUE §16 D)
+		if _at > 0.4 and ARGS.has("--shieldoff"):   # (Briggs's shield torn off, QUEUE §16 D)
 			for e in enemies:
 				if e["alive"] and e["boss"] and e.has("shield"):
 					_shield_off(e)
@@ -3964,7 +4057,7 @@ func _auto_step(delta: float) -> void:
 		if _at < 0.05:
 			if _auto == "el":
 				mapfx._el_t = 0.3
-				if OS.get_cmdline_user_args().has("--indoors") and not rooms.is_empty():   # the train goes over a room: no pull-back in there
+				if ARGS.has("--indoors") and not rooms.is_empty():   # the train goes over a room: no pull-back in there
 					player.position.x = float(rooms[0][0]) + 400.0   # (not on a diary page: reading pauses the test)
 			elif _auto == "fog":
 				mapfx._fog_phase = 2
@@ -4004,7 +4097,7 @@ func _auto_step(delta: float) -> void:
 								e["alive"] = false
 								e["node"].visible = false
 						break
-		if _auto == "sheets" and OS.get_cmdline_user_args().has("--drop") and _at > 0.8 and _at < 3.4 and not mapfx._sheets.is_empty():
+		if _auto == "sheets" and ARGS.has("--drop") and _at > 0.8 and _at < 3.4 and not mapfx._sheets.is_empty():
 			# --drop: a row of shots across the first sheet (its foot comes down), then seven into the next (it comes off its pegs)
 			var kk := int((_at - 0.8) / 0.1)
 			if kk != _drop_k:
@@ -4351,28 +4444,28 @@ func _auto_step(delta: float) -> void:
 		hp = max_hp
 		if _auto_done & (1 << (k + 16)) == 0:
 			_auto_done |= 1 << (k + 16)
-			if k == 0 and OS.get_cmdline_user_args().has("--inner"):   # one hit from the end: the voice in his head
+			if k == 0 and ARGS.has("--inner"):   # one hit from the end: the voice in his head
 				_inner_voice()
-			if k == 0 and OS.get_cmdline_user_args().has("--shootlights"):   # every searchlight and hanging lamp in sight shot out
+			if k == 0 and ARGS.has("--shootlights"):   # every searchlight and hanging lamp in sight shot out
 				get_tree().create_timer(0.8, false).timeout.connect(func() -> void:
 					for b in sets._beams:
 						sets.shoot_light(b["pivot"] + Vector2(0.0, 6.0))
 					for i in lamps.size():
 						if lamp_info[i]["on"] and absf(lamps[i].x - player.position.x) < 1500.0:
 							_lamp_out(i))
-			if k == 0 and OS.get_cmdline_user_args().has("--boom"):   # the nearest red barrel goes up
+			if k == 0 and ARGS.has("--boom"):   # the nearest red barrel goes up
 				get_tree().create_timer(0.6, false).timeout.connect(func() -> void:
 					for bi in boxes.size():
 						if box_info[bi]["kind"] == "barrel" and absf(boxes[bi].get_center().x - player.position.x) < 1600.0:
 							_explode(boxes[bi].get_center(), bi)
 							break)
-			if k == 0 and OS.get_cmdline_user_args().has("--smoke"):   # Kessler's canister, a second before the shot
+			if k == 0 and ARGS.has("--smoke"):   # Kessler's canister, a second before the shot
 				sets.smoke(Vector2(float(xs[0].split("@")[0]) + 700.0, 0.0))
 			var at: PackedStringArray = xs[k].split("@")   # x@y: standing on whatever floor is under that height
 			var feet := float(at[1]) if at.size() > 1 else -2000.0
 			player.position = Vector2(float(at[0]), _floor_at(float(at[0]), feet))
-			cam.position = Vector2(player.position.x + (0.0 if OS.get_cmdline_user_args().has("--center") else _lead), CAM_Y + _cam_rise(player.position.y))
-		if OS.get_cmdline_user_args().has("--skydebug") and fmod(_at, 2.6) > 2.2 and _auto_done & (1 << (k + 8)) == 0:
+			cam.position = Vector2(player.position.x + (0.0 if ARGS.has("--center") else _lead), CAM_Y + _cam_rise(player.position.y))
+		if ARGS.has("--skydebug") and fmod(_at, 2.6) > 2.2 and _auto_done & (1 << (k + 8)) == 0:
 			_auto_done |= 1 << (k + 8)
 			var view := get_viewport().get_canvas_transform().affine_inverse() * get_viewport().get_visible_rect()
 			var sky_band := Rect2(view.position, Vector2(view.size.x, view.size.y * 0.4))
@@ -4383,7 +4476,7 @@ func _auto_step(delta: float) -> void:
 				var r := sp.get_global_transform() * sp.get_rect()
 				if r.intersects(sky_band):
 					print("SKY ", sp.get_path(), " ", sp.texture.resource_path, " z ", sp.z_index, " mod ", sp.modulate, " mat ", sp.material)
-		for arg in OS.get_cmdline_user_args():   # --probe=x,y: every visible drawing over that world point (what covers it)
+		for arg in ARGS:   # --probe=x,y: every visible drawing over that world point (what covers it)
 			if arg.begins_with("--probe=") and fmod(_at, 2.6) > 2.2 and _auto_done & (1 << (k + 24)) == 0:
 				_auto_done |= 1 << (k + 24)
 				var pt := Vector2(float(arg.split("=")[1].split(",")[0]), float(arg.split("=")[1].split(",")[1]))
@@ -4399,9 +4492,9 @@ func _auto_step(delta: float) -> void:
 					if hit:
 						var rr := (ci.get_global_transform() * (ci as Sprite2D).get_rect()) if ci is Sprite2D else Rect2()
 						print("PROBE ", ci.get_path(), " ", ci.get_class(), " z ", ci.z_index, " mod ", ci.modulate, " ", (ci as Sprite2D).texture.resource_path if ci is Sprite2D else str((ci as Polygon2D).color), " rect ", rr, " poly ", (ci as Polygon2D).polygon if ci is Polygon2D else PackedVector2Array())
-		if OS.get_cmdline_user_args().has("--center"):   # gen/tests/audit_maps.py: the seam right in the middle
+		if ARGS.has("--center"):   # gen/tests/audit_maps.py: the seam right in the middle
 			cam.position.x = float(xs[k].split("@")[0])
-		if OS.get_cmdline_user_args().has("--high"):   # the camera as high as a jump off a stack takes it
+		if ARGS.has("--high"):   # the camera as high as a jump off a stack takes it
 			cam.position.y = CAM_Y - 330.0
 		if fmod(_at, 2.6) > 2.3 and _auto_done & (1 << k) == 0:
 			_auto_done |= 1 << k
@@ -5952,7 +6045,7 @@ func _knocked(e: Dictionary, delta: float) -> void:
 func _kill(e: Dictionary, head: bool, quiet := false, part := "") -> void:
 	e["alive"] = false
 	if e.has("witness"):   # the lead is found on him: the story goes on, but not from his mouth
-		if OS.get_cmdline_user_args().has("--log-sets"): print("WITNESS KILLED at ", int(e["node"].position.x), " state ", e["state"], " head ", head)
+		if ARGS.has("--log-sets"): print("WITNESS KILLED at ", int(e["node"].position.x), " state ", e["state"], " head ", head)
 		var lines: Array = WITNESS["%d:%d" % [chapter, map]][4]
 		get_tree().create_timer(1.2, false).timeout.connect(func() -> void:
 			if not over:
@@ -6417,8 +6510,8 @@ func _player_down() -> void:
 		if _auto != "":
 			get_tree().create_timer(1.6, true, false, true).timeout.connect(hud.caption.bind(level["outro"]))
 		else:
+			MenuScript.mark_done(chapter, map)   # (audit 22. 11.) saved now: a tab killed in the comic (its memory peak) kept the prologue unplayed
 			get_tree().create_timer(3.2, true, false, true).timeout.connect(_play_cut.bind(CUTS["0:0"], func() -> void:
-				MenuScript.mark_done(chapter, map)
 				Engine.time_scale = 1.0
 				chapter += 1
 				map = 0
@@ -6441,6 +6534,8 @@ func _take_checkpoint(x: float, y: float, toast := true) -> void:
 	var bag := _bag.duplicate(true)
 	bag[weapon] = {"mag": mag, "ammo": ammo}
 	_cp_keep = {"map": "%d:%d" % [chapter, map], "stats": stats.duplicate(true), "xp": _xp_run, "bag": bag}
+	if _auto == "" and _sandbox < 0:
+		MenuScript.save_cp({"map": _cp_keep["map"], "x": x, "y": y, "ground": _ground_cp, "keep": _cp_keep})
 	if toast:
 		hud.toast("CHECKPOINT")
 
@@ -6464,7 +6559,7 @@ func _afterimages(delta: float, running: float) -> void:
 
 
 func _auto_arg() -> String:
-	for arg in OS.get_cmdline_user_args():
+	for arg in ARGS:
 		if arg.begins_with("--test="):
 			return arg.trim_prefix("--test=")
 	return ""
@@ -6477,6 +6572,7 @@ func _map_cleared() -> void:
 	_event("cleared", {"kills": int(stats["kills"]), "hits": int(stats["hits"]), "spared": int(stats["spared"]), "executed": int(stats["executed"]), "t": int(stats["time"])})
 	cleared = true
 	MenuScript.mark_done(chapter, map)
+	MenuScript.clear_cp()
 	if _auto == "":
 		MenuScript.set_conduct(chapter, map, int(stats["executed"]), int(stats["spared"]))
 	var cut: String = CUTS.get("%d:%d" % [chapter, map], "")
@@ -6502,17 +6598,26 @@ func _map_cleared() -> void:
 			checkpoint_y = 0.0
 			in_menu = to_menu
 			_travel(not to_menu)
-		if cut != "":   # the story takes over for a page or two, then the next map
-			get_tree().create_timer(3.0).timeout.connect(_play_cut.bind(cut, go))
-		else:
-			get_tree().create_timer(7.0).timeout.connect(go)
+		# (audit 22. 11.) the tally card stays until a tap (after a moment to see it), or goes on by itself after a
+		# while; it was 3 s before a comic hid it, too short for the level line and six rows
+		var on := func() -> void:
+			if not _after_tally.is_valid():
+				return
+			_after_tally = Callable()
+			if cut != "":   # the story takes over for a page or two, then the next map
+				_play_cut(cut, go)
+			else:
+				go.call()
+		_after_tally = on
+		_tally_ms = Time.get_ticks_msec()
+		get_tree().create_timer(9.0 if cut != "" else 12.0).timeout.connect(on)
 
 
 ## A comic-page cutscene over the game, then `then`.
 ## A comic page in the middle of a map (rule 30, like Max Payne's): the street holds still under it, then play goes
 ## on where it stopped. Every time, like Max Payne's (SKIP is on the page).
 func _mid_comic(id: String) -> void:
-	if OS.get_cmdline_user_args().has("--log-sets"): print("COMIC ", id, " t ", snappedf(_at, 0.1))
+	if ARGS.has("--log-sets"): print("COMIC ", id, " t ", snappedf(_at, 0.1))
 	if _auto != "" or over:
 		return
 	get_tree().paused = true
@@ -6573,8 +6678,22 @@ func _start_map(c: int, m: int) -> void:
 	map = m
 	checkpoint = -1.0
 	checkpoint_y = 0.0
+	_saved_cp()
 	in_menu = false
 	_travel(true)
+
+
+## (audit 22. 11.) The checkpoint kept in the save for this map, if there is one (the page was closed mid-map).
+func _saved_cp() -> void:
+	var s := MenuScript.saved_cp()
+	if _auto_arg() != "" or String(s.get("map", "")) != "%d:%d" % [chapter, map] or not s.get("keep") is Dictionary:
+		return
+	checkpoint = float(s["x"])
+	checkpoint_y = float(s["y"])
+	_ground_cp = float(s.get("ground", -1.0))
+	checkpoint_map = String(s["map"])
+	_cp_keep = s["keep"]
+	crumb("checkpoint from the save %s %d,%d" % [checkpoint_map, int(checkpoint), int(checkpoint_y)])
 
 
 ## Doors, checkpoints, the tutorial's hints, and the prologue's last stand.
@@ -7458,7 +7577,7 @@ func _crash_out(r: Array, opening: Rect2) -> void:
 
 
 func _crash_out_street(r: Array) -> void:
-	if OS.get_cmdline_user_args().has("--log-sets"): print("CRASH OUT t ", snappedf(_at, 0.05))
+	if ARGS.has("--log-sets"): print("CRASH OUT t ", snappedf(_at, 0.05))
 	# the same window from the street: over the front's side door (the front whose span holds the room's right end)
 	var style := String(r[2])
 	var out_rect := Rect2(float(r[1]) - 60.0, -1080.0, 160.0, 250.0)
@@ -8013,7 +8132,7 @@ func _set_difficulty(hero: String) -> void:
 		for c in range(1, chapter):
 			step += (Levels.CAMPAIGN[c]["maps"] as Array).size()
 		step += map
-	for arg in OS.get_cmdline_user_args():   # --step=N tries any point of the curve
+	for arg in ARGS:   # --step=N tries any point of the curve
 		if arg.begins_with("--step="):
 			step = int(arg.trim_prefix("--step="))
 	diff_step = step
@@ -9235,8 +9354,9 @@ func _read_page() -> void:
 	var d = DiaryScript.new()
 	d.text = String(level.get("diary", ""))
 	d.paper = "res://art/ui/pages/%d_%d.png" % [chapter, map]
-	d.found = map + 1   # this page's place in the chapter
-	d.total = Levels.CAMPAIGN[chapter]["maps"].size()
+	var pages: Array = Levels.CAMPAIGN[chapter]["maps"].filter(func(mp) -> bool: return String(mp.get("diary", "")) != "")
+	d.found = pages.find(Levels.CAMPAIGN[chapter]["maps"][map]) + 1   # this page's place among the chapter's pages (the dream has none: "PAGE 5 OF 6")
+	d.total = pages.size()
 	d.sound = func(n: String, db: float) -> void: sfx.play(n, db, INF, 0.0)
 	d.done = func() -> void:
 		hud.modal(false)
@@ -9574,7 +9694,7 @@ func _nearest_enemy(side := 0.0):
 	for e in enemies:
 		if not e["alive"] or e["state"] in ["wait", "give"] or not e["node"].visible:
 			continue
-		if e.has("witness") and _auto != "" and OS.get_cmdline_user_args().has("--spare-witness"):
+		if e.has("witness") and _auto != "" and ARGS.has("--spare-witness"):
 			continue   # (test: the bot lets the witness run, to follow him into his house)
 		var dx: float = e["node"].position.x - player.position.x
 		if absf(dx) > SIGHT * (1.0 - 0.6 * (mapfx.fog if mapfx else 0.0)) or (side != 0.0 and signf(dx) != side):
@@ -9618,7 +9738,11 @@ func _bot_ladder():
 
 
 ## True when the detective is crouched with cover between him and a mobster on side `side` (+1 = right).
+var _cov_frame := -1   # (audit 22. 11.) worked out once a frame, at the top of _enemies: each man asked it 3-4 times
+var _cov := [false, false]
 func _player_covered(side: float) -> bool:
+	if _cov_frame == Engine.get_process_frames():
+		return _cov[0 if side > 0.0 else 1]
 	if player.duck < 0.6 or move_state != "ground":
 		return false
 	for bx in boxes:
@@ -10004,10 +10128,10 @@ func _add_witness() -> void:
 	m.disarmed = true   # no gun on him: he only knows things
 	if m._gun != null:
 		m._gun.visible = false
-	if holed or OS.get_cmdline_user_args().has("--witness-holed") and level.has("witness_house"):   # (test: already up in his room)
+	if holed or ARGS.has("--witness-holed") and level.has("witness_house"):   # (test: already up in his room)
 		e["holed_up"] = true
 		m.position = Vector2(float(level["witness_house"][1]), float(level["witness_house"][2]))
-	if OS.get_cmdline_user_args().has("--log-sets"): print("WITNESS ", w[0], " at ", int(x))
+	if ARGS.has("--log-sets"): print("WITNESS ", w[0], " at ", int(x))
 
 
 ## (BACK STREETS, 21. 11.) A map won in the witness's room ("goal_witness"): only once he is let go or dead, and a
@@ -10038,7 +10162,7 @@ func _witness_tick(e: Dictionary, m, delta: float) -> bool:
 			if absf(player.position.y - m.position.y) < 80.0 and player.position.x > float(house[1]) - 900.0 and dx < 900.0 \
 					and not _flat_closed_between(m.position, player.position):
 				_give_up(e)
-				if OS.get_cmdline_user_args().has("--log-sets"): print("WITNESS CORNERED in his room at ", int(m.position.x))
+				if ARGS.has("--log-sets"): print("WITNESS CORNERED in his room at ", int(m.position.x))
 			else:
 				m.set_state(0.0, to_player, delta)
 			return true
@@ -10046,14 +10170,14 @@ func _witness_tick(e: Dictionary, m, delta: float) -> bool:
 			e["holed_up"] = true
 			m.position = Vector2(float(house[1]), float(house[2]))
 			e["post_x"] = m.position.x
-			if OS.get_cmdline_user_args().has("--log-sets"): print("WITNESS HOLES UP at ", int(m.position.x), ",", int(m.position.y))
+			if ARGS.has("--log-sets"): print("WITNESS HOLES UP at ", int(m.position.x), ",", int(m.position.y))
 			return true
 		if dx < 2800.0:   # (sooner than on an open street, and all the way: he knows where he is going)
 			e["state"] = "run"
 			e["goal"] = float(house[0])
 			e["seen"] = true
 			_say(m, (WITNESS["%d:%d" % [chapter, map]][2] as Array).pick_random())
-			if OS.get_cmdline_user_args().has("--log-sets"): print("WITNESS RUNS to ", int(e["goal"]))
+			if ARGS.has("--log-sets"): print("WITNESS RUNS to ", int(e["goal"]))
 			return true
 		m.set_state(0.0, to_player, delta)
 		return true
@@ -10062,11 +10186,11 @@ func _witness_tick(e: Dictionary, m, delta: float) -> bool:
 		e["goal"] = minf(m.position.x + 1700.0, level_end - 350.0)
 		e["seen"] = true
 		_say(m, (WITNESS["%d:%d" % [chapter, map]][2] as Array).pick_random())
-		if OS.get_cmdline_user_args().has("--log-sets"): print("WITNESS RUNS to ", int(e["goal"]))
+		if ARGS.has("--log-sets"): print("WITNESS RUNS to ", int(e["goal"]))
 		return true
 	if m.position.x >= level_end - 600.0 and dx < 900.0:   # nowhere left to run
 		_give_up(e)
-		if OS.get_cmdline_user_args().has("--log-sets"): print("WITNESS CORNERED at ", int(m.position.x))
+		if ARGS.has("--log-sets"): print("WITNESS CORNERED at ", int(m.position.x))
 		return true
 	m.set_state(0.0, to_player, delta)
 	return true
@@ -10110,17 +10234,20 @@ func _going_round(e: Dictionary, m, delta: float) -> void:
 ## same spot: whoever is nearer to Frank stays, the other slides back a step, never into cover or off his floor.
 const SEPARATE := 90.0
 func _separate(delta: float) -> void:
-	for i in enemies.size():
-		var a: Dictionary = enemies[i]
-		if not a["alive"] or a["boss"] or not String(a["state"]) in ["post", "move", "run"]:
-			continue
-		var ma = a["node"]
-		for j in range(i + 1, enemies.size()):
-			var b: Dictionary = enemies[j]
-			if not b["alive"] or b["boss"] or not String(b["state"]) in ["post", "move", "run"]:
-				continue
-			var mb = b["node"]
+	# (audit 22. 11.) sorted along the street, each man is held only against the next few: it was every pair of the
+	# whole map's men, every frame
+	var men: Array = []
+	for e in enemies:
+		if e["alive"] and not e["boss"] and String(e["state"]) in ["post", "move", "run"]:
+			men.append(e["node"])
+	men.sort_custom(func(p, q) -> bool: return float(p.position.x) < float(q.position.x))
+	for i in men.size():
+		var ma = men[i]
+		for j in range(i + 1, men.size()):
+			var mb = men[j]
 			var dx: float = float(mb.position.x) - float(ma.position.x)
+			if dx > SEPARATE + 4.0:   # (a man pushed back this frame moves 160 * delta at most: a little slack)
+				break
 			if absf(float(mb.position.y) - float(ma.position.y)) > 20.0 or absf(dx) > SEPARATE:
 				continue
 			var back = ma if absf(float(ma.position.x) - player.position.x) > absf(float(mb.position.x) - player.position.x) else mb
@@ -10191,7 +10318,10 @@ func _enemies(delta: float) -> void:
 	_tick_sticks(delta)
 	_tick_bottles(delta)
 	_tick_loads(delta)
-	var crouched: bool = _player_covered(1.0) or _player_covered(-1.0)
+	_cov_frame = -1
+	_cov = [_player_covered(1.0), _player_covered(-1.0)]
+	_cov_frame = Engine.get_process_frames()
+	var crouched: bool = _cov[0] or _cov[1]
 	_cover_t = _cover_t + delta if crouched else 0.0
 	if not crouched:
 		_flank_called = false
@@ -10564,7 +10694,7 @@ func _shade_eyes(m) -> void:
 	var local := Vector2(head.texture.get_width() * 0.8, head.texture.get_height() * 0.47) - a   # (the profile's eye)
 	eye.global_position = head.global_transform * local
 	eye.self_modulate.a = (0.75 + 0.25 * sin(_ai_t * 5.0 + m.position.x)) * m.modulate.a / 0.9   # (smouldering; out with him)
-	if OS.get_cmdline_user_args().has("--log-sets") and fmod(_ai_t, 2.0) < 0.034: print("EYES ", eye.global_position, " head ", head.global_position, " vis ", eye.is_visible_in_tree(), " mod ", eye.modulate)
+	if ARGS.has("--log-sets") and fmod(_ai_t, 2.0) < 0.034: print("EYES ", eye.global_position, " head ", head.global_position, " vis ", eye.is_visible_in_tree(), " mod ", eye.modulate)
 
 
 func _shade(e: Dictionary, m, to_player: Vector2, delta: float) -> void:
@@ -10687,7 +10817,7 @@ func _throw_bottle(m) -> void:
 	add_child(b)
 	_bottles.append({"node": b, "vel": Vector2((target.x - from.x) / t, (target.y - from.y - 0.5 * g * t * t) / t), "g": g})
 	sfx.play("whiz", -6.0, m.position.x, 0.1)
-	if OS.get_cmdline_user_args().has("--log-sets"): print("BOTTLE at t ", snappedf(_at, 0.1))
+	if ARGS.has("--log-sets"): print("BOTTLE at t ", snappedf(_at, 0.1))
 
 
 func _tick_bottles(delta: float) -> void:
@@ -11435,7 +11565,7 @@ func _giving_up(e: Dictionary, delta: float) -> void:
 					hud.caption(["He told me where to look.", "Eddie's page: %s." % ("up ahead" if page_x > player.position.x else "back the way I came")])
 			var key := "%d:%d" % [chapter, map]
 			if e.has("witness"):   # the lead, from his own mouth
-				if OS.get_cmdline_user_args().has("--log-sets"): print("WITNESS SPARED")
+				if ARGS.has("--log-sets"): print("WITNESS SPARED")
 				hud.caption(WITNESS[key][3])
 				if _auto == "":
 					MenuScript.set_story("witness_" + key.replace(":", "-"), "spared")
@@ -11687,7 +11817,7 @@ func _dump_textures() -> void:
 
 
 func _shot(shot_name: String) -> void:
-	if "--texdump" in OS.get_cmdline_user_args():
+	if "--texdump" in ARGS:
 		_dump_textures()
 		print("  buffers %d MB" % (int(Performance.get_monitor(Performance.RENDER_BUFFER_MEM_USED)) / 1048576))
 	print("shot ", shot_name, "  fps ", Engine.get_frames_per_second(), "  textures %d MB  static %d MB" % [

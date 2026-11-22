@@ -16,6 +16,7 @@ const FIRES := {"shipping": [Vector2(0.11, 0.193), Vector2(0.21, 0.193), Vector2
 	"pier17": [Vector2(0.14, 0.34), Vector2(0.25, 0.34), Vector2(0.36, 0.34), Vector2(0.2, 0.68)]}
 
 const MenuGuilt = preload("res://menu.gd")
+static var _LOG_SETS: bool = OS.get_cmdline_user_args().has("--log-sets")   # (audit 22. 11.: once, not every frame)
 var game   # main.gd
 var _events: Array = []   # {kind, trig, done, ...}
 var _beams: Array = []    # {sprite, light, pivot, base, swing, speed, phase, len, half}
@@ -809,7 +810,7 @@ func _make_train() -> void:
 			x += CAR_GAP
 		else:
 			x += 26.0
-	if OS.get_cmdline_user_args().has("--log-sets"): print("CAR GAPS ", gaps.size(), " ", gaps)
+	if _LOG_SETS: print("CAR GAPS ", gaps.size(), " ", gaps)
 
 
 const CAR_GAP := 190.0   # the open coupling: a run and a jump clears it, a standing step does not
@@ -826,7 +827,7 @@ func _tick_gaps(delta: float) -> void:
 		for g in gaps:
 			if p.position.x > g.x + 34.0 and p.position.x < g.y - 34.0:
 				_gap_cool = 1.0
-				if OS.get_cmdline_user_args().has("--log-sets"): print("CAR GAP FALL at ", int(p.position.x))
+				if _LOG_SETS: print("CAR GAP FALL at ", int(p.position.x))
 				game._bullet_hit(p.position + Vector2(0.0, -200.0), false)
 				game._shake = 0.6
 				game.sfx.play("body_fall", 0.0, p.position.x, 0.05)
@@ -903,7 +904,7 @@ func _tick_moving(delta: float) -> void:
 		if was >= px and b.position.x < px:   # it reaches him: down flat or under it, or it takes him off his feet
 			for y in range(-470, -320, 25):
 				if game.player.hit_part(Vector2(px, y)) != "":
-					if OS.get_cmdline_user_args().has("--log-sets"): print("GIRDER HIT duck ", snappedf(game.player.duck, 0.01), " state ", game.move_state, " pop ", game._pop, " hud ", game.hud.duck, " dive ", snappedf(game.player.dive, 0.01), " t ", snappedf(_t, 0.1))
+					if _LOG_SETS: print("GIRDER HIT duck ", snappedf(game.player.duck, 0.01), " state ", game.move_state, " pop ", game._pop, " hud ", game.hud.duck, " dive ", snappedf(game.player.dive, 0.01), " t ", snappedf(_t, 0.1))
 					game._bullet_hit(Vector2(px, y), false)
 					game._shake = 0.5
 					game.sfx.play("body_fall", 0.0, px, 0.05)
@@ -1119,7 +1120,7 @@ func _tick_blazes(delta: float) -> void:
 
 ## The roof gives: a creak, dust and sparks sifting down, a beat, and a burning beam across the floor.
 func _beam_fall(ev: Dictionary) -> void:
-	if OS.get_cmdline_user_args().has("--log-sets"): print("BEAM FALL ", ev["x"], " t ", _t)
+	if _LOG_SETS: print("BEAM FALL ", ev["x"], " t ", _t)
 	var x: float = ev["x"]
 	game.sfx.play("creak", 0.0, x, 0.05)
 	var dust := CPUParticles2D.new()
@@ -1146,7 +1147,7 @@ func _beam_fall(ev: Dictionary) -> void:
 
 
 func _beam_drop(x: float) -> void:
-	if OS.get_cmdline_user_args().has("--log-sets"): print("BEAM DROP ", x, " t ", _t)
+	if _LOG_SETS: print("BEAM DROP ", x, " t ", _t)
 	var tex: Texture2D = load("res://art/fx/fire/beam.png") if ResourceLoader.exists("res://art/fx/fire/beam.png") else load("res://art/props/crate_long.png")
 	var beam := Sprite2D.new()
 	beam.texture = tex
@@ -1228,10 +1229,10 @@ func _tick_guilt_ash(delta: float) -> void:
 	_guilt_ash = move_toward(_guilt_ash, want, delta * 0.25)   # (slowly: it settles, it does not jump)
 	for p in game.atmo.ash:
 		(p as CanvasItem).modulate.a = _guilt_ash
-	if OS.get_cmdline_user_args().has("--log-sets") and fmod(_t, 5.0) < delta: print("GUILT ASH ", snappedf(_guilt_ash, 0.01), " layers ", game.atmo.ash.size(), " amount ", game.atmo.ash[0].amount if not game.atmo.ash.is_empty() else 0)
+	if _LOG_SETS and fmod(_t, 5.0) < delta: print("GUILT ASH ", snappedf(_guilt_ash, 0.01), " layers ", game.atmo.ash.size(), " amount ", game.atmo.ash[0].amount if not game.atmo.ash.is_empty() else 0)
 ## A shower of glowing cinders and charred splinters out of the burning roof (the dream, from its first loop on).
 func _cinders(x: float) -> void:
-	if OS.get_cmdline_user_args().has("--log-sets"): print("CINDERS ", int(x), " t ", snappedf(_t, 0.05))
+	if _LOG_SETS: print("CINDERS ", int(x), " t ", snappedf(_t, 0.05))
 	var c := CPUParticles2D.new()
 	c.texture = game._soft_glow()
 	c.amount = 30 + 12 * mini(_loops, 4)   # (each time round a heavier shower)
