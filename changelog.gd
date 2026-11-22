@@ -4,6 +4,14 @@ extends RefCounted
 ## (knowledge ch01). The build number and date come from version.gen.gd (written by gen/deploy/deploy_pc.sh).
 
 const ENTRIES := [
+	["22 NOV 2026", [
+		"Kicking off a wall needs a wall: no more kick out of thin air after landing",
+		"A slide off a crate or a deck falls; a dive tapped while you roll still goes",
+		"The same stunt gives free slowed time once every few seconds (no endless awning bouncing)",
+		"The game pauses when you leave the tab or turn the phone upright; Esc closes the pause card",
+		"A touchscreen laptop: the mouse fires and aims again",
+		"No shots from inside the stairwell; no being pulled up through a deck from below",
+	]],
 	["21 NOV 2026", [
 		"Swapping big guns: the one you pick up has only the rounds left in it",
 		"A man whose gun you shot away, who is kicked flat or puts his hands up stops firing at once",

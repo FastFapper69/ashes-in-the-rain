@@ -397,6 +397,10 @@ var _stop_t := 0.0            # real seconds of an impact freeze or a final-shot
 var _stop_scale := 1.0        # how slow time runs during it
 var _slow_base := false       # slowed time proper (the stopwatch or a dive), not an impact freeze
 var _jump_buf := 0.0          # a jump pressed a moment too early still counts when he lands
+var _dive_buf := 0.0          # (audit 22. 11.) the dive button tapped while he rolls or gets up: it still goes
+var _dive_near: Array = []    # the crates near enough for the dive's launch simulation (not every crate on the map)
+var _stunt_at := {}           # (audit 22. 11.) when each kind of stunt last gave its free slowed time
+var _unpaused_frame := -1     # the frame Esc closed the pause card: the same press must not open it again
 var _wall_t := 0.0            # in the air against a tall crate's side a moment ago: a jump now kicks off it (a stunt)
 var _wall_away := 0.0         # which way off it
 var _sprint := 0.0            # how long the stick has been held hard one way: only a committed run vaults
@@ -2451,10 +2455,13 @@ func _add_window_light(bottom_center: Vector2, width: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_0:
+		_show_fps = not _show_fps
+	if not OS.is_debug_build():   # (audit 22. 11.) the web build is a release: F9 healed him, F11 put him at 1350 px
+		_input_play(event)
+		return
 	if event is InputEventKey and event.pressed and not event.echo:   # switches for finding what costs time
 		match event.physical_keycode:
-			KEY_0:
-				_show_fps = not _show_fps
 			KEY_1:
 				atmo.post_layer.visible = not atmo.post_layer.visible
 				print("post ", atmo.post_layer.visible)
@@ -2498,10 +2505,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		player.position = Vector2(-6500.0, 0.0)   # an empty stretch of street, away from the mobsters
 		cam.position.x = player.position.x + _lead
 		_shots_done = 0
+	_input_play(event)
+
+
+func _input_play(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		# On a phone a tap also arrives as a click, and the first one can come before the touch itself
-		# (a thumb on the stick fired a shot at the stick). A touch screen never shoots by "click".
-		if not hud.touch_seen and not DisplayServer.is_touchscreen_available():
+		# On a phone a tap also arrives as a click (emulated from the touch), and the first one can come before the
+		# touch itself (a thumb on the stick fired a shot at the stick). A real mouse fires (a touchscreen laptop:
+		# audit 22. 11.; hud.touch_seen goes back to false when the mouse is used).
+		if not hud.touch_seen and event.device != InputEvent.DEVICE_ID_EMULATION:
 			hud.fire_tapped = true
 
 
@@ -2589,6 +2601,11 @@ var _hitches := 0
 var _tex_was := 0
 var _nodes_was := 0
 func _process(delta: float) -> void:
+	delta = minf(delta, 0.1 * Engine.time_scale)   # (audit 22. 11.) back from a stall or a hidden tab: no leap through walls
+	if _time > 1.0 and Engine.get_process_frames() % 15 == 0 and _can_pause():
+		var ws := DisplayServer.window_get_size()
+		if ws.y > ws.x * 1.1:   # the phone turned upright
+			_pause()
 	_time += delta
 	var real_dt := delta / maxf(Engine.time_scale, 0.05)
 	_beat_t -= real_dt
@@ -2829,7 +2846,7 @@ func _process(delta: float) -> void:
 	_move_dir = dir
 	var chest: Vector2 = player.position + SHOULDER + Vector2(0.0, DUCK_DROP * player.duck)
 	var aim: Vector2 = get_global_mouse_position() - chest
-	var touch: bool = hud.touch_seen or DisplayServer.is_touchscreen_available()   # a phone, from the first frame
+	var touch: bool = hud.touch_seen   # a phone from the first frame (hud._ready), the mouse once it moves
 	if touch and hud.aim_left > 0.0:   # on a phone: a finger on the screen is where he shoots
 		aim = get_viewport().get_canvas_transform().affine_inverse() * hud.aim_at - chest
 	elif touch:   # no finger: he keeps his gun on a mobster he can see, the way he is going
@@ -2912,7 +2929,7 @@ func _process(delta: float) -> void:
 	if hud.fire_tapped and fire_cool > 0.0:   # tapped a moment too early: kept, not lost
 		_fire_buf = 0.2
 	_tick_reload(delta)
-	if move_state in ["climb", "swing"]:   # both hands on the rope
+	if move_state in ["climb", "swing", "stairs"]:   # both hands on the rope (on the stairs in the wall: out of sight)
 		hud.fire_tapped = false
 		_fire_buf = 0.0
 	if (hud.fire_tapped or _fire_buf > 0.0) and fire_cool == 0.0 and not over and not _queued_shot and mag <= 0:
@@ -2956,7 +2973,8 @@ func _process(delta: float) -> void:
 				_grace = 1.6
 		else:
 			_grace = maxf(0.0, _grace - delta)
-	if (hud.pause_tapped or Input.is_action_just_pressed("ui_cancel")) and not over and not cleared and not _in_cut:
+	if (hud.pause_tapped or (Input.is_action_just_pressed("ui_cancel") and Engine.get_process_frames() > _unpaused_frame + 1)) \
+			and not over and not cleared and not _in_cut:
 		hud.pause_tapped = false
 		_pause()
 	hud.pause_tapped = false
@@ -3047,7 +3065,7 @@ func _process(delta: float) -> void:
 	var want_x: float = player.position.x + _lead
 	if _pan_t > 0.0:   # the map's opening: the camera eases in onto him from a little way off (_intro_pan)
 		_pan_t -= real
-		if absf(hud.move) > 0.3 or move_state != "ground":
+		if absf(_move_dir) > 0.3 or move_state != "ground":   # (stick or keys: audit 22. 11.)
 			_pan_t = minf(_pan_t, 0.5)
 		var w := smoothstep(0.0, INTRO_LEN, _pan_t)
 		want_x += INTRO_FROM.x * w
@@ -3218,6 +3236,8 @@ func _auto_step(delta: float) -> void:
 				hud.jump_tapped = true
 				print("BOT jump at ", int(player.position.x))
 				_bot_stuck = 0.0
+		if hud.move != 0.0 and move_state == "jump" and _wall_t > 0.0 and fall > -200.0:   # against a tall stack in the air: kick up off it
+			hud.jump_tapped = true
 		_bot_x = player.position.x
 		if OS.get_cmdline_user_args().has("--trace") and fmod(_at, 0.25) < delta:
 			print("TRACE t %.2f x %d y %d st %s move %.0f ground %d fight %s lad %s near %s" % [_at, int(player.position.x), int(player.position.y), move_state, hud.move, int(_ground_y), fight, lad != null, str(near.position) if near != null else "-"])
@@ -4627,6 +4647,9 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 	var slide: bool = duck_held and not _duck_was   # a fresh press: out of a run that is a slide
 	_duck_was = duck_held
 	if hud.dive_tapped:   # the button always throws him into a dive; a slide is the stick pulled down in a run
+		_dive_buf = 0.2
+	_dive_buf = maxf(0.0, _dive_buf - delta)
+	if _dive_buf > 0.0:   # (audit 22. 11.) tapped while still rolling or getting up: it goes as soon as he can
 		dive = true
 	hud.jump_tapped = false
 	hud.dive_tapped = false
@@ -4634,6 +4657,8 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 	var legs := 0.0
 	_rope_cool = maxf(0.0, _rope_cool - delta)
 	_fling = maxf(0.0, _fling - delta)
+	if move_state != "jump":   # (audit 22. 11.) landed: the wall he touched in the air is no longer there to kick off
+		_wall_t = 0.0
 	if move_state == "stairs":
 		return _on_stairdoor(delta)
 	if move_state in ["climb", "zip", "swing"]:
@@ -4651,6 +4676,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			player.dive_side = dir if dir != 0.0 else facing
 			glide = player.dive_side * DIVE_SPEED.x
 			player.position.y += DIVE_LAND   # (lying flat: the origin goes down as when he lands prone)
+			_dive_buf = 0.0
 			sfx.play("skid", -5.0, INF, 0.1)
 		elif can_act and dive:
 			_start_dive(dir if dir != 0.0 else facing, facing, DIVE_SPEED.y, absf(run) > 300.0)
@@ -4755,7 +4781,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 				_fling = t_air
 			sfx.play("land", -2.0)
 			_word(["thud"], player.position + Vector2(0.0, -80.0), 0.14)
-			_free_slow = maxf(_free_slow, 0.6)
+			_stunt_slow("awning", 0.6)
 			_clip("flip", run if absf(run) > 50.0 else signf(player.scale.x))   # thrown up: once over, tucked
 			if props:
 				props.landed_on(player.position)
@@ -4884,6 +4910,12 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 		steps.emitting = true
 		if slide_left <= 0.0:
 			move_state = "ground"
+		elif floor_y > player.position.y + 36.0:   # (audit 22. 11.) slid off a crate or a deck: he falls, not glides on in the air
+			move_state = "jump"
+			fall = 0.0
+			player.slide = 0.0
+			player.duck = 0.0
+			steps.emitting = false
 	_block(before_x)
 	player.position.x = clampf(player.position.x, -1500.0, level_end + 500.0)
 	if not roof.is_empty() and player.position.y < float(roof["y"]) + 40.0:   # the firewalls at both ends of the roofs
@@ -4900,6 +4932,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 func _floor_at(x: float, feet: float) -> float:
 	var best := 0.0
 	_last_kind = "ground"
+	_last_floor_style = ""   # (audit 22. 11.: a ramp after the bar kept "bar" and he skidded down the stairs)
 	for bi in boxes.size():
 		var b: Rect2 = boxes[bi]
 		if box_info[bi]["kind"] == "car":
@@ -4911,8 +4944,8 @@ func _floor_at(x: float, feet: float) -> float:
 		var c: Rect2 = catwalks[ci]
 		var reach := 34.0 if catwalk_solid[ci] else 14.0   # a storey's floor is stepped onto off the top stair, like a stair
 		reach = maxf(reach, fall * get_process_delta_time() * 1.3 + 14.0) if fall > 0.0 and move_state != "ground" else reach   # (falling fast: caught, not passed in one frame)
-		if catwalk_solid[ci] and fall > 0.0 and move_state in ["dive", "jump"]:
-			reach = 100.0   # falling fast onto a deck (out of a window at full tilt): caught, not dropped through onto the flight below
+		if catwalk_solid[ci] and fall > 0.0 and move_state in ["dive", "jump"] and feet - fall * get_process_delta_time() <= c.position.y + 14.0:
+			reach = 100.0   # (audit 22. 11.: only from above - from under the deck it pulled him up through it)   # falling fast onto a deck (out of a window at full tilt): caught, not dropped through onto the flight below
 		if x > c.position.x and x < c.end.x and feet <= c.position.y + reach and c.position.y < best:
 			if _drop_t > 0.0 and c.position.y <= _drop_y + 10.0:
 				continue
@@ -5015,7 +5048,7 @@ func _over_bar() -> bool:
 
 func _bar_slide(delta: float) -> void:
 	if _bar_t <= 0.0:
-		_free_slow = maxf(_free_slow, 0.6)
+		_stunt_slow("bar", 0.6)
 		sfx.play("glass", -2.0, player.position.x, 0.1)
 		_word(["smash", "clink"], player.position + Vector2(signf(glide) * 160.0, -170.0), 0.16)
 	_bar_t = 0.3
@@ -5039,7 +5072,7 @@ func _wall_kick(stick: float) -> void:
 	_fling = 0.3   # keeps the kick's speed a moment against the stick
 	player.air_v = -1.0
 	player.air = 1.0
-	_free_slow = maxf(_free_slow, 0.5)
+	_stunt_slow("wall", 0.5)
 	_clip("wall_kick", -_wall_away)   # (toward the wall: the foot on it, then the push)
 	sfx.play("land", -3.0)
 	_word(["thud", "wham"], player.position + Vector2(-_wall_away * 60.0, -140.0), 0.14)
@@ -5103,11 +5136,22 @@ func _try_vault() -> void:
 			return
 
 
+## (audit 22. 11.) A stunt's free slowed time (rule 18): the same kind of stunt gives it again only after a few
+## seconds, so bouncing on one awning or swinging to and fro is not slowed time for ever.
+const STUNT_SLOW_GAP := 4.0
+func _stunt_slow(kind: String, secs: float) -> void:
+	if _time - float(_stunt_at.get(kind, -100.0)) < STUNT_SLOW_GAP:
+		return
+	_stunt_at[kind] = _time
+	_free_slow = maxf(_free_slow, secs)
+
+
 func _dive_g() -> float:
 	return GRAVITY * (0.8 if _perk("longdive") else 1.0)
 
 
 func _start_dive(way: float, facing: float, up: float, from_run: bool) -> void:
+	_dive_buf = 0.0
 	sfx.play("dive", -2.0)
 	if player.dive < 0.3:   # (audit 17. 11.: it snapped from upright to flat) the push-off, then the flight
 		_clip("dive_push" if way * facing >= 0.0 else "dive_back", way)
@@ -5120,6 +5164,12 @@ func _start_dive(way: float, facing: float, up: float, from_run: bool) -> void:
 	# a crate in the way: he launches steeper, just enough to fly right over it and land clear of it;
 	# only if that is out of reach, to land on top of it and roll off
 	var found := false
+	_dive_near.clear()   # (audit 22. 11.) only the crates the dive can reach: ~50 arcs over every crate on the map was a hitch
+	for b in boxes:
+		if (b.end.x - player.position.x) * way > -300.0 and (b.position.x - player.position.x) * way < DIVE_SPEED.x * 2.2 + 300.0:
+			_dive_near.append(b)
+	if _dive_near.is_empty():
+		found = true
 	# a low crate within reach: the arc that skims its top, so his hands meet it and he vaults
 	for k in 24:
 		var u := up * 0.5 - 40.0 * k
@@ -5152,7 +5202,7 @@ func _dive_vaults(way: float, up: float) -> bool:
 		d = move_toward(d, 1.0, 6.0 * dt)
 		var feet := y - DIVE_LAND * d
 		var hands := x + way * 20.0
-		for b in boxes:
+		for b in _dive_near:
 			if b.size.y > VAULT_MAX:
 				continue
 			if x > b.position.x - 45.0 and x < b.end.x + 45.0 and feet > b.position.y + 14.0:
@@ -5180,13 +5230,13 @@ func _dive_clears(way: float, up: float, strict: bool) -> bool:
 		x += DIVE_SPEED.x * way * dt
 		d = move_toward(d, 1.0, 6.0 * dt)
 		var feet := y - DIVE_LAND * d
-		for b in boxes:
+		for b in _dive_near:
 			if b.size.y <= VAULT_MAX and x > b.position.x - 45.0 and x < b.end.x + 45.0 and feet > b.position.y + 14.0:
 				return false
 		if f > 0.0 and y >= _floor_at(x, feet) + 30.0:   # down: the roll that follows must not run into a crate
 			if strict and _floor_at(x, feet) < 0.0 and _last_kind == "box":
 				return false   # came down on top of a crate
-			for b in boxes:
+			for b in _dive_near:
 				var gap: float = (b.position.x - 45.0 - x) if way > 0.0 else (x - b.end.x - 45.0)
 				if b.size.y <= VAULT_MAX and gap > -1.0 and gap < 420.0 and _floor_at(x, feet) > b.position.y:
 					return false
@@ -6646,6 +6696,18 @@ func _restart() -> void:
 	_travel(false)
 
 
+## (audit 22. 11.) The game stops by itself when he cannot be watching: the tab hidden, the window left, the phone
+## turned upright.
+func _can_pause() -> bool:
+	return not in_menu and _auto == "" and not over and not cleared and not _in_cut and not _card_up and not get_tree().paused \
+			and player != null and hud != null
+
+
+func _notification(what: int) -> void:
+	if what in [NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_APPLICATION_PAUSED, NOTIFICATION_WM_WINDOW_FOCUS_OUT] and is_inside_tree() and _can_pause():
+		_pause()
+
+
 func _pause() -> void:
 	hud.release_all()
 	var p = PauseScript.new()
@@ -6653,6 +6715,7 @@ func _pause() -> void:
 	p.sound = func(n: String) -> void: sfx.play(n, -4.0, INF, 0.1)
 	hud.modal(true)
 	p.on_close = func() -> void:
+		_unpaused_frame = Engine.get_process_frames()
 		hud.modal(false)
 		hud.release_all()
 		_shake_on = bool(MenuScript.setting("shake"))
@@ -11153,7 +11216,7 @@ func _grab_rope() -> void:
 			player.hang_one = true
 			player.hang_cycle = -1.0
 			if r.has("laundry"):   # riding a washing line over their heads: a slowed beat for free (rule 18) to shoot them
-				_free_slow = maxf(_free_slow, 1.6)
+				_stunt_slow("zip", 1.6)
 			_rope_v = maxf(250.0, absf(run) * 0.6)
 			sfx.play("skid", -6.0, INF, 0.05)
 		else:
@@ -11176,10 +11239,11 @@ func _let_go(vx: float, vy: float) -> void:
 	player.rotation = 0.0
 	run = vx
 	fall = vy
+	_mantle_t = -1.0   # (audit 22. 11.) knocked off mid-haul: the next climb starts from the start
 	_rope_cool = 0.45
 	if _rope != null and _rope["kind"] == "swing":
 		_draw_swing(_rope, 0.0, 0.0)
-		_free_slow = maxf(_free_slow, 1.0)   # flung off the swing: a slowed second for free, in the air (user, 16. 11.)
+		_stunt_slow("swing", 1.0)   # flung off the swing: a slowed second for free, in the air (user, 16. 11.)
 	_rope = null
 
 
@@ -11222,6 +11286,8 @@ func _on_rope(dir: float, jump: bool, down: bool, delta: float) -> void:
 				if absf(c.position.y - top) < 2.0 and player.position.x > c.position.x - 160.0 and player.position.x < c.end.x + 160.0:
 					var into := 1.0 if absf(player.position.x - c.position.x) < absf(player.position.x - c.end.x) else -1.0
 					_mantle_to = Vector2((c.position.x + 90.0) if into > 0.0 else (c.end.x - 90.0), top)
+					if player.position.x > c.position.x + 90.0 and player.position.x < c.end.x - 90.0:   # (audit 22. 11.) over the deck: straight up
+						_mantle_to = Vector2(player.position.x, top)
 					if r["kind"] == "ladder":   # off the ladder onto the deck beside it, the way he faces
 						var side := signf(player.scale.x)
 						_mantle_to = Vector2(clampf((r["a"] as Vector2).x + side * 110.0, c.position.x + 90.0, c.end.x - 90.0), top)

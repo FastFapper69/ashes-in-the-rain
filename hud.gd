@@ -23,7 +23,8 @@ var reload_tapped := false  # the rounds under the health bar were tapped
 var pause_tapped := false
 var _pause: Sprite2D
 var target_at := Callable()   # func(screen: Vector2) -> bool: is there a mobster under this point (main.gd)
-var touch_seen := false    # true once a finger has touched the screen: then the mouse is ignored
+var touch_seen := false    # a finger was the last thing used: the mouse is ignored (a real mouse moved: false again)
+var _touch_ms := -100000
 
 var _portrait: Sprite2D
 var _plate: Control
@@ -45,6 +46,7 @@ var _stick_at := Vector2.ZERO
 
 func _ready() -> void:
 	layer = 6
+	touch_seen = DisplayServer.is_touchscreen_available()   # a phone: touch from the first frame
 	# One plate under the whole cluster (UI audit 18. 11.: portrait, health, rounds and gun card floated as
 	# separate pieces): the caption paper inked dark, so the cream bar, rounds and cards read on it.
 	_plate = load("res://paper.gd").sheet("panel", PLATE_RECT.size)
@@ -855,6 +857,11 @@ func set_slow(fraction: float, active: bool) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch or event is InputEventScreenDrag:
+		_touch_ms = Time.get_ticks_msec()
+	elif (event is InputEventMouseMotion and (event as InputEventMouseMotion).relative.length() > 3.0 or event is InputEventMouseButton) \
+			and event.device != InputEvent.DEVICE_ID_EMULATION and Time.get_ticks_msec() - _touch_ms > 1000:
+		touch_seen = false   # (audit 22. 11.) a touchscreen laptop: the mouse works again once it is used
 	if event is InputEventScreenTouch:
 		touch_seen = true
 		var t := event as InputEventScreenTouch
