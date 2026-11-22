@@ -322,3 +322,12 @@ Vepředu domy z modulů na jedné mřížce, vzadu dnešní malované pásy jako
 - PILOT: SANDBOX "BLOCK" v TEST LAB: dům A (obchod, 3x3), ulička, dům v řezu (4x3) se schodištěm a šňůrou, dům B (kámen,
   4x3), dům C (2x4, společná zeď s B). Screenshoty 1280 a 1560 vedle dnešního vzhledu -> uživatel schválí.
 - Pak: BACK STREETS, THE LAUNDRY, TENEMENTS; pak ostatní městské ulice (doky a metro můžou zůstat malované).
+
+## 22. Through the window opposite into a works (user 22. 11.)
+"He could jump into the second house, break its window again and be in a second interior full of enemies on several
+heights - not a tenement but a factory or something with a big open space, so it makes sense. As soon as he goes
+through that second window, time slows again so he can shoot them." Plan: in the BLOCK pilot the house across the
+alley (stone B) becomes a works front (module sheet with tall factory windows, Gemini) with an interior of the same
+size (Gemini: a machine hall, two galleries / catwalks, a hoist); the jump off the escape's landing or the washing line
+ends in its first-floor window (glass breaks, `_free_slow` like the flat's window); men on the floor and on both
+galleries; out at the far end by its door to the street. Pilot in the TEST LAB, then decide where it goes in chapter I.

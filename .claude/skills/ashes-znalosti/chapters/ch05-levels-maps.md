@@ -112,5 +112,11 @@ Why the painted-street + cut-house look failed (found 22. 11. on the user's phon
   and the manhole / grate never repeat at one step); from y 345 the near pavement (the slab's top, dark, blurred) on the
   `fore` layer (moves 35 % faster), and on it at `FORE_BASE` the foreground props (`_scatter_fore`, city levels only).
   The camera sees ~470 px under the feet (more up high: look-down 420 + 20 % pull-back) - the near pavement runs on.
+- **Walls across his path in one drawing are turned the same way; a door shut in one is turned with it** (user 22. 11.:
+  "look at the tilt of the wall with the door and the wall with the window"): the flat's partition is Gemini's redraw at
+  the window wall's 3/4 angle (art_src 353 -> gen/flat_partition.py -> tenement_partition.png laid over tenement_flat at
+  `PARTITION_X`); the door card is shut at `FLAT_YAW0` in its doorway (its free edge toward us) and kicked it swings on
+  into the flat to ~90 degrees against the stove (`_kick_door`); `span` = the leaf as seen, for the block and the kick
+  distance. The rooming kit (BACK STREETS) keeps its flat-on doorway and door. Check: `--test=doorkick`.
 - Godot 4 canvas shader lesson: in `fragment()` COLOR already holds texture x modulate - multiplying by texture(TEXTURE)
   again squares it (the escape went black). Only touch `COLOR.a`.
