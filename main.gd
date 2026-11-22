@@ -1485,7 +1485,6 @@ const SEC_STAND_STAIRS := Vector2(1800.0, 2240.0)   # its stairs in the back wal
 const SEC_STAND_RIGHT := 1800.0                 # its far end from the downpipe: stairs, 3C, the window wall
 const SEC_DISSOLVE := 0.6  # s: the facade dissolving from the door when he steps in (story doc, tab "Řez domem a kamera")
 const SEC_DIM := 0.38      # a storey of a building in cross-section he is not on: sunk back, still readable
-const SEC_VEIL := 0.72     # the houses either side of a building he is inside
 const ROOM_BASE := 0.95     # an interior's painting under the night grade, before its lamps' pools
 const SEGMENT_MOON := 1.6   # how much brighter than the bare night the drawn streets are kept
 const SEGMENT_BASE := 0.92
@@ -7207,26 +7206,10 @@ func _build_sections() -> void:
 				sp.position = Vector2(x0 + float(pc[2]) * sc, top_y)
 				sp.light_mask = 0
 				storey.add_child(sp)
-		var veil := Node2D.new()   # inside, the houses either side sink into the dark: only this building is lit
-		veil.z_index = -3
-		veil.modulate.a = 0.0
-		add_child(veil)
-		var void_ := Node2D.new()   # and the sky behind them goes black: no bare sky between their tops and the roofs up here
-		void_.z_index = -20
-		void_.modulate.a = 0.0
-		add_child(void_)
-		for pair in [[veil, SEC_VEIL], [void_, 1.0]]:
-			# the veil only up to the roofline: above it the roofs run on unbroken (no hard edge across them)
-			var top: float = -section_h * (int(sec[2]) + (0 if pair[0] == veil else 3))
-			for side in [Rect2(x0 - 6000.0, top, 6000.0, 4000.0 - top), Rect2(x1, top, 6000.0, 4000.0 - top)]:
-				var cr := ColorRect.new()
-				cr.position = (side as Rect2).position
-				cr.size = (side as Rect2).size
-				cr.color = Color(0.0, 0.0, 0.0, float(pair[1]))
-				cr.mouse_filter = Control.MOUSE_FILTER_IGNORE
-				(pair[0] as Node2D).add_child(cr)
+		# (user 22. 11.: "the black can't stay, the world I jump into should show") no veil on the houses either side and no
+		# black sky behind them any more: from inside and off the fire escape the street round the house is seen as it is
 		var reach := Vector2(x1 - x0, section_h * int(sec[2])).length() + 500.0
-		_sec_art.append({"holder": holder, "veil": veil, "void": void_, "lit": 0.0, "ink": ink, "open": 0.0, "reach": reach})
+		_sec_art.append({"holder": holder, "lit": 0.0, "ink": ink, "open": 0.0, "reach": reach})
 
 
 var _ink_shader: Shader
@@ -7299,7 +7282,7 @@ func _build_flats() -> void:
 		sp.centered = false
 		sp.scale = Vector2.ONE * ESC_K
 		sp.position = Vector2(wx1, y - section_h)   # its top landing level with the roof
-		sp.z_index = -2   # over the dark veil laid on the houses around
+		sp.z_index = -2   # over the houses around
 		sp.light_mask = 0
 		sp.modulate = Color(ROOM_BASE, ROOM_BASE, ROOM_BASE, 1.0)
 		add_child(sp)
@@ -7835,14 +7818,7 @@ func _tick_sections(real: float) -> void:
 			for st in h.get_children():
 				for sp in st.get_children():
 					(sp as CanvasItem).material = art["ink"] if moving else null
-		# on the building's fire escape, up beside it: the houses around stay dark as from inside (their drawings
-		# were never painted to be seen from storey height)
 		var sx1 := float((sections[i] as Array)[1])
-		var by := float(art.get("veil_a", 0.0))
-		var beside: bool = player.position.x > sx1 - 20.0 and player.position.x < sx1 + 900.0 and player.position.y < -400.0
-		art["veil_a"] = move_toward(by, 1.0 if beside else 0.0, real * 2.0)
-		(art["veil"] as Node2D).modulate.a = maxf(open, float(art["veil_a"]))
-		(art["void"] as Node2D).modulate.a = maxf(open, float(art["veil_a"]))
 		for f in _flats:   # the flat's door and glass show with the storeys (of its own house: audit 21. 11.)
 			if float(f["x"]) >= float((sections[i] as Array)[0]) and float(f["x"]) <= sx1:
 				for key in ["door", "glass"]:
