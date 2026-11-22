@@ -8056,6 +8056,8 @@ static func _curve_at(step: int) -> Dictionary:
 ## never the last man of an ambush); later a gunman standing in the open gets a partner a few steps
 ## behind him, where nothing stands, and some carry heavier guns. The prologue keeps its mob as drawn.
 ## Always the same for the same map, so a checkpoint finds the street as it was.
+## (audit 22. 11.) gen/levels.py thin_to_curve already lays the count the curve asks for at the normal setting, so on
+## normal this keeps every man; it cuts or adds only for easy / hard (and where a map's drawn fights hold more).
 func _cast(specs: Array) -> Array:
 	if float(diff["density"]) < 0.0:
 		return specs

@@ -138,6 +138,25 @@ def joins(mp):
     for a, b in zip(sorted(plain), sorted(plain)[1:]):
         if b[0] < a[1] + 300:
             errs.append(f"interiors {a[2]} and {b[2]} at {a[1]:.0f}/{b[0]:.0f} run into each other")
+    # (audit 22. 11.) where nobody waits and nothing lies: the blaze, under the falling beam, under low stairs, past the end,
+    # a pickup inside a crate
+    spans = [(ev[1] - 120, ev[1] + ev[2] + 120, "blaze") for ev in mp.get("events", []) if ev[0] == "blaze"] +             [(ev[1] - 370, ev[1] + 370, "falling beam") for ev in mp.get("events", []) if ev[0] == "beam"]
+    for e in mp.get("enemies", []):
+        if e["run"] or e["y"] != 0.0 or e["kind"] == "boss":
+            continue
+        for a, b, what in spans:
+            if a < e["x"] < b:
+                errs.append(f"{e['kind']} at {e['x']:.0f} waits in the {what}")
+        for r in mp.get("ramps", []):
+            lo, hi = min(r[0], r[2]), max(r[0], r[2])
+            if lo < e["x"] < hi and -330 < r[1] + (r[3] - r[1]) * (e["x"] - r[0]) / (r[2] - r[0]) < -1:
+                errs.append(f"{e['kind']} at {e['x']:.0f} stands under the stairs")
+        if e["x"] > mp["end"] - 150:
+            errs.append(f"{e['kind']} at {e['x']:.0f} waits past the map's end {mp['end']:.0f}")
+    for pk in mp.get("pickups", []):
+        for bx in mp.get("boxes", []):
+            if pk[2] == 0.0 and (len(bx) < 5 or bx[4] == 0.0) and bx[1] - 40 < pk[1] < bx[1] + bx[2] + 40:
+                errs.append(f"{pk[0]} at {pk[1]:.0f} lies inside a {bx[0]}")
     return errs
 
 

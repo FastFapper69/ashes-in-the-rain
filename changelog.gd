@@ -11,6 +11,8 @@ const ENTRIES := [
 		"The game pauses when you leave the tab or turn the phone upright; Esc closes the pause card",
 		"A touchscreen laptop: the mouse fires and aims again",
 		"No shots from inside the stairwell; no being pulled up through a deck from below",
+		"Chapter I streets are laid out with the men you actually meet: fewer, better spaced, no longer half shotguns and tommies",
+		"Nobody waits in the fire, under a falling beam, under the station stairs or past the end of a map; no flask inside a crate",
 	]],
 	["21 NOV 2026", [
 		"Swapping big guns: the one you pick up has only the rounds left in it",

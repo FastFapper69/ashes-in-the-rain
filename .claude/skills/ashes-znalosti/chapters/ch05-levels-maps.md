@@ -80,3 +80,5 @@ spelled out), process_art STREET entry, kit.py PIECES (+ clear, not_beside, hois
 basis_imports + import, then audit, bots, shots.
 
 **Houses in cross-section sit on street joints** (user 21. 11., rule 15): `seat_sections` in gen/levels.py moves a house (and all of the map after it) so its facade starts exactly where a street drawing starts - the facade never covers half of a drawn door. A new map with a section needs nothing extra; a test map with a walked roof over the house is skipped.
+
+**The mob count is the generator's (audit 22. 11.).** gen/levels.py `thin_to_curve` lays the count main.gd `CURVE` asks for at the normal setting (densest spot first, heavies in proportion, rooms keep half, runners stay), so the layout in levels.gd is what is played; main.gd `_cast` only scales for easy/hard. Change CURVE in main.gd and regenerate levels.gd. `settle()` + audit_maps keep men out of blazes, from under falling beams and low stairs and before the map's end, and pickups out of crates.

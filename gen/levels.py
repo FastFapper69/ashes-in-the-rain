@@ -645,7 +645,10 @@ def build(mp):
         if [(xa2, xb2) for i, xa2, xb2, ya, yb in v.iron if facade(v.street, xa2, xb2, ya, yb) < 0.93] == bad:
             break
     place_fronts(v)
+    end0 = v.end
     exit_door(v, mp)
+    if v.end > end0 + 1:   # (audit 22. 11.) the end moved on to a door: no empty run of street up to it
+        pace(v, mp, random.Random(mp["seed"] * 31 + 7))
     door_clear(v)   # (again: the kit and the cover moved men about after the first time)
     inside = lambda x: any(len(o) == 2 and o[1] - 50 < x < o[1] + BOX[o[0]][0] + 50 for o in v.boxes)
     doors = [d for a, b, st in v.rooms if not str(st).startswith("section_") for d in (a, b)]
@@ -654,7 +657,116 @@ def build(mp):
         if e["y"] == 0.0 and inside(e["x"]):
             e["x"] = next((x for d in range(0, 3000, 40) for x in (e["x"] + d, e["x"] - d) if not inside(x) and not by_door(x)),
                           next(x for d in range(0, 3000, 40) for x in (e["x"] + d, e["x"] - d) if not inside(x)))
+    settle(v, by_door)
+    thin_to_curve(v, mp)
     return v
+
+
+def hazards(m):
+    """Where nobody waits: in a strip of burning floor, under a roof timber that comes down (its 620 px), under a flight of
+    stairs too low to stand under."""
+    spans = []
+    for ev in m.events:
+        if ev[0] == "blaze":
+            spans.append((ev[1] - 120, ev[1] + ev[2] + 120))
+        elif ev[0] == "beam":
+            spans.append((ev[1] - 370, ev[1] + 370))
+    def bad(x):
+        if any(a < x < b for a, b in spans):
+            return True
+        for r in m.ramps:
+            lo, hi = min(r[0], r[2]), max(r[0], r[2])
+            if lo < x < hi and -330 < r[1] + (r[3] - r[1]) * (x - r[0]) / (r[2] - r[0]) < -1:
+                return True
+        return False
+    return bad
+
+
+def settle(m, by_door):
+    """(audit 22. 11.) Last look at where the men and the things on the ground ended up after every shift: nobody in the
+    blaze, under the falling beam, under the station stairs (14TH STREET) or past the map's end (THE DREAM, the docks'
+    last rooms); no flask or page inside a crate (THE LAUNDRY)."""
+    bad = hazards(m)
+    lim = m.end - 250
+    by = lambda b: b[2] if len(b) > 2 else 0.0
+    inside = lambda x, pad=50: any(by(o) == 0.0 and o[1] - pad < x < o[1] + BOX[o[0]][0] + pad for o in m.boxes)
+    taken = lambda x, me: any(o is not me and not o["run"] and o["y"] == 0.0 and abs(o["x"] - x) < 120 for o in m.enemies)
+    for e in m.enemies:
+        if e["run"] or e["y"] != 0.0 or e["kind"] == "boss":
+            continue
+        if not (bad(e["x"]) or e["x"] > lim):
+            continue
+        ok = lambda x: x < lim and not bad(x) and not inside(x) and not taken(x, e)
+        e["x"] = next((x for d in range(40, 6000, 40) for x in (e["x"] - d, e["x"] + d) if ok(x) and not by_door(x)),
+                      next((x for d in range(40, 6000, 40) for x in (e["x"] - d, e["x"] + d) if ok(x)), e["x"]))
+    for pk in m.pickups:
+        if pk[2] == 0.0 and inside(pk[1], 40):
+            pk[1] = next(x for d in range(40, 3000, 40) for x in (pk[1] + d, pk[1] - d) if not inside(x, 60) and x < m.end - 100)
+
+
+# The difficulty curve (main.gd CURVE): the generator lays the mob the curve asks for at the normal setting, so the street
+# that is played is the street that was laid out (audit 22. 11.: the game itself cut 40-58 % of chapter I's men, only plain
+# gunmen, so the shotguns and tommies were half of what was left; main.gd _cast now only scales for easy / hard).
+def _curve():
+    src = open(os.path.join(REPO, "main.gd"), encoding="utf-8").read()
+    i = src.index("const CURVE := [")
+    block = src[i:src.index("\n]", i)]
+    import re
+    return [(int(a), float(d), float(h)) for a, d, h in re.findall(r'\[(\d+), \{"density": ([0-9.]+).*?"heavy": ([0-9.]+)\}', block)]
+
+
+BUILD_STEP = None   # the map's point on the curve (set by the main loop: maps of the chapters before + its index)
+def curve_want(m):
+    rows = _curve()
+    lo, hi = rows[0], rows[-1]
+    for i, r in enumerate(rows):
+        if r[0] <= BUILD_STEP:
+            lo, hi = r, rows[min(i + 1, len(rows) - 1)]
+    k = 0.0 if hi == lo else min(1.0, max(0.0, (BUILD_STEP - lo[0]) / (hi[0] - lo[0])))
+    return int(m.end / 10000.0 * (lo[1] + (hi[1] - lo[1]) * k) + 0.5)   # (= roundi in main.gd _cast)
+
+
+def thin_to_curve(m, mp):
+    if BUILD_STEP is None or BUILD_STEP < 0 or mp.get("plain"):
+        return
+    want = curve_want(m)
+    if len(m.enemies) <= want:
+        return
+    heavy = [e for e in m.enemies if e["kind"] in ("tommy", "shotgun")]
+    heavy_want = max(sum(MIX.get(mp["name"], {}).values()), round(len(heavy) * want / len(m.enemies)))
+    room_of = lambda x: next((i for i, (a, b, st) in enumerate(m.rooms) if a <= x < b), None)
+    room_n = {}
+    for e in m.enemies:
+        r = room_of(e["x"])
+        if r is not None:
+            room_n[r] = room_n.get(r, 0) + 1
+    room_min = {r: (n + 1) // 2 for r, n in room_n.items()}   # a room keeps at least half of its men (its fight was drawn)
+    by_cp = lambda x: any(abs(x - c) < 700 for c in m.checks)
+    while len(m.enemies) > want:
+        n_heavy = sum(1 for e in m.enemies if e["kind"] in ("tommy", "shotgun"))
+        kinds = ("tommy", "shotgun") if n_heavy > heavy_want else ("post",)
+        xs = sorted(e["x"] for e in m.enemies if not e["run"])
+        best, score = None, None
+        for e in m.enemies:
+            if e["run"] or e["kind"] not in kinds:
+                continue
+            r = room_of(e["x"])
+            if r is not None and room_n[r] <= room_min[r]:
+                continue
+            i = xs.index(e["x"])
+            gap = (xs[i + 1] if i + 1 < len(xs) else m.end - 900) - (xs[i - 1] if i > 0 else 1700.0)
+            s = gap - (800 if by_cp(e["x"]) else 0)   # the densest spot first; a man right at a checkpoint goes sooner
+            if score is None or s < score:
+                best, score = e, s
+        if best is None:
+            if kinds == ("post",):
+                break
+            heavy_want = 10 ** 6   # no heavy one can go: plain men then
+            continue
+        r = room_of(best["x"])
+        if r is not None:
+            room_n[r] -= 1
+        m.enemies.remove(best)
 
 
 def seg_w(name):
@@ -829,7 +941,7 @@ def _build(mp, nudge):
         for px, py, pw, st in c.plats: out.plats.append([x + px, py, pw, st])
         for rp_ in c.ramps: out.ramps.append([x + rp_[0], rp_[1], x + rp_[2], rp_[3]] + list(rp_[4:]))
         for a, b, st in c.rooms: out.rooms.append([x + a, x + b, st])
-        for a, b, n, st in c.sections: out.sections.append([x + a, x + b, n, st])
+        for a, b, ns, st in c.sections: out.sections.append([x + a, x + b, ns, st])   # (ns: n is the chunk count - audit 22. 11.)
         if getattr(c, "start_xy", None): out.start_xy = [x + c.start_xy[0], c.start_xy[1]]; out.break_in = c.break_in
         if c.sealed is not None: out.sealed = x + c.sealed
         if c.end_at is not None: out.end_at = x + c.end_at
@@ -1024,13 +1136,17 @@ def pace(m, mp, rng):
     if mp.get("name") not in DISTRICT and not mp.get("dream"):   # (the dream too: "sluggish", three stretches of nothing)
         return
     in_room = lambda x: any(a - 400 < x < b + 400 for a, b, st in m.rooms)
-    xs = sorted(e["x"] for e in m.enemies if e["y"] == 0.0 and not e["run"])
+    in_house = lambda x: any(s[0] <= x <= s[1] for s in m.sections)
+    by_cp = lambda x: any(abs(x - c) < 600 for c in m.checks)   # (audit 22. 11.) not where he comes back after a death
+    xs = sorted(e["x"] for e in m.enemies if (e["y"] == 0.0 or in_house(e["x"])) and not e["run"])
     adds = []
     for a, b in zip([1700.0] + xs, xs + [m.end - 900]):
         k = int((b - a) // PACE_GAP)
         for j in range(1, k + 1):
             x = a + (b - a) * j / (k + 1)
-            if not in_room(x):
+            if by_cp(x):
+                x = next((x + d for d in (650, -650, 900, -900) if a + 300 < x + d < b - 300 and not by_cp(x + d)), x)
+            if not in_room(x) and not by_cp(x):
                 hard = mp["start"] + (mp["end"] - mp["start"]) * x / m.end
                 adds.append({"x": x, "y": 0.0, "kind": "shotgun" if hard > 0.4 and rng.random() < 0.3 else "post",
                              "trig": None, "from": None, "delay": 0.0, "run": False})
@@ -1495,6 +1611,8 @@ def street(mp, m, rng):
             if mp.get("name") in DOCK_DISTRICT:   # the docks: a landmark once a map; after that the plain sheds take turns
                 plain = sorted(DISTRICT_PLAIN.get(mp["name"], ["sheds", "sheds_b", "sheds_c", "sheds_d", "pier17_b"]), key=lambda q: (used.count(q), CHAPTER_USED.get(q, 0), rng.random()))
                 jn = lambda q: last is None or KIT_CAT.joins(last, q)
+                # (audit 22. 11.: sheds|sheds_d side by side breaks "never a kit next to its variant", but sheds' right edge
+                # joins only sheds_d - preferring another kit there cut the sky in half at the join: the join wins)
                 fresh = ([q for q in cand if q not in used and jn(q)] or [q for q in plain if q != last and ok(q) and jn(q)][:1]
                          or [q for q in DOCKS_POOL + UNDER_POOL if q != last and q not in used and ok(q) and jn(q)
                              and (q not in KIT or KIT[q] != KIT.get(last, last))][:1]
@@ -1660,21 +1778,8 @@ def door_into(m, mp):
     i = next(i for i, g in enumerate(m.street) if g[1] >= fx - 1.0)   # the first drawing that starts at or past it
     delta = m.street[i][1] - fx
     x0 = r[0] - 1.0
-    for o in m.boxes + m.pickups:
-        if o[1] >= x0: o[1] += delta
-    for o in m.hints + m.lamps + m.plats:
-        if o[0] >= x0: o[0] += delta
-    for o in m.events:
-        if len(o) > 1 and isinstance(o[1], (int, float)) and o[1] >= x0: o[1] += delta
-    for e in m.enemies:
-        if e["x"] >= x0:
-            e["x"] += delta
-            if e["trig"] is not None: e["trig"] += delta
-            if e["from"] is not None: e["from"] += delta
-    m.checks = [c + delta if c >= x0 - 100 else c for c in m.checks]
-    for rr in m.rooms:
-        if rr[0] >= x0: rr[0] += delta; rr[1] += delta
-    if m.end >= x0: m.end += delta
+    m.checks = [c + delta if x0 - 100 <= c < x0 else c for c in m.checks]   # (the one at its door goes with it)
+    shift_from(m, x0, delta)   # (audit 22. 11.: everything, as seat_sections - ropes, things, kits, end_at... were left behind)
     grow = seg_w(piece) - seg_w(m.street[i][0])
     m.street[i] = [piece, m.street[i][1]]
     for g in m.street[i + 1:]:
@@ -2065,10 +2170,14 @@ if __name__ == "__main__":
     campaign = []
     n = 0
     bad = False
+    step = 0
     for ch in CAMPAIGN:
         maps = []
         CHAPTER_USED.clear()   # (each chapter spreads its own pieces)
         for mp in ch["maps"]:
+            BUILD_STEP = -1 if ch.get("hero") == "eddie" else step   # (= main.gd _set_difficulty)
+            if ch.get("hero") != "eddie":
+                step += 1
             if "seed" not in mp:   # written up, not yet built: a name in the case file
                 maps.append({"name": mp["name"]}); continue
             m = build(mp)
@@ -2085,6 +2194,7 @@ if __name__ == "__main__":
         campaign.append(c)
     # Maps for trying a new system before any chapter has it (--sandbox=N): never in the case file
     sand = []
+    BUILD_STEP = None
     for mp in SANDBOX:
         m = build(mp)
         errs = check(m)
