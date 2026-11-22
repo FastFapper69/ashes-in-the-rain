@@ -7165,6 +7165,7 @@ const SEC_KIT_ROWS := 1112.0
 const SEC_KIT_WALK := 1097.0
 const SEC_KIT_W := 3168.0
 const SEC_KIT_X0 := 510.0      # from the first piece's left edge to the building's x0: the street door in the facade
+const SEC_SIDE_OUT := 158.0     # tenement_side.png (gen/section_side.py): its outer face, its pixels from the outside
 const SEC_KIT_WALL := Vector2(167.0, 680.0)   # the end piece's brick wall: outer face, inner face (its pixels)
 const SEC_KIT_LAYOUT := [      # per storey: the two pieces, then the end walls it needs
 	["tenement_entry", "tenement_stairs_a", "", "R"],
@@ -7180,6 +7181,7 @@ func _build_section_kit(x0: float, x1: float, storeys: int, holder: Node2D, styl
 		return k if ResourceLoader.exists("res://art/section/%s.png" % k) else n
 	var s := section_h / SEC_KIT_ROWS
 	var start := x0 - SEC_KIT_X0
+	var city := not _city_house(x0).is_empty()   # (22. 11.) among the city's fronts: whole outer walls, the alley past them
 	var facade := Node2D.new()   # the front seen from the street: under the storeys, which open over it from the door
 	facade.z_index = -6
 	add_child(facade)
@@ -7191,7 +7193,15 @@ func _build_section_kit(x0: float, x1: float, storeys: int, holder: Node2D, styl
 		storey.modulate = Color(ROOM_BASE, ROOM_BASE, ROOM_BASE, 1.0)
 		holder.add_child(storey)
 		for i in 2:
-			var piece := _kit_piece(own.call(String(lay[i])), Rect2(0.0, 0.0, SEC_KIT_W, SEC_KIT_ROWS), Vector2(start + i * SEC_KIT_W * s, top), s, false)
+			var pn := String(lay[i])
+			if city and pn == "tenement_entry" and kit == "tenement":
+				pn = "tenement_entry_city"   # (gen/section_side.py) no side door onto a painted street: the street door is the front's
+			var reg := Rect2(0.0, 0.0, SEC_KIT_W, SEC_KIT_ROWS)
+			if city and i == 0 and String(lay[2]) == "L":
+				reg = Rect2(SEC_SIDE_OUT, 0.0, SEC_KIT_W - SEC_SIDE_OUT, SEC_KIT_ROWS)   # nothing of the hallway out past its wall
+			elif city and i == 1 and String(lay[3]) == "R":
+				reg = Rect2(0.0, 0.0, SEC_KIT_W - SEC_SIDE_OUT, SEC_KIT_ROWS)
+			var piece := _kit_piece(own.call(pn), reg, Vector2(start + (i * SEC_KIT_W + reg.position.x) * s, top), s, false)
 			storey.add_child(piece)
 			if String(lay[i]) == "tenement_flat":   # its window bursts: swapped for the drawing with the empty hole
 				_flat_art.append([-section_h * k, piece, kit])
@@ -7200,10 +7210,11 @@ func _build_section_kit(x0: float, x1: float, storeys: int, holder: Node2D, styl
 				continue   # (rule 31) its front comes from the modular city's sheet (below)
 			facade.add_child(_kit_piece(own.call(front), Rect2(0.0, 0.0, SEC_KIT_W, SEC_KIT_ROWS), Vector2(start + i * SEC_KIT_W * s, top), s, false))
 		var cap := Rect2(0.0, 0.0, SEC_KIT_WALL.y, SEC_KIT_ROWS)
+		var end := "tenement_side" if city else "tenement_end"   # (a whole wall, not a broken one over a grey void)
 		if String(lay[2]) == "L":
-			storey.add_child(_kit_piece("tenement_end", cap, Vector2(start, top), s, false))
+			storey.add_child(_kit_piece(end, cap, Vector2(start, top), s, false))
 		if String(lay[3]) == "R":
-			storey.add_child(_kit_piece("tenement_end", cap, Vector2(start + 2.0 * SEC_KIT_W * s - SEC_KIT_WALL.y * s, top), s, true))
+			storey.add_child(_kit_piece(end, cap, Vector2(start + 2.0 * SEC_KIT_W * s - SEC_KIT_WALL.y * s, top), s, true))
 	var hf := _city_house(x0)
 	if not hf.is_empty():
 		_city_front(String(hf[1]), float(hf[2]), float(hf[3]), int(hf[4]), int(hf[5]), facade, 0)

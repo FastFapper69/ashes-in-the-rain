@@ -99,5 +99,13 @@ Why the painted-street + cut-house look failed (found 22. 11. on the user's phon
   at wx0-60 sat before the old wx0-20 mark: nobody got out; `--test=flatwin`); escape drawing faded right of its decks
   and above the reachable landing (`ESC_FADE_*`, shader `_esc_fade_shader`); `HIGH_WIDE` / `HIGH_LOOK_DOWN`: up high
   outside (not on kit roofs, not in a house/room) the camera pulls back 20 % and looks down so the landing spot shows.
+- **A door keeps its direction through the threshold** (user 22. 11.: outside the door faced us, inside it was a side
+  door swung open onto a painted street). The street door is in the FRONT wall, drawn on the front seen from the street;
+  a cut-away house shows its back wall there - never a profile door or a street view at the entry. City houses use
+  `tenement_entry_city` (gen/section_side.py: the entry's mailboxes, the end piece's hallway, a whole wall on the left).
+- **A house's end walls among the city's fronts are whole walls** (user 22. 11.: "unfinished join of the house wall and
+  the alley"): `tenement_side` (the ragged end cap filled with its own bricks, inked straight, the grey void and black
+  behind it cut away) and the hallway pieces clipped at its outer face (`SEC_SIDE_OUT`), so the alley drawing and the
+  escape's wall meet it directly.
 - Godot 4 canvas shader lesson: in `fragment()` COLOR already holds texture x modulate - multiplying by texture(TEXTURE)
   again squares it (the escape went black). Only touch `COLOR.a`.

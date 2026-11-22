@@ -216,6 +216,7 @@ const SIZES := {
 	"res://art/section/rooming_stairs_b.png": Vector2i(3168, 1112),
 	"res://art/section/tenement_end.png": Vector2i(3168, 1112),
 	"res://art/section/tenement_entry.png": Vector2i(3168, 1112),
+	"res://art/section/tenement_entry_city.png": Vector2i(3168, 1112),
 	"res://art/section/tenement_facade.png": Vector2i(3168, 1112),
 	"res://art/section/tenement_facade_ground.png": Vector2i(3168, 1112),
 	"res://art/section/tenement_flat.png": Vector2i(3168, 1112),
