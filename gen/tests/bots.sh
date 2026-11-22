@@ -14,5 +14,5 @@ chs=re.split(r'\n\t\{\"title\": ', s)[1:]
 print(' '.join(str(len(re.findall(r'\"street\": \[', c))) for c in chs))" 2>/dev/null || python3 -c "print('1 6 6 5')")
 want="${*:-0 1 2 3}"
 i=0; for n in $counts; do case " $want " in *" $i "*) for m in $(seq 0 $((n-1))); do echo "$i $m"; done;; esac; i=$((i+1)); done > "$T/maps.txt"
-[ -z "$*" ] && printf "sb 0\nsb 1\n" >> "$T/maps.txt"
+[ -z "$*" ] && printf "sb 0\nsb 1\nsb 2\n" >> "$T/maps.txt"
 cat "$T/maps.txt" | xargs -P 12 -n 2 bash -c 'run $0 $1' | sort

@@ -432,6 +432,7 @@ const BARK_GAP := {"empty": 18.0, "spot": 5.0, "reload": 7.0, "cover": 6.0, "tau
 var _names := []             # the names given out on this map
 var _mercy: Array = []
 var _sandbox := -1            # --sandbox=N: a trial map from levels.gd SANDBOX
+static var _url_sandbox := -2   # the page's ?sandbox=N (-2: not read yet, -1: none or left for the title)
 var sections: Array = []      # buildings in cross-section: [x0, x1, storeys, style] (levels.gd "sections")
 var section_h := 700.0
 var _bot_esc_up := false      # the test bot on a fire escape: turned back to the foot of the flight
@@ -719,6 +720,19 @@ func _ready() -> void:
 	var picked := false
 	for arg in ARGS:
 		picked = picked or arg.begins_with("--chapter=")
+	if OS.has_feature("web") and _url_sandbox == -2:   # (QUEUE §21) ...?sandbox=N on the web: a trial map (the pilot block)
+		var q := str(JavaScriptBridge.eval("location.search", true))   # straight away; restarts stay on it, QUIT TO TITLE leaves it
+		_url_sandbox = int(q.substr(q.find("sandbox=") + 8).get_slice("&", 0)) if q.find("sandbox=") >= 0 else -1
+		if _url_sandbox >= 0:
+			in_menu = false
+	if _url_sandbox >= 0:
+		if in_menu:
+			_url_sandbox = -1
+		else:
+			_sandbox = _url_sandbox
+			chapter = 1
+			map = 0
+			picked = true
 	if not _booted:   # a fresh page asked for by the last one (another part of the story): straight back to it
 		_booted = true
 		var r := Packs.take_resume()
@@ -1565,6 +1579,16 @@ func _build_segments() -> void:
 		w.region_rect = Rect2(trim, 0.0, diffuse.get_width() - trim, diffuse.get_height())
 		w.scale = Vector2(ws * sx, ws)
 		var seg_w := diffuse.get_width() * ws
+		if level.has("city"):   # (rule 31) the modular city's fronts stand on the back of the pavement: of the drawings only
+			_pavement(x0, seg_w)  # their slabs here; the drawings themselves are the city far behind, over the roofs
+			w.scale *= CITY_FAR_SCALE
+			w.z_index = -25
+			w.material = atmo.blur_material(2.2)
+			w.modulate = Color(CITY_FAR_TONE, CITY_FAR_TONE, CITY_FAR_TONE * 1.06, 1.0)
+			w.light_mask = 0
+			add_child(w)
+			_city_far.append([w, x0, -diffuse.get_height() * ws * SEGMENT_BASE - WALL_LIFT])
+			continue
 		w.position = Vector2(x0, -diffuse.get_height() * ws * SEGMENT_BASE - WALL_LIFT)
 		var floored: bool = SEGMENT_FLOOR.has(seg_name)
 		if floored:   # its own floor under his feet: no pavement in front of it
@@ -3157,6 +3181,9 @@ func _process(delta: float) -> void:
 	if Engine.time_scale < 0.8 and not over:   # (audit 17. 11.) slowed time leans in a little: the moment fills the picture
 		want_zoom *= 1.0 + 0.08 * clampf((0.8 - Engine.time_scale) / 0.5, 0.0, 1.0)
 	cam.zoom = Vector2.ONE * lerpf(cam.zoom.x, want_zoom, 1.0 - exp(-3.0 * real))
+	var cc := cam.get_screen_center_position() if _city_far.size() > 0 else Vector2.ZERO
+	for fa in _city_far:   # (rule 31) the old street drawings as the city far behind: smaller, slower, over the roofs
+		(fa[0] as Sprite2D).position = Vector2(cc.x + (float(fa[1]) - cc.x) * CITY_FAR_SCALE, cc.y + (float(fa[2]) - cc.y) * CITY_FAR_SCALE - CITY_FAR_LIFT)
 	for sk in _sky_nodes:   # (the sky hangs off the camera: pulled back wider than the street zoom, it widens with it)
 		if is_instance_valid(sk):
 			var sks := sk as Sprite2D
@@ -3468,7 +3495,7 @@ func _auto_step(delta: float) -> void:
 				wr = r
 		if _auto_done & (1 << 21) == 0 and not wr.is_empty():
 			_auto_done |= 1 << 21
-			player.position = Vector2((wr["a"] as Vector2).x - 90.0, float(wr["top"]))
+			player.position = Vector2((wr["a"] as Vector2).x + (60.0 if level.has("city") else -90.0), float(wr["top"]))   # (the city: the line starts at the window, he stands on the landing)
 			_ground_y = player.position.y
 			_grace = 99.0
 		hud.move = 0.6 if _at > 0.5 and _at < 0.9 else 0.0
@@ -4582,6 +4609,37 @@ func _auto_step(delta: float) -> void:
 				_auto_done |= 1 << k
 				_shot("room_%d_%s" % [k, String(segs[k][0])])
 		else:
+			get_tree().quit()
+		return
+	elif _auto == "cityview" or _auto == "citywalk":   # (QUEUE §21) the modular city: zoomed out over the whole block, one
+		# picture every 4000 px / walked along the street at the play zoom, the men away, a picture every 1.2 s
+		if _auto_done & (1 << 30) == 0:
+			_auto_done |= 1 << 30
+			_grace = 999.0
+			for e in enemies:
+				e["node"].position.x += 90000.0
+				e["goal"] = e["node"].position.x
+		if _auto == "cityview":
+			hud.visible = false
+			var k := int(_at / 0.6)
+			var x := -2000.0 + k * 4000.0
+			if x > level_end + 2000.0:
+				get_tree().quit()
+				return
+			player.position.x = x
+			cam.position = Vector2(x, -1250.0)
+			cam.zoom = Vector2.ONE * 0.26
+			if fmod(_at, 0.6) > 0.5 and _auto_done & (1 << k) == 0:
+				_auto_done |= 1 << k
+				_shot("cityview_%02d" % k)
+			return
+		hud.move = 1.0
+		var kw := int(_at / 1.2)
+		if _auto_done & (1 << kw) == 0 and _at > 0.5:
+			_auto_done |= 1 << kw
+			_shot("citywalk_%02d" % kw)
+			print("CITYWALK x ", int(player.position.x), " end ", int(level_end), " ", move_state)
+		if player.position.x > level_end - 300.0 or _at > 22.0:
 			get_tree().quit()
 		return
 	elif _auto == "seams":   # the joins between street drawings, zoomed out, no HUD, one picture each
@@ -7138,12 +7196,17 @@ func _build_section_kit(x0: float, x1: float, storeys: int, holder: Node2D, styl
 			if String(lay[i]) == "tenement_flat":   # its window bursts: swapped for the drawing with the empty hole
 				_flat_art.append([-section_h * k, piece, kit])
 			var front := "tenement_facade_ground" if k == 0 and i == 0 else "tenement_facade"
+			if not _city_house(x0).is_empty():
+				continue   # (rule 31) its front comes from the modular city's sheet (below)
 			facade.add_child(_kit_piece(own.call(front), Rect2(0.0, 0.0, SEC_KIT_W, SEC_KIT_ROWS), Vector2(start + i * SEC_KIT_W * s, top), s, false))
 		var cap := Rect2(0.0, 0.0, SEC_KIT_WALL.y, SEC_KIT_ROWS)
 		if String(lay[2]) == "L":
 			storey.add_child(_kit_piece("tenement_end", cap, Vector2(start, top), s, false))
 		if String(lay[3]) == "R":
 			storey.add_child(_kit_piece("tenement_end", cap, Vector2(start + 2.0 * SEC_KIT_W * s - SEC_KIT_WALL.y * s, top), s, true))
+	var hf := _city_house(x0)
+	if not hf.is_empty():
+		_city_front(String(hf[1]), float(hf[2]), float(hf[3]), int(hf[4]), int(hf[5]), facade, 0)
 
 
 func _kit_piece(name: String, region: Rect2, at: Vector2, s: float, flip: bool) -> Sprite2D:
@@ -7157,6 +7220,86 @@ func _kit_piece(name: String, region: Rect2, at: Vector2, s: float, flip: bool) 
 	sp.position = at
 	sp.light_mask = 0
 	return sp
+
+
+## (rule 31, QUEUE §21) The modular city in front: every front cut from a module sheet (gen/modules.py: Gemini's facade on
+## gen/module_template.py's grid, 3 bays x cornice + 3 storeys = CITY_SHEET world px) - the left bay with its outer corner,
+## the middle bay repeated, the right bay with its corner; the cornice, the storeys under it (the sheet's two alternating),
+## the ground floor. Alleys between fronts (their own drawing) and a house's side-wall fire escape (art_src 346).
+const CITY_SHEET := Vector2(3000.0, 2400.0)
+const CITY_CORNICE := 300.0
+const CITY_STOREY := 700.0
+const CITY_FOOT := 64.0                      # a front's foot: the back of the pavement (WALL_LIFT + 4)
+const CITY_ESC_H := 1436.4                   # the side-on fire escape's drawing in world px (2528 px at 0.5682)
+const CITY_ESC_DECK := 1756.0 / 2528.0       # its lower deck's row, a fraction of the drawing's height
+const CITY_TONE := 0.86                      # the fronts under the night grade (the street drawings' moonlit wash)
+func _build_city() -> void:
+	for cy in level.get("city", []):
+		var kind := String(cy[0])
+		var x := float(cy[2])
+		if kind == "bldg":
+			_city_front(String(cy[1]), x, float(cy[3]), int(cy[4]), int(cy[5]), self, -6)
+		elif kind == "gap":   # the alley between two fronts: its sky keyed out, the city's sky behind
+			var tex: Texture2D = BigTex.get_tex("res://art/city/%s.png" % String(cy[1]))
+			var k := float(cy[3]) / tex.get_width()
+			var sp := Sprite2D.new()
+			sp.texture = tex
+			sp.centered = false
+			sp.scale = Vector2(k, k)
+			sp.position = Vector2(x, -CITY_FOOT - tex.get_height() * k)
+			sp.z_index = -7
+			sp.light_mask = 0
+			sp.modulate = Color(CITY_TONE, CITY_TONE, CITY_TONE, 1.0)
+			add_child(sp)
+		elif kind == "escape":   # bolted to the house's side wall, seen edge-on: its landings stand out over the alley
+			var tex: Texture2D = BigTex.get_tex("res://art/city/%s.png" % String(cy[1]))
+			var k := CITY_ESC_H / tex.get_height()
+			var sp := Sprite2D.new()
+			sp.texture = tex
+			sp.centered = false
+			sp.scale = Vector2(k, k)
+			sp.position = Vector2(x, float(cy[3]) + CITY_STOREY - CITY_ESC_H * CITY_ESC_DECK)
+			sp.z_index = -2
+			sp.light_mask = 0
+			sp.modulate = Color(0.66, 0.66, 0.7, 1.0)   # (the drawing's iron is pale: down to the street's ink)
+			add_child(sp)
+
+
+## The modular city's front laid for the house in cross-section at x0 (its "house" entry), or [].
+func _city_house(x0: float) -> Array:
+	for cy in level.get("city", []):
+		if String(cy[0]) == "house" and float(cy[2]) < x0 and float(cy[2]) + float(cy[3]) > x0:
+			return cy
+	return []
+
+
+## One front: `bays` bays across `w` world px from x0, `storeys` storeys and the cornice over them, its foot at CITY_FOOT.
+func _city_front(style: String, x0: float, w: float, bays: int, storeys: int, parent: Node, z: int) -> void:
+	var tex: Texture2D = BigTex.get_tex("res://art/city/%s.png" % style)
+	var kx := tex.get_width() / CITY_SHEET.x
+	var ky := tex.get_height() / CITY_SHEET.y
+	var bay := CITY_SHEET.x / 3.0
+	var bw := w / float(maxi(bays, 2))
+	var rows: Array = [[0.0, CITY_CORNICE]]   # [the sheet's y, height]: the cornice, the storeys from the top, the ground floor
+	for s in storeys - 1:
+		rows.append([CITY_CORNICE + (s % 2) * CITY_STOREY, CITY_STOREY])
+	rows.append([CITY_CORNICE + 2.0 * CITY_STOREY, CITY_STOREY])
+	var y := -CITY_FOOT - (storeys * CITY_STOREY + CITY_CORNICE)
+	for row in rows:
+		for j in maxi(bays, 2):
+			var col: float = 0.0 if j == 0 else (2.0 * bay if j == maxi(bays, 2) - 1 else bay)
+			var sp := Sprite2D.new()
+			sp.texture = tex
+			sp.centered = false
+			sp.region_enabled = true
+			sp.region_rect = Rect2(col * kx, float(row[0]) * ky, bay * kx, float(row[1]) * ky)
+			sp.scale = Vector2(bw / (bay * kx), 1.0 / ky)
+			sp.position = Vector2(x0 + j * bw, y)
+			sp.z_index = z
+			sp.light_mask = 0
+			sp.modulate = Color(CITY_TONE, CITY_TONE, CITY_TONE, 1.0)
+			parent.add_child(sp)
+		y += float(row[1])
 
 
 func _build_sections() -> void:
@@ -7286,7 +7429,7 @@ func _build_flats() -> void:
 		for c in level["floors"]:
 			if String(c[3]) == "fescape" and absf(float(c[1]) - y) < 10.0:
 				has_escape = true
-		if not has_escape:
+		if not has_escape or level.has("city"):
 			continue
 		var tex: Texture2D = BigTex.get_tex("res://art/section/tenement_escape.png")
 		var to_roof := false   # a landing up at the roof he can get to (else its top flight led nowhere: user 22. 11.)
@@ -7919,6 +8062,7 @@ func _build_level() -> void:
 			continue   # a storey of a building in cross-section: drawn by _build_sections
 		_build_room(float(r[0]), float(r[1]), String(r[2]))
 	_build_sections()
+	_build_city()
 	for spec in level["boxes"]:
 		var kind := String(spec[0])
 		var art: String = BOX_ART[kind][0] if BOX_ART.has(kind) else kind
@@ -9158,6 +9302,10 @@ func _intro_pan() -> void:
 ## camera part of the way toward it for a moment, easing in and out: attention without a word of text.
 var _cue_at := Vector2.ZERO
 var _sky_nodes: Array = []
+var _city_far: Array = []   # [sprite, its x, its top y at the street's own scale]
+const CITY_FAR_SCALE := 0.5   # how far behind the fronts the old street drawings stand (their size and their speed)
+const CITY_FAR_LIFT := 1500.0   # raised so only their upper storeys show over the fronts' roofs
+const CITY_FAR_TONE := 0.42
 var wide_shot := 0.0   # 0..1, set by mapfx while something big goes by (eased back each frame there)
 var _cue_t := 0.0
 var _cue_len := 1.0
@@ -9180,7 +9328,7 @@ func _cam_rise(y: float) -> float:
 	var low := clampf(y * 0.45, -330.0, 0.0)
 	if props and props.near_climb(player.position.x):   # up a street piece's fire escape / off its awning: the camera goes up with him
 		low = clampf(y * 0.62, -880.0, 0.0)
-	if roof.is_empty() or y > -600.0:
+	if (roof.is_empty() and not level.has("city")) or y > -600.0:   # (the modular city: up its fire escapes, the camera goes too)
 		return low
 	return lerpf(low, y, smoothstep(-600.0, -1500.0, y))
 

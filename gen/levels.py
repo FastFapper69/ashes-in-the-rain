@@ -115,6 +115,14 @@ SEC_LADDER = 2935.0      # the ladder to the roof hatch in tenement_ladder (not 
 # The flat at the right end of the top storey (tenement_flat, art_src 223) and the fire escape outside it (art_src 222):
 # kick in its door under the partition's lintel, out of its window onto the escape, up the escape to the roof.
 SEC_FLAT_DOOR = 1778.0   # the doorway under the lintel (door leaf 476 high)
+# The modular city (rule 31, QUEUE §21) = main.gd CITY_*: one grid for every building in front
+CITY_BAY = 1000.0           # a bay of a module front (gen/module_template.py)
+CITY_FOOT = 64.0            # a front stands at the back of the pavement (main.gd WALL_LIFT + 4)
+CITY_WIN = (300.0, 440.0, 150.0)   # an upper window: width, height, sill over its storey's floor line
+CITY_HOUSE_L = 440.0        # a house in cross-section's front starts this far left of its x0 (its door bay's middle at x0 + 60)
+CITY_GAP_W = 1340.0         # the alley between two fronts (art/city/alley_gap.png at the front's scale)
+CITY_ESC_DEEP, CITY_ESC_STAIR, CITY_ESC_DROP, CITY_ESC_FOOT = 416.0, 270.0, 370.0, -310.0   # art_src 346 at 0.5682
+CITY_PULLEY = 520.0         # a washing line's pulley over a window: just over its lintel (501 over the floor in the house)
 SEC_WIN = (3195.0, 3340.0)   # the window through the outer wall: inner face, outer face; sill 178, lintel 501 above the floor
 ESC_K = 1.0526           # the escape drawing's pixels to the world (its landings fall on the storeys)
 def esc(px): return SEC_WIN[1] + (px - 570.0) * ESC_K   # its picture's x (570 = the wall's outer face) in the chunk
@@ -173,6 +181,9 @@ class Chunk:
         self.sealed = None     # a drawn wall he may not pass going left (the hold's bulkhead), from the chunk's start
         self.end_at = None     # the map ends here (a way out drawn in a room: the passage's ladder)
         self.flats = []        # a flat to kick into and jump out of: [door x, storey y, door h, window x0, x1, sill, lintel]
+        self.city = []         # (rule 31) the modular city in front: ["bldg", style, x0, width, bays, storeys], ["gap", art, x0,
+                               # width], ["house", style, x0, width, bays, storeys] (a house in cross-section's own front),
+                               # ["escape", art, wall x, deck y top]: x always at index 2 (shift_from)
 
     def thing(self, kind, x): self.things.append([kind, x]); return self
     def box(self, kind, x, y=0.0): self.boxes.append([kind, x, y] if y else [kind, x]); return self
@@ -442,6 +453,45 @@ def chunk(name, hard, rng=None):
         c.foe(w + 1500, 0.0).foe(w + 2100, 0.0, kind="shotgun" if hard > 0.5 else "post")   # and waiting below in the street
         c.hint(SEC_FLAT_DOOR + 1100, "OUT OF THE WINDOW")
         c.checks += [w + 1100.0]   # down in the street off the line
+    elif name == "city_block":   # (QUEUE §21 pilot, rule 31) the modular city: buildings from module sheets on one grid
+        # (storey 700, bay CITY_BAY), the house in cross-section among them with its own brick front and cornice; out of its
+        # flat's window onto its side-wall fire escape (art_src 346, edge-on), over the alley to the stone house across
+        a_w = 3 * CITY_BAY
+        hx = a_w + CITY_HOUSE_L                     # the house's x0: its front (from x0 - CITY_HOUSE_L) meets A's
+        wall = hx + SEC_WIN[1]                      # its right outer wall: the flat's window goes through it
+        gap_x, gap_w = wall, CITY_GAP_W
+        b_x, b_w = gap_x + gap_w, 3 * CITY_BAY
+        c_x = b_x + b_w
+        w = c_x + 3 * CITY_BAY + 600
+        c = Chunk(w)
+        c.city += [["bldg", "pale", -6000.0, 3 * CITY_BAY, 3, 3], ["bldg", "walkup", -3000.0, 3 * CITY_BAY, 3, 4],
+                   ["bldg", "stone", 0.0, a_w, 3, 4], ["house", "brick", hx - CITY_HOUSE_L, wall - (hx - CITY_HOUSE_L), 4, 3],
+                   ["escape", "escape_side", wall, -SEC_H * 2], ["gap", "alley_gap", gap_x, gap_w],
+                   ["bldg", "stone", b_x, b_w, 3, 3], ["bldg", "pale", c_x, 3 * CITY_BAY, 3, 4],
+                   ["bldg", "walkup", c_x + 3 * CITY_BAY, 3 * CITY_BAY, 3, 3], ["bldg", "brick", c_x + 6 * CITY_BAY, 3 * CITY_BAY, 3, 4]]
+        c.sections.append([hx, hx + SEC_W, 3, "tenement"])
+        for k in (1, 2):
+            c.plat(hx, -SEC_H * k, SEC_W, "section")
+        r, l = hx + SEC_STAIRS_A, hx + SEC_STAIRS_B
+        c.stairdoors += [[r, 0.0, -SEC_H], [r, -SEC_H, 0.0], [l, -SEC_H, -SEC_H * 2], [l, -SEC_H * 2, -SEC_H]]
+        c.flats.append([hx + SEC_FLAT_DOOR, -SEC_H * 2, 476.0, hx + SEC_WIN[0], hx + SEC_WIN[1], 178.0, 501.0])
+        for k in (1, 2):   # the escape's two landings, as drawn (CITY_ESC_DEEP out from the wall)
+            c.plat(wall, -SEC_H * k, CITY_ESC_DEEP, "fescape")
+        c.rope("ladder", wall + CITY_ESC_STAIR, -SEC_H * 2, 0.0, -SEC_H)
+        c.ropes[-1].append("drawn")
+        c.rope("ladder", wall + CITY_ESC_DROP, -SEC_H, 0.0, CITY_ESC_FOOT)
+        c.ropes[-1].append("drawn")
+        # the washing line: from the top landing's outer rail post to a pulley on the jamb of the stone house's first-floor
+        # window across the alley (module grid: bay 0's window, left jamb, a third down)
+        jx = b_x + CITY_BAY * 0.5 - CITY_WIN[0] * 0.5 - 10.0
+        jy = -CITY_FOOT - SEC_H - CITY_WIN[2] - CITY_WIN[1] * 0.7
+        c.ropes.append(["wash", wall + 20.0, -SEC_H * 2 - CITY_PULLEY, jx, jy, -SEC_H * 2])   # (window to window: a pulley over the flat's window, out over the landing at head height)
+        c.xy_checks += [[r, -SEC_H], [l, -SEC_H * 2]]
+        c.checks += [hx - 60]
+        c.foe(hx + 1900).foe(hx + 1300, -SEC_H).foe(hx + 2400, -SEC_H * 2, kind="shotgun")
+        c.foe(b_x + 900).foe(c_x + 1200, kind="tommy")
+        c.hint(hx - 600, "INTO THE HOUSE, UP THE STAIRS")
+        c.hint(hx + SEC_FLAT_DOOR + 1100, "OUT OF THE WINDOW, RIDE THE LINE")
     elif name == "stunts":   # SANDBOX STUNTS: the new moves in a few seconds - one storey, the flat right by the door,
         w = SEC_W            # kick its door in (a man behind it), out of its window to the street, the rope behind
         c = Chunk(w + 2600)
@@ -952,6 +1002,7 @@ def _build(mp, nudge):
         for kx, kp in c.kits: out.kits.append((x + kx, kp))
         for tk, tx in c.things: out.things.append([tk, x + tx])
         for fl in c.flats: out.flats.append([x + fl[0], fl[1], fl[2], x + fl[3], x + fl[4], fl[5], fl[6]])
+        for cy in c.city: out.city.append(cy[:2] + [x + cy[2]] + cy[3:])
         for lx, ly in c.lamps: out.lamps.append([x + lx, ly])
         for k, px, py in c.pickups: out.pickups.append([k, x + px, py])
         for k, a, b, cc, d, *rest in c.ropes: out.ropes.append([k, x + a, b, x + cc if k in ("zip", "wash") else cc, d] + rest)
@@ -1045,7 +1096,7 @@ def _build(mp, nudge):
     door_clear(out)
     st = rng.getstate()
     out.street = street(mp, out, rng)
-    for _ in range(4):   # (user 21. 11., phone shot: a door of the street drawing cut by the house's facade) houses on joints
+    for _ in range(0 if out.city else 4):   # (user 21. 11., phone shot: a door of the street drawing cut by the house's facade) houses on joints (not in the modular city: its own fronts)
         if not seat_sections(out):
             break
         rng.setstate(st)
@@ -1446,7 +1497,7 @@ def shift_from(m, lim, d):
                     o[i] += d
     mv(m.boxes, 1); mv(m.pickups, 1); mv(m.things, 1); mv(m.hints, 0); mv(m.lamps, 0); mv(m.plats, 0)
     mv(m.ramps, 0, 2); mv(m.rooms, 0, 1); mv(m.sections, 0, 1); mv(m.flats, 0, 3, 4); mv(m.stairdoors, 0)
-    mv(m.xy_checks, 0); mv(m.ropes, 1, 3); mv(m.events, 1, 2)
+    mv(m.xy_checks, 0); mv(m.ropes, 1, 3); mv(m.events, 1, 2); mv(m.city, 2)
     m.kits = [(x + d if x >= lim else x, pc) for x, pc in m.kits]
     for e in m.enemies:
         if e["x"] >= lim:
@@ -2142,6 +2193,8 @@ def gd(campaign):
             if m.sections:
                 out.append(f'\t\t\t"sections": [{sc}], "section_h": {f(SEC_H)}, "xy_checks": [{xc}], "stairdoors": [{sd}], "flats": [{fz}],')
             out.append(f'\t\t\t"street": [{st}],')
+            if m.city:
+                out.append('\t\t\t"city": [' + ", ".join("[" + ", ".join(q(v) if isinstance(v, str) else f(v) for v in cy) + "]" for cy in m.city) + "],")
             out.append(f'\t\t\t"enemies": [{en}]}},')
         out.append("\t]},")
     out.append("]")
@@ -2162,6 +2215,10 @@ SANDBOX = [
      "roof": True, "kit": "troof", "roofs": ["roof_b", "roof_a"],   # (rule 25, 17. 11.: the flat is in a whole house: in at
      # its street door, up its stairs, the door kick and the window onto its own fire escape, up to its roof)
      "street_fixed": ["hk_laundry", "hk_tailor", "hk_grocery", "hk_saloon", "hk_laundry", "warehouse", "alley_mouth", "market_row", "factory", "row_house"]},   # (plain houses where the big laundry's long front goes)
+    # (--sandbox=2) the modular city's pilot block (QUEUE §21, rule 31): module fronts, the house among them, its side-wall
+    # fire escape, the washing line over the alley
+    {"name": "BLOCK", "seed": 903, "start": 0.3, "end": 0.3, "intro": [], "outro": [], "fixed": ["breather", "city_block"],
+     "street_fixed": ["tenrow_a", "tenrow_b", "tenrow_c", "tenrow_d"]},
 ]
 
 SEEN = set()   # a rope hint is shown once in the whole story, on the first map that has that rope

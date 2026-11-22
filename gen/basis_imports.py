@@ -23,10 +23,10 @@ def cap_for(w, h):
 def wrapped(f):
     """Loaded through BigTex.get_tex: free to be imported at a slightly different size."""
     n = f.split('/')[-1]
-    return (f.startswith(('art/street/', 'art/rooms/', 'art/section/')) and '_neon' not in n) or f.startswith('art/cut/')
+    return (f.startswith(('art/street/', 'art/rooms/', 'art/section/', 'art/city/')) and '_neon' not in n) or f.startswith('art/cut/')
 
 def candidates():
-    files = glob.glob('art/street/*.png') + glob.glob('art/rooms/*.png') + glob.glob('art/section/*.png') + glob.glob('art/fore/*.png') + glob.glob('art/cut/*.jpg')
+    files = glob.glob('art/street/*.png') + glob.glob('art/rooms/*.png') + glob.glob('art/section/*.png') + glob.glob('art/city/*.png') + glob.glob('art/fore/*.png') + glob.glob('art/cut/*.jpg')
     files += ['art/bg/%s.png' % n for n in ['far', 'mid', 'fore', 'moon', 'wall2', 'wall2_lit']]
     files += ['art/props/%s.png' % n for n in ['scaffold', 'station_stairs', 'subway_car', 'subway_car_lit']]
     # the map set pieces (mapfx.gd, 2026-11-16), cut by gen/map_props.py to sizes in multiples of 4
