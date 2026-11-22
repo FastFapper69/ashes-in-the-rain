@@ -5,6 +5,7 @@ extends RefCounted
 
 const ENTRIES := [
 	["22 NOV 2026", [
+		"The city block: a wet cobbled road under the kerb instead of black, lamps and hydrants up close on the near pavement",
 		"Into a house in the city block: the street door stays the front door inside, the house ends in a whole wall at the alley",
 		"The fire escape ends at your landing, its wall fades into the street; up high the camera pulls back and looks down",
 		"From inside a house and out of its window the street and the sky show: no more black round it",

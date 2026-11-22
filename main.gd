@@ -2038,10 +2038,63 @@ func _tick_neons(delta: float) -> void:
 
 ## Things standing right by the camera, out of focus: bollards, a hydrant, a parked car, a lamp
 ## whose lantern blooms into a soft disc. Each map deals them in its own order and spacing.
+## (22. 11., user: "no black space at the bottom, more work with the foreground") Under the kerb the drawn road (Gemini,
+## gen/road.py: wet cobbles, the gutter, a rail, a manhole), mirrored tile by tile; at the very bottom of the picture the
+## near pavement, out of focus, on the foreground's own layer: what stands in front stands on it.
+const ROAD_SCALE := 1.4           # road_cobbles.png's px in the world (a cobble about a hand and a half of the figure)
+const ROAD_TONE := 0.64
+const FORE_NEAR_Y := 345.0        # the near pavement's far edge
+const FORE_BASE := 395.0          # where the things in front stand on it
+const FORE_NEAR_TONE := 0.3
+func _build_road() -> void:
+	var tex: Texture2D = load("res://art/props/road_cobbles.png")
+	var y0 := -WALL_LIFT - 12.0 + 286.0 * SLAB_SCALE - 6.0   # just under the slab's kerb
+	var w := tex.get_width() * ROAD_SCALE
+	var i := 0
+	var x := -6000.0
+	while x < level_end + 6000.0:
+		var s := Sprite2D.new()
+		s.texture = tex
+		s.centered = false
+		s.flip_h = i % 2 == 1
+		s.scale = Vector2.ONE * ROAD_SCALE
+		s.position = Vector2(x, y0)
+		s.z_index = -8
+		s.light_mask = 0
+		s.modulate = Color(ROAD_TONE, ROAD_TONE, ROAD_TONE, 1.0)
+		add_child(s)
+		x += w - 1.0
+		i += 1
+	var slab: Texture2D = load("res://art/props/slab_sidewalk.png")
+	var region := Rect2(SLAB_REGION_X.x, 0.0, SLAB_REGION_X.y - SLAB_REGION_X.x, 112.0)   # its top only: the kerb faces the road
+	var soft: Material = atmo.blur_material(3.0)
+	var back := Polygon2D.new()   # the pavement on toward the lens
+	back.polygon = PackedVector2Array([Vector2(-9000.0, FORE_NEAR_Y + 60.0), Vector2(level_end * 1.4 + 9000.0, FORE_NEAR_Y + 60.0),
+			Vector2(level_end * 1.4 + 9000.0, FORE_NEAR_Y + 1600.0), Vector2(-9000.0, FORE_NEAR_Y + 1600.0)])
+	back.color = Color(0.1, 0.1, 0.105)
+	fore.add_child(back)
+	x = -9000.0
+	while x < level_end * 1.4 + 9000.0:
+		var s := Sprite2D.new()
+		s.texture = slab
+		s.centered = false
+		s.region_enabled = true
+		s.region_rect = region
+		s.position = Vector2(x, FORE_NEAR_Y)
+		s.light_mask = MASK_UNLIT
+		s.modulate = Color(FORE_NEAR_TONE, FORE_NEAR_TONE, FORE_NEAR_TONE * 1.05, 1.0)
+		s.material = soft
+		fore.add_child(s)
+		x += region.size.x - 2.0
+
+
 const FORE_PROPS := {"bollard": 2.0, "hydrant": 2.0, "lamp": 2.0, "railing": 1.0}   # only what stands at a kerb; no cars or crates sliding past the lens
 func _scatter_fore() -> void:
-	return   # (user 17. 11.: hydrant and lamp silhouettes stuck in an empty grey strip in front: nothing stands without a
-	# ground of its own - knowledge rule 22. The rest is kept should a drawn kerb ever come in front.)
+	if not level.has("city"):
+		return   # (user 17. 11.: hydrant and lamp silhouettes stuck in an empty grey strip in front: nothing stands without a
+		# ground of its own - knowledge rule 22. 22. 11.: in the modular city the drawn road and the near pavement are
+		# that ground - _build_road.)
+	_build_road()
 	if level.get("under", false):   # no hydrants and lamp posts down in the subway
 		return
 	var rng := RandomNumberGenerator.new()
@@ -2068,7 +2121,7 @@ func _scatter_fore() -> void:
 		f.modulate = Color(0.1, 0.1, 0.11)
 		f.light_mask = MASK_UNLIT
 		f.scale = Vector2.ONE * sc
-		f.position = Vector2(x, 205.0 - tex.get_height() * sc)
+		f.position = Vector2(x, FORE_BASE - tex.get_height() * sc)
 		f.material = atmo.blur_material(5.0)   # nearer than the focus: soft
 		fore.add_child(f)
 		if pick == "lamp":   # its lantern, out of focus, blooms into a disc of warm light

@@ -107,5 +107,10 @@ Why the painted-street + cut-house look failed (found 22. 11. on the user's phon
   the alley"): `tenement_side` (the ragged end cap filled with its own bricks, inked straight, the grey void and black
   behind it cut away) and the hallway pieces clipped at its outer face (`SEC_SIDE_OUT`), so the alley drawing and the
   escape's wall meet it directly.
+- **The bottom of the picture is ground, not black** (user 22. 11.): under the slab's kerb the road (art_src 352 ->
+  gen/road.py -> art/props/road_cobbles.png, world scale `ROAD_SCALE` 1.4, tone 0.64, tiles mirrored so the ends meet
+  and the manhole / grate never repeat at one step); from y 345 the near pavement (the slab's top, dark, blurred) on the
+  `fore` layer (moves 35 % faster), and on it at `FORE_BASE` the foreground props (`_scatter_fore`, city levels only).
+  The camera sees ~470 px under the feet (more up high: look-down 420 + 20 % pull-back) - the near pavement runs on.
 - Godot 4 canvas shader lesson: in `fragment()` COLOR already holds texture x modulate - multiplying by texture(TEXTURE)
   again squares it (the escape went black). Only touch `COLOR.a`.
