@@ -311,6 +311,9 @@ static var LOOK2 := not ARGS.has("--oldlook")
 static var CAM_Y: float = CAM_Y_BASE + (150.0 if LOOK2 else 0.0)
 const BG_DIM := 0.86
 const CAM_LEAD := 400.0   # the camera looks ahead of the detective
+const HIGH_LOOK_DOWN := 420.0   # and how far it looks down (px at the street zoom)
+var _high := 0.0
+const HIGH_WIDE := 0.2    # how much wider the camera pulls up high outside (fire escape, washing line): the street below shows
 # Layers behind the street, nearest last: texture, how much they follow the camera (1 = not at all
 # displaced, i.e. infinitely far), top edge in world units, scale, brightness, blur.
 const DEPTH := [["res://art/bg/far.png", 0.85, -1560.0, 0.8, 0.18, 2.5, -25], ["res://art/bg/mid.png", 0.6, -1500.0, 0.7, 0.14, 1.5, -20]]
@@ -1754,7 +1757,11 @@ func _build_segments() -> void:
 				fp.material = w.material
 				fp.z_index = -5
 				add_child(fp)
-		if seg != level["street"][0] and not floored and walls and not _front_joint(x0):   # a firewall pier over the join with the drawing before (only between two buildings' walls: never in front of open sky or water)
+		var behind_escape := false   # (user 22. 11.) behind a house's fire escape its back wall covers the join: no black column up past it
+		for c in level["floors"]:
+			if String(c[3]) == "fescape" and x0 > float(c[0]) - 50.0 and x0 < float(c[0]) + float(c[2]) + ESC_PIER_HIDE:
+				behind_escape = true
+		if seg != level["street"][0] and not floored and walls and not _front_joint(x0) and not behind_escape:   # a firewall pier over the join with the drawing before (only between two buildings' walls: never in front of open sky or water)
 			var pier := Sprite2D.new()
 			pier.texture = BigTex.get_tex("res://art/street/pier.png")
 			pier.centered = false
@@ -3141,6 +3148,10 @@ func _process(delta: float) -> void:
 			e["node"].set_rim(maxf(rim, 0.35))
 			if e["type"] == "shade":
 				_shade_eyes(e["node"])
+	var on_roofs: bool = not roof.is_empty() and player.position.x > float(roof["x0"]) - 1600.0 and player.position.x < float(roof["x1"]) + 1600.0
+	var high := 0.0 if in_sec or _room != "" or on_roofs else smoothstep(-450.0, -1100.0, player.position.y)
+	_high = lerpf(_high, high, 1.0 - exp(-3.0 * real))
+	want_zoom *= 1.0 - HIGH_WIDE * high   # (user 22. 11.) up a fire escape or on a line over the street: pulled back to see down
 	if wide_shot > 0.0:   # a set piece bigger than the picture (the El's train over the street): the camera pulls back for it
 		want_zoom *= 1.0 - 0.28 * wide_shot
 	if Engine.time_scale < 0.8 and not over:   # (audit 17. 11.) slowed time leans in a little: the moment fills the picture
@@ -3154,6 +3165,7 @@ func _process(delta: float) -> void:
 	var near := ZOOM / cam.zoom.x   # the pavement stays four fifths down the screen at any zoom
 	fore.modulate.a = move_toward(fore.modulate.a, 0.0 if _room != "" or player.position.y < -900.0 else 1.0, real * 3.0)   # no street furniture indoors, nor up on the scaffold
 	var want_y := CAM_Y * near + (_ground_y if in_sec else _cam_rise(_snap_y(player.position.y))) + clampf(aim_n.y, -0.6, 0.6) * 90.0 * near 			- (120.0 if _steps_above > 0.0 else 0.0)   # steps on the storey above: the camera looks up at them
+	want_y += HIGH_LOOK_DOWN * _high * near   # (user 22. 11.) up high outside the camera looks down: where he will land shows
 	var want_x: float = player.position.x + _lead
 	if _pan_t > 0.0:   # the map's opening: the camera eases in onto him from a little way off (_intro_pan)
 		_pan_t -= real
@@ -7277,6 +7289,10 @@ func _build_flats() -> void:
 		if not has_escape:
 			continue
 		var tex: Texture2D = BigTex.get_tex("res://art/section/tenement_escape.png")
+		var to_roof := false   # a landing up at the roof he can get to (else its top flight led nowhere: user 22. 11.)
+		for c in level["floors"]:
+			if String(c[3]) == "fescape" and absf(float(c[1]) - (y - section_h)) < 10.0:
+				to_roof = true
 		var sp := Sprite2D.new()
 		sp.texture = tex
 		sp.centered = false
@@ -7285,9 +7301,33 @@ func _build_flats() -> void:
 		sp.z_index = -2   # over the houses around
 		sp.light_mask = 0
 		sp.modulate = Color(ROOM_BASE, ROOM_BASE, ROOM_BASE, 1.0)
+		# (user 22. 11.: "the wall ends at random, an ugly seam") the wall behind the iron goes soft into the street past the
+		# landings' outer end, and above his landing when nothing up there is his to reach
+		var fade := ShaderMaterial.new()
+		fade.shader = _esc_fade_shader()
+		fade.set_shader_parameter("right", Vector2(ESC_FADE_R.x, ESC_FADE_R.y) / float(tex.get_width()))
+		fade.set_shader_parameter("top", (Vector2(ESC_FADE_TOP.x, ESC_FADE_TOP.y) if not to_roof else Vector2(-2.0, -1.0)) / float(tex.get_height()))
+		sp.material = fade
 		add_child(sp)
 	for f in _flats:
 		_door_card(f, 0.0, 0.0, Vector2.ZERO)
+
+
+const ESC_PIER_HIDE := 330.0   # past the landings' end, the escape's back wall (still whole there) hides a street join
+const ESC_FADE_R := Vector2(720.0, 950.0)     # the escape drawing's px: the wall behind it fades out from the landings' end
+const ESC_FADE_TOP := Vector2(395.0, 470.0)   # and down to the top of the second-storey landing's railing (when no roof)
+var _esc_shader: Shader
+func _esc_fade_shader() -> Shader:
+	if _esc_shader == null:
+		_esc_shader = Shader.new()
+		_esc_shader.code = """shader_type canvas_item;
+uniform vec2 right;
+uniform vec2 top;
+void fragment() {
+	COLOR.a *= (1.0 - smoothstep(right.x, right.y, UV.x)) * smoothstep(top.x, top.y, UV.y);   // (COLOR is already the texture's)
+}
+"""
+	return _esc_shader
 
 
 ## The window as a card in the outer wall's plane: the sash's face turned WIN_YAW away from us round its inner
