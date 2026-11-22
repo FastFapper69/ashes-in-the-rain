@@ -6782,7 +6782,7 @@ func _start_map(c: int, m: int) -> void:
 ## (audit 22. 11.) The checkpoint kept in the save for this map, if there is one (the page was closed mid-map).
 func _saved_cp() -> void:
 	var s := MenuScript.saved_cp()
-	if _auto_arg() != "" or String(s.get("map", "")) != "%d:%d" % [chapter, map] or not s.get("keep") is Dictionary:
+	if _auto_arg() != "" or _url_sandbox >= 0 or String(s.get("map", "")) != "%d:%d" % [chapter, map] or not s.get("keep") is Dictionary:
 		return
 	checkpoint = float(s["x"])
 	checkpoint_y = float(s["y"])

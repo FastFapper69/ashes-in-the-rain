@@ -666,6 +666,19 @@ func _title() -> void:
 	_page.add_child(tag)
 	Paper.write(tag, "WHAT'S NEW", _font_head, 22, CRIMSON, HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0, 1, 0.5), 6.0)
 	Paper.write(tag, WN.build_text(), _font_type, 16, INK, HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0.5, 1, 0.5), 6.0)   # (the date is on the card)
+	# (user 22. 11.) the trial map of the moment (levels.gd SANDBOX[LAB_MAP]: the modular city's block, QUEUE §21), from a tag
+	var lab: Control = Paper.button("tag", Vector2(250.0, 104.0), _open_lab, sound)
+	lab.position = Vector2(view.x - M - lab.size.x, tag.position.y - GAP - lab.size.y)
+	lab.rotation = deg_to_rad(-0.9)
+	_page.add_child(lab)
+	Paper.write(lab, "TEST LAB", _font_head, 22, CRIMSON, HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0, 1, 0.5), 6.0)
+	Paper.write(lab, "THE CITY BLOCK", _font_type, 16, INK, HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0.5, 1, 0.5), 6.0)
+
+
+const LAB_MAP := 2   # the trial map the TEST LAB tag opens
+func _open_lab() -> void:
+	load("res://main.gd")._url_sandbox = LAB_MAP   # (main.gd keeps playing it on restarts; QUIT TO TITLE leaves it)
+	play.call(1, 0)
 
 
 var _cap_font: Font
