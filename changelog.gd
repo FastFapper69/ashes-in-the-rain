@@ -5,6 +5,7 @@ extends RefCounted
 
 const ENTRIES := [
 	["22 NOV 2026", [
+		"Out through a flat's window again: the jump at the glass no longer stops at the wall under it",
 		"Kicking off a wall needs a wall: no more kick out of thin air after landing",
 		"A slide off a crate or a deck falls; a dive tapped while you roll still goes",
 		"The same stunt gives free slowed time once every few seconds (no endless awning bouncing)",

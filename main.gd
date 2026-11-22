@@ -3542,6 +3542,33 @@ func _auto_step(delta: float) -> void:
 		if _at > 3.0:
 			get_tree().quit()
 		return
+	elif _auto.begins_with("flatwin"):   # --test=flatwin[:k] (a map with flats): in the k-th flat, run at its window and jump through
+		if _flats.is_empty():
+			print("FLATWIN no flats on this map")
+			get_tree().quit()
+			return
+		var fwi: Dictionary = _flats[int(_auto.trim_prefix("flatwin:")) if _auto.contains(":") else 0]
+		if _auto_done & (1 << 21) == 0:
+			_auto_done |= 1 << 21
+			fwi["open"] = true
+			player.position = Vector2(float(fwi["wx0"]) - 700.0, float(fwi["y"]))
+			_ground_y = player.position.y
+			_grace = 99.0
+			for e in enemies:
+				e["node"].position.x += 90000.0
+				e["goal"] = e["node"].position.x
+		hud.move = 1.0 if _at > 0.4 else 0.0
+		if player.position.x > float(fwi["wx0"]) - 330.0 and _auto_done & (1 << 22) == 0:
+			_auto_done |= 1 << 22
+			_jump_buf = 0.15
+		var kw := int((_at - 0.8) / 0.12)
+		if kw >= 0 and kw < 20 and _auto_done & (1 << kw) == 0:
+			_auto_done |= 1 << kw
+			print("FLATWIN t ", snappedf(_at, 0.01), " x ", int(player.position.x), " y ", int(player.position.y), " ", move_state, " broken ", fwi["broken"], " wx0 ", int(fwi["wx0"]))
+			if kw % 3 == 0: _shot("flatwin_%02d" % kw)
+		if _at > 3.4:
+			get_tree().quit()
+		return
 	elif _auto.begins_with("awning"):   # --test=awning:x,y (a fire escape landing): off it to the left onto the awning
 		var at := _auto.trim_prefix("awning:").split(",")
 		if _auto_done & (1 << 21) == 0:
@@ -7665,8 +7692,9 @@ func _through_window() -> bool:
 	var f := _flat_at_storey(_ground_y)
 	if f.is_empty() or move_state not in ["jump", "dive"] or player.position.x < float(f["wx0"]) - 70.0:
 		return false
-	if not f["broken"] and (player.position.x < float(f["wx0"]) - 20.0 or glide + run < 150.0):
-		return false   # (audit 21. 11.) through the glass going out at it, not a hop against the wall under it
+	if not f["broken"] and glide + run < 150.0:
+		return false   # (audit 21. 11.) through the glass going out at it, not a hop against the wall under it (no nearer than
+		# the wall's stop at wx0 - 60 though: a mark at wx0 - 20 was never reached and nobody got out, user 22. 11.)
 	if player.position.y > float(f["y"]) + 10.0:
 		return false
 	if not f["broken"]:
