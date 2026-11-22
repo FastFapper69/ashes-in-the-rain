@@ -308,3 +308,17 @@ Opraveno hned (HANDOFF 97): konce pater v řezu domem - dveře 2B přeříznuté
 4. HOTOVO 22. 11. (HANDOFF 108) Pohyb a ovládání: _wall_t visí (odraz bez zdi); stunt slow bez limitu (zeď, markýza, lano); skluz přes hranu letí; vývojářské klávesy F9/F11 v ostré verzi; střelba ze schodiště; pauza při skrytí záložky / telefonu na výšku + clamp delta; Esc nezavře pauzu; dotyková obrazovka u notebooku vypne myš; prolétání stropem (dosah 100 px); skok po hlavě: buffer, simulace přes všechny bedny; prach při skluzu; pan kamery a klávesnice.
 5. HOTOVO 22. 11. (HANDOFF 109; otevřené: sheds|sheds_d v docích = jediné napojení hran, ch III yard/tunnel varianty vedle sebe - rozhodnout s uživatelem) Generátor: runtime _cast škrtá 40-58 % mužů kap. I a mění poměr těžkých (rozhodnout: generovat podle křivky); přepsané n v levels.py:832 (hard po domě); PIER 17 muž v ohni + pod trámem; lahvička v bedně (LAUNDRY); 14TH STREET muži pod schody; pace() ignoruje domy/checkpointy, běží před exit_door; sheds|sheds_d vedle sebe (docks větev); door_into neposouvá všechno (latentní); DREAM muž za dveřmi; nové kontroly v audit_maps.
 6. HOTOVO 22. 11. (HANDOFF 110; _can_see nechán - končí hned na _on_screen) Postup, menu, výkon: SKIP nezastaví hlas; balík po chybě stahuje naslepo, žádná cesta zpět; prolog uložen až po komiksu; počet důkazů 42 místo 30; "CLOSE CASE 0 FIRST"; tally karta na tap; level up se ohlásí a smrt ho vezme (už vyřešeno kap. 1); checkpoint uložený přes zabití záložky; výkon AI (_separate O(n²), _can_see, get_cmdline_user_args každý snímek); paměť: menu načítá řez domem, stažení balíku 2x v paměti.
+
+## 21. Modulární město (uživatel 22. 11.: "ano přesně takhle to udělej jak doporučuješ"; pravidlo 31, ch05 "Modular city")
+Vepředu domy z modulů na jedné mřížce, vzadu dnešní malované pásy jako vzdálené město (paralaxa, ztmavené).
+- Mřížka: patro 700, úsek (bay) 997 = půlka dílu soupravy domu v řezu (SEC_KIT_W x 700/1112 / 2), takže dům v řezu = 4 úseky
+  a jeho interiér zůstává. Římsa 300. Chodník: pruh pod y 0 (z malby ulice), opakovaný.
+- Arch modulů z Gemini = fasáda 3 úseky x 3 patra + římsa (5:4) přes šablonu (gen/module_template.py, šedá mřížka:
+  pilastry na hranách úseků, římsy pater, okna, přízemí dveře/obchod). Rozřezání: levý roh / prostřední (opakuje se) /
+  pravý roh x přízemí / patro (opakuje se) / římsa. Reference do Gemini přes schránku Windows (PowerShell SetImage + Ctrl+V).
+- Ulička mezi domy: vlastní kresba v měřítku domu (hloubka uličky, boční zdi v perspektivě), nad ní nebe.
+- Dům v řezu: dostane římsu/střechu a bok; okno bytu ven na schodiště z boku (art_src 346), šňůra z jeho horní podesty
+  přes uličku na okno protějšího modulového domu (stejná rovina).
+- PILOT: SANDBOX "BLOCK" v TEST LAB: dům A (obchod, 3x3), ulička, dům v řezu (4x3) se schodištěm a šňůrou, dům B (kámen,
+  4x3), dům C (2x4, společná zeď s B). Screenshoty 1280 a 1560 vedle dnešního vzhledu -> uživatel schválí.
+- Pak: BACK STREETS, THE LAUNDRY, TENEMENTS; pak ostatní městské ulice (doky a metro můžou zůstat malované).

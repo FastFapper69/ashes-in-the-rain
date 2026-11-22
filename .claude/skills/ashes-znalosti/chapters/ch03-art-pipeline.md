@@ -30,6 +30,13 @@ All visible art is hand-drawn-looking Gemini output processed by scripts in `gen
   (`until [ newest != previous ]`), then check it (size, green fraction for a sheet). Gemini sometimes serves a
   broken full-size file (two images blended): fall back to the page's preview via canvas → `a.download`
   (javascript_tool), 1024 px wide – enough for thin sprites. Image tool can be "unavailable for this turn": ask again later.
+- **Finding the download (22. 11.)**: Downloads also holds other new files (an .mp3 sorted first) - wait for the newest
+  `Gemini_Generated_Image_*.jpg` by name, not `ls -t | head -1`; the full-size file can take ~20 s after the click.
+  Chrome extension: the prompt box is a plain click + type + Return, no file upload possible (file_upload only takes
+  files shared with the session) and fetch() from the Gemini page to localhost is blocked. **What works: put the image on
+  the Windows clipboard** (`powershell -STA -Command "Add-Type -A System.Windows.Forms,System.Drawing;
+  [System.Windows.Forms.Clipboard]::SetImage([System.Drawing.Image]::FromFile('<path>'))"`), click the prompt box,
+  key ctrl+v - the reference shows as an attachment. Repeat for a second image (template + style reference).
 - Check corners for a visible watermark star (none on 212–223).
 
 ## Processing scripts (gen/)

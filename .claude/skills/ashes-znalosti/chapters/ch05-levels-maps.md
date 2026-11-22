@@ -82,3 +82,22 @@ basis_imports + import, then audit, bots, shots.
 **Houses in cross-section sit on street joints** (user 21. 11., rule 15): `seat_sections` in gen/levels.py moves a house (and all of the map after it) so its facade starts exactly where a street drawing starts - the facade never covers half of a drawn door. A new map with a section needs nothing extra; a test map with a walked roof over the house is skipped.
 
 **The mob count is the generator's (audit 22. 11.).** gen/levels.py `thin_to_curve` lays the count main.gd `CURVE` asks for at the normal setting (densest spot first, heavies in proportion, rooms keep half, runners stay), so the layout in levels.gd is what is played; main.gd `_cast` only scales for easy/hard. Change CURVE in main.gd and regenerate levels.gd. `settle()` + audit_maps keep men out of blazes, from under falling beams and low stairs and before the map's end, and pickups out of crates.
+
+## Modular city (user 22. 11., §1 rule 31; plan gen/QUEUE_doma.md §21)
+Why the painted-street + cut-house look failed (found 22. 11. on the user's phone shots) and what fixes each:
+- **Scale mismatch**: the cut house is 700 px a storey, the street drawings' houses 450-530 (tenrow 0.675, hk 0.8 sizes):
+  the house towered over its row with a flat cut top, no roof, no side, no neighbours. Fix: one grid for every building
+  in front (storey 700, fixed bay), roof/cornice modules, the painted drawings only far behind.
+- **Things hung across planes**: the window led onto a fire escape drawn on a piece of somebody else's wall (art_src 222,
+  opaque, its top flight ran up to nothing); the washing line went from that rail to a window of a background facade in
+  another plane. Fix: an escape belongs to its own building's wall (side wall: seen edge-on, art_src 346 = edge-on escape
+  on green, two landings + stair + drop ladder, decks at rows 524 / 1756, 805 px deep, bottom 2443 of 2528); a line runs
+  only between two things in one plane (two facing windows across an alley between two module buildings).
+- **Black voids round a house** (veil + black sky) read as broken: removed 22. 11. (black voids stay a style elsewhere).
+- **Firewall piers** cover street-drawing joins and rise above the roofs as black columns; never behind an escape.
+- **Interim fixes shipped 22. 11.** (stay until the modules replace them): `_through_window` no x mark (the wall stop
+  at wx0-60 sat before the old wx0-20 mark: nobody got out; `--test=flatwin`); escape drawing faded right of its decks
+  and above the reachable landing (`ESC_FADE_*`, shader `_esc_fade_shader`); `HIGH_WIDE` / `HIGH_LOOK_DOWN`: up high
+  outside (not on kit roofs, not in a house/room) the camera pulls back 20 % and looks down so the landing spot shows.
+- Godot 4 canvas shader lesson: in `fragment()` COLOR already holds texture x modulate - multiplying by texture(TEXTURE)
+  again squares it (the escape went black). Only touch `COLOR.a`.
