@@ -114,7 +114,7 @@ Návrh k posouzení (23. 11. 2026), nic z toho není postavené. Příběh: [[Sr
 | 3 | Lustr nad tanečním parketem | výstřel do lustru | radost | bez textu | A, lustr je v seznamu nebezpečí |
 | 4 | Schody na galerii, Mickey nahoře | boss: jde k zemi a vstane s posilami, hází lahve | že Mickey není zlý, jen neumí říct ne | Mickey went down on cue, like always. | A, už ve hře je |
 | 5 | Mickey umírá | panel | lítost | “Feed my birds... Ask your boss.” | A |
-| 6 | Frank vyleze na střechu klubu. Holubník, plechovka se zrním | páčka nahoru u holubníku, dvacet vteřin bez nepřátel | prázdno. Pomsta je hotová a nic se nezměnilo | I'd just killed the man who shot you, Eddie, and there I was feeding his birds. | B (střecha s holubníkem), C (jedno použití předmětu) |
+| 6 | Frank vyleze na střechu klubu. Holubník, plechovka se zrním. Tohle dělával s Eddiem | páčka nahoru u holubníku, dvacet vteřin bez nepřátel, krmení vrátí jeden zásah | prázdno. Pomsta je hotová a nic se nezměnilo | We used to do this on the Ledger roof, Eddie... You always fed the ugly one first. | B (střecha s holubníkem), C (jedno použití předmětu) |
 | 7 | Dole schází Rosie z pódia | panely, výměna beze slov | ztrátu, tentokrát potichu | Ticho 1 | B (dva panely) |
 
 **Riziko:** úsek 6 je hratelná chvíle, kde se nestřílí. Buď zabere, nebo bude působit divně. Když to nepůjde, udělat ho jako panel.

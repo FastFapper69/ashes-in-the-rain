@@ -82,6 +82,15 @@ Krátká mapa. Hráč hraje za Franka, Eddie mu kryje záda. Eddie nemá zbraň 
 | Eddie v mapě (bubliny) | “On your left, Lieutenant!” · “Smile, fellas!” · “I'm not armed! I'm press! Does that still mean anything?” |
 | Konec | You saved my life that night with a flashbulb and a big mouth. Afterwards you asked me for a light. Your hands were shaking. Mine weren't. I should have been ashamed of that. |
 
+### Holubi na požárním schodišti
+
+Krmení této části hry, s Rosie.
+
+| Panel | Replika |
+|---|---|
+| Požární schodiště, ráno | Rosie fed them off the fire escape every morning. *“Eddie's,”* she said. *“He named them after editors.”* |
+| | The fat one was called Hearst. Of course it was. |
+
 ### Přiznání
 
 | Panel | Replika |

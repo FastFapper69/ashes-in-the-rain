@@ -1,0 +1,24 @@
+{
+ "id": "blockout-prolog", "name": "Prolog – THE LAST NOTE", "hero": "Eddie",
+ "meaning": "Poznat Eddieho a mít ho rád, než umře. Tutoriál je až druhý účel.",
+ "why": "Schůzka je za klubem Blue Note. Zadní dvorek je v noci zamčený, takže Eddie musí obejít blok. Muži, kteří ho hlídají, čekají na obou koncích ulice.",
+ "handover": "Telefon ve 2:10. Frank přijíždí na stejné místo (I-1 THE ALLEY).",
+ "target_min": "5 minut hraní a asi 2 minuty panelů",
+ "graph": ["street", "street", "street", "street", "last_stand"],
+ "graph_note": "Dnešní prolog je jedna ulice se slepou uličkou na konci (last_stand). Zůstává, mění se jen rozložení úseků.",
+ "progression": ["Eddie má plně vylepšený revolver, tři zásahy navíc a dlouhé zpomalení. Nesbírá zkušenosti.", "Nepřátelé: jen obyčejní střelci s pistolí, nejnižší hustota, nikdo se nevzdává.", "Učí se: pohyb, střelba, krytí, skok šipkou, sud s palivem, zpomalení času."],
+ "skipper": ["Kdo jsem a kam jdu: bublina „Left the book with Rosie. Good. One less thing to bleed on.“ hned v úseku 1.", "Co vím: „Frank, I know what you signed. I'm not printing it.“ v úseku 7.", "Jak to skončí: nevyhratelný boj a poslední bublina „Tomorrow, Frank.“"],
+ "beats": [
+  {"n":1,"name":"Z klubu do deště","kind":"klid","sec":15,"px":1200,"floor":0,"space":"ulice před Blue Note","men":"nikdo","cp":false,"music":"jen déšť, z klubu je slyšet jazz","collect":"","text":"“No matches. Frank always has the matches.” · “Left the book with Rosie. Good. One less thing to bleed on.”","cost":"A + animace „proklepe kapsy“ (C, malá)"},
+  {"n":2,"name":"Novinový stánek","kind":"klid","sec":10,"px":900,"floor":0,"space":"ulice, stánek s Evening Ledger","men":"nikdo","cp":false,"music":"jen déšť","collect":"","text":"“Frank. I found something in the Pier 17 file.” ... “No.”","cost":"A, stánek B (dá se vynechat)"},
+  {"n":3,"name":"První dva","kind":"boj","sec":35,"px":2000,"floor":0,"space":"ulice, dvě bedny jako kryt","men":"2 s pistolí, nejdřív zavolají","cp":true,"music":"bojové stopy","collect":"","text":"“Still there.”","cost":"A + animace „sáhne na kapsu“ (C, malá)"},
+  {"n":4,"name":"Bedny před zelinářstvím","kind":"boj","sec":40,"px":2400,"floor":0,"space":"ulice, řada beden","men":"3 s pistolí","cp":false,"music":"bojové stopy","collect":"","text":"“Lieutenant, you want the bad news or the worse news?” ... “He'll hit me. I'd hit me.”","cost":"A"},
+  {"n":5,"name":"Garáž s kanystry","kind":"boj","sec":30,"px":1800,"floor":0,"space":"garáž, sud s palivem","men":"3 s pistolí, jeden u sudu","cp":false,"music":"bojové stopy","collect":"","text":"bez textu","cost":"A, garáž jako modul nebo B"},
+  {"n":6,"name":"Dodávka","kind":"vrchol","sec":45,"px":2400,"floor":0,"space":"ulice, dodávka napříč","men":"4 naráz","cp":true,"music":"bojové stopy naplno","collect":"","text":"“Still there. Rosie, you're marrying an idiot.”","cost":"A"},
+  {"n":7,"name":"Tichá ulice","kind":"klid","sec":20,"px":1500,"floor":0,"space":"ulice bez beden","men":"nikdo","cp":false,"music":"poprvé ve hře klavír, potichu","collect":"","text":"“Frank, I know what you signed. I know what it cost you. I'm not printing it.” ... “That's the one. Say it like that.”","cost":"A"},
+  {"n":8,"name":"Za klubem nikdo není","kind":"ticho","sec":8,"px":700,"floor":0,"space":"slepá ulička, neon JAZZ zepředu","men":"nikdo","cp":true,"music":"klavír utne, jen déšť a bzučení neonu","collect":"na římse holubi, při příjezdu aut uletí","text":"“Half past one. I'm early.”","cost":"A, holubi B + C (dá se vynechat)"},
+  {"n":9,"name":"Tři auta","kind":"vrchol","sec":70,"px":2500,"floor":0,"space":"slepá ulička, auta na obou koncích","men":"nekonečno, zpomalení se nedobíjí","cp":false,"music":"bojové stopy, po 60 vteřinách jen tep","collect":"","text":"bez textu","cost":"B (auta v mapě), nevyhratelný konec ve hře je"},
+  {"n":10,"name":"Pád","kind":"ticho","sec":10,"px":0,"floor":0,"space":"stejné místo","men":"","cp":false,"music":"ticho, pak klavír do panelu","collect":"","text":"“Tomorrow, Frank. I'll tell you tomor—”","cost":"C, animace „kapsa, pak sirky“"}
+ ],
+ "risks": ["Úseky 1, 2, 7 a 8 jsou bez střelby. Dohromady 53 vteřin, víc nesmí být.", "Úsek 9: 70 vteřin boje, který nejde vyhrát, může být moc. Po první zkoušce na telefonu zkrátit podle pocitu."]
+}

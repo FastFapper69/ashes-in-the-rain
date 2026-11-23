@@ -5,7 +5,7 @@ Kopie claude.ai docu `ef8436e6-96af-4c2d-9288-b4489472fe87`. Start: [[MAPA]]. De
 
 **Celý scénář:** prolog a kapitola I jsou níže · [[kapitola-II]] · [[kapitola-III]] (s mezihrou U Rosie) · [[kapitola-IV]] (s oběma konci) · [[scenar-mapy]] (titulní věty, úvody a závěry map, stránky deníku kapitoly I) · [[jedenact-a-pisen]] (jedenáct mužů z Mola 17 a Tommyho píseň).
 
-**Co se děje v mapách:** [[mapy-prolog-a-kapitola-I]] (úsek po úseku, s odhadem náročnosti; další kapitoly přibudou).
+**Jak se z toho stávají mapy:** [[pravidla-map]] (postup a pravidla) · [[stav-map]] (kde která mapa je) · [[mapy-prolog-a-kapitola-I]] (scénář úseků) · [[blockout-prolog]] · [[blockout-I-1-alley]].
 
 Zjednodušená verze: jeden požár, jeden deník, dva symboly. Kostra hry zůstává, přepisuje se srdce a hlas. Všechno, co je anglicky, je text do hry.
 
@@ -72,6 +72,7 @@ Frank nevypráví hráči, mluví k Eddiemu. Pět pravidel:
 
 - **Popel a sníh.** Popel je vina a ve hře doslova padá. Sníh vypadá z dálky stejně, jen je čistý. Proto se konce jmenují Sníh a Popel.
 - **Sirky.** Frank od podpisu nekouří, ale sirky nosí a zapaluje cizím. Eddiemu připaloval roky. Jeden předmět nese přátelství, vinu i oheň.
+- **Holubi** (přidáno 23. 11.). Frank a Eddie chodili na střechu redakce na cigaretu a krmili holuby. Ve hře je to jedno klidné místo na kapitolu, kde hráč holuby nakrmí a Frank si vzpomene na Eddieho větu. Není to symbol k rozluštění, je to věc, kterou hráč dělá. Pravidla a věty: [[pravidla-map]].
 
 Čas 2:10, jedenáct jmen a holubi ve hře zůstávají jako detaily. Hráč jim rozumět nemusí.
 
@@ -184,13 +185,14 @@ Připravené do `cutscene.gd`. Kde je „zůstává“, stačí stávající rep
 | | *“Go home, Frankie. Sleep. I'll put my best man on it.”* I was his best man. We both let that go. |
 | První vzdávající se muž | He put his hands up. I know the look of a man hoping nobody writes it down. |
 | Účtenka v prádelně | Two hundred dollars for shirts nobody would ever wear. You'd be surprised what two hundred dollars buys in this town. I wasn't. |
-| Vzpomínka na poslední setkání | Two weeks ago you lit your own cigarette. In all the time I knew you, you never once had a match. I should have known right there that somebody was dying. |
+| Vzpomínka na poslední setkání, střecha redakce | Two weeks ago, up on the Ledger roof, you lit your own cigarette. In all the time I knew you, you never once had a match. The pigeons noticed before I did. |
 | | *“Frank, I need to tell you something. Tomorrow.”* |
 | | I said tomorrow was fine. I've said plenty of stupid things. That one I'd pay to take back, and I know my price. |
 | Tři auta před prádelnou | Three cars, fifteen men. You'd have counted them out loud and written it down. I just ran. |
 | Šňůra na prádlo | My mother always said I'd break my neck on a washing line. She'd be glad I waited till forty-four. |
 | Mickey umírá | zůstává, včetně *“Feed my birds... Ask your boss.”* |
-| **Nový panel:** střecha Blue Note | I went up on the roof after. Forty pigeons and a coffee can of seed. |
+| **Hratelné:** střecha Blue Note, krmení holubů | I went up on the roof after. Forty pigeons and a coffee can of seed. |
+| | We used to do this on the Ledger roof, Eddie. You smoked, I held the match, and the pigeons got your crusts. You always fed the ugly one first. Said the pretty ones had agents. |
 | | I'd just killed the man who shot you, Eddie, and there I was feeding his birds. You'd have got a column out of it. |
 | Rosie schází z pódia | Rosie came down off the stage like it was the last song of the night. Your girl. She'd been holding something for you. So had I. |
 | **Nový panel, ticho:** výměna | Bez textu. Klavír zmlkne. Její ruka s deníkem, jeho ruka s prstýnkem. Jen déšť. |

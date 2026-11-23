@@ -73,5 +73,5 @@ Užitečné testy (`--test=...`): `look:x@y,...`, `walkfrom:x[:up]`, `wash`, `do
 - [[ch05-levels-maps]] · [[ch06-lights-fx]] · [[ch07-enemies-ai]] · [[ch08-player-progression]]
 - [[ch09-audio-voice]] · [[ch10-story-cutscenes]] · [[ch11-ui-hud]]
 - [[cheatsheet]] · [[glossary]] · [[patterns]]
-- příběh: [[Srdce-a-hlas]] (platný příběh a hlas vyprávění, 23. 11.) · [[pribeh-denik]] (rozhodnutí a zahozené nápady) · scénář [[kapitola-II]] · [[kapitola-III]] · [[kapitola-IV]] · [[scenar-mapy]] · [[jedenact-a-pisen]] · co se děje v mapách: [[mapy-prolog-a-kapitola-I]] (než se mapa staví, připsat k úsekům, co je těžké nebo hloupé) - složka `pribeh/`, ladí se v samostatném chatu
+- příběh: [[Srdce-a-hlas]] (platný příběh a hlas vyprávění, 23. 11.) · [[pribeh-denik]] (rozhodnutí a zahozené nápady) · scénář [[kapitola-II]] · [[kapitola-III]] · [[kapitola-IV]] · [[scenar-mapy]] · [[jedenact-a-pisen]] · návrh map: [[pravidla-map]] (postup) · [[stav-map]] (tabulka stavu) · [[mapy-prolog-a-kapitola-I]] · blockouty [[blockout-prolog]], [[blockout-I-1-alley]] (než se mapa staví, připsat do karty, co je těžké nebo hloupé) - složka `pribeh/`, ladí se v samostatném chatu
 - další skilly: ashes-vyzkum (výzkum), mapy (pravidla map), ui-papir (UI), webapp-testing (web), [[CLAUDE]], [[PC_SETUP]]

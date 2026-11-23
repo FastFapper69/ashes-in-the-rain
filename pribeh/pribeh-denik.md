@@ -50,3 +50,11 @@ Uživatel: má smysl napsat i to, co se děje na mapě, aby se podle toho stavě
 - Každá mapa má scénář po úsecích: co se děje, co hráč dělá, co má cítit, text, náročnost (A hotové, B nová kresba, C nový kód).
 - Postup: scénář napíše příběhový chat, Claude Code k němu připíše, co je těžké nebo hloupé, pak se staví.
 - Hotovo: [[mapy-prolog-a-kapitola-I]] (návrh, čeká na posouzení uživatele a Claude Code). Další: kapitoly II až IV.
+
+## 23. 11. 2026 – holubi, klidná místa, postup práce
+
+- **Holubi** (nápad uživatele): Frank a Eddie krmili holuby na střeše redakce při cigaretě. Jedno krmení na kapitolu mimo boj, u každého Eddieho věta, vrátí jeden zásah. Mickeyho „Feed my birds“ tím dostane váhu. Vzpomínka na poslední setkání se odehrává na střeše redakce.
+- **Klidná místa** (uživatel: ne každá mapa musí začínat bojem): v každé kapitole aspoň jedna mapa klidem začíná a jedna končí. Klid nesmí být prázdný a trvá nejvýš 30 vteřin.
+- **Postup práce** (uživatel: „co navrhuješ, udělej“): scénář úseků → blockout jako data s rozpočtem času a křivkou napětí → posouzení Claude Code → šedá verze na telefon → kresby. Pravidla: [[pravidla-map]]. Tabulka: [[stav-map]]. První blockouty: [[blockout-prolog]], [[blockout-I-1-alley]].
+- Doplněno, na co se zapomnělo: postup hráče po kapitolách, hráč přeskakující panely, zvuk a ticho, co se v mapách sbírá a kde leží jedenáct jmen.
+- Češtinu neřešíme, hra je anglicky. Test na cizím člověku až bude co testovat.

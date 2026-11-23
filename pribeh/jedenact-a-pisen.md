@@ -6,7 +6,9 @@ Tyhle dvě věci dělají z jedenácti mrtvých lidi. Dokud jsou jen číslo, Fr
 
 ## Jedenáct mužů z Mola 17
 
-V jedenácti mapách je schovaná jedna věc po jednom z nich: fotka, skříňka, cedulka na háku, hrob. Frank k ní řekne jednu větu. Hráč je hledat nemusí.
+V jedenácti mapách je schovaná jedna věc po jednom z nich, vždy tam, kam patří. Frank k ní řekne jednu větu. Hráč je hledat nemusí.
+
+Kde leží: Stan Wojcik I-1 (fotka v okně), Pat Doolan I-2 (krabička na poličce v bistru), Angelo Ricci I-3 (hrnec v šatně prádelny), Mikey Flood I-4 (holubník s jeho jménem na střeše), Billy Shea I-5 (lístek za barem), Tommy Kowalski II-1 (skříňka), Gus Lindqvist II-2 (kabina jeřábu), Sal Moretti II-3 (kajuta na Santa Lucii), Joe Brennan II-5 (Kesslerova kancelář), Dutch Hoffman III-5 (volební urna v Katakombách, kde se odbory scházely), Leo Abrams IV-6 (vitrína ve Vailově penthousu).
 
 | # | Jméno, věk | Co po něm zbylo | Frankova věta |
 |---|---|---|---|
