@@ -10,6 +10,7 @@ const SEGMENTS := 5
 
 var move := 0.0            # -1, 0 or 1 from the thumbstick
 var duck := false          # the thumbstick is pulled down
+var up := false            # the thumbstick is pushed up (23. 11.: onto a ladder and up it - never by itself)
 var fire_tapped := false   # main.gd sets these back to false once it has acted on them
 var slow_tapped := false
 var jump_tapped := false
@@ -904,6 +905,7 @@ func _input(event: InputEvent) -> void:
 			_stick_finger = -1
 			move = 0.0
 			duck = false
+			up = false
 			_knob.position = _stick_at
 	elif event is InputEventScreenDrag:
 		var d := event as InputEventScreenDrag
@@ -921,6 +923,7 @@ func release_all() -> void:
 	_aim_finger = -1
 	move = 0.0
 	duck = false
+	up = false
 	aim_held = false
 	fire_tapped = false
 	jump_tapped = false
@@ -948,3 +951,4 @@ func _steer(at: Vector2) -> void:
 	_knob.position = _stick_at + off
 	move = 0.0 if absf(off.x) < 22.0 else signf(off.x)
 	duck = off.y > 38.0
+	up = off.y < -38.0

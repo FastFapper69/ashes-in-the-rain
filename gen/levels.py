@@ -121,7 +121,7 @@ CITY_FOOT = 64.0            # a front stands at the back of the pavement (main.g
 CITY_WIN = (300.0, 440.0, 150.0)   # an upper window: width, height, sill over its storey's floor line
 CITY_HOUSE_L = 440.0        # a house in cross-section's front starts this far left of its x0 (its door bay's middle at x0 + 60)
 CITY_GAP_W = 1340.0
-WORKS_G1, WORKS_G2, WORKS_LADDER = 1400.0, 1700.0, 1760.0   # the works hall (gen/works_template.py): the low gallery's end, the high one's start, the ladder         # the alley between two fronts (art/city/alley_gap.png at the front's scale)
+WORKS_G1, WORKS_G2, WORKS_LADDER, WORKS_DOOR_X = 1400.0, 1700.0, 1760.0, 1800.0   # the works hall (gen/works_template.py): the low gallery's end, the high one's start, the ladder         # the alley between two fronts (art/city/alley_gap.png at the front's scale)
 CITY_ESC_DEEP, CITY_ESC_STAIR, CITY_ESC_DROP, CITY_ESC_FOOT = 416.0, 270.0, 370.0, -310.0   # art_src 346 at 0.5682
 CITY_PULLEY = 520.0         # a washing line's pulley over a window: just over its lintel (501 over the floor in the house)
 SEC_WIN = (3195.0, 3340.0)   # the window through the outer wall: inner face, outer face; sill 178, lintel 501 above the floor
@@ -393,7 +393,7 @@ def chunk(name, hard, rng=None):
         c = (Chunk(4800).foe(1900, 0.0).foe(3700, 0.0, kind="tommy" if hard > 0.5 else "post"))
         if hard > 0.6: c.foe(4200, 0.0, kind="shotgun")
         c.kits.append((2400.0, "hk_tailor"))   # its fire escape here (kit_pieces)
-        c.hint(1200, "JUMP AT THE LADDER TO CLIMB IT")
+        c.hint(1200, "STICK UP AT THE LADDER TO CLIMB IT")
     elif name == "scaffold":   # a building under repair: four storeys of planks, a ladder up each, the zigzag to the roof
         w = SCAF_BAY * 2
         c = Chunk(w + 400)
@@ -403,7 +403,7 @@ def chunk(name, hard, rng=None):
         c.rope("ladder", 150, STOREY * 3, 0, STOREY * 2).rope("ladder", w - 150, ROOF_Y, 0, STOREY * 3)
         c.foe(1050, STOREY).foe(600, STOREY * 2, kind="tommy" if hard > 0.5 else "post").foe(1100, STOREY * 3)
         c.foe(w + 250)
-        c.hint(-500, "JUMP AT A LADDER TO CLIMB IT")
+        c.hint(-500, "STICK UP AT A LADDER TO CLIMB IT")
         c.scaf = True
         c.up_end = w + 250.0
     elif name == "section":   # a tenement cut open: three storeys, the stairs zigzag up, the hatch to the roof
@@ -500,6 +500,7 @@ def chunk(name, hard, rng=None):
         c.rope("ladder", b_x + WORKS_LADDER, -SEC_H * 2, 0.0, 0.0)
         c.ropes[-1].append("drawn")
         c.xy_checks += [[b_x + 520, -SEC_H]]
+        c.hint(b_x + WORKS_DOOR_X - 500, "JUMP AT THE STREET DOOR TO GET OUT")
         c.foe(b_x + 1150, -SEC_H).foe(b_x + 900, kind="shotgun").foe(b_x + 1500)   # (the floor up to its street door, WORKS_DOOR)
         c.foe(b_x + 2300, -SEC_H * 2).foe(b_x + 2800, -SEC_H * 2, kind="tommy")
         c.foe(c_x + 1200, kind="tommy")

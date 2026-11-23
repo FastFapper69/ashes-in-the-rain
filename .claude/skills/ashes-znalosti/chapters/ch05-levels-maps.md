@@ -132,5 +132,11 @@ Why the painted-street + cut-house look failed (found 22. 11. on the user's phon
 - Lessons: `_flat_at_storey` must be the flat of the house he is in (a flat on the same storey of another house threw
   him across the map); the line's grab is off from inside a works; the bot comes back down a dead-end gallery
   (`_bot_down`); the reach check knows a line ending at a works' window.
+- **Ladders and the works' door (rule 32, 23. 11.)**: `_ladder_foot` / `_take_ladder` (stick up at the foot), `_grab_rope`
+  takes a ladder only with `_up_held`; on it v = 0 without the stick (the buffered jump is cleared on taking it, else
+  he let go at once - the laundry's bot). The works: `_works_out` turns false only on its door crossed along the
+  pavement, a gallery stood on (`_ground_y`) or its ladder - never a jump in front; out by a jump at the door
+  (`_works_door_here`); its floor's crates are moved away while he is in front (`WORKS_AWAY`); its ladder is not taken
+  through the closed front. `_section_at(p, me)`: `me` for the player's own probes at another x. `--test=walkfrom:x[:up]`.
 - Godot 4 canvas shader lesson: in `fragment()` COLOR already holds texture x modulate - multiplying by texture(TEXTURE)
   again squares it (the escape went black). Only touch `COLOR.a`.
