@@ -66,7 +66,7 @@ All visible art is hand-drawn-looking Gemini output processed by scripts in `gen
 3. Variants are art-only swaps – layout never depends on them.
 
 ## Gemini helpers (23. 11.)
-- Reference onto the clipboard: `powershell -STA -File gen/tools/clip.ps1 <image>`, then click the prompt, Ctrl+V.
+- Reference onto the clipboard: `py -3 gen/tools/clip.py <image>`, then click the prompt, Ctrl+V.
 - After the download icon: `py -3 gen/tools/gemini_take.py` copies the newest `Gemini_Generated_Image_*` to art_src as
   the next free number (refuses a file older than 3 min: the download did not land).
 - New PNGs in art/: `bash gen/import_art.sh` (Godot import -> gen/basis_imports.py -> import again; one pass is not

@@ -3372,6 +3372,9 @@ func _auto_step(delta: float) -> void:
 			lad = _bot_lad   # (over a crate on the way back to a room's ladder: still going there)
 		_bot_lad = lad
 		hud.up = lad != null or move_state == "climb" or _bot_esc_up or (move_state != "ground" and not _works(_section_at(player.position)))   # (23. 11.: ladders only with the stick up)
+		for hi in sections.size():   # (not at a hall's door on the way past: the stick up there takes him in)
+			if _works(hi) and absf(_hall_door(hi) - player.position.x) < 200.0 and lad == null and move_state != "climb" and _hall_in < 0:
+				hud.up = false
 		var up_to_them: bool = lad != null and near != null and _plain_room_at(player.position) >= 0 and absf(near.position.y - player.position.y) > 200.0   # (indoors, men up on a catwalk: up its ladder, the big laundry)
 		if lad != null and (not fight or up_to_them or player.position.y < -10.0 and absf(near.position.y - player.position.y) > 60.0):
 			var lx: float = (lad["a"] as Vector2).x
@@ -3438,13 +3441,25 @@ func _auto_step(delta: float) -> void:
 		if hud.move != 0.0 and move_state == "jump" and _wall_t > 0.0 and fall > -200.0:   # against a tall stack in the air: kick up off it
 			hud.jump_tapped = true
 		var wk2 := _section_at(player.position)
-		if _works(wk2) and not fight and player.position.y > -60.0 and not _works_out:   # (QUEUE §22) all down: out by its street door
+		if _hall_in < 0 and not fight and move_state == "ground":   # (rule 33) men inside a hall he walks past: in at its door
+			for hi in sections.size():
+				if not _works(hi) or String((sections[hi] as Array)[3]) == "works":
+					continue
+				var men_in := false
+				for e in enemies:
+					if e["alive"] and _section_at(e["node"].position) == hi:
+						men_in = true
+				var hd: float = _hall_door(hi) - player.position.x
+				if men_in and absf(hd) < 1500.0:
+					hud.move = 0.0 if absf(hd) < 30.0 else signf(hd)
+					hud.up = absf(hd) < 60.0
+		if _works(wk2) and not fight and player.position.y > -60.0 and _hall_in == wk2:   # (QUEUE §22) all down: out by its street door
 			var left_in := false
 			for e in enemies:
 				if e["alive"] and _section_at(e["node"].position) == wk2:
 					left_in = true
 			if not left_in:
-				var dx: float = float((sections[wk2] as Array)[0]) + WORKS_DOOR + 200.0 - player.position.x
+				var dx: float = _hall_door(wk2) + 200.0 - player.position.x
 				hud.move = signf(dx)   # (out through its door: just walking through it)
 		_bot_x = player.position.x
 		if ARGS.has("--trace") and fmod(_at, 0.25) < delta:
@@ -3629,7 +3644,7 @@ func _auto_step(delta: float) -> void:
 		if kw < 20 and _auto_done & (1 << kw) == 0 and _at > 0.6:
 			_auto_done |= 1 << kw
 			_shot("walk_%02d" % kw)
-			print("WALK x ", int(player.position.x), " y ", int(player.position.y), " ", move_state, " out ", _works_out)
+			print("WALK x ", int(player.position.x), " y ", int(player.position.y), " ", move_state, " in ", _hall_in)
 		if _at > 4.4:
 			get_tree().quit()
 		return
@@ -5026,7 +5041,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			run = 0.0
 	elif move_state == "ground" and _up_held and _section_at(player.position) < 0 and _ladder_foot() == null:
 		for al in _alcoves:
-			if absf(float(al["x"]) - player.position.x) < ALCOVE_REACH and absf(player.position.y) < 10.0:
+			if absf(float(al["x"]) - player.position.x) < ALCOVE_REACH and absf(player.position.y) < 10.0 and not _works(_section_at(Vector2(float(al["x"]), -10.0))):   # (a hall's door takes him into the hall)
 				_enter_alcove(al)
 				break
 	if _alcove >= 0.0:   # up the steps and into the opening, then still in it
@@ -5364,7 +5379,7 @@ func _floor_at(x: float, feet: float) -> float:
 func _block(before_x: float) -> void:
 	for s in sections:   # (audit 21. 11.) from outside its right end: the wall, unless back in through the window he broke
 		var x1 := float(s[1])
-		if before_x >= x1 - 1.0 and player.position.x < x1 and player.position.y > -float(s[2]) * section_h + 20.0 				and not (String(s[3]) == "works" and player.position.y > -60.0 and _works_out):   # (on the pavement past the works)
+		if before_x >= x1 - 1.0 and player.position.x < x1 and player.position.y > -float(s[2]) * section_h + 20.0 				and not (HALLS.has(String(s[3])) and player.position.y > -60.0 and (_hall_in < 0 or sections[_hall_in] != s)):   # (on the pavement past the works)
 			var fb := _flat_at_storey(_ground_y)
 			if fb.is_empty() or not fb["broken"] or move_state not in ["jump", "dive"] or absf(fb["wx1"] - x1) > 900.0:
 				player.position.x = x1
@@ -5376,6 +5391,8 @@ func _block(before_x: float) -> void:
 		var fw := _flat_at_storey(_ground_y)
 		if not fw.is_empty() and not _through_window():   # the flat's end wall: up to its window's inner face
 			player.position.x = minf(player.position.x, float(fw["wx0"]) - 60.0)
+		elif fw.is_empty() and String(sec[3]) == "shop":
+			player.position.x = minf(player.position.x, _hall_door(si))   # (the door is in its end wall: into it is out, _tick_works)
 		elif fw.is_empty():
 			player.position.x = minf(player.position.x, float(sec[1]) - (SEC_KIT_WALL.y - SEC_KIT_WALL.x) * section_h / SEC_KIT_ROWS - 40.0 if _section_kit() else float(sec[1]) - 70.0)
 		if player.position.y < -40.0 or _works(si):
@@ -7380,8 +7397,8 @@ const SEC_KIT_STUNT := [["tenement_entry", "tenement_flat", "", ""]]   # SANDBOX
 func _build_section_kit(x0: float, x1: float, storeys: int, holder: Node2D, style := "tenement") -> void:
 	# (21. 11.) another house on the same frame: "rooming" (BACK STREETS, gen/rooming_art.py) - each of its pieces where
 	# it has one (the end wall and the fire escape are the tenement's)
-	if style == "works":
-		_build_works(x0, x1, storeys, holder)
+	if style in HALLS:
+		_build_works(x0, x1, storeys, holder, style)
 		return
 	var kit := "rooming" if style.begins_with("rooming") else "tenement"
 	var own := func(n: String) -> String:
@@ -7436,29 +7453,36 @@ func _build_section_kit(x0: float, x1: float, storeys: int, holder: Node2D, styl
 const WORKS_H := 2464.0
 const WORKS_TONE := 0.74       # (the drawing is paler than the kit's storeys)
 const WORKS_DOOR := 1800.0     # its street door in the stone front (the middle bay's door): the only way out of the hall
-var _works_out := true         # on its ground floor's x: out on the pavement in front (true) or in the hall (false)
-var _works_boxes_out := false  # (the hall's floor crates moved away while he is on the pavement in front)
+## (QUEUE §22-23, rule 33) Halls: a building's inside open as one space behind its front - the works (three storeys),
+## the diner (its ground floor). Its drawing, height, tone; in from up high (the works' window) or by the stick up at
+## its street door (the front's own, CITY_DOORS); out by walking through that door.
+const HALLS := {"works": ["works_hall", 2464.0, 0.74], "shop": ["shop_hall", 764.0, 0.8]}
+const HALL_SINK := 40.0         # the diner drawing's floor line is 30 px over its bottom: down so he stands on its tiles
+var _hall_since := 0.0        # (when he went in: held on at the door a moment, he goes on out through it)
+var _hall_in := -1             # the hall (sections index) he is inside, -1 out on the pavement
+var _hall_boxes := -2          # (the hall whose floor crates stand in it; the others' are moved away)
 const WORKS_AWAY := 100000.0
 var _works_px := 0.0           # (where he was the frame before: the door is crossed, not stood on)
-func _build_works(x0: float, x1: float, storeys: int, holder: Node2D) -> void:
+func _build_works(x0: float, x1: float, storeys: int, holder: Node2D, style := "works") -> void:
 	var facade := Node2D.new()
 	facade.z_index = -6
 	add_child(facade)
 	var storey := Node2D.new()   # (one "storey": the hall is lit all through)
 	storey.modulate = Color(ROOM_BASE, ROOM_BASE, ROOM_BASE, 1.0)
 	holder.add_child(storey)
-	var tex: Texture2D = BigTex.get_tex("res://art/section/works_hall.png")
+	var hl: Array = HALLS[style]
+	var tex: Texture2D = BigTex.get_tex("res://art/section/%s.png" % String(hl[0]))
 	var sp := Sprite2D.new()
 	sp.texture = tex
 	sp.centered = false
-	sp.scale = Vector2((x1 - x0) / tex.get_width(), WORKS_H / tex.get_height())
-	sp.position = Vector2(x0, -WORKS_H)
+	sp.scale = Vector2((x1 - x0) / tex.get_width(), float(hl[1]) / tex.get_height())
+	sp.position = Vector2(x0, -float(hl[1]) + (HALL_SINK if style == "shop" else 0.0))   # (its floor under his feet)
 	sp.light_mask = 0
-	sp.modulate = Color(WORKS_TONE, WORKS_TONE, WORKS_TONE, 1.0)
+	sp.modulate = Color(float(hl[2]), float(hl[2]), float(hl[2]), 1.0)
 	storey.add_child(sp)
 	var s := section_h / SEC_KIT_ROWS   # its end walls: whole brick walls cut through, storey by storey (gen/section_side.py)
 	var cap := Rect2(0.0, 0.0, SEC_KIT_WALL.y, SEC_KIT_ROWS)
-	for k in storeys:
+	for k in (storeys if style == "works" else 0):   # (the diner's drawing has its own end walls, its door in the right one)
 		var top := -section_h * k - SEC_KIT_WALK * s
 		storey.add_child(_kit_piece("tenement_side", cap, Vector2(x0 - SEC_SIDE_OUT * s, top), s, false))
 		storey.add_child(_kit_piece("tenement_side", cap, Vector2(x1 - (SEC_KIT_WALL.y - SEC_SIDE_OUT) * s, top), s, true))
@@ -7467,8 +7491,18 @@ func _build_works(x0: float, x1: float, storeys: int, holder: Node2D) -> void:
 		_city_front(String(hf[1]), float(hf[2]), float(hf[3]), int(hf[4]), int(hf[5]), facade, 0)
 
 
+## A hall (works, diner): one open space, no storeys of rooms.
 func _works(i: int) -> bool:
-	return i >= 0 and i < sections.size() and String((sections[i] as Array)[3]) == "works"
+	return i >= 0 and i < sections.size() and HALLS.has(String((sections[i] as Array)[3]))
+
+
+## Its street door: the doorway of its front that lies in it (the alcove list holds the fronts' doors).
+func _hall_door(i: int) -> float:
+	var sec: Array = sections[i]
+	for al in _alcoves:
+		if float(al["x"]) > float(sec[0]) and float(al["x"]) < float(sec[1]):
+			return float(al["x"])
+	return float(sec[0]) + WORKS_DOOR
 
 
 ## (QUEUE §22, user 22. 11.) Off the washing line through the works' front window: the glass goes in with him, the front
@@ -7479,6 +7513,7 @@ func _crash_into_works(i: int, pul: Vector2) -> void:
 	var mid := win.get_center()
 	var art: Dictionary = _sec_art[i]
 	(art["ink"] as ShaderMaterial).set_shader_parameter("origin", mid)
+	_hall_in = i
 	player.position = Vector2(mid.x + 60.0, -section_h - 30.0)
 	_ground_y = -section_h
 	move_state = "dive"
@@ -8335,7 +8370,7 @@ func _section_at(p: Vector2, me := false) -> int:
 	for i in sections.size():
 		var sec: Array = sections[i]
 		if p.x > float(sec[0]) and p.x < float(sec[1]) and p.y > -section_h * int(sec[2]) + 20.0:
-			if String(sec[3]) == "works" and p.y > -60.0 and _works_out and player != null and (me or p.distance_to(player.position) < 1.0):
+			if HALLS.has(String(sec[3])) and p.y > -60.0 and _hall_in != i and player != null and (me or p.distance_to(player.position) < 1.0):
 				continue   # (QUEUE §22) he walks the pavement in front of the works: it has no door but its own
 			return i
 	return -1
@@ -8343,35 +8378,53 @@ func _section_at(p: Vector2, me := false) -> int:
 
 ## (QUEUE §22) In the works' hall or out in front of it: in from up high (its window), out by its street door.
 func _tick_works() -> void:
-	if _works_out != _works_boxes_out:   # (23. 11.) its floor's crates and drums stand in the hall, not on the pavement in front
-		_works_boxes_out = _works_out
+	if _hall_in != _hall_boxes:   # (23. 11.) a hall's floor crates stand in it, not on the pavement in front of it
+		_hall_boxes = _hall_in
 		for bi in boxes.size():
 			var bc: Vector2 = boxes[bi].get_center()
-			for s in sections:
-				if String(s[3]) == "works" and absf(bc.y + boxes[bi].size.y * 0.5 - (0.0 if _works_out else WORKS_AWAY)) < 40.0 						and bc.x > float(s[0]) and bc.x < float(s[1]):
-					boxes[bi].position.y += WORKS_AWAY if _works_out else -WORKS_AWAY
+			var away: bool = bc.y + boxes[bi].size.y * 0.5 > WORKS_AWAY * 0.5
+			var foot: float = bc.y + boxes[bi].size.y * 0.5 - (WORKS_AWAY if away else 0.0)
+			if absf(foot) > 40.0:
+				continue
+			for si in sections.size():
+				var s: Array = sections[si]
+				if HALLS.has(String(s[3])) and bc.x > float(s[0]) and bc.x < float(s[1]):
+					var want_away := si != _hall_in
+					if want_away != away:
+						boxes[bi].position.y += WORKS_AWAY if want_away else -WORKS_AWAY
+	var px: float = player.position.x
 	for i in sections.size():
 		var sec: Array = sections[i]
-		if String(sec[3]) != "works":
+		if not HALLS.has(String(sec[3])):
 			continue
 		var x0 := float(sec[0])
-		var px: float = player.position.x
-		var door := x0 + WORKS_DOOR
-		if not _works_out and absf(px - door) > 150.0:
-			_door_armed = true   # (in by the door just now: it lets him out only once he has been in the hall)
+		var door := _hall_door(i)
+		var inward := signf((x0 + float(sec[1])) * 0.5 - door)
+		if _hall_in == i and (absf(px - door) > 150.0 or _move_dir == 0.0 or signf(_move_dir) == inward or _time - _hall_since > 0.8):
+			_door_armed = true   # (in by the door just now: out again once he let go of the stick or turned into the hall -
+			# not on the same push that took him in, user 23. 11.: a diagonal up-right went in and straight out)
+		var crossed: bool = (_works_px - door) * (px - door) <= 0.0 and _works_px != px
 		if px > x0 and px < float(sec[1]) and (_ground_y < -60.0 or move_state == "climb"):
-			_works_out = false   # up on a gallery or its ladder (a jump on the pavement in front is still the pavement)
-		elif not _works_out and _door_armed and player.position.y > -60.0 and _ground_y > -60.0 and move_state in ["ground", "slide", "dive"] 				and (_works_px - door) * (px - door) <= 0.0 and _works_px != px:
-			_works_out = true   # (user 23. 11.: "there is no way on out of the works") out through its door, walking
+			_hall_in = i   # up on a gallery or its ladder (a jump on the pavement in front is still the pavement)
+		elif _hall_in == i and _door_armed and player.position.y > -60.0 and _ground_y > -60.0 and move_state in ["ground", "slide", "dive"] \
+				and (crossed if String(sec[3]) == "works" else absf(px - door) < 40.0 and _move_dir * inward < 0.0):
+			# (the works' door is mid-front: walked through; the diner's is in its end wall: walked into)
+			_hall_in = -1   # (user 23. 11.: "there is no way on out of the works") out through its door, walking
 			(_sec_art[i]["ink"] as ShaderMaterial).set_shader_parameter("origin", Vector2(door, -210.0))
-		elif _works_out and _up_held and move_state == "ground" and absf(px - door) < 90.0:
-			_works_out = false   # in from the pavement: the stick up at its door, as onto a ladder (the pavement goes on
+			sfx.play("door", -8.0, door, 0.05)
+			if String(sec[3]) != "works":
+				player.position.x = door - inward * 70.0   # (out on the pavement, past its door)
+		elif _hall_in < 0 and _up_held and move_state == "ground" and absf(px - door) < 90.0:
+			_hall_in = i   # in from the pavement: the stick up at its door, as onto a ladder (the pavement goes on
+			if String(sec[3]) != "works":
+				player.position.x = door + inward * 60.0   # (a step in)
 			# past it - walking by is walking by, user 23. 11.: "it should switch where I go in at the door")
 			(_sec_art[i]["ink"] as ShaderMaterial).set_shader_parameter("origin", Vector2(door, -210.0))
 			sfx.play("door", -6.0, door, 0.05)
 			_up_spent = true   # (the same push of the stick does not take him on up the ladder beside the door)
 			_door_armed = false
-		_works_px = px
+			_hall_since = _time
+	_works_px = px
 
 
 ## Inside: the facade dissolves from the door and the storeys show; outside it closes back over them.
@@ -11909,7 +11962,7 @@ static func PlayerPPM() -> float:
 ## (23. 11.) The ladder whose foot he stands at (its bottom at his feet, within a step), or null.
 func _ladder_foot():
 	for r in _ropes:
-		if r["kind"] == "ladder" and absf((r["a"] as Vector2).x - player.position.x) < 60.0 and absf(float(r["bottom"]) - player.position.y) < 40.0 				and not (_works_out and _works(_section_at(Vector2((r["a"] as Vector2).x, -10.0)))):   # (not through the works' front)
+		if r["kind"] == "ladder" and absf((r["a"] as Vector2).x - player.position.x) < 60.0 and absf(float(r["bottom"]) - player.position.y) < 40.0 				and not (_works(_section_at(Vector2((r["a"] as Vector2).x, -10.0))) and _hall_in != _section_at(Vector2((r["a"] as Vector2).x, -10.0))):   # (not through the works' front)
 			return r
 	return null
 

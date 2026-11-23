@@ -151,5 +151,14 @@ Why the painted-street + cut-house look failed (found 22. 11. on the user's phon
   from every "bldg" front; `_enter_alcove` / `_leave_alcove` in `_move`; `_player_covered` true while in it (not for
   ALCOVE_EXPOSE after his shot), the men's sight `ALCOVE_SEEN` 380. Houses in cross-section and the works have their own
   doors (not alcoves). Test `--test=alcove[:shoot]` (the playground's last doorway). Old painted maps have no alcoves.
+- **Halls (rule 33)**: `HALLS` {style: [drawing, height, tone]} - "works" (3 storeys, its own window crash) and "shop"
+  (the diner: ground floor only, behind the walk-up's shopfront; art_src 355 over gen/shop_template.py, its own end
+  walls and its door drawn in the right one, `HALL_SINK` so its tiles are under his feet). `_hall_in` = the hall he is in;
+  its door = the front's doorway in it (`_hall_door`, from `_alcoves`; a hall's door is never an alcove). In: the stick
+  up at the door (a step in). Out: the works - walking through the door; the diner - walking into its door (end wall);
+  armed only after letting go of the stick / turning in / 0.8 s (a diagonal up-right went in and straight out). Floor
+  crates of a hall stand only while he is in it. Cover in the diner: tables knocked on their side (art_src 356 ->
+  art/props/table.png, BOX "table"). Bot: goes in at a hall's door when men are inside, never pushes up at a door it
+  passes. Test `--test=walkfrom:40300:up --sandbox=2`.
 - Godot 4 canvas shader lesson: in `fragment()` COLOR already holds texture x modulate - multiplying by texture(TEXTURE)
   again squares it (the escape went black). Only touch `COLOR.a`.

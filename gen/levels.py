@@ -12,7 +12,7 @@ from PIL import Image, ImageDraw
 # kind: (width, height, wood?)  wood breaks under fire, the rest holds; barrel explodes
 BOX = {"crate": (250, 248, True), "drum": (160, 246, False), "crate_long": (330, 176, True), "dumpster": (300, 250, False),
        "barrel": (120, 170, False), "machine": (260, 230, False), "bar": (420, 190, False),
-       "stack": (330, 393, False)}   # a crate set on a long crate on the quay: too tall to jump, the rope goes over it
+       "stack": (330, 393, False), "table": (300, 212, False)}   # a crate set on a long crate on the quay: too tall to jump, the rope goes over it
 # the drawn street segments (art/street) and their widths in the world (picture width x 1.9)
 SEGMENTS = {"alley": 3028, "bluenote": 3028, "warehouse": 3028, "laundry": 3028, "subway": 3108, "church": 3108, "market": 3038, "deadend": 3038,
             "pier17": 3034, "cranes": 3034, "shipping": 3034, "quay": 3034, "harbor": 3034,
@@ -528,7 +528,7 @@ def chunk(name, hard, rng=None):
     elif name == "city_moves":   # (QUEUE §23, the playground's stations 3-4) the street's moves and fights in front of module
         # fronts: over a low crate in a run, into the crate stack and off it (the wall kick), the slide and the dive, down
         # behind cover, a red barrel among three of them, the trolley wire over a puddle
-        c = Chunk(15 * CITY_BAY)
+        c = Chunk(18 * CITY_BAY)
         for i, st in enumerate(("walkup", "pale", "stone", "brick")):
             c.city.append(["bldg", st, i * 3 * CITY_BAY, 3 * CITY_BAY, 3, 3 + i % 2])
         c.hint(300, "RUN AT THE LOW CRATE: OVER IT WITHOUT A JUMP")
@@ -548,6 +548,14 @@ def chunk(name, hard, rng=None):
         c.city.append(["bldg", "brick", 12 * CITY_BAY, 3 * CITY_BAY, 3, 4])
         c.hint(11900, "STICK UP IN A DOORWAY TO STEP BACK INTO IT")
         c.foe(12 * CITY_BAY + 1500).foe(12 * CITY_BAY + 2200, kind="shotgun")
+        # (rule 33, station 6) the diner behind the walk-up's shopfront: the stick up at its door, a small fight among
+        # the tables they knocked over, out by the door again (its inside: art_src 355, main.gd HALLS "shop")
+        sx = 15 * CITY_BAY
+        c.city.append(["bldg", "walkup", sx, 3 * CITY_BAY, 3, 3])
+        c.sections.append([sx, sx + 2 * CITY_BAY, 1, "shop"])
+        c.hint(sx - 500, "STICK UP AT THE DINER'S DOOR TO GO IN")
+        c.box("table", sx + 600).box("table", sx + 1250)
+        c.foe(sx + 350).foe(sx + 950, kind="shotgun").foe(sx + 1450)
     elif name == "stunts":   # SANDBOX STUNTS: the new moves in a few seconds - one storey, the flat right by the door,
         w = SEC_W            # kick its door in (a man behind it), out of its window to the street, the rope behind
         c = Chunk(w + 2600)

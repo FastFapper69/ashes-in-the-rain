@@ -31,7 +31,7 @@ Pak krátce česky: co je rozdělané a na co se čeká od uživatele. Nic nepř
   tiskárna, pohyb na ulici, boj). Čeká se na OK uživatele po stanovištích; další stanoviště (střechy, lešení,
   markýza, kladka) potřebují nové moduly - tabulka v [[QUEUE_doma]] §23.
 - **Hloubka jen v bodech** (pravidlo 33, uživatel zvolil C 23. 11.): výklenek dveří hotový (stanoviště 4b na konci
-  hřiště); další body: vstup do uličky, obchod, schování za auto.
+  hřiště), bistro jako hala za výlohou (4c); další body: vstup do uličky, schování za auto.
 - Komiksy až nakonec (paměť). Kapitoly I-III hratelné, staré mapy se po hřišti převedou na modulární město.
 
 ## Příkazy (Git Bash, z kořene repa)
@@ -44,7 +44,7 @@ Pak krátce česky: co je rozdělané a na co se čeká od uživatele. Nic nepř
 | boti všech map | `G=... TMPDIR="$TEMP/bots1" bash gen/tests/bots.sh` - jen při změně sdíleného kódu, jednou před nasazením |
 | UI kontrola | `--test=menu --progress=3` v 1280 i 1560, výstup bez `UI BAD` (skill ui-papir) |
 | nasazení | `git fetch` -> `bash gen/deploy/deploy_pc.sh "zpráva"` (vypíše GHP-OK, MAIN-OK a počká na LIVE) |
-| Gemini: reference do schránky | `powershell -STA -File gen/tools/clip.ps1 <obrázek>` -> v Gemini Ctrl+V |
+| Gemini: reference do schránky | `py -3 gen/tools/clip.py <obrázek>` -> v Gemini Ctrl+V |
 | Gemini: stažený obrázek do art_src | `py -3 gen/tools/gemini_take.py` (další volné číslo) |
 | odkazy pro Obsidian | `py -3 gen/obsidian_links.py` |
 | záloha všeho | `bash gen/backup.sh ["zpráva"]` - paměť do `pamet/` (jen lokálně, v Obsidianu), repo commit + push; běží i po každém nasazení |
