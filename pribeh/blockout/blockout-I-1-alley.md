@@ -133,4 +133,30 @@ Tři věci, které musí zaznít přímo v mapě:
 
 ## Poznámky Claude Code
 
-Sem připsat, co je těžké, hloupé nebo proti pravidlům map, a opravit odhady A, B, C.
+Posouzeno 23. 11. 2026 proti hře, jak je teď (bot: dnešní THE ALLEY 27 tis. px a 13 mužů za 60 s).
+
+### Čas
+- 19,5 tis. px a 18 mužů: člověk to projde zhruba za **3 až 4 minuty**, ne za 5:20. Dům a šňůra čas natahují, ulice ne. Stejná oprava jako u prologu: chůze v klidu, delší klidné úseky, nebo přijmout kratší mapu.
+
+### Logika, kde to nejde postavit tak, jak je to napsané
+- **Úseky 7 a 8: po šňůře se nedá dojet na střechu.** Šňůra vede dolů (z okna 2. patra k oknu 1. patra protějšího domu). Střecha je o dvě patra výš. Jak to jde: šňůra → oknem do domu naproti (tichá hala nebo chodba) → žebřík na střechu → střecha → požární schodiště dolů. Přesně tohle je postavené na hřišti (stanoviště 2 a 5).
+- **Úsek 9:** dolů po požárním schodišti se nestřílí. Muži střílí jen na Franka na svém patře (pravidlo z 15. 11.), takže vrchol začne, až Frank stoupne na chodník. To je v pořádku, jen s tím počítat.
+- **Úsek 3:** stránka deníku je uprostřed boje, pravidla map říkají „v klidném místě mimo hlavní cestu“. Buď přesunout do úseku 4, nebo pravidlo upravit.
+- **Úsek 2:** muži zády k hráči: dnes si hráče všimnou podle vzdálenosti. „Nevšimne si, dokud nevystřelím“ je C malé.
+- **Úsek 4:** vzdání dnes závisí na morálce (kolik jich padlo). Jisté první vzdání na daném místě je C malé.
+
+### Náročnost, opravy odhadů
+| Úsek | Blockout | Opravdu |
+|---|---|---|
+| 1 O'Malley, který stojí a mluví | C | C střední (postava bez boje) + plachta a páska B. Šedá verze: hlas mimo obraz |
+| 3 stránka na římse | A | B + C malé: stránky dnes leží jen na zemi, římsa je nová plošina |
+| 5 výklenky dveří, padající neon | A | A (výklenky jsou z hřiště, neon ve hře je) |
+| 5 svatební fotka v okně | B malá | B + **C střední**: „jméno z Mola 17“ je nový druh věci k nalezení a nová stránka v deníku (11 za hru) |
+| 6 dům | A | A |
+| 7 šňůra | A | A, konec šňůry viz logika |
+| 8 střecha, světla auta dole | A | střechy A; auto, které odjíždí, C malé |
+| 9 schodiště dolů | A | A |
+| Uzly generátoru | návrh | **C střední**: modulární město je dnes jeden pevný blok hřiště. Musím ho rozdělit na díly (dům, ulička se šňůrou, hala, střechy, schodiště), aby se z nich skládaly mapy. Dvorek (yard) v modulárním městě není: B + C |
+
+### Co ještě nesedí ve výtvarnu (uživatel 23. 11.)
+- Napojení dvou domů u střech, trolej a kanál, které nesedí na zem a zeď. Rozpracovaný je pilíř mezi domy (není nasazený). Dokud to není vyřešené, šedá verze je správný krok: kresby až potom.

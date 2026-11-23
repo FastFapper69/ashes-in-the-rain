@@ -130,4 +130,34 @@ Tři věci, které musí zaznít přímo v mapě:
 
 ## Poznámky Claude Code
 
-Sem připsat, co je těžké, hloupé nebo proti pravidlům map, a opravit odhady A, B, C.
+Posouzeno 23. 11. 2026 proti hře, jak je teď (běh 640 px/s, bot: dnešní prolog 16 tis. px a 8 mužů za 32 s).
+
+### Hlavní problém: čas nesedí na pixely
+- 15,4 tis. px je 24 vteřin běhu. S 12 muži to člověk projde zhruba za **1,5 až 2 minuty** + poslední boj, ne za 4:43.
+- Klidné úseky: 1200 px proběhne za 2 s, ne za 15. Bubliny se nestihnou přečíst.
+- Boj: dva muži s pistolí zaberou 8 až 12 s, ne 35.
+- Návrh: (a) cíl prologu **3 minuty**, ne 5; (b) v klidných úsecích jde hrdina krokem (asi 220 px/s, C malé) a bubliny drží, dokud nedozní; (c) klidné úseky prodloužit na 2 až 3 tis. px. I tak vyjdou 4 klidné úseky na ~35 s, ne 53.
+
+### Logika
+- „Musí obejít blok“, ale mapa je rovná ulice. V bočním pohledu to jde, jen se musí po cestě změnit domy (roh, jiná ulice), jinak to čte jako jedna dlouhá ulice od klubu ke klubu.
+- Úsek 8: „neon JAZZ zepředu“ za klubem nedává smysl. Za klubem je zadní zeď, neon svítí jen jako odlesk přes střechu nebo z průchodu.
+- Úsek 5: garáž jako interiér není. Sud s palivem smí stát jen tam, kde palivo dává smysl: tedy před vraty garáže na ulici.
+- Tutoriál: dnešních 6 nápověd (pohyb, střelba, krytí, skok, sud, zpomalení) musí zůstat a sednout na úseky 1, 3, 3, 4, 5, 6.
+
+### Náročnost, opravy odhadů
+| Úsek | Blockout | Opravdu |
+|---|---|---|
+| Bubliny hrdiny podle místa | A | A (bublina nad hráčem je) + C malé: seznam [místo, text], neopakovat po smrti |
+| Klidný úsek bez mužů | A | C malé: generátor do prázdné ulice sám doplňuje muže, potřebuje „klidný úsek“ |
+| 1, 3, 10 animace kapes a sirek | C malá | **B + C střední**: postavy jsou loutky z dílů, nový pohyb je nový list od Gemini. V šedé verzi jen bublina |
+| 2 stánek | B | B, v šedé verzi bedna s cedulí |
+| 5 garáž | A nebo B | B (průčelí garáže), sud A |
+| 6 dodávka napříč | A | A s dnešním autem (sedan), dodávka B |
+| 8 holubi | B + C | **A**: holubi ve hře jsou a při výstřelu nebo příchodu vzlétnou. Krmení (pozdější mapy) je C |
+| 9 tři auta | B | auto, které přijede a vysype muže, ve hře je (A); z obou stran a nedobíjené zpomalení C malé; tep místo hudby C malé + zvuk |
+| Klavír | - | neověřeno: hudba má stopy base, dusk, fight, broken_trust, dream_fire; jestli je mezi nimi klavír, musím poslechnout |
+| Hraní za Eddieho na hřišti | - | C malé: hřiště teď pouští jen Franka |
+
+### Šedá verze, co k ní potřebuju
+- Jde postavit z hotových modulů (4 průčelí, ulička, bedny, sud, auto, holubi, poslední boj). Blue Note jako průčelí zatím není: v šedé verzi dům s cedulí.
+- Odhad práce: klidné úseky + bubliny podle místa + Eddie na hřišti + rozložení úseků.

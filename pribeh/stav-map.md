@@ -8,8 +8,8 @@ Kdo co mění: sloupce Texty, Scénář a Blockout příběhový chat, ostatní 
 
 | Mapa | Stará verze | Texty | Scénář úseků | Blockout | Posouzeno | Šedá verze zahraná | Kresby | Hotovo |
 |---|---|---|---|---|---|---|---|---|
-| Prolog THE LAST NOTE | ano | ano | návrh | návrh | – | – | – | – |
-| I-1 THE ALLEY | ano | ano | návrh | návrh | – | – | – | – |
+| Prolog THE LAST NOTE | ano | ano | návrh | návrh | ano, čeká na uživatele | – | – | – |
+| I-1 THE ALLEY | ano | ano | návrh | návrh | ano, čeká na uživatele | – | – | – |
 | I-2 BACK STREETS | ano | ano | návrh | – | – | – | – | – |
 | I-3 THE LAUNDRY | ano | ano | návrh | – | – | – | – | – |
 | I-4 TENEMENTS | ano | ano | návrh | – | – | – | – | – |
