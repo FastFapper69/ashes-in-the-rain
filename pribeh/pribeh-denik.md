@@ -42,3 +42,11 @@ Příběh se ladí v samostatném chatu (claude.ai), vývoj běží v Claude Cod
 - Jedenáct mrtvých má jména a po jedné věci v mapách. Tommyho píseň má text, poslední sloku dopíše Rosie a zazní jen v konci Sníh.
 - Petrolej v bednách na Santa Lucii zůstává (rok 1939). Škrtá se jen petrolej u Rourka v roce 1931.
 - Stará stránka deníku o hasičské helmě v zastavárně se ruší: helma leží u Franka na stole.
+
+## 23. 11. 2026 – scénáře map
+
+Uživatel: má smysl napsat i to, co se děje na mapě, aby se podle toho stavělo, vymýšlely mechaniky a hloupé nebo těžké věci se zahodily předem. Ano.
+
+- Každá mapa má scénář po úsecích: co se děje, co hráč dělá, co má cítit, text, náročnost (A hotové, B nová kresba, C nový kód).
+- Postup: scénář napíše příběhový chat, Claude Code k němu připíše, co je těžké nebo hloupé, pak se staví.
+- Hotovo: [[mapy-prolog-a-kapitola-I]] (návrh, čeká na posouzení uživatele a Claude Code). Další: kapitoly II až IV.

@@ -5,6 +5,8 @@ Kopie claude.ai docu `ef8436e6-96af-4c2d-9288-b4489472fe87`. Start: [[MAPA]]. De
 
 **Celý scénář:** prolog a kapitola I jsou níže · [[kapitola-II]] · [[kapitola-III]] (s mezihrou U Rosie) · [[kapitola-IV]] (s oběma konci) · [[scenar-mapy]] (titulní věty, úvody a závěry map, stránky deníku kapitoly I) · [[jedenact-a-pisen]] (jedenáct mužů z Mola 17 a Tommyho píseň).
 
+**Co se děje v mapách:** [[mapy-prolog-a-kapitola-I]] (úsek po úseku, s odhadem náročnosti; další kapitoly přibudou).
+
 Zjednodušená verze: jeden požár, jeden deník, dva symboly. Kostra hry zůstává, přepisuje se srdce a hlas. Všechno, co je anglicky, je text do hry.
 
 ## Příběh pěti větami
