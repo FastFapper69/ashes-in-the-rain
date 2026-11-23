@@ -1,6 +1,6 @@
 # Kapitola II – Přístav: repliky
 
-Návrh k odsouhlasení (23. 11. 2026), ve hře zatím není. Příběh a pravidla hlasu: [[Srdce-a-hlas]]. Deník rozhodnutí: [[pribeh-denik]]. Cutscény: [[ch10-story-cutscenes]].
+Schváleno uživatelem 23. 11. 2026 („to zní dobře“), ve hře zatím není. Další: [[kapitola-III]]. Příběh a pravidla hlasu: [[Srdce-a-hlas]]. Deník rozhodnutí: [[pribeh-denik]]. Cutscény: [[ch10-story-cutscenes]].
 
 **O čem kapitola je.** Frank jde po tom, kdo platil požár na Molu 17, a najde vlastní podpis. Hráč od prologu ví, že Eddie o podpisu věděl. Frank to neví, a tak se celou kapitolu před mrtvým kamarádem vykrucuje. Pokaždé, když se přiblíží k Molu 17, uhne.
 

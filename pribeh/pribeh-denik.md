@@ -32,4 +32,5 @@ Příběh se ladí v samostatném chatu (claude.ai), vývoj běží v Claude Cod
 **Další kroky:**
 1. Prolog a kapitola I do hry s dočasným hlasem (Claude Code).
 2. Uživatel si je zahraje a řekne, jestli z toho něco cítí.
-3. Přepsat stejným hlasem kapitoly II až IV a mezihry. Kapitola II je napsaná jako návrh: [[kapitola-II]] (čeká na souhlas uživatele).
+3. Repliky celé hry v novém hlasu: [[kapitola-II]] (schváleno 23. 11.), [[kapitola-III]] s mezihrou U Rosie a [[kapitola-IV]] s oběma konci (návrhy, čekají na souhlas). Kapitola I a prolog jsou v [[Srdce-a-hlas]].
+4. Otevřené: telefon ve 2:10 v konci Sníh (návrh: vynechat, viz [[kapitola-IV]]).
