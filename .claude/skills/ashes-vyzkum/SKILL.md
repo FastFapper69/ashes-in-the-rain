@@ -14,18 +14,18 @@ Pick the chapter for the task. Every idea marked **[H]** is a hypothesis: measur
 ---
 
 ## Top 12 takeaways
-1. **[H] CanvasGroup is a backbuffer pass.** Godot's CanvasGroup draws its children by reading the back buffer. Every puppet body is one, and the dive/slowed-time trail (`main.gd` ghost every 0.05 s, ~0.26 s life) adds ~5 more brand-new CanvasGroups + Sprite2Ds per second. Prime suspect for FPS 31–42 in big fights → pool the ghosts or draw them as plain silhouettes; only use a CanvasGroup when a figure is actually translucent. (ch06)
-2. **iOS kills a page at roughly 300–450 MB** (WebKit derives the limit from device RAM and jetsam; warnings at 50 % / 65 %). Fast allocation bursts are also punished. Our last crash: heap 242 + textures ~150 MB → at the edge. Smaller packs (per map), spread loading over frames. (ch06)
-3. **[OK] Web audio = Web Audio "samples"** since Godot 4.3: whole files are decoded, no audio effects. Our 22 kHz mono rule is exactly right. (ch06)
-4. **[OK] Bullet time works because bullets are real projectiles and aiming stays real-time** (Max Payne). Keep enemy bullets visible and dodgeable in slowed time. (ch03)
-5. **Kills should feed bullet time** (My Friend Pedro refills focus on kills; our ACROBAT card does it for air kills) – [H] consider a small base refill, perk makes it bigger. (ch03)
-6. **Death must cost almost nothing** (Hotline Miami, Katana ZERO: instant restart, no load, no penalty animation). [H] Measure our death → respawn time on the iPhone; target well under 2 s. (ch05)
-7. **[OK] Max two shooters = DOOM's attack tokens.** [H] Extend to tokens per category (rifle 2, thrower 1, heavy 1) with "steal", and tune difficulty by token counts rather than aim. (ch04)
-8. **[OK] Callouts make AI look smart** (F.E.A.R.): the barks, not the planner, sold the intelligence. Every new behaviour gets a line ("FLANK HIM!", "SHOOT THROUGH IT!"). (ch04)
-9. **Black first, as shapes** (Mignola, Miller): solid black masses placed for composition, few mid-tones, balance black against equal white. Briefs for Gemini should ask for this, not for "dark". (ch01)
-10. **Noir light is motivated hard light**: one hard source, little fill, practicals in frame (lamps, neon), venetian-blind patterns only where a window is. Matches our "every light has a source" rule. (ch01)
-11. **One mechanic per map, taught without text** (kishōtenketsu: introduce safely → develop → twist → conclude; Katana ZERO teaches through levels). Our mapfx flags are the natural "featured mechanic". (ch05)
-12. **Clarity over chaos** (John Wick): wide framing so cause and effect are visible; rhythm like a dance. Keep shooter and target in frame in slowed time. (ch03)
+1. **[H] CanvasGroup is a backbuffer pass.** Godot's CanvasGroup draws its children by reading the back buffer. Every puppet body is one, and the dive/slowed-time trail (`main.gd` ghost every 0.05 s, ~0.26 s life) adds ~5 more brand-new CanvasGroups + Sprite2Ds per second. Prime suspect for FPS 31–42 in big fights → pool the ghosts or draw them as plain silhouettes; only use a CanvasGroup when a figure is actually translucent. ([[ch06-lights-fx|ch06]])
+2. **iOS kills a page at roughly 300–450 MB** (WebKit derives the limit from device RAM and jetsam; warnings at 50 % / 65 %). Fast allocation bursts are also punished. Our last crash: heap 242 + textures ~150 MB → at the edge. Smaller packs (per map), spread loading over frames. ([[ch06-lights-fx|ch06]])
+3. **[OK] Web audio = Web Audio "samples"** since Godot 4.3: whole files are decoded, no audio effects. Our 22 kHz mono rule is exactly right. ([[ch06-lights-fx|ch06]])
+4. **[OK] Bullet time works because bullets are real projectiles and aiming stays real-time** (Max Payne). Keep enemy bullets visible and dodgeable in slowed time. ([[ch03-art-pipeline|ch03]])
+5. **Kills should feed bullet time** (My Friend Pedro refills focus on kills; our ACROBAT card does it for air kills) – [H] consider a small base refill, perk makes it bigger. ([[ch03-art-pipeline|ch03]])
+6. **Death must cost almost nothing** (Hotline Miami, Katana ZERO: instant restart, no load, no penalty animation). [H] Measure our death → respawn time on the iPhone; target well under 2 s. ([[ch05-levels-maps|ch05]])
+7. **[OK] Max two shooters = DOOM's attack tokens.** [H] Extend to tokens per category (rifle 2, thrower 1, heavy 1) with "steal", and tune difficulty by token counts rather than aim. ([[ch04-phone-memory|ch04]])
+8. **[OK] Callouts make AI look smart** (F.E.A.R.): the barks, not the planner, sold the intelligence. Every new behaviour gets a line ("FLANK HIM!", "SHOOT THROUGH IT!"). ([[ch04-phone-memory|ch04]])
+9. **Black first, as shapes** (Mignola, Miller): solid black masses placed for composition, few mid-tones, balance black against equal white. Briefs for Gemini should ask for this, not for "dark". ([[ch01-build-deploy|ch01]])
+10. **Noir light is motivated hard light**: one hard source, little fill, practicals in frame (lamps, neon), venetian-blind patterns only where a window is. Matches our "every light has a source" rule. ([[ch01-build-deploy|ch01]])
+11. **One mechanic per map, taught without text** (kishōtenketsu: introduce safely → develop → twist → conclude; Katana ZERO teaches through levels). Our mapfx flags are the natural "featured mechanic". ([[ch05-levels-maps|ch05]])
+12. **Clarity over chaos** (John Wick): wide framing so cause and effect are visible; rhythm like a dance. Keep shooter and target in frame in slowed time. ([[ch03-art-pipeline|ch03]])
 
 ---
 
@@ -49,15 +49,15 @@ Pick the chapter for the task. Every idea marked **[H]** is a hypothesis: measur
 | [ch15](chapters/ch15-modular-kits-seams.md) | Modular kits, joins, transitions | Bethesda kits & metrics, Wang edge types, Dead Cells graph, Trine/Hollow Knight layers, thresholds, outpainting joins |
 
 ## Topic index
-- **attack tokens** → ch04 · **backbuffer / CanvasGroup** → ch06 · **barks / callouts** → ch04
-- **black shapes / spotting blacks** → ch01 · **bullet time** → ch03, ch06 · **coyote time** → ch08
-- **death & restart** → ch05 · **gobo / venetian blinds** → ch01 · **heap / jetsam** → ch06
-- **hitstop / screenshake** → ch03 · **interrogation (L.A. Noire)** → ch02 · **kishōtenketsu** → ch05
-- **narration / monologue** → ch02 · **object pool** → ch07 · **Parallax2D** → ch06
-- **texture compression (Basis, ETC2)** → ch06 · **web audio samples** → ch06
-- **skills / tools / web build check / reader testing** → ch09
-- **cutscene pacing, voice timing, trailer** → ch10
-- **Godot MCP / hooks / unit tests** → ch11 · **licences, Artlist, AI disclosure** → ch12 · **business model, native export, haptics** → ch13 · **camera, heatmaps, accessibility** → ch14
+- **attack tokens** → [[ch04-phone-memory|ch04]] · **backbuffer / CanvasGroup** → [[ch06-lights-fx|ch06]] · **barks / callouts** → [[ch04-phone-memory|ch04]]
+- **black shapes / spotting blacks** → [[ch01-build-deploy|ch01]] · **bullet time** → [[ch03-art-pipeline|ch03]], [[ch06-lights-fx|ch06]] · **coyote time** → [[ch08-player-progression|ch08]]
+- **death & restart** → [[ch05-levels-maps|ch05]] · **gobo / venetian blinds** → [[ch01-build-deploy|ch01]] · **heap / jetsam** → [[ch06-lights-fx|ch06]]
+- **hitstop / screenshake** → [[ch03-art-pipeline|ch03]] · **interrogation (L.A. Noire)** → [[ch02-tests|ch02]] · **kishōtenketsu** → [[ch05-levels-maps|ch05]]
+- **narration / monologue** → [[ch02-tests|ch02]] · **object pool** → [[ch07-enemies-ai|ch07]] · **Parallax2D** → [[ch06-lights-fx|ch06]]
+- **texture compression (Basis, ETC2)** → [[ch06-lights-fx|ch06]] · **web audio samples** → [[ch06-lights-fx|ch06]]
+- **skills / tools / web build check / reader testing** → [[ch09-audio-voice|ch09]]
+- **cutscene pacing, voice timing, trailer** → [[ch10-story-cutscenes|ch10]]
+- **Godot MCP / hooks / unit tests** → [[ch11-ui-hud|ch11]] · **licences, Artlist, AI disclosure** → ch12 · **business model, native export, haptics** → ch13 · **camera, heatmaps, accessibility** → ch14
 - **modular kit / metrics / edge types / seams / threshold / transition between scenes / outpainting** → ch15
 
 ## Supporting files

@@ -47,7 +47,7 @@ All visible art is hand-drawn-looking Gemini output processed by scripts in `gen
 - **Variant must differ from its kit over ≥ 25 % of the picture above the floor** (blurred 396×168 grey diff > 18). Never a kit next to its own variant; never the same segment twice in a row.
 - Layout is built on kits (`plain`), variants swapped in afterwards; a same-width drawing with wall goes back under any fire escape → gameplay never moves (levels.gd non-street lines unchanged).
 
-## Import rules (memory, see ch04)
+## Import rules (memory, see [[ch04-phone-memory|ch04]])
 - Street/room drawings > 2048 px: imported capped, loaded via `BigTex.get_tex()`, which reports the painted size from `big_sizes.gd` (RS size override) → all pixel coordinates stay valid.
 - **Basis Universal** (compress/mode=4) for street/room drawings, `_lit/_solid`, bg, fore, big props – dimensions must be multiples of 4 (`gen/basis_imports.py` trims the cap).
 - **Never Basis**: anything read with `get_image` (LowRes, Paper, hats, `sheets.png` bullet holes), normal maps, comic panels (`art/cut` back to WebP – pack heap).

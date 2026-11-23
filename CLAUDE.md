@@ -4,6 +4,6 @@
 2. First session on the user's PC (Claude Code, from 16. 11. 2026): follow `gen/PC_SETUP.md`. Then read the newest sections of `HANDOFF.md` (session log: what changed, what is next).
 3. Designing a mechanic, map, story beat, art brief or optimisation: skill `ashes-vyzkum` (research notes; [H] ideas must be measured first). UI work: skill `ui-papir`. Checking a web build: skill `webapp-testing` (see its PROJECT.md). Converting a book/doc into a skill: `.claude/skills/book-to-skill` (see its PROJECT.md – this repo is public, no copyrighted book content in git).
 4. Two chats push here: `git fetch` and merge origin before every commit or deploy.
-5. A new durable rule or decision from the user goes into `ashes-znalosti` (SKILL.md §1 + the chapter) in the same commit; day-to-day progress goes into HANDOFF.md.
+5. A new durable rule or decision from the user goes into `ashes-znalosti` (SKILL.md §1 + the chapter) in the same commit; day-to-day progress goes into [[HANDOFF|HANDOFF.md]].
 
 Reply to the user in Czech, short. In-game text English.

@@ -11,3 +11,8 @@ Claude outputs/
 # Python bytecode from the gen/ scripts
 __pycache__/
 *.orig
+
+# Obsidian (the notes as a vault, 23. 11.): its settings are shared, the open tabs and caches are not
+.obsidian/workspace*.json
+.obsidian/cache
+.trash/

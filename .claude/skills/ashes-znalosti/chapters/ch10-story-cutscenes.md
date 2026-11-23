@@ -1,7 +1,7 @@
 # Chapter 10: Story & cutscenes
 
 ## Core Idea
-A story-driven noir told as an animated comic: narration over painted panels, between maps and interludes, with no plot holes. Full story lives in the claude.ai story doc (id in ch01) – read it before writing story.
+A story-driven noir told as an animated comic: narration over painted panels, between maps and interludes, with no plot holes. Full story lives in the claude.ai story doc (id in [[ch01-build-deploy|ch01]]) – read it before writing story.
 
 ## Fixed facts
 - Title ASHES IN THE RAIN (formerly Ink & Lead). Hero **Frank Malone** (never renamed). Opens with an atmosphere intro on the world, then the prologue as Eddie (Frank's partner, overpowered tutorial) ending in an unwinnable shootout where Eddie dies; Frank takes over, weak.
@@ -19,7 +19,7 @@ A story-driven noir told as an animated comic: narration over painted panels, be
 - Narration: letters paced to voice length; a line waits until the voice ends (`voice_on()`), a tap never cuts Frank mid-sentence. Captions: Paper.caption stamp top-right, corners "tr" start under SKIP.
 - Street is freed under black 3 frames before a comic page loads (memory).
 - Art audit: no AI hands (re-checked 56, 57, 64, 65, 88), real text on panels (`fix_cut_text.py`), no flocks where the story says two pigeons in a closed cage.
-- Diary pages and testimony pages appear in maps (ch05 placement rule).
+- Diary pages and testimony pages appear in maps ([[ch05-levels-maps|ch05]] placement rule).
 
 ## Key Takeaways
 1. Every new panel: check hands, text, continuity with earlier panels (coats, props).

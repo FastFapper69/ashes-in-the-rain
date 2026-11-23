@@ -25,7 +25,7 @@
 **When**: Gemini redraws a part (bare head, open hand) that must sit exactly on the old one. **How**: template match on a stable feature (face, sleeve), cut by a hand-drawn polygon (`gen/tools/align_head.py`). **Trade-offs**: needs one redraw per head.
 
 ## Test mode per mechanic
-**When**: every new feature. **How**: a `--test=<name>` that stages and photographs it. **Trade-offs**: the list grows – keep ch02 current.
+**When**: every new feature. **How**: a `--test=<name>` that stages and photographs it. **Trade-offs**: the list grows – keep [[ch02-tests|ch02]] current.
 
 ## Fair-pressure AI
 **When**: player camps in cover. **How**: chip wooden cover, send a flanker after a delay, cap shooters at two, gate on floor and screen. **Trade-offs**: tuned per chapter (not in tutorial maps).

@@ -1,0 +1,18 @@
+{
+  "userIgnoreFilters": [
+    "art/",
+    "art_src/",
+    "sfx/",
+    "voice/",
+    "fonts/",
+    "build/",
+    "_shots/",
+    ".godot/",
+    "addons/",
+    "Claude outputs/",
+    "gen/templates/"
+  ],
+  "alwaysUpdateLinks": true,
+  "newLinkFormat": "shortest",
+  "useMarkdownLinks": false
+}
