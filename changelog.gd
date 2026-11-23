@@ -5,6 +5,7 @@ extends RefCounted
 
 const ENTRIES := [
 	["23 NOV 2026", [
+		"Playground: push the stick up in a doorway to step back out of the street - they lose you there until you shoot",
 		"The test lab is now the playground: every move and trick one after another, the street ones added after the printing works",
 		"Ladders: push the stick up to get on and to climb; no more grabbing one by itself in mid jump",
 		"The printing works: walk by on the pavement, push the stick up at its door to go in, walk out through it; the camera follows you up its ladder",

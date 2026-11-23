@@ -145,5 +145,9 @@ Why the painted-street + cut-house look failed (found 22. 11. on the user's phon
   chunks are spaced apart - `close_city` widens the front before a hole (a bay more, not stretched bays) and lays
   fronts on past the map's end; the street's things (props.gd) stand at z -5 in front of the fronts (`_city_z`) and are
   not toned like the blurred far drawings; the red-barrel fuel check is for painted streets only.
+- **Doorways (rule 33)**: `CITY_DOORS` per module sheet (bay with the door, where in the bay) -> `_alcoves` (world x)
+  from every "bldg" front; `_enter_alcove` / `_leave_alcove` in `_move`; `_player_covered` true while in it (not for
+  ALCOVE_EXPOSE after his shot), the men's sight `ALCOVE_SEEN` 380. Houses in cross-section and the works have their own
+  doors (not alcoves). Test `--test=alcove[:shoot]` (the playground's last doorway). Old painted maps have no alcoves.
 - Godot 4 canvas shader lesson: in `fragment()` COLOR already holds texture x modulate - multiplying by texture(TEXTURE)
   again squares it (the escape went black). Only touch `COLOR.a`.

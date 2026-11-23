@@ -30,8 +30,8 @@ Pak krátce česky: co je rozdělané a na co se čeká od uživatele. Nic nepř
 - **Hřiště** = SANDBOX 2 "PLAYGROUND" (menu: štítek TEST LAB / THE PLAYGROUND): stanoviště 1-4 postavená (dům, šňůra +
   tiskárna, pohyb na ulici, boj). Čeká se na OK uživatele po stanovištích; další stanoviště (střechy, lešení,
   markýza, kladka) potřebují nové moduly - tabulka v [[QUEUE_doma]] §23.
-- **Otevřená otázka**: chůze do hloubky - uživatel volí mezi C (hloubka jen v bodech: dveře/výklenky/uličky, páčka
-  nahoru) a B (pokus se 2 pruhy chodník/vozovka na hřišti). Doporučeno C. "Teď zatím ne" (23. 11.).
+- **Hloubka jen v bodech** (pravidlo 33, uživatel zvolil C 23. 11.): výklenek dveří hotový (stanoviště 4b na konci
+  hřiště); další body: vstup do uličky, obchod, schování za auto.
 - Komiksy až nakonec (paměť). Kapitoly I-III hratelné, staré mapy se po hřišti převedou na modulární město.
 
 ## Příkazy (Git Bash, z kořene repa)

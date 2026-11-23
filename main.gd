@@ -3633,6 +3633,31 @@ func _auto_step(delta: float) -> void:
 		if _at > 4.4:
 			get_tree().quit()
 		return
+	elif _auto.begins_with("alcove"):   # --test=alcove[:shoot] (the playground): the last doorway, in with the stick up, the men up the street; :shoot - out, a shot, back
+		var ax: float = _alcoves[_alcoves.size() - 1] if _alcoves.size() > 0 else 0.0
+		for a2 in _alcoves:
+			if absf(float(a2) - 36328.0) < absf(ax - 36328.0):
+				ax = float(a2)
+		if _auto_done & (1 << 21) == 0:
+			_auto_done |= 1 << 21
+			player.position = Vector2(ax - 250.0, 0.0)
+			_ground_y = 0.0
+		hud.move = 1.0 if _at > 0.5 and _at < 0.75 else 0.0
+		hud.up = _at > 0.8 and _at < 1.0
+		if _auto.ends_with(":shoot") and _at > 3.0 and _at < 3.1:
+			hud.fire_tapped = true
+		var ka := int(_at / 0.5)
+		if ka < 14 and _auto_done & (1 << ka) == 0 and _at > 0.6:
+			_auto_done |= 1 << ka
+			_shot("alcove_%02d" % ka)
+			var seen := 0
+			for e in enemies:
+				if e["alive"] and e["seen"] and absf(e["node"].position.x - ax) < 2500.0:
+					seen += 1
+			print("ALCOVE x ", int(player.position.x), " in ", _alcove, " seen ", seen, " hp ", hp, " covered ", _player_covered(1.0))
+		if _at > 6.5:
+			get_tree().quit()
+		return
 	elif _auto == "doorkick":   # --test=doorkick (a map with a flat): the shut door, a run at it, the kick, frames
 		var f0: Dictionary = _flats[0]
 		if _auto_done & (1 << 21) == 0:
@@ -4935,6 +4960,29 @@ func _touch(at: Vector2, down: bool) -> void:
 
 
 ## Running, jumping, diving, sliding and rolling. Returns how fast the legs should run, -1..1.
+## (rule 33, user 23. 11.) A doorway in a front: he steps back into it out of the street, darker; from the street they
+## do not see him there unless close, and their rounds hit the door frame - until he leans out to shoot (ALCOVE_EXPOSE).
+const ALCOVE_REACH := 110.0
+const ALCOVE_EXPOSE := 0.7      # s after his shot that he is out of the doorway for them
+const ALCOVE_SEEN := 380.0      # closer than this a man in the street sees him in it
+const ALCOVE_TONE := 0.5
+var _alcove := -1.0             # the doorway's x he stands in, or -1
+var _alcove_shot := -9.0
+func _enter_alcove(ax: float) -> void:
+	_alcove = ax
+	player.position.x = ax
+	run = 0.0
+	glide = 0.0
+	_up_spent = true
+	player.modulate = Color(ALCOVE_TONE, ALCOVE_TONE, ALCOVE_TONE * 1.05, 1.0)
+	sfx.play("step1", -8.0, ax, 0.1)
+
+
+func _leave_alcove() -> void:
+	_alcove = -1.0
+	player.modulate = Color.WHITE
+
+
 func _move(dir: float, aim: Vector2, delta: float) -> float:
 	if over:   # he is down: the fall (_drop) alone moves him now, nothing else pulls at the body
 		return 0.0
@@ -4956,6 +5004,17 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 		_up_spent = false
 	elif _up_spent:
 		_up_held = false
+	if _alcove >= 0.0:   # (rule 33) back in a doorway: still; any move along, down or a jump takes him out of it
+		if dir != 0.0 or duck_held or jump or move_state != "ground" or over:
+			_leave_alcove()
+		else:
+			dir = 0.0
+			run = 0.0
+	elif move_state == "ground" and _up_held and _section_at(player.position) < 0 and _ladder_foot() == null:
+		for ax in _alcoves:
+			if absf(float(ax) - player.position.x) < ALCOVE_REACH and absf(player.position.y) < 10.0:
+				_enter_alcove(float(ax))
+				break
 	var slide: bool = duck_held and not _duck_was   # a fresh press: out of a run that is a slide
 	_duck_was = duck_held
 	if hud.dive_tapped:   # the button always throws him into a dive; a slide is the stick pulled down in a run
@@ -5753,6 +5812,8 @@ func _show_ammo() -> void:
 ## One shot: flash, bullet (or a shotgun's pellets), casing, kick of the arm and the lettered bang.
 ## kind: the mobster's gun (post, tommy, shotgun); the detective fires whatever he holds.
 func _fire(shooter, from_player: bool, kind := "") -> void:
+	if from_player:
+		_alcove_shot = _time   # (out of a doorway he leans into the street to shoot)
 	if not from_player and shooter != player and not _same_floor(shooter):   # never from another floor
 		return
 	var at: Vector2 = shooter.muzzle()
@@ -7453,6 +7514,7 @@ func _build_city() -> void:
 		var x := float(cy[2])
 		if kind == "bldg":
 			_city_front(String(cy[1]), x, float(cy[3]), int(cy[4]), int(cy[5]), self, -6)
+			_city_alcoves(String(cy[1]), x, float(cy[3]), int(cy[4]))
 		elif kind == "gap":   # the alley between two fronts: its sky keyed out, the city's sky behind
 			var tex: Texture2D = BigTex.get_tex("res://art/city/%s.png" % String(cy[1]))
 			var k := float(cy[3]) / tex.get_width()
@@ -7477,6 +7539,23 @@ func _build_city() -> void:
 			sp.light_mask = 0
 			sp.modulate = Color(0.66, 0.66, 0.7, 1.0)   # (the drawing's iron is pale: down to the street's ink)
 			add_child(sp)
+
+
+## (rule 33, user 23. 11. "C": depth at points) The doorways drawn in a front's ground floor, where he can step back
+## out of the street: per module sheet the bay its door is in (0 the left one, 1 the middle ones) and where in the bay.
+const CITY_DOORS := {"brick": [0, 0.5], "pale": [0, 0.5], "walkup": [1, 0.79], "stone": [1, 0.8]}
+var _alcoves: Array = []          # world x of every doorway he can step into
+func _city_alcoves(style: String, x0: float, w: float, bays: int) -> void:
+	if not CITY_DOORS.has(style):
+		return
+	var d: Array = CITY_DOORS[style]
+	var n := maxi(bays, 2)
+	var bw := w / float(n)
+	if int(d[0]) == 0:
+		_alcoves.append(x0 + bw * float(d[1]))
+	else:
+		for j in range(1, n - 1):
+			_alcoves.append(x0 + bw * (j + float(d[1])))
 
 
 ## The modular city's front laid for the house in cross-section at x0 (its "house" entry), or [].
@@ -10218,6 +10297,8 @@ var _cov := [false, false]
 func _player_covered(side: float) -> bool:
 	if _cov_frame == Engine.get_process_frames():
 		return _cov[0 if side > 0.0 else 1]
+	if _alcove >= 0.0 and _time - _alcove_shot > ALCOVE_EXPOSE:
+		return true   # (rule 33) back in a doorway: the frame takes their rounds
 	if player.duck < 0.6 or move_state != "ground":
 		return false
 	for bx in boxes:
@@ -10869,6 +10950,8 @@ func _enemies(delta: float) -> void:
 		# always gets a beat to act first. A boss knows he is coming.
 		var sight: float = SIGHT * (0.6 if _in_dark(player.position.x) and not sets.lit(player.position + Vector2(0.0, -150.0)) and not _in_beam(player.position) else 1.0)
 		sight *= 1.0 - 0.6 * mapfx.fog   # in the fog off the river nobody sees far
+		if _alcove >= 0.0 and _time - _alcove_shot > ALCOVE_EXPOSE:
+			sight = minf(sight, ALCOVE_SEEN)   # (rule 33) in a doorway: only from close by
 		if absf(to_player.x) < sight and not e["seen"]:
 			if e["boss"]:
 				hud.boss_bar(BOSS_NAMES.get(String(level["boss"]), "BOSS"), 1.0)
@@ -11045,7 +11128,7 @@ func _sniper_aim(e: Dictionary, m, to_player: Vector2, delta: float) -> void:
 	line.points = PackedVector2Array([from, to])
 	line.default_color.a = clampf(1.25 - float(e["aim_t"]), 0.0, 0.85) * (0.6 + 0.4 * sin(_time * 30.0))
 	m.set_state(0.0, to_player, delta)
-	var lost: bool = over or cleared or not _can_see(m) or (_player_covered(signf(m.position.x - player.position.x)) and player.duck > 0.6)
+	var lost: bool = over or cleared or not _can_see(m) or (_player_covered(signf(m.position.x - player.position.x)) and (player.duck > 0.6 or _alcove >= 0.0))
 	if lost or float(e["aim_t"]) <= 0.0:
 		line.queue_free()
 		e.erase("line")

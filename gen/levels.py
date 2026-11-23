@@ -528,7 +528,7 @@ def chunk(name, hard, rng=None):
     elif name == "city_moves":   # (QUEUE §23, the playground's stations 3-4) the street's moves and fights in front of module
         # fronts: over a low crate in a run, into the crate stack and off it (the wall kick), the slide and the dive, down
         # behind cover, a red barrel among three of them, the trolley wire over a puddle
-        c = Chunk(12 * CITY_BAY)
+        c = Chunk(15 * CITY_BAY)
         for i, st in enumerate(("walkup", "pale", "stone", "brick")):
             c.city.append(["bldg", st, i * 3 * CITY_BAY, 3 * CITY_BAY, 3, 3 + i % 2])
         c.hint(300, "RUN AT THE LOW CRATE: OVER IT WITHOUT A JUMP")
@@ -542,7 +542,12 @@ def chunk(name, hard, rng=None):
         c.box("crate", 7300).box("barrel", 8060).foe(7920).foe(8240).foe(8350)
         c.hint(8900, "SHOOT THE INSULATOR")
         c.box("crate", 9300).thing("trolley", 10000).foe(10400).foe(10750, kind="tommy")
-        c.checks += [4500, 8800]
+        c.checks += [4500, 8800, 11900]
+        # (rule 33, station 5) back into a doorway (the brick front's, its left bay: main.gd CITY_DOORS): two of them up
+        # the street do not see him there - out of it, a shot, back in while they look for him
+        c.city.append(["bldg", "brick", 12 * CITY_BAY, 3 * CITY_BAY, 3, 4])
+        c.hint(11900, "STICK UP IN A DOORWAY TO STEP BACK INTO IT")
+        c.foe(12 * CITY_BAY + 1500).foe(12 * CITY_BAY + 2200, kind="shotgun")
     elif name == "stunts":   # SANDBOX STUNTS: the new moves in a few seconds - one storey, the flat right by the door,
         w = SEC_W            # kick its door in (a man behind it), out of its window to the street, the rope behind
         c = Chunk(w + 2600)
