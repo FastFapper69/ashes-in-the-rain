@@ -63,7 +63,7 @@ Užitečné testy (`--test=...`): `look:x@y,...`, `walkfrom:x[:up]`, `wash`, `do
 - **Každé trvalé rozhodnutí uživatele** -> SKILL.md §1 + kapitola, ve stejném commitu; denní postup -> [[HANDOFF]].
 - **Odpovědi**: česky, krátce, co je hotové + co se čeká; text ve hře anglicky; kresby jen z Gemini.
 
-## Paměť Clauda (kopie v trezoru, jen lokálně - repo je veřejné)
+## Paměť Clauda (`pamet/` = přímo jeho paměť, propojená složka; jen lokálně - repo je veřejné)
 - `pamet/MEMORY.md` a soubory v `pamet/` (originál: `C:/Users/super/.claude/projects/C--Users-super/memory`)
 
 ## Znalosti (stabilní pravidla)
