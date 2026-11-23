@@ -3,7 +3,16 @@
 ## Core Idea
 A story-driven noir told as an animated comic: narration over painted panels, between maps and interludes, with no plot holes. Full story lives in the claude.ai story doc (id in [[ch01-build-deploy|ch01]]) – read it before writing story.
 
-## Fixed facts
+## Story rework 23. 11. (valid now - read first)
+- The valid story and narration voice is [[Srdce-a-hlas]] (`pribeh/`), decisions and dropped ideas in [[pribeh-denik]]. Where the facts below disagree, that note wins.
+- Frank narrates to dead Eddie in the second person ("you") the whole game; five voice rules; one fate's joke a chapter; three silences (ring for Rosie, the signature, Rourke's back).
+- ONE fire (Pier 17, 1939). 1931 = memory of the fireman father only: no arson, no kerosene, Vail's tower is just a tower, Rosie / Tommy were not children carried out in 1931.
+- Rourke: handed Frank the envelope in 1939, ordered Eddie killed in 1947 (chapter III reveal, from Briggs). Finale as before (empty cylinder, one round).
+- ONE diary: in the prologue Eddie writes FRANK on a clean page and leaves the diary with Rosie; she keeps that last page until Frank tells her "I signed it". No notebook taken by the police. FRANK is a heading of a page left blank for Frank to write.
+- Eddie = reporter (Evening Ledger), smokes, never has matches, carries a ring for Rosie. Two symbols only: ash / snow, matches.
+- To build: prologue bubbles + panels, chapter I lines (table in the note), 7 new panels, cuts (notebook in the rain panel, kerosene / 1931 arson mentions, the tenement reveal in chapter III). Chapters II-IV lines are rewritten after the user has played chapter I.
+
+## Fixed facts (before 23. 11. - see above for what changed)
 - Title ASHES IN THE RAIN (formerly Ink & Lead). Hero **Frank Malone** (never renamed). Opens with an atmosphere intro on the world, then the prologue as Eddie (Frank's partner, overpowered tutorial) ending in an unwinnable shootout where Eddie dies; Frank takes over, weak.
 - Eddie wears a clearly different (short) coat. Rosie brings Eddie's diary (not the notebook the police took). Rourke (1931: holds young Frank, then drives him in cuffs). Bosses Mickey (club, in a suit), Kessler (harbor office), Briggs (police). Endings Snow / Ash (guilt) – two only.
 - **16. 11. decisions** (doc "ASHES IN THE RAIN – Dramaturgie a kapitola IV", id 6b27a135-4ad7-4136-ad82-a666cd08b246, tabs Dramaturgie + Řez domem a kamera): chapter IV = one night, Christmas Eve 21:00–2:10, 7 maps (Rooftops in the storm, Scaffold, The Ball, Service floors on fire with the knocking door, Elevator shaft, Penthouse, The Spire) + playable Rosie interlude. Vail's tower stands on the 1931 tenement site. Twist: Rourke carried the kerosene in 1931, took Frank in out of guilt. Rosie = one of the three Kowalczyk children Patrick carried out. Finale: Rourke fights, shows an empty cylinder, hands Frank one round; choice 1 shoot / lower the gun, choice 2 diary to Rosie (Snow, needs low ash + half the evidence) or burn it (Ash). Only two endings. Phone at 2:10 after the credits (DLC hook, not designed).

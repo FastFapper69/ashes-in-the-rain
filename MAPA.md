@@ -32,6 +32,7 @@ Pak krátce česky: co je rozdělané a na co se čeká od uživatele. Nic nepř
   markýza, kladka) potřebují nové moduly - tabulka v [[QUEUE_doma]] §23.
 - **Hloubka jen v bodech** (pravidlo 33, uživatel zvolil C 23. 11.): výklenek dveří hotový (stanoviště 4b na konci
   hřiště), bistro jako hala za výlohou (4c); další body: vstup do uličky, schování za auto.
+- **Příběh přepsaný** (23. 11., pravidlo 35): [[Srdce-a-hlas]] - Frank mluví k mrtvému Eddiemu, jeden požár, jeden deník. Do hry zatím nic: čeká prolog + repliky kapitoly I.
 - Komiksy až nakonec (paměť). Kapitoly I-III hratelné, staré mapy se po hřišti převedou na modulární město.
 
 ## Příkazy (Git Bash, z kořene repa)
@@ -72,4 +73,5 @@ Užitečné testy (`--test=...`): `look:x@y,...`, `walkfrom:x[:up]`, `wash`, `do
 - [[ch05-levels-maps]] · [[ch06-lights-fx]] · [[ch07-enemies-ai]] · [[ch08-player-progression]]
 - [[ch09-audio-voice]] · [[ch10-story-cutscenes]] · [[ch11-ui-hud]]
 - [[cheatsheet]] · [[glossary]] · [[patterns]]
+- příběh: [[Srdce-a-hlas]] (platný příběh a hlas vyprávění, 23. 11.) · [[pribeh-denik]] (rozhodnutí a zahozené nápady) · [[kapitola-II]] (návrh replik) - složka `pribeh/`, ladí se v samostatném chatu
 - další skilly: ashes-vyzkum (výzkum), mapy (pravidla map), ui-papir (UI), webapp-testing (web), [[CLAUDE]], [[PC_SETUP]]
