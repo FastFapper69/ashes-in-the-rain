@@ -20,7 +20,7 @@ V jedenácti mapách je schovaná jedna věc po jednom z nich: fotka, skříňka
 | 8 | Gus Lindqvist, 45 | korkový plovák na klíčích | Twenty years on the water and he couldn't swim. It wasn't the water that got him. |
 | 9 | Angelo Ricci, 38 | hrnec s poklicí, pořád v šatně | His wife sent soup for the whole committee that night. Eleven bowls. |
 | 10 | Dutch Hoffman, 50 | hlasovací lístek se slovem NO | He voted against the strike. He stayed with them anyway. |
-| 11 | Billy Shea, 29 | lístek na baseball, 15. srpna 1939 | A ticket to Ebbets Field for the next afternoon. The Dodgers lost. He'd have said that figured. |
+| 11 | Billy Shea, 29 | lístek na baseball na odpoledne 14. srpna 1939 | A ticket to Ebbets Field for that same afternoon. Somebody else sat in his seat. I hope they cheered. |
 
 ### Co se s nimi stane na konci
 
