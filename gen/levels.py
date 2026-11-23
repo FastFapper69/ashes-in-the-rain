@@ -121,6 +121,9 @@ CITY_FOOT = 64.0            # a front stands at the back of the pavement (main.g
 CITY_WIN = (300.0, 440.0, 150.0)   # an upper window: width, height, sill over its storey's floor line
 CITY_HOUSE_L = 440.0        # a house in cross-section's front starts this far left of its x0 (its door bay's middle at x0 + 60)
 CITY_GAP_W = 1340.0
+CITY_ROOF = -2464.0         # a three-storey front's roof: its cornice's top (CITY_FOOT + 3 x 700 + 300)
+ESCF_DECKS = (-788.0, -1466.0, -1971.0)   # the front fire escape's decks (art_src 358), its drop ladder's foot:
+ESCF_DROP = -377.0
 WORKS_G1, WORKS_G2, WORKS_LADDER, WORKS_DOOR_X = 1400.0, 1700.0, 1760.0, 1800.0   # the works hall (gen/works_template.py): the low gallery's end, the high one's start, the ladder         # the alley between two fronts (art/city/alley_gap.png at the front's scale)
 CITY_ESC_DEEP, CITY_ESC_STAIR, CITY_ESC_DROP, CITY_ESC_FOOT = 416.0, 270.0, 370.0, -310.0   # art_src 346 at 0.5682
 CITY_PULLEY = 520.0         # a washing line's pulley over a window: just over its lintel (501 over the floor in the house)
@@ -487,7 +490,7 @@ def chunk(name, hard, rng=None):
         c.city += [["bldg", "pale", -6000.0, 3 * CITY_BAY, 3, 3], ["bldg", "walkup", -3000.0, 3 * CITY_BAY, 3, 4],
                    ["bldg", "stone", 0.0, a_w, 3, 4], ["house", "brick", hx - CITY_HOUSE_L, wall - (hx - CITY_HOUSE_L), 4, 3],
                    ["escape", "escape_side", wall, -SEC_H * 2], ["gap", "alley_gap", gap_x, gap_w],
-                   ["house", "stone", b_x, b_w, 3, 3], ["bldg", "pale", c_x, 3 * CITY_BAY, 3, 4],
+                   ["house", "stone", b_x, b_w, 3, 3], ["bldg", "pale", c_x, 3 * CITY_BAY, 3, 3],
                    ["bldg", "walkup", c_x + 3 * CITY_BAY, 3 * CITY_BAY, 3, 3], ["bldg", "brick", c_x + 6 * CITY_BAY, 3 * CITY_BAY, 3, 4]]
         c.sections.append([hx, hx + SEC_W, 3, "tenement"])
         for k in (1, 2):
@@ -523,6 +526,21 @@ def chunk(name, hard, rng=None):
         c.foe(b_x + 1150, -SEC_H).foe(b_x + 900, kind="shotgun").foe(b_x + 1500)   # (the floor up to its street door, WORKS_DOOR)
         c.foe(b_x + 2300, -SEC_H * 2).foe(b_x + 2800, -SEC_H * 2, kind="tommy")
         c.foe(c_x + 1200, kind="tommy")
+        # (QUEUE §23 station 5, the roofs) from the works' high gallery up a ladder through its roof hatch onto the roofs:
+        # the works, the pale house and the walk-up are one height (three storeys + cornice: CITY_ROOF), the brick
+        # house after them a storey higher ends the run; down the walk-up's front fire escape (art_src 358, its third
+        # bay: decks, flights and ladders as measured - gen/roof_art.py)
+        rx1 = c_x + 6 * CITY_BAY
+        c.plat(b_x, CITY_ROOF, rx1 - b_x, "roof")
+        c.rope("ladder", b_x + 2600, CITY_ROOF, 0.0, -SEC_H * 2)
+        c.hint(b_x + 2300, "UP THE LADDER TO THE ROOFS")
+        ex = c_x + 5 * CITY_BAY
+        c.city.append(["fesc", "escape_front", ex])
+        for y in ESCF_DECKS:
+            c.plat(ex + 90, y, 820, "fescape")
+        c.ramps += [[ex + 280, ESCF_DECKS[0], ex + 720, ESCF_DECKS[1], "fescape"], [ex + 280, ESCF_DECKS[1], ex + 620, ESCF_DECKS[2], "fescape"]]
+        c.ropes += [["ladder", ex + 790, CITY_ROOF, 0.0, ESCF_DECKS[2], "drawn"], ["ladder", ex + 840, ESCF_DECKS[0], 0.0, ESCF_DROP, "drawn"]]
+        c.foe(b_x + 1600, CITY_ROOF).foe(c_x + 1400, CITY_ROOF, kind="shotgun").foe(c_x + 3600, CITY_ROOF)
         c.hint(hx - 600, "INTO THE HOUSE, UP THE STAIRS")
         c.hint(hx + SEC_FLAT_DOOR + 1100, "OUT OF THE WINDOW, RIDE THE LINE")
     elif name == "city_moves":   # (QUEUE §23, the playground's stations 3-4) the street's moves and fights in front of module

@@ -160,5 +160,17 @@ Why the painted-street + cut-house look failed (found 22. 11. on the user's phon
   crates of a hall stand only while he is in it. Cover in the diner: tables knocked on their side (art_src 356 ->
   art/props/table.png, BOX "table"). Bot: goes in at a hall's door when men are inside, never pushes up at a door it
   passes. Test `--test=walkfrom:40300:up --sandbox=2`.
+- **Roofs (playground station 5, 23. 11.)**: every module front gets its roof (art_src 357 -> art/city/roof_strip.png:
+  chimneys, a stair bulkhead, a line, vents, a skylight; its botched water tower cut off) behind its cornice
+  (`_city_roof`, ROOF_STRIP_K 1.294, ROOF_SINK 40). A run of roofs = one "roof" plat at CITY_ROOF -2464 over fronts of
+  the same height (3 storeys); a taller front is a wall to a man on a lower roof (`_city_tops`, only when his floor is
+  a roof: `_ground_y < -2200`). Up: the works' ladder from its high gallery through its roof hatch (a non-drawn ladder
+  in a hall shows only with the hall open: r["hall"]). Down: the stick down at a ladder's TOP takes it (`_ladder_top`,
+  `_take_ladder(r, true)`) - the front fire escape's gooseneck (art_src 358 -> art/city/escape_front.png, "fesc" city
+  entry, decks ESCF_DECKS -788/-1466/-1971, flights as ramps, drop ladder to -377; measured on the drawing). Not a jump
+  off four storeys (no fall damage exists, so logic must give the way down).
+- Fixes found by the roofs: men in one building took the stairs of another (`_stairs_toward` only his own house's);
+  a man who stepped out of a closed house stayed invisible for good (`sec_hid`); one going round came back past the
+  map's end (`_going_round` the other side); in a hall `_hall_in` must not be set from its roof.
 - Godot 4 canvas shader lesson: in `fragment()` COLOR already holds texture x modulate - multiplying by texture(TEXTURE)
   again squares it (the escape went black). Only touch `COLOR.a`.

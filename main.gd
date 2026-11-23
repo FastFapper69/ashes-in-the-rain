@@ -447,6 +447,7 @@ var _steps_above := 0.0       # s left of the camera looking up at steps on the 
 var _door_armed := true       # (the works door lets him out: not in the moment he came in by it)
 var _up_spent := false        # (the stick's push already used: for a door; let go of it first)
 var _up_held := false         # the stick up / the up arrow (ladders)
+var _bot_duck := false        # (the bot: the stick down, down a ladder from its top)
 var _bot_down := false        # (the bot, QUEUE §22) on his way back down from the works' high gallery
 var _sec_art: Array = []      # per building: its storeys' drawings, seen only from inside
 var _xy_checks: Array = []        # --test=mercy: its two men
@@ -3383,8 +3384,32 @@ func _auto_step(delta: float) -> void:
 				hud.up = true   # (23. 11.) the stick up at its foot: onto it (a jump would only hop)
 		elif not roof.is_empty() and player.position.y < float(roof["y"]) + 8.0 and not fight and move_state == "ground":
 			hud.move = -1.0   # along the roof the other way (once up on it, not on the last stair)
+		var roof_men := false
+		for e in enemies:
+			if e["alive"] and float(e["node"].position.y) < -2200.0 and level.has("city"):
+				roof_men = true
+		_bot_duck = false
+		if level.has("city") and not fight and not roof_men and _ground_y < -300.0 and _section_at(player.position) < 0 and move_state in ["ground", "climb"]:
+			if _ground_y < -2200.0 and move_state == "ground":   # the roofs done: to the fire escape's gooseneck, down it
+				for r in _ropes:
+					if r["kind"] == "ladder" and r.get("drawn", false) and absf(float(r["top"]) - _ground_y) < 40.0:
+						var gx: float = (r["a"] as Vector2).x
+						hud.move = 0.0 if absf(gx - player.position.x) < 25.0 else signf(gx - player.position.x)
+						_bot_duck = absf(gx - player.position.x) < 50.0
+			elif move_state == "climb":
+				_bot_duck = true   # (on down)
+				hud.up = false
+			else:
+				hud.move = -1.0   # on its decks: along to their end and down from deck to deck (a player takes its stairs)
 		var wk := _section_at(player.position)
-		if _works(wk) and not fight:   # (QUEUE §22) the works: up on a gallery at its far wall, back along it and down to the floor
+		if _works(wk) and not fight and roof_men and absf(_ground_y + 1400.0) < 10.0:   # men up on the roofs: the hatch
+			for r in _ropes:
+				if r["kind"] == "ladder" and r.has("hall") and int(r["hall"]) == wk:
+					var lx2: float = (r["a"] as Vector2).x
+					hud.move = 0.0 if absf(lx2 - player.position.x) < 30.0 else signf(lx2 - player.position.x)
+					hud.up = absf(lx2 - player.position.x) < 60.0 or move_state == "climb"
+					_bot_down = false
+		elif _works(wk) and not fight:   # (QUEUE §22) the works: up on a gallery at its far wall, back along it and down to the floor
 			if player.position.y < -60.0 and player.position.x > float((sections[wk] as Array)[1]) - 400.0 and move_state == "ground":
 				_bot_down = true
 			if _bot_down and player.position.y < -60.0:   # along it to its end, then straight down past the low one
@@ -3397,7 +3422,7 @@ func _auto_step(delta: float) -> void:
 			hud.move = -1.0
 		if near != null and absf(near.position.x - player.position.x) < 1900.0:
 			hud.fire_tapped = true
-		hud.duck = false   # (audit 18. 11., QUEUE §16 F) on the last train: down flat under a girder, as a player does on the red lamp
+		hud.duck = _bot_duck   # (audit 18. 11., QUEUE §16 F) on the last train: down flat under a girder, as a player does on the red lamp
 		if sets != null and sets._speed > 0.0 and move_state == "ground":
 			for bl in sets._beams_live:
 				var gx: float = (bl[0] as Node2D).position.x - player.position.x
@@ -3459,7 +3484,7 @@ func _auto_step(delta: float) -> void:
 				if e["alive"] and _section_at(e["node"].position) == wk2:
 					left_in = true
 			if not left_in:
-				var dx: float = _hall_door(wk2) + 200.0 - player.position.x
+				var dx: float = _hall_door(wk2) - 200.0 * signf(player.position.x - _hall_door(wk2)) - player.position.x   # (through it to its other side)
 				hud.move = signf(dx)   # (out through its door: just walking through it)
 		_bot_x = player.position.x
 		if ARGS.has("--trace") and fmod(_at, 0.25) < delta:
@@ -5093,6 +5118,8 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			_start_stairdoor(_stair_door_here())
 		elif can_act and _up_held and _ladder_foot() != null:   # (23. 11.) at a ladder's foot, the stick up: onto it
 			_take_ladder(_ladder_foot())
+		elif can_act and duck_held and absf(run) < 300.0 and _ladder_top() != null:   # (station 5) at its top, the stick down: onto it, down
+			_take_ladder(_ladder_top(), true)
 		elif can_act and jump:
 			move_state = "jump"
 			fall = -JUMP_SPEED
@@ -5399,6 +5426,15 @@ func _block(before_x: float) -> void:
 			player.position.x = maxf(player.position.x, float(sec[0]) + 70.0)
 	_flat_door_block(before_x)
 	_room_window_block(before_x)
+	if _ground_y < -2200.0 and level.has("city"):   # (station 5) up on a roof: a taller front next to it is its wall
+		for ct in _city_tops:
+			if player.position.y > float(ct[2]) + 20.0:
+				if before_x <= float(ct[0]) + 1.0 and player.position.x > float(ct[0]):
+					player.position.x = float(ct[0])
+					run = 0.0
+				elif before_x >= float(ct[1]) - 1.0 and player.position.x < float(ct[1]):
+					player.position.x = float(ct[1])
+					run = 0.0
 	if level.has("sealed"):   # (CARGO HOLD) the hold's forward bulkhead: the way he came in is the hatch up, not back
 		player.position.x = maxf(player.position.x, float(level["sealed"]))
 	for c in level["floors"]:   # a fire escape landing's railing (drawn at its outer end) stops him: no flying off it
@@ -7565,9 +7601,24 @@ func _build_city() -> void:
 	for cy in level.get("city", []):
 		var kind := String(cy[0])
 		var x := float(cy[2])
+		if kind in ["bldg", "house"]:
+			_city_roof(x, float(cy[3]), int(cy[5]))
+			_city_tops.append([x, x + float(cy[3]), -CITY_FOOT - (int(cy[5]) * CITY_STOREY + CITY_CORNICE)])
 		if kind == "bldg":
 			_city_front(String(cy[1]), x, float(cy[3]), int(cy[4]), int(cy[5]), self, -6)
 			_city_alcoves(String(cy[1]), x, float(cy[3]), int(cy[4]))
+		elif kind == "fesc":   # (station 5) a fire escape on a front, front-on (art_src 358 = a bay, 2464 high)
+			var ft: Texture2D = BigTex.get_tex("res://art/city/%s.png" % String(cy[1]))
+			var fk := (3 * CITY_STOREY + CITY_CORNICE) / ft.get_height()
+			var fs := Sprite2D.new()
+			fs.texture = ft
+			fs.centered = false
+			fs.scale = Vector2(fk, fk)
+			fs.position = Vector2(x, -CITY_FOOT - 3 * CITY_STOREY - CITY_CORNICE)
+			fs.z_index = -5
+			fs.light_mask = 0
+			fs.modulate = Color(0.66, 0.66, 0.7, 1.0)
+			add_child(fs)
 		elif kind == "gap":   # the alley between two fronts: its sky keyed out, the city's sky behind
 			var tex: Texture2D = BigTex.get_tex("res://art/city/%s.png" % String(cy[1]))
 			var k := float(cy[3]) / tex.get_width()
@@ -7622,6 +7673,31 @@ func _city_alcoves(style: String, x0: float, w: float, bays: int) -> void:
 		dark.visible = false
 		add_child(dark)
 		_alcoves.append({"x": float(x), "w": dw, "top": top, "sill": sill, "dark": dark})
+
+
+## (station 5) What stands on a front's flat roof (art_src 357: chimneys, a stair bulkhead, a line, vents, a skylight),
+## behind its cornice, at its own scale, every other roof the other way round.
+const ROOF_STRIP_K := 1.294       # art/city/roof_strip.png's px in the world (the layout's 3000 px roof)
+const ROOF_SINK := 40.0           # its tar edge hidden behind the cornice's top
+var _city_tops: Array = []        # [x0, x1, roof y] of every front: a taller one is a wall to a man on a lower roof
+var _roof_n := 0
+func _city_roof(x0: float, w: float, storeys: int) -> void:
+	var tex: Texture2D = BigTex.get_tex("res://art/city/roof_strip.png")
+	var sw := minf(tex.get_width() * ROOF_STRIP_K, w)
+	var sp := Sprite2D.new()
+	sp.texture = tex
+	sp.centered = false
+	sp.region_enabled = true
+	sp.region_rect = Rect2(0.0, 0.0, sw / ROOF_STRIP_K, tex.get_height())
+	sp.flip_h = _roof_n % 2 == 1
+	_roof_n += 1
+	sp.scale = Vector2.ONE * ROOF_STRIP_K
+	var top := -CITY_FOOT - (storeys * CITY_STOREY + CITY_CORNICE)
+	sp.position = Vector2(x0 + (w - sw) * 0.5, top - tex.get_height() * ROOF_STRIP_K + ROOF_SINK)
+	sp.z_index = -7
+	sp.light_mask = 0
+	sp.modulate = Color(CITY_TONE, CITY_TONE, CITY_TONE, 1.0)
+	add_child(sp)
 
 
 ## The modular city's front laid for the house in cross-section at x0 (its "house" entry), or [].
@@ -8404,7 +8480,7 @@ func _tick_works() -> void:
 			_door_armed = true   # (in by the door just now: out again once he let go of the stick or turned into the hall -
 			# not on the same push that took him in, user 23. 11.: a diagonal up-right went in and straight out)
 		var crossed: bool = (_works_px - door) * (px - door) <= 0.0 and _works_px != px
-		if px > x0 and px < float(sec[1]) and (_ground_y < -60.0 or move_state == "climb"):
+		if px > x0 and px < float(sec[1]) and (_ground_y < -60.0 or move_state == "climb") and player.position.y > -section_h * int(sec[2]) + 20.0:   # (not on its roof)
 			_hall_in = i   # up on a gallery or its ladder (a jump on the pavement in front is still the pavement)
 		elif _hall_in == i and _door_armed and player.position.y > -60.0 and _ground_y > -60.0 and move_state in ["ground", "slide", "dive"] \
 				and (crossed if String(sec[3]) == "works" else absf(px - door) < 40.0 and _move_dir * inward < 0.0):
@@ -8425,11 +8501,18 @@ func _tick_works() -> void:
 			_door_armed = false
 			_hall_since = _time
 	_works_px = px
+	for r in _ropes:
+		if r.has("hall") and r.has("line"):
+			(r["line"] as CanvasItem).visible = _hall_in == int(r["hall"])
 
 
 ## Inside: the facade dissolves from the door and the storeys show; outside it closes back over them.
 func _tick_sections(real: float) -> void:
 	_tick_works()
+	for e in enemies:   # (23. 11.) one who stepped out of a closed house is seen again (he stayed hidden for good: the playground's end)
+		if e.get("sec_hid", false) and e["alive"] and _section_at(e["node"].position) < 0:
+			e["sec_hid"] = false
+			e["node"].visible = true
 	var inside := _section_at(player.position)
 	for i in _sec_art.size():
 		var art: Dictionary = _sec_art[i]
@@ -8457,6 +8540,7 @@ func _tick_sections(real: float) -> void:
 		for e in enemies:   # whoever is inside is behind the facade until it opens: nobody floats in front of it
 			if e["state"] != "wait" and _section_at(e["node"].position) == i:
 				e["node"].visible = open > 0.3
+				e["sec_hid"] = open <= 0.3
 		# the storey he is on is lit, the others sink back; on the stairs the light goes up with him
 		var want := clampf(-player.position.y / section_h, 0.0, float(h.get_child_count() - 1)) if i == inside else float(art["lit"])
 		art["lit"] = lerpf(float(art["lit"]), want, 1.0 - exp(-6.0 * real))
@@ -10558,9 +10642,10 @@ func _stairs_toward(m) -> Array:
 	var way := signf(_ground_y - m.position.y)
 	if way == 0.0:
 		return []
+	var si := _section_at(m.position)
 	for d in _stairdoors:
-		if absf(float(d[1]) - m.position.y) < 12.0 and signf(float(d[2]) - float(d[1])) == way:
-			return d
+		if absf(float(d[1]) - m.position.y) < 12.0 and signf(float(d[2]) - float(d[1])) == way 				and (si < 0 or (float(d[0]) > float((sections[si] as Array)[0]) and float(d[0]) < float((sections[si] as Array)[1]))):
+			return d   # (23. 11.: the stairs of HIS house - men in the works ran off to the tenement's stairs next door)
 	return []
 
 
@@ -10857,6 +10942,8 @@ func _going_round(e: Dictionary, m, delta: float) -> void:
 		return
 	var half: float = get_viewport().get_visible_rect().size.x * 0.5 / cam.zoom.x
 	var x: float = player.position.x - side * (half + 250.0)
+	if x > level_end + 300.0 or x < -1200.0:   # (23. 11.: past the map's end he came back where nobody could find him) the other side
+		x = player.position.x + side * (half + 250.0)
 	m.position = Vector2(x, 0.0)
 	m.visible = true
 	e["state"] = "run"
@@ -11735,10 +11822,13 @@ func _add_rope(ro: Array) -> void:
 		sp.position = Vector2(x - LADDER_W * 0.5, top - LADDER_PROUD)
 		sp.z_index = -1
 		sp.modulate = Color(0.84, 0.82, 0.79)
-		sp.visible = not (_section_kit() and _section_at(Vector2(x, bottom - 10.0)) >= 0) and not (ro.size() > 5 and String(ro[5]) == "drawn")   # the drawing paints its own
+		sp.visible = not (_section_kit() and _section_at(Vector2(x, bottom - 10.0)) >= 0 and not _works(_section_at(Vector2(x, bottom - 10.0)))) and not (ro.size() > 5 and String(ro[5]) == "drawn")   # (a hall's ladder to its roof hatch is its own)   # the drawing paints its own
 		add_child(sp)
 		r["line"] = sp
 		r["drawn"] = ro.size() > 5 and String(ro[5]) == "drawn"
+		var lh := _section_at(Vector2(x, bottom - 10.0))
+		if _works(lh):
+			r["hall"] = lh   # (station 5: inside a hall, seen only with the hall open, _tick_works)
 	elif kind == "climb":   # knotted to the landing's rail, the end coiled on the stones
 		var x := float(ro[1])
 		r["a"] = Vector2(x, float(ro[2]) - 92.0)
@@ -11967,9 +12057,19 @@ func _ladder_foot():
 	return null
 
 
-func _take_ladder(r: Dictionary) -> void:
+## (station 5) The ladder whose top he stands at (off a roof down its hatch or a fire escape's gooseneck), or null.
+func _ladder_top():
+	for r in _ropes:
+		if r["kind"] == "ladder" and absf((r["a"] as Vector2).x - player.position.x) < 70.0 and absf(float(r["top"]) - player.position.y) < 40.0:
+			return r
+	return null
+
+
+func _take_ladder(r: Dictionary, from_top := false) -> void:
 	_rope = r
 	_hand = Vector2((r["a"] as Vector2).x, clampf(player.position.y - ROPE_REACH, (r["a"] as Vector2).y, (r["b"] as Vector2).y))
+	if from_top:   # hands on its top rungs, he lowers himself onto it
+		_hand.y = (r["a"] as Vector2).y + 40.0
 	_jump_buf = 0.0
 	move_state = "climb"
 	player.hang = 1.0

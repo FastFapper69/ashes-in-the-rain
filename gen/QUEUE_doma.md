@@ -343,7 +343,7 @@ se převedou na modulární město.
 | 4 | boj | červený sud, zóna trolejového drátu, skupiny za krytím | 23. 11. |
 | 4b | hloubka v bodech (pravidlo 33) | výklenek dveří: páčka nahoru = ustoupit z ulice, kryt, nevidí ho; dál ulička, obchod, auto | výklenek 23. 11. |
 | 4c | bistro (hala za výlohou) | páčka nahoru u dveří, boj mezi převrácenými stoly, ven do dveří | 23. 11. |
-| 5 | střechy | střecha modulového domu (římsa), běh po střechách, skoky mezi nimi, poklop dolů | čeká: moduly střech |
+| 5 | střechy | z tiskárny poklopem na střechy (3 domy, komíny), chlapi na nich, dolů požárním schodištěm (páčka dolů u horního konce žebříku) | 23. 11. |
 | 6 | lešení | patra prken, žebříky, cik-cak nahoru | čeká: lešení v modulární podobě |
 | 7 | markýza | odraz z markýzy na schodiště | čeká: markýza na modulu (walkup má diner) |
 | 8 | kladka a lano | houpání na laně ze skladu, přes zeď nákladu | čeká: sklad jako modul |
