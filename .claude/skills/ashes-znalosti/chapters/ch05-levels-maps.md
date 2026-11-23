@@ -118,6 +118,9 @@ Why the painted-street + cut-house look failed (found 22. 11. on the user's phon
   `PARTITION_X`); the door card is shut at `FLAT_YAW0` in its doorway (its free edge toward us) and kicked it swings on
   into the flat to ~90 degrees against the stove (`_kick_door`); `span` = the leaf as seen, for the block and the kick
   distance. The rooming kit (BACK STREETS) keeps its flat-on doorway and door. Check: `--test=doorkick`.
+  User 23. 11.: the knob on the free edge (`knob_free`: the card's texture mirrored), a quarter turn into the flat
+  (yaw0 - 90 degrees, square to the partition) and a slam there - BANG, dust, chips, shake, a small bounce; never a
+  rest pose on the far side of the hinge (the old one snapped to +FLAT_SWING and read as 180 degrees).
 - **A works across the alley** (QUEUE §22, user 22.-23. 11.): section style "works" = one open hall the height of its
   front (art_src 354 drawn by Gemini over gen/works_template.py's layout - galleries, ladder, floor at exact positions;
   give Gemini a layout sketch and it keeps it), its front the modular city's sheet, whole end walls (`tenement_side` x3).

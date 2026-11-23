@@ -7599,7 +7599,7 @@ func _build_flats() -> void:
 				turned = false
 		var yaw0 := FLAT_YAW0 if turned else 0.0
 		_flats.append({"x": float(fl[0]), "hinge": hinge, "y": y, "h": h, "door": door, "dw": dw, "open": false,
-				"yaw0": yaw0, "span": dw * cos(yaw0), "vh": h * (0.95 if turned else 1.0), "eye": 5600.0 if turned else DOOR_EYE,
+				"yaw0": yaw0, "span": dw * cos(yaw0), "knob_free": turned, "vh": h * (0.95 if turned else 1.0), "eye": 5600.0 if turned else DOOR_EYE,
 				"glass": glass, "gx": (wx0 + wx1) * 0.5, "wx0": wx0, "wx1": wx1, "sill": float(fl[5]), "lintel": float(fl[6]), "broken": false})
 		var has_escape := false   # the fire escape on the side: only where the map has its decks (not on a ground-floor flat)
 		for c in level["floors"]:
@@ -7684,7 +7684,8 @@ func _door_card(f: Dictionary, yaw: float, pitch: float, shift: Vector2) -> void
 			var z3 := z2 + x * sin(yaw)       # turning: the free edge goes back into the room
 			var k := eye / (eye - z3)
 			pts.append(foot + Vector2(x3 * k, y2 * k))
-			uvs.append(Vector2(u * tex.get_width(), v * tex.get_height()))
+			var uu := 1.0 - u if bool(f.get("knob_free", false)) else u   # (23. 11.) the knob on the free edge, the hinges on the hinge's
+			uvs.append(Vector2(uu * tex.get_width(), v * tex.get_height()))
 	var polys := []
 	for j in ny:
 		for i in nx:
@@ -7772,16 +7773,29 @@ func _kick_door(f: Dictionary, by_player := true) -> void:
 	else:     # round on its hinge into the flat, slammed against the stove, and left hanging there broken
 		var swing := func(a: float) -> void:
 			_door_card(f, a, 0.0, Vector2.ZERO)
-		# (22. 11.) in the turned partition it is shut at yaw0, its free edge toward us: kicked, it goes round its hinge on
-		# into the flat, the way he is going, and slams against the stove
+		# (22.-23. 11.) in the turned partition it is shut at yaw0, its free edge toward us: kicked, it goes a quarter turn
+		# round its hinge into the flat, square to the wall (user 23. 11.: "only 90 degrees"), and slams to a stop: a bang,
+		# dust off it, the picture shakes, it bounces back a little and settles (the old rest snapped it to +FLAT_SWING:
+		# the far way round, 180 degrees on the screen)
 		var y0 := float(f["yaw0"])
-		var y1 := FLAT_SWING if y0 == 0.0 else -FLAT_SWING
-		var back := 0.18 if y0 == 0.0 else -0.18
-		tw.tween_method(swing, y0, y1, 0.24).set_ease(Tween.EASE_IN)
+		var turned := y0 != 0.0
+		var y1 := y0 - PI * 0.5 if turned else FLAT_SWING
+		var back := -0.2 if turned else 0.18
+		tw.tween_method(swing, y0, y1, 0.2).set_ease(Tween.EASE_IN)
 		tw.tween_callback(func() -> void:
-			sfx.play("wood_hit", 0.0, float(f["hinge"]), 0.08))
-		tw.tween_method(swing, y1, y1 - back, 0.08)   # the bounce off the stove
-		tw.tween_method(swing, FLAT_SWING - 0.18, FLAT_SWING, 0.12)
+			var edge := Vector2(float(f["hinge"]) - float(f["dw"]) * cos(y1), float(f["y"]) - float(f["h"]) * 0.5)
+			sfx.play("wood_hit", 4.0 if turned else 0.0, edge.x, 0.08)
+			if turned:
+				sfx.play("door", -2.0, edge.x, 0.05)
+				_word(["bang"], edge + Vector2(30.0, -260.0), 0.2, Vector2.RIGHT)
+				fx.dust(Vector2(edge.x, float(f["y"])), 0.45)
+				fx.dust(edge, 0.3)
+				for k in 4:
+					fx.chip(edge + Vector2(randf_range(-20.0, 20.0), randf_range(-160.0, 160.0)))
+				_shake = maxf(_shake, 0.22)
+				_impact(0.05, 0.02))
+		tw.tween_method(swing, y1, y1 - back, 0.08).set_ease(Tween.EASE_OUT)   # the bounce off the stop
+		tw.tween_method(swing, y1 - back, y1, 0.14).set_ease(Tween.EASE_IN_OUT)
 		_door_knock(f, 260.0)   # only the man right behind it
 	for e in enemies:   # the rest: caught cold, a beat before they fire
 		if e["alive"] and absf(float(e["node"].position.y) - float(f["y"])) < 60.0 and e["node"].position.x > float(f["x"]):
