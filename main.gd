@@ -3223,7 +3223,7 @@ func _process(delta: float) -> void:
 		if ri >= 0:   # a room narrower than the screen: just close enough that its walls are the screen's edges
 			want_zoom = maxf(want_zoom, (get_viewport().get_visible_rect().size.x + 60.0) / (float(_room_art[ri][1]) - float(_room_art[ri][0])))
 	var rim := clampf((0.85 - Engine.time_scale) / 0.5, 0.0, 1.0) if not over else 0.0
-	player.set_rim(rim)
+	player.set_rim(rim if _alcove < 0.0 else 0.0)   # (rule 33: no bright contour in a dark doorway)
 	for e in enemies:   # (chapter I audit 18. 11.: black coats lost in dark doorways) a faint rim always, the full one in slowed time
 		if e["alive"] and is_instance_valid(e["node"]):
 			e["node"].set_rim(maxf(rim, 0.35))
@@ -3634,17 +3634,17 @@ func _auto_step(delta: float) -> void:
 			get_tree().quit()
 		return
 	elif _auto.begins_with("alcove"):   # --test=alcove[:shoot] (the playground): the last doorway, in with the stick up, the men up the street; :shoot - out, a shot, back
-		var ax: float = _alcoves[_alcoves.size() - 1] if _alcoves.size() > 0 else 0.0
+		var ax := 0.0
 		for a2 in _alcoves:
-			if absf(float(a2) - 36328.0) < absf(ax - 36328.0):
-				ax = float(a2)
+			if absf(float(a2["x"]) - _alc_want()) < absf(ax - _alc_want()):
+				ax = float(a2["x"])
 		if _auto_done & (1 << 21) == 0:
 			_auto_done |= 1 << 21
 			player.position = Vector2(ax - 250.0, 0.0)
 			_ground_y = 0.0
 		hud.move = 1.0 if _at > 0.5 and _at < 0.75 else 0.0
 		hud.up = _at > 0.8 and _at < 1.0
-		if _auto.ends_with(":shoot") and _at > 3.0 and _at < 3.1:
+		if ":shoot" in _auto and _at > 3.0 and _at < 3.1:
 			hud.fire_tapped = true
 		var ka := int(_at / 0.5)
 		if ka < 14 and _auto_done & (1 << ka) == 0 and _at > 0.6:
@@ -4967,20 +4967,34 @@ const ALCOVE_EXPOSE := 0.7      # s after his shot that he is out of the doorway
 const ALCOVE_SEEN := 380.0      # closer than this a man in the street sees him in it
 const ALCOVE_TONE := 0.5
 var _alcove := -1.0             # the doorway's x he stands in, or -1
+var _alcove_y := 0.0            # its threshold
+var _alcove_at: Dictionary = {}
 var _alcove_shot := -9.0
-func _enter_alcove(ax: float) -> void:
-	_alcove = ax
-	player.position.x = ax
+func _enter_alcove(al: Dictionary) -> void:
+	_alcove_at = al
+	_alcove = float(al["x"])
+	_alcove_y = float(al["sill"])
+	(al["dark"] as CanvasItem).visible = true   # the door goes in
 	run = 0.0
 	glide = 0.0
 	_up_spent = true
 	player.modulate = Color(ALCOVE_TONE, ALCOVE_TONE, ALCOVE_TONE * 1.05, 1.0)
-	sfx.play("step1", -8.0, ax, 0.1)
+	player.rim_line = Vector3(0.16, 0.16, 0.17)   # (no cream contour round him in the dark of the doorway)
+	player._rim = -1.0
+	player.set_rim(0.0)
+	sfx.play("door", -8.0, _alcove, 0.05)
 
 
 func _leave_alcove() -> void:
 	_alcove = -1.0
+	player.position = Vector2(player.position.x, 0.0)   # (down the steps onto the pavement)
+	_ground_y = 0.0
+	if not _alcove_at.is_empty():
+		(_alcove_at["dark"] as CanvasItem).visible = false
 	player.modulate = Color.WHITE
+	player.rim_line = Vector3(-1.0, 0.0, 0.0)
+	player._rim = -1.0
+	player.set_rim(0.0)
 
 
 func _move(dir: float, aim: Vector2, delta: float) -> float:
@@ -5011,10 +5025,14 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			dir = 0.0
 			run = 0.0
 	elif move_state == "ground" and _up_held and _section_at(player.position) < 0 and _ladder_foot() == null:
-		for ax in _alcoves:
-			if absf(float(ax) - player.position.x) < ALCOVE_REACH and absf(player.position.y) < 10.0:
-				_enter_alcove(float(ax))
+		for al in _alcoves:
+			if absf(float(al["x"]) - player.position.x) < ALCOVE_REACH and absf(player.position.y) < 10.0:
+				_enter_alcove(al)
 				break
+	if _alcove >= 0.0:   # up the steps and into the opening, then still in it
+		player.position = player.position.move_toward(Vector2(_alcove, _alcove_y), 520.0 * delta)
+		player.ground = 0.0
+		return 0.0
 	var slide: bool = duck_held and not _duck_was   # a fresh press: out of a run that is a slide
 	_duck_was = duck_held
 	if hud.dive_tapped:   # the button always throws him into a dive; a slide is the stick pulled down in a run
@@ -7541,21 +7559,34 @@ func _build_city() -> void:
 			add_child(sp)
 
 
-## (rule 33, user 23. 11. "C": depth at points) The doorways drawn in a front's ground floor, where he can step back
-## out of the street: per module sheet the bay its door is in (0 the left one, 1 the middle ones) and where in the bay.
-const CITY_DOORS := {"brick": [0, 0.5], "pale": [0, 0.5], "walkup": [1, 0.79], "stone": [1, 0.8]}
-var _alcoves: Array = []          # world x of every doorway he can step into
+## (rule 33, user 23. 11. "C": depth at points) The street doors drawn in a front's ground floor, which he can go in
+## at: per module sheet the bay its door is in (0 the left one, 1 the middle ones), its middle in the bay, its width,
+## the top of its opening and its threshold (sheet units, the ground row 0..700 from its top; measured on the sheets).
+## User 23. 11.: standing on the pavement in front of the steps he was "unseen" - nonsense. He goes up onto the
+## threshold, the door opens inward onto a dark hall, he stands IN the dark opening: only then is he hard to see.
+const CITY_DOORS := {"brick": [0, 0.5, 275.0, 102.0, 598.0], "pale": [0, 0.5, 275.0, 80.0, 598.0],
+		"walkup": [1, 0.796, 232.0, 233.0, 694.0], "stone": [1, 0.81, 207.0, 233.0, 685.0]}
+var _alcoves: Array = []          # every doorway: {"x", "w", "top", "sill" (world y of the threshold), "dark" (its opening)}
 func _city_alcoves(style: String, x0: float, w: float, bays: int) -> void:
 	if not CITY_DOORS.has(style):
 		return
 	var d: Array = CITY_DOORS[style]
 	var n := maxi(bays, 2)
 	var bw := w / float(n)
-	if int(d[0]) == 0:
-		_alcoves.append(x0 + bw * float(d[1]))
-	else:
-		for j in range(1, n - 1):
-			_alcoves.append(x0 + bw * (j + float(d[1])))
+	var sx := bw / 1000.0
+	var row := -CITY_FOOT - CITY_STOREY
+	var xs: Array = [x0 + bw * float(d[1])] if int(d[0]) == 0 else range(1, n - 1).map(func(j: int) -> float: return x0 + bw * (j + float(d[1])))
+	for x in xs:
+		var dw := float(d[2]) * sx
+		var top := row + float(d[3])
+		var sill := row + float(d[4])
+		var dark := Polygon2D.new()   # the door swung in: the hall behind it, dark, a little light from the street on its floor
+		dark.polygon = PackedVector2Array([Vector2(x - dw * 0.42, top + 14.0), Vector2(x + dw * 0.42, top + 14.0), Vector2(x + dw * 0.42, sill), Vector2(x - dw * 0.42, sill)])
+		dark.vertex_colors = PackedColorArray([Color(0.02, 0.02, 0.025), Color(0.02, 0.02, 0.025), Color(0.09, 0.09, 0.1), Color(0.09, 0.09, 0.1)])
+		dark.z_index = -5
+		dark.visible = false
+		add_child(dark)
+		_alcoves.append({"x": float(x), "w": dw, "top": top, "sill": sill, "dark": dark})
 
 
 ## The modular city's front laid for the house in cross-section at x0 (its "house" entry), or [].
@@ -12439,3 +12470,7 @@ func _shot(shot_name: String) -> void:
 	if img.save_png("res://_shots/" + shot_name + ".png") != OK:   # (an exported pack: res:// is read-only)
 		DirAccess.make_dir_recursive_absolute("user://_shots")
 		img.save_png("user://_shots/" + shot_name + ".png")
+
+
+func _alc_want() -> float:   # (--test=alcove[:shoot][@x]: the doorway nearest x, else the playground's last one)
+	return float(_auto.split("@")[1]) if "@" in _auto else 36328.0

@@ -55,6 +55,8 @@ Užitečné testy (`--test=...`): `look:x@y,...`, `walkfrom:x[:up]`, `wash`, `do
 - **Prohlížet jeden přehled** (`sheet.png`) místo desítky snímků; snímky vždy opravdu prohlédnout (pravidlo 1).
 - **Úpravy kódu**: nástroj Edit nebo python skript v souboru; ne heredoc s `\` na konci řádku (rozbil se 2x).
 - **GDScript**: u hodnot z `Dictionary`/`Array` psát typ (`var x: float = ...`) - `:=` z Variantu = parse error.
+- **Logika obrazu před mechanikou**: každý herní efekt (neviditelný, krytý, v bezpečí) musí být vidět PROČ - snímek
+  posoudit očima cizího hráče dřív, než to pošleš (23. 11. "stojí u schodů, jak ho můžou nevidět").
 - **Nejasná geometrie** (kam se otáčí dveře, kde je zeď): zeptat se s náhledem (AskUserQuestion), ne hádat.
 - **Před commitem/nasazením `git fetch`** (dva chaty), po nasazení počkat na LIVE (skript to dělá sám).
 - **Každé trvalé rozhodnutí uživatele** -> SKILL.md §1 + kapitola, ve stejném commitu; denní postup -> [[HANDOFF]].
