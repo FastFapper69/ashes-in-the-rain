@@ -16,3 +16,6 @@ __pycache__/
 .obsidian/workspace*.json
 .obsidian/cache
 .trash/
+
+# Claude memory copied into the vault for Obsidian: private, never pushed (gen/backup.sh)
+pamet/

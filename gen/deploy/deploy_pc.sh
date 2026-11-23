@@ -53,3 +53,5 @@ cd "$REPO" && git fetch -q origin && [ "$(git rev-parse HEAD)" = "$(git rev-pars
 grep -o '"executable":"ashes-[0-9a-f]*"' "$PAGES/index.html"
 
 [ -z "$NO_WAIT" ] && bash "$REPO/gen/deploy/wait_live.sh" || true   # (one command: deploy and confirm it is live)
+
+bash "$REPO/gen/backup.sh" "after deploy: $1"   # (user 23. 11.: back everything up, always)
