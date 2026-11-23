@@ -519,7 +519,7 @@ def chunk(name, hard, rng=None):
         c.rope("ladder", b_x + WORKS_LADDER, -SEC_H * 2, 0.0, 0.0)
         c.ropes[-1].append("drawn")
         c.xy_checks += [[b_x + 520, -SEC_H]]
-        c.hint(b_x + WORKS_DOOR_X - 500, "JUMP AT THE STREET DOOR TO GET OUT")
+        c.hint(b_x + WORKS_DOOR_X - 500, "STICK UP AT A DOOR TO GO IN")
         c.foe(b_x + 1150, -SEC_H).foe(b_x + 900, kind="shotgun").foe(b_x + 1500)   # (the floor up to its street door, WORKS_DOOR)
         c.foe(b_x + 2300, -SEC_H * 2).foe(b_x + 2800, -SEC_H * 2, kind="tommy")
         c.foe(c_x + 1200, kind="tommy")

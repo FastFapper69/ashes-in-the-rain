@@ -444,6 +444,8 @@ var _sd: Dictionary = {}       # on those stairs: where from, the door, where to
 var _storey_since := 0.0      # _ai_t when Frank came onto his storey of a building (the men on the stairs wait for it)
 var _storey_was := -1
 var _steps_above := 0.0       # s left of the camera looking up at steps on the storey above
+var _door_armed := true       # (the works door lets him out: not in the moment he came in by it)
+var _up_spent := false        # (the stick's push already used: for a door; let go of it first)
 var _up_held := false         # the stick up / the up arrow (ladders)
 var _bot_down := false        # (the bot, QUEUE §22) on his way back down from the works' high gallery
 var _sec_art: Array = []      # per building: its storeys' drawings, seen only from inside
@@ -3442,9 +3444,8 @@ func _auto_step(delta: float) -> void:
 				if e["alive"] and _section_at(e["node"].position) == wk2:
 					left_in = true
 			if not left_in:
-				var dx: float = float((sections[wk2] as Array)[0]) + WORKS_DOOR - player.position.x
-				hud.move = 0.0 if absf(dx) < 40.0 else signf(dx)
-				hud.jump_tapped = absf(dx) < 60.0 and move_state == "ground"
+				var dx: float = float((sections[wk2] as Array)[0]) + WORKS_DOOR + 200.0 - player.position.x
+				hud.move = signf(dx)   # (out through its door: just walking through it)
 		_bot_x = player.position.x
 		if ARGS.has("--trace") and fmod(_at, 0.25) < delta:
 			print("TRACE t %.2f x %d y %d st %s move %.0f ground %d fight %s lad %s near %s" % [_at, int(player.position.x), int(player.position.y), move_state, hud.move, int(_ground_y), fight, lad != null, str(near.position) if near != null else "-"])
@@ -4951,6 +4952,10 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 	var dive: bool = Input.is_physical_key_pressed(KEY_CTRL) or Input.is_physical_key_pressed(KEY_E)
 	var duck_held: bool = Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_C) or hud.duck or _demo_duck
 	_up_held = Input.is_physical_key_pressed(KEY_UP) or hud.up
+	if not _up_held:
+		_up_spent = false
+	elif _up_spent:
+		_up_held = false
 	var slide: bool = duck_held and not _duck_was   # a fresh press: out of a run that is a slide
 	_duck_was = duck_held
 	if hud.dive_tapped:   # the button always throws him into a dive; a slide is the stick pulled down in a run
@@ -4996,8 +5001,6 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			_start_stairdoor(_stair_door_here())
 		elif can_act and _up_held and _ladder_foot() != null:   # (23. 11.) at a ladder's foot, the stick up: onto it
 			_take_ladder(_ladder_foot())
-		elif can_act and jump and _works_door_here() >= 0:   # (QUEUE §22) the works' street door: out (or in)
-			_through_works_door(_works_door_here())
 		elif can_act and jump:
 			move_state = "jump"
 			fall = -JUMP_SPEED
@@ -8229,26 +8232,6 @@ func _section_at(p: Vector2, me := false) -> int:
 
 
 ## (QUEUE §22) In the works' hall or out in front of it: in from up high (its window), out by its street door.
-## The works' street door he stands at (its section), or -1: a jump there takes him out (or in).
-func _works_door_here() -> int:
-	for i in sections.size():
-		var sec: Array = sections[i]
-		if String(sec[3]) == "works" and player.position.y > -60.0 and absf(player.position.x - float(sec[0]) - WORKS_DOOR) < 90.0:
-			return i
-	return -1
-
-
-func _through_works_door(i: int) -> void:
-	var door := float((sections[i] as Array)[0]) + WORKS_DOOR
-	_works_out = not _works_out
-	(_sec_art[i]["ink"] as ShaderMaterial).set_shader_parameter("origin", Vector2(door, -210.0))
-	player.position.x = door + (60.0 if _works_out else -60.0)   # (out: a step on along the pavement; in: a step into the hall)
-	_works_px = player.position.x
-	run = 0.0
-	_jump_buf = 0.0
-	sfx.play("door", -6.0, door, 0.05)
-
-
 func _tick_works() -> void:
 	if _works_out != _works_boxes_out:   # (23. 11.) its floor's crates and drums stand in the hall, not on the pavement in front
 		_works_boxes_out = _works_out
@@ -8264,11 +8247,20 @@ func _tick_works() -> void:
 		var x0 := float(sec[0])
 		var px: float = player.position.x
 		var door := x0 + WORKS_DOOR
+		if not _works_out and absf(px - door) > 150.0:
+			_door_armed = true   # (in by the door just now: it lets him out only once he has been in the hall)
 		if px > x0 and px < float(sec[1]) and (_ground_y < -60.0 or move_state == "climb"):
 			_works_out = false   # up on a gallery or its ladder (a jump on the pavement in front is still the pavement)
-		elif _works_out and player.position.y > -60.0 and move_state in ["ground", "slide", "dive"] 				and (_works_px - door) * (px - door) <= 0.0 and _works_px != px:
-			_works_out = false   # (user 23. 11.) along the pavement into its door: in at the door, not before it
+		elif not _works_out and _door_armed and player.position.y > -60.0 and _ground_y > -60.0 and move_state in ["ground", "slide", "dive"] 				and (_works_px - door) * (px - door) <= 0.0 and _works_px != px:
+			_works_out = true   # (user 23. 11.: "there is no way on out of the works") out through its door, walking
 			(_sec_art[i]["ink"] as ShaderMaterial).set_shader_parameter("origin", Vector2(door, -210.0))
+		elif _works_out and _up_held and move_state == "ground" and absf(px - door) < 90.0:
+			_works_out = false   # in from the pavement: the stick up at its door, as onto a ladder (the pavement goes on
+			# past it - walking by is walking by, user 23. 11.: "it should switch where I go in at the door")
+			(_sec_art[i]["ink"] as ShaderMaterial).set_shader_parameter("origin", Vector2(door, -210.0))
+			sfx.play("door", -6.0, door, 0.05)
+			_up_spent = true   # (the same push of the stick does not take him on up the ladder beside the door)
+			_door_armed = false
 		_works_px = px
 
 

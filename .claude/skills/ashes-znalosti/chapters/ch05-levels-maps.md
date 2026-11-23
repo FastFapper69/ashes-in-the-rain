@@ -135,8 +135,8 @@ Why the painted-street + cut-house look failed (found 22. 11. on the user's phon
 - **Ladders and the works' door (rule 32, 23. 11.)**: `_ladder_foot` / `_take_ladder` (stick up at the foot), `_grab_rope`
   takes a ladder only with `_up_held`; on it v = 0 without the stick (the buffered jump is cleared on taking it, else
   he let go at once - the laundry's bot). The works: `_works_out` turns false only on its door crossed along the
-  pavement, a gallery stood on (`_ground_y`) or its ladder - never a jump in front; out by a jump at the door
-  (`_works_door_here`); its floor's crates are moved away while he is in front (`WORKS_AWAY`); its ladder is not taken
+  pavement, a gallery stood on (`_ground_y`) or its ladder - never a jump in front; in by the stick up at the door
+  (`_up_spent`: the push is used up), out by walking through it (`_door_armed` once he was 150 px into the hall); its floor's crates are moved away while he is in front (`WORKS_AWAY`); its ladder is not taken
   through the closed front. `_section_at(p, me)`: `me` for the player's own probes at another x. `--test=walkfrom:x[:up]`.
 - **The playground (QUEUE §23, user 23. 11.)**: SANDBOX 2 "PLAYGROUND" (menu tag TEST LAB / THE PLAYGROUND) = every
   mechanic station after station in the modular city ("plain": no paced men, "keep_barrel"); the stations' table and

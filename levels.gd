@@ -400,7 +400,7 @@ const SANDBOX := [
 			"intro": [], "outro": [],
 			"diary": "", "ash": 0.3, "embers": 0.0,
 			"events": [],
-			"hints": [[12482.6, "JUMP AT THE STREET DOOR TO GET OUT"], [5902.6, "INTO THE HOUSE, UP THE STAIRS"], [9380.6, "OUT OF THE WINDOW, RIDE THE LINE"], [24128.6, "RUN AT THE LOW CRATE: OVER IT WITHOUT A JUMP"], [25728.6, "JUMP INTO THE STACK, JUMP AGAIN TO KICK OFF IT"], [27428.6, "STICK DOWN IN A RUN TO SLIDE, THE DIVE BUTTON TO DIVE"], [28528.6, "STICK DOWN BEHIND COVER"], [30728.6, "SHOOT THE RED BARREL"], [32728.6, "SHOOT THE INSULATOR"]],
+			"hints": [[12482.6, "STICK UP AT A DOOR TO GO IN"], [5902.6, "INTO THE HOUSE, UP THE STAIRS"], [9380.6, "OUT OF THE WINDOW, RIDE THE LINE"], [24128.6, "RUN AT THE LOW CRATE: OVER IT WITHOUT A JUMP"], [25728.6, "JUMP INTO THE STACK, JUMP AGAIN TO KICK OFF IT"], [27428.6, "STICK DOWN IN A RUN TO SLIDE, THE DIVE BUTTON TO DIVE"], [28528.6, "STICK DOWN BEHIND COVER"], [30728.6, "SHOOT THE RED BARREL"], [32728.6, "SHOOT THE INSULATOR"]],
 			"boxes": [["crate", 7952.6, 250.0, 248.0, 0.0], ["crate", 12292.6, 250.0, 248.0, 0.0], ["drum", 15082.6, 160.0, 246.0, 0.0], ["crate_long", 24828.6, 330.0, 176.0, 0.0], ["stack", 26528.6, 330.0, 393.0, 0.0], ["crate", 29128.6, 250.0, 248.0, 0.0], ["crate", 31128.6, 250.0, 248.0, 0.0], ["barrel", 31888.6, 120.0, 170.0, 0.0], ["crate", 33128.6, 250.0, 248.0, 0.0], ["crate", 36365.7, 250.0, 248.0, 0.0], ["drum", 36925.7, 160.0, 246.0, 0.0]],
 			"floors": [[6502.6, -700.0, 3370.0, "section"], [6502.6, -1400.0, 3370.0, "section"], [9842.6, -700.0, 416.0, "fescape"], [9842.6, -1400.0, 416.0, "fescape"], [11182.6, -700.0, 1400.0, "section"], [12882.6, -1400.0, 1300.0, "section"]],
 			"ramps": [],
