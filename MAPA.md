@@ -73,5 +73,5 @@ Užitečné testy (`--test=...`): `look:x@y,...`, `walkfrom:x[:up]`, `wash`, `do
 - [[ch05-levels-maps]] · [[ch06-lights-fx]] · [[ch07-enemies-ai]] · [[ch08-player-progression]]
 - [[ch09-audio-voice]] · [[ch10-story-cutscenes]] · [[ch11-ui-hud]]
 - [[cheatsheet]] · [[glossary]] · [[patterns]]
-- příběh: [[Srdce-a-hlas]] (platný příběh a hlas vyprávění, 23. 11.) · [[pribeh-denik]] (rozhodnutí a zahozené nápady) - složka `pribeh/`, ladí se v samostatném chatu
+- příběh: [[Srdce-a-hlas]] (platný příběh a hlas vyprávění, 23. 11.) · [[pribeh-denik]] (rozhodnutí a zahozené nápady) · [[kapitola-II]] (návrh replik) - složka `pribeh/`, ladí se v samostatném chatu
 - další skilly: ashes-vyzkum (výzkum), mapy (pravidla map), ui-papir (UI), webapp-testing (web), [[CLAUDE]], [[PC_SETUP]]

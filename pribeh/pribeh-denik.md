@@ -32,4 +32,4 @@ Příběh se ladí v samostatném chatu (claude.ai), vývoj běží v Claude Cod
 **Další kroky:**
 1. Prolog a kapitola I do hry s dočasným hlasem (Claude Code).
 2. Uživatel si je zahraje a řekne, jestli z toho něco cítí.
-3. Přepsat stejným hlasem kapitoly II až IV a mezihry.
+3. Přepsat stejným hlasem kapitoly II až IV a mezihry. Kapitola II je napsaná jako návrh: [[kapitola-II]] (čeká na souhlas uživatele).
