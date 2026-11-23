@@ -673,6 +673,19 @@ func _title() -> void:
 	_page.add_child(lab)
 	Paper.write(lab, "TEST LAB", _font_head, 22, CRIMSON, HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0, 1, 0.5), 6.0)
 	Paper.write(lab, "THE PLAYGROUND", _font_type, 16, INK, HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0.5, 1, 0.5), 6.0)
+	# (23. 11., pribeh/pravidla-map step 4) the grey build of the map being designed: modules only, for the user's phone
+	var grey: Control = Paper.button("tag", Vector2(250.0, 104.0), _open_grey, sound)
+	grey.position = Vector2(view.x - M - grey.size.x, lab.position.y - GAP - grey.size.y)
+	grey.rotation = deg_to_rad(0.8)
+	_page.add_child(grey)
+	Paper.write(grey, "GREY BUILD", _font_head, 22, CRIMSON, HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0, 1, 0.5), 6.0)
+	Paper.write(grey, "THE PROLOGUE", _font_type, 16, INK, HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0.5, 1, 0.5), 6.0)
+
+
+const GREY_MAP := 3   # the grey build the GREY BUILD tag opens (levels.gd SANDBOX)
+func _open_grey() -> void:
+	load("res://main.gd")._url_sandbox = GREY_MAP
+	play.call(0, 0)
 
 
 const LAB_MAP := 2   # the trial map the TEST LAB tag opens

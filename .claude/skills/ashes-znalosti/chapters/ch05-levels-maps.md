@@ -172,5 +172,13 @@ Why the painted-street + cut-house look failed (found 22. 11. on the user's phon
 - Fixes found by the roofs: men in one building took the stairs of another (`_stairs_toward` only his own house's);
   a man who stepped out of a closed house stayed invisible for good (`sec_hid`); one going round came back past the
   map's end (`_going_round` the other side); in a hall `_hall_in` must not be set from its roof.
+- **Story maps and grey builds (23. 11., pribeh/pravidla-map)**: a map is designed as a blockout (pribeh/blockout/*.json
+  + card), reviewed in the card's "Poznámky Claude Code", then built grey (modules only) as a SANDBOX map and played by
+  the user from the menu tag GREY BUILD (menu.gd GREY_MAP). Tools: chunk `.say(x, text)` -> level "says" (the hero's
+  line over his head, `_tick_think`: follows him, queued, two lines over 34 chars, once per run - `_said_i` survives a
+  death); chunk `.calm += [[x0, x1]]` -> level "calm" (he walks: `_calm_k` 0.4); SANDBOX key "chapter" (0 = played as
+  Eddie). Sizes: he runs 640 px/s - a blockout's seconds must be checked against px (15 k px is 24 s of running);
+  user 23. 11.: about twice the blockout's content, not three times. A washing line runs DOWN: it cannot end on a roof.
+  The party-wall pier (`_party_walls`, art_src 359) is built but off (`PARTY_ON`) until the grey builds are through.
 - Godot 4 canvas shader lesson: in `fragment()` COLOR already holds texture x modulate - multiplying by texture(TEXTURE)
   again squares it (the escape went black). Only touch `COLOR.a`.

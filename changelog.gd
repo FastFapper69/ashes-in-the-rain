@@ -5,6 +5,7 @@ extends RefCounted
 
 const ENTRIES := [
 	["23 NOV 2026", [
+		"Grey build of the new prologue (title tag GREY BUILD): Eddie's walk to the Blue Note with his lines over his head, calm stretches walked",
 		"Playground: up the printing works' roof hatch, across the roofs among chimneys, down the fire escape - push the stick down at the top of a ladder",
 		"Men no longer run off to the stairs of the house next door, nor stay invisible after stepping out of one",
 		"Playground: a diner behind a shopfront - push the stick up at its door, fight among the tables they knocked over, walk out the door",

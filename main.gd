@@ -791,6 +791,9 @@ func _ready() -> void:
 	if "--test=packfail" in ARGS and not in_menu:   # the caption and buttons of a failed pack
 		_fetch_pack()
 		return
+	if _sandbox >= 0:   # (a trial map may be another chapter's: the grey prologue is Eddie's)
+		chapter = int((Levels.SANDBOX[0]["maps"][_sandbox] as Dictionary).get("chapter", 1))
+		map = 0
 	var ch: Dictionary = Levels.CAMPAIGN[chapter]
 	level = ch["maps"][map]
 	if _sandbox >= 0:
@@ -819,6 +822,8 @@ func _ready() -> void:
 		_ground_cp = -1.0
 	if checkpoint < 0.0 or String(_cp_keep.get("map", "")) != "%d:%d" % [chapter, map]:
 		_cp_keep = {}
+	if checkpoint < 0.0:
+		_said_i = 0   # (the map from its start: his lines again; after a death at a checkpoint not)
 	if in_menu:
 		_cut_seen = ""
 	checkpoint_map = "%d:%d" % [chapter, map]
@@ -5156,7 +5161,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 	if move_state == "ground":
 		var crouched: bool = duck_held and player.dive < 0.05 and _pop == 0.0
 		player.duck = move_toward(player.duck, 1.0 if crouched else 0.0, delta * (11.0 if crouched else 10.0))
-		run = move_toward(run, dir * RUN_SPEED * (1.0 - player.dive) * (1.0 - 0.62 * player.duck) * _wading(player.position.y), RUN_ACCEL * delta)
+		run = move_toward(run, dir * RUN_SPEED * _calm_k() * (1.0 - player.dive) * (1.0 - 0.62 * player.duck) * _wading(player.position.y), RUN_ACCEL * delta)
 		var on_bar := _last_kind == "floor" and _last_floor_style == "bar"
 		glide = move_toward(glide, 0.0, delta * (220.0 if on_bar else 1500.0))    # landed flat, he skids along the wet stones a while (along a bar: all the way)
 		if on_bar and absf(glide) > 400.0:
@@ -7088,6 +7093,11 @@ func _map_events(delta: float) -> void:
 		if float(cps[_check_i]) > checkpoint and not over and checkpoint_y >= 0.0:
 			_take_checkpoint(float(cps[_check_i]), 0.0, not _win_landing)   # (no toast over a stunt in mid air)
 		_check_i += 1
+	var says: Array = level.get("says", [])   # (story maps) the hero's lines by place: once, not again after a death
+	while _said_i < says.size() and player.position.x > float(says[_said_i][0]):
+		_think_q.append(String(says[_said_i][1]))
+		_said_i += 1
+	_tick_think(delta)
 	var hints: Array = level["hints"]
 	while _hint_i < hints.size() and player.position.x > float(hints[_hint_i][0]):
 		if _auto == "" or _auto == "play" or _auto == "hint":
@@ -7685,7 +7695,10 @@ const PARTY_K := 600.0 / 496.0     # art/city/party_wall.png's px in the world (
 const PARTY_TOP := 120.0           # from the picture's top to the roof (coping 60 over it)
 const PARTY_HALF := 190.0          # half the pier's brick body (its coping a little wider)
 var _party_faces: Array = []       # [joint x, half width, the lower roof's side (-1 left, +1 right)]
+const PARTY_ON := false           # (user 23. 11.: wait with it until the grey builds are through)
 func _party_walls() -> void:
+	if not PARTY_ON:
+		return
 	var fronts: Array = []
 	for cy in level.get("city", []):
 		if String(cy[0]) in ["bldg", "house"]:
@@ -10271,6 +10284,60 @@ func _witness(dead: Dictionary, dm) -> void:
 		if who["alive"] and who["state"] != "give":
 			_bark(who["node"], "lead_down" if dead.get("role", "") == "lead" else "down", String(dead.get("name", "")), true)
 			who["cool"] = minf(float(who["cool"]), 0.7))
+
+
+## (story maps, pribeh/pravidla-map) The hero's own line: lettered over his head, goes with him, one at a time, long
+## enough to read; lines by place wait their turn.
+static var _said_i := 0
+var _think_q: Array = []
+var _think_l: Label = null
+var _think_t := 0.0
+var _think_w := 0.0
+func _tick_think(delta: float) -> void:
+	if _think_l == null:
+		if _think_q.is_empty() or over:
+			return
+		var text := String(_think_q.pop_front())
+		if _auto != "":
+			print("THINK ", text, " at ", int(player.position.x))
+		if text.length() > 34:   # two lines, broken at the space nearest the middle
+			var mid := text.length() / 2
+			var cut := -1
+			for i in text.length():
+				if text[i] == " " and (cut < 0 or absi(i - mid) < absi(cut - mid)):
+					cut = i
+			if cut > 0:
+				text = text.substr(0, cut) + "\n" + text.substr(cut + 1)
+		var l := Label.new()
+		l.text = text
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		l.add_theme_font_override("font", load("res://fonts/ComicNeue-BoldItalic.woff"))
+		l.add_theme_font_size_override("font_size", 64)
+		l.add_theme_color_override("font_color", Color(0.95, 0.92, 0.85) * Color(_undo_night(0.5), 1.0))
+		l.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+		l.add_theme_constant_override("outline_size", 12)
+		l.z_index = 20
+		add_child(l)
+		_think_l = l
+		_think_w = 0.0
+		for part in text.split("\n"):
+			_think_w = maxf(_think_w, l.get_theme_font("font").get_string_size(part, HORIZONTAL_ALIGNMENT_LEFT, -1, 64).x)
+		_think_t = 1.4 + 0.055 * text.length()
+	_think_t -= delta
+	var lines := _think_l.text.count("\n") + 1
+	_think_l.position = player.position + Vector2(-_think_w * 0.5, -610.0 - 78.0 * lines)
+	_think_l.modulate.a = clampf(_think_t / 0.3, 0.0, 1.0)
+	if _think_t <= 0.0:
+		_think_l.queue_free()
+		_think_l = null
+
+
+## (story maps) A calm stretch: he walks, he does not run (level "calm": [[x0, x1]]), unless somebody is after him.
+func _calm_k() -> float:
+	for c in level.get("calm", []):
+		if player.position.x > float(c[0]) and player.position.x < float(c[1]):
+			return 0.4
+	return 1.0
 
 
 func _say(m, text: String) -> void:

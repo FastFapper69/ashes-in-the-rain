@@ -160,3 +160,14 @@ Posouzeno 23. 11. 2026 proti hře, jak je teď (bot: dnešní THE ALLEY 27 tis. 
 
 ### Co ještě nesedí ve výtvarnu (uživatel 23. 11.)
 - Napojení dvou domů u střech, trolej a kanál, které nesedí na zem a zeď. Rozpracovaný je pilíř mezi domy (není nasazený). Dokud to není vyřešené, šedá verze je správný krok: kresby až potom.
+
+### Rozhodnutí uživatele 23. 11.
+- Délka: zhruba jednou tolik obsahu než v kartě, ne třikrát.
+- Šňůra a střecha: „vymysli něco, co dává smysl“. Návrh Claude Code pro úseky 6 až 9:
+  1. **6 Domem nahoru** do bytu ve 2. patře, kop do dveří.
+  2. **7 Šňůra**: z okna bytu na požární schodiště a po šňůře přes uličku; dva muži dole ve zpomalení. Šňůra končí u okna 1. patra domu naproti a Frank jím proletí.
+  3. **7b Půda naproti** (ticho, nový krátký úsek): prázdný sklad nebo sušárna, nikdo tam není, jen rozbité sklo a žebřík k poklopu. Nádech.
+  4. **8 Na střeše**: poklopem ven, výhled, dole světla auta, které odjíždí na východ.
+  5. **9 Dolů**: po požárním schodišti na průčelí (páčka dolů u žebříku), vrchol začne na chodníku.
+- Výtvarno (napojení domů u střech, trolej, kanál) počká, dokud neprojdou šedé verze.
+

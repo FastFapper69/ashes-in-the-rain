@@ -161,3 +161,10 @@ Posouzeno 23. 11. 2026 proti hře, jak je teď (běh 640 px/s, bot: dnešní pro
 ### Šedá verze, co k ní potřebuju
 - Jde postavit z hotových modulů (4 průčelí, ulička, bedny, sud, auto, holubi, poslední boj). Blue Note jako průčelí zatím není: v šedé verzi dům s cedulí.
 - Odhad práce: klidné úseky + bubliny podle místa + Eddie na hřišti + rozložení úseků.
+
+### Rozhodnutí uživatele 23. 11. a šedá verze
+- Délka: „delší mapy, třeba jednou tolik, ne třikrát, a uvidíme“. Šedý prolog má 30 tis. px (blockout 15,4), 21 mužů + poslední boj.
+- **Šedá verze je postavená**: hřiště č. 3 „PROLOGUE GREY“, v menu štítek GREY BUILD / THE PROLOGUE, hraje se za Eddieho. Bot dojde k poslednímu boji za 84 s; člověk odhadem 3 až 4 minuty + poslední boj.
+- Je v ní: 8 úseků podle karty, klidné úseky krokem (1, 2, 7, 8), Eddieho věty nad hlavou podle místa (jdou s ním, jedna po druhé, po smrti se neopakují), 6 nápověd tutoriálu, sud, auto, které přijede a vysype tři muže, poslední boj.
+- Není v ní (čeká na rozhodnutí po zahrání): animace kapes a sirek, stánek, průčelí Blue Note a garáže, tři auta z obou stran, tep místo hudby, klavír, holubi na římse, změna domů „za rohem“.
+

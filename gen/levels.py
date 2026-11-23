@@ -163,6 +163,7 @@ class Chunk:
         self.w = width
         self.boxes, self.plats, self.ramps, self.rooms, self.lamps = [], [], [], [], []
         self.enemies, self.pickups, self.hints, self.checks = [], [], [], []
+        self.says, self.calm = [], []   # (story maps) the hero's lines by place [x, text]; calm stretches [x0, x1]: he walks
         self.stand = None
         self.end = 0.0
         self.street = []
@@ -197,6 +198,7 @@ class Chunk:
     def lamp(self, x, y=-760.0): self.lamps.append([x, y]); return self
     def pick(self, kind, x, y=0.0): self.pickups.append([kind, x, y]); return self
     def hint(self, x, text): self.hints.append([x, text]); return self
+    def say(self, x, text): self.says.append([x, text]); return self
     # Ropes (main.gd _ropes): "climb" from a landing's rail at (x, y0) down to the street; "zip" a cable from the
     # roof that passes over a landing at (x0, y0) and is made fast at the street at (x1, 0); "swing" a rope from a
     # crane jib out of the picture, hanging at x.
@@ -534,7 +536,7 @@ def chunk(name, hard, rng=None):
         c.plat(b_x, CITY_ROOF, rx1 - b_x, "roof")
         c.rope("ladder", b_x + 2600, CITY_ROOF, 0.0, -SEC_H * 2)
         c.hint(b_x + 2300, "UP THE LADDER TO THE ROOFS")
-        ex = c_x + 5 * CITY_BAY - 300   # (clear of the firewall pier over the joint with the brick house: main.gd PARTY_HALF)
+        ex = c_x + 5 * CITY_BAY
         c.city.append(["fesc", "escape_front", ex])
         for y in ESCF_DECKS:
             c.plat(ex + 90, y, 820, "fescape")
@@ -574,6 +576,40 @@ def chunk(name, hard, rng=None):
         c.hint(sx - 500, "STICK UP AT THE DINER'S DOOR TO GO IN")
         c.box("table", sx + 600).box("table", sx + 1250)
         c.foe(sx + 350).foe(sx + 950, kind="shotgun").foe(sx + 1450)
+    elif name == "prologue_grey":   # (pribeh/blockout/prolog.json, the grey build: modules only, no new art) Eddie's
+        # walk round the block to the back of the Blue Note - about twice the blockout's length (user 23. 11.: "longer maps,
+        # say once again as much, and we'll see"); calm stretches walked, his lines by place
+        c = Chunk(26000)
+        for i, st in enumerate(("walkup", "pale", "stone", "brick", "walkup", "stone", "pale", "brick", "stone")):
+            c.city.append(["bldg", st, i * 3 * CITY_BAY - 1500, 3 * CITY_BAY, 3, 3 + (i * 2) % 3 // 2])
+        c.calm += [[0, 4600], [20500, 26000]]
+        c.hint(200, "DRAG THE STICK TO MOVE")                                             # 1 out of the club into the rain
+        c.say(500, "No matches. Frank always has the matches.")
+        c.say(1700, "Left the book with Rosie. Good. One less thing to bleed on.")
+        c.say(3000, "Frank. I found something in the Pier 17 file.")                      # 2 he rehearses it
+        c.say(4000, "No.")
+        c.hint(4700, "TAP ANYWHERE TO SHOOT THERE")                                       # 3 the first of them
+        c.box("crate", 5600).foe(6100).foe(6500)
+        c.hint(6800, "PULL THE STICK DOWN TO HIDE BEHIND COVER")
+        c.box("crate", 7200).foe(7700).foe(7950)
+        c.say(8250, "Still there.")
+        c.hint(8500, "THE RUNNING MAN BUTTON DIVES OVER CRATES")                          # 4 crates before the grocer's
+        c.box("crate_long", 9000).foe(9500).box("crate", 9900).foe(10350).foe(10550)
+        c.box("drum", 10900).foe(11300).box("crate", 11600).foe(11950).foe(12150)
+        c.say(12400, "Lieutenant, you want the bad news or the worse news?")
+        c.say(12850, "He'll hit me. I'd hit me.")
+        c.hint(13000, "SHOOT THE RED BARREL")                                             # 5 the garage's fuel drum
+        c.box("crate", 13500).box("barrel", 14260).foe(14120).foe(14440).foe(14550)
+        c.box("crate", 15200).foe(15650).foe(15850)
+        c.hint(16200, "TAP THE STOPWATCH TO SLOW TIME")                                   # 6 a car across the street
+        c.box("crate", 16800).event("car", 16500, 18300, 1, 3)
+        c.foe(19000).box("drum", 19350).foe(19600).foe(19850)
+        c.say(20350, "Still there. Rosie, you're marrying an idiot.")
+        c.say(21100, "Frank, I know what you signed.")                                    # 7 the quiet street
+        c.say(22100, "I know what it cost you. I'm not printing it.")
+        c.say(23600, "That's the one. Say it like that.")
+        c.say(25200, "Half past one. I'm early.")                                         # 8 nobody behind the club
+        c.checks += [4500, 12600, 16000, 24400]
     elif name == "stunts":   # SANDBOX STUNTS: the new moves in a few seconds - one storey, the flat right by the door,
         w = SEC_W            # kick its door in (a man behind it), out of its window to the street, the rope behind
         c = Chunk(w + 2600)
@@ -1089,6 +1125,8 @@ def _build(mp, nudge):
         for k, px, py in c.pickups: out.pickups.append([k, x + px, py])
         for k, a, b, cc, d, *rest in c.ropes: out.ropes.append([k, x + a, b, x + cc if k in ("zip", "wash") else cc, d] + rest)
         for hx, t in c.hints: out.hints.append([x + hx, t])
+        for hx, t in c.says: out.says.append([x + hx, t])
+        for a, b in c.calm: out.calm.append([x + a, x + b])
         for ev in c.events:
             ev = list(ev)
             if ev[0] == "car": ev[1] += x; ev[2] += x
@@ -1578,7 +1616,7 @@ def shift_from(m, lim, d):
             for i in idx:
                 if i < len(o) and num(o[i]) and o[i] >= lim:
                     o[i] += d
-    mv(m.boxes, 1); mv(m.pickups, 1); mv(m.things, 1); mv(m.hints, 0); mv(m.lamps, 0); mv(m.plats, 0)
+    mv(m.boxes, 1); mv(m.pickups, 1); mv(m.things, 1); mv(m.hints, 0); mv(m.says, 0); mv(m.calm, 0, 1); mv(m.lamps, 0); mv(m.plats, 0)
     mv(m.ramps, 0, 2); mv(m.rooms, 0, 1); mv(m.sections, 0, 1); mv(m.flats, 0, 3, 4); mv(m.stairdoors, 0)
     mv(m.xy_checks, 0); mv(m.ropes, 1, 3); mv(m.events, 1, 2); mv(m.city, 2)
     m.kits = [(x + d if x >= lim else x, pc) for x, pc in m.kits]
@@ -2253,6 +2291,9 @@ def gd(campaign):
                 if lv.get(flag): out.append('\t\t\t"%s": true,' % flag)
             if lv.get("moving"): out.append(f'\t\t\t"moving": {lv["moving"]},')
             if lv.get("cops"): out.append('\t\t\t"cops": true,')
+            if lv.get("chapter") is not None: out.append(f'\t\t\t"chapter": {int(lv["chapter"])},')   # (a trial map played as that chapter's hero)
+            if m.says: out.append('\t\t\t"says": [' + ", ".join(f'[{f(h[0])}, {q(h[1])}]' for h in sorted(m.says)) + '],')
+            if m.calm: out.append('\t\t\t"calm": [' + ", ".join(f'[{f(a)}, {f(b)}]' for a, b in m.calm) + '],')
             if getattr(m, "exit", None): out.append(f'\t\t\t"exit": {f(m.exit)},')
             if getattr(m, "goal", None): out.append(f'\t\t\t"goal": [{f(m.goal[0])}, {f(m.goal[1])}],')
             if getattr(m, "goal_witness", False): out.append('\t\t\t"goal_witness": true,')
@@ -2306,6 +2347,9 @@ SANDBOX = [
     # (QUEUE §23, user 23. 11.) THE PLAYGROUND: every mechanic, station after station, tuned here before it goes into the maps
     {"name": "PLAYGROUND", "seed": 903, "start": 0.3, "end": 0.3, "intro": [], "outro": [], "fixed": ["breather", "city_block", "city_moves"], "plain": True, "keep_barrel": True,
      "street_fixed": ["tenrow_a", "tenrow_b", "tenrow_c", "tenrow_d"]},
+    # (--sandbox=3, pribeh/predani-claude-code step 3) the prologue's grey build from the story chat's blockout, played as Eddie
+    {"name": "PROLOGUE GREY", "seed": 904, "start": 0.3, "end": 0.3, "intro": [], "outro": [], "fixed": ["prologue_grey"], "plain": True,
+     "keep_barrel": True, "chapter": 0, "extra": last_stand, "street_fixed": ["tenrow_a", "tenrow_b", "tenrow_c", "tenrow_d"]},
 ]
 
 SEEN = set()   # a rope hint is shown once in the whole story, on the first map that has that rope
