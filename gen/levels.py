@@ -534,7 +534,7 @@ def chunk(name, hard, rng=None):
         c.plat(b_x, CITY_ROOF, rx1 - b_x, "roof")
         c.rope("ladder", b_x + 2600, CITY_ROOF, 0.0, -SEC_H * 2)
         c.hint(b_x + 2300, "UP THE LADDER TO THE ROOFS")
-        ex = c_x + 5 * CITY_BAY
+        ex = c_x + 5 * CITY_BAY - 300   # (clear of the firewall pier over the joint with the brick house: main.gd PARTY_HALF)
         c.city.append(["fesc", "escape_front", ex])
         for y in ESCF_DECKS:
             c.plat(ex + 90, y, 820, "fescape")

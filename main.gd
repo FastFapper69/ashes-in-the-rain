@@ -5429,11 +5429,13 @@ func _block(before_x: float) -> void:
 	if _ground_y < -2200.0 and level.has("city"):   # (station 5) up on a roof: a taller front next to it is its wall
 		for ct in _city_tops:
 			if player.position.y > float(ct[2]) + 20.0:
-				if before_x <= float(ct[0]) + 1.0 and player.position.x > float(ct[0]):
-					player.position.x = float(ct[0])
+				var f0: float = float(ct[0]) - _party_half_at(float(ct[0]))   # (the firewall pier's face over the joint)
+				var f1: float = float(ct[1]) + _party_half_at(float(ct[1]))
+				if before_x <= f0 + 1.0 and player.position.x > f0:
+					player.position.x = f0
 					run = 0.0
-				elif before_x >= float(ct[1]) - 1.0 and player.position.x < float(ct[1]):
-					player.position.x = float(ct[1])
+				elif before_x >= f1 - 1.0 and player.position.x < f1:
+					player.position.x = f1
 					run = 0.0
 	if level.has("sealed"):   # (CARGO HOLD) the hold's forward bulkhead: the way he came in is the hatch up, not back
 		player.position.x = maxf(player.position.x, float(level["sealed"]))
@@ -7598,6 +7600,7 @@ const CITY_ESC_H := 1436.4                   # the side-on fire escape's drawing
 const CITY_ESC_DECK := 1756.0 / 2528.0       # its lower deck's row, a fraction of the drawing's height
 const CITY_TONE := 0.86                      # the fronts under the night grade (the street drawings' moonlit wash)
 func _build_city() -> void:
+	_party_walls()
 	for cy in level.get("city", []):
 		var kind := String(cy[0])
 		var x := float(cy[2])
@@ -7673,6 +7676,56 @@ func _city_alcoves(style: String, x0: float, w: float, bays: int) -> void:
 		dark.visible = false
 		add_child(dark)
 		_alcoves.append({"x": float(x), "w": dw, "top": top, "sill": sill, "dark": dark})
+
+
+## (user 23. 11.: "the divide of the buildings at the roofs" - two cornices cut off and butted, half quoins) Where two
+## fronts meet, a brick party-wall pier over the joint (art_src 359: coping, a downpipe), from the pavement to its
+## coping 60 over the lower roof; under a taller neighbour its side wall goes on up behind it.
+const PARTY_K := 600.0 / 496.0     # art/city/party_wall.png's px in the world (the layout's 600 px)
+const PARTY_TOP := 120.0           # from the picture's top to the roof (coping 60 over it)
+const PARTY_HALF := 190.0          # half the pier's brick body (its coping a little wider)
+var _party_faces: Array = []       # [joint x, half width, the lower roof's side (-1 left, +1 right)]
+func _party_walls() -> void:
+	var fronts: Array = []
+	for cy in level.get("city", []):
+		if String(cy[0]) in ["bldg", "house"]:
+			fronts.append([float(cy[2]), float(cy[2]) + float(cy[3]), -CITY_FOOT - (int(cy[5]) * CITY_STOREY + CITY_CORNICE)])
+	fronts.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
+	var tex: Texture2D = BigTex.get_tex("res://art/city/party_wall.png")
+	var h := tex.get_height() * PARTY_K
+	for k in fronts.size() - 1:
+		var a: Array = fronts[k]
+		var b: Array = fronts[k + 1]
+		if absf(float(a[1]) - float(b[0])) > 2.0:
+			continue
+		var roof := minf(float(a[2]), float(b[2]))   # (up to the higher roof: a firewall, the taller one's cut edge behind it)
+		if absf(float(a[2]) - float(b[2])) > 1.0:   # a man on the lower roof stops at the pier's face, not inside it
+			_party_faces.append([float(b[0]), PARTY_HALF, -1.0 if float(a[2]) > float(b[2]) else 1.0])
+		var y := roof - PARTY_TOP
+		var first := true
+		while y < 20.0:   # from the coping down to the pavement, the pier's body again under the picture if need be
+			var sp := Sprite2D.new()
+			sp.texture = tex
+			sp.centered = false
+			sp.region_enabled = true
+			var from := 0.0 if first else 900.0
+			var rows := minf(tex.get_height() - from, (20.0 - y) / PARTY_K)
+			sp.region_rect = Rect2(0.0, from, tex.get_width(), rows)
+			sp.scale = Vector2.ONE * PARTY_K
+			sp.position = Vector2(float(b[0]) - tex.get_width() * PARTY_K * 0.5, y)
+			sp.z_index = -5   # (over both fronts' cut edges)
+			sp.light_mask = 0
+			sp.modulate = Color(CITY_TONE, CITY_TONE, CITY_TONE, 1.0)
+			add_child(sp)
+			y += rows * PARTY_K
+			first = false
+
+
+func _party_half_at(x: float) -> float:
+	for pf in _party_faces:
+		if absf(float(pf[0]) - x) < 2.0:
+			return float(pf[1])
+	return 0.0
 
 
 ## (station 5) What stands on a front's flat roof (art_src 357: chimneys, a stair bulkhead, a line, vents, a skylight),

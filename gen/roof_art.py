@@ -41,3 +41,13 @@ im = Image.fromarray(np.dstack([rgb, al * 255]).astype(np.uint8), "RGBA")
 im = im.resize((W // 2 // 4 * 4, H // 2 // 4 * 4), Image.LANCZOS)
 im.save(REPO + "art/city/escape_front.png")
 print("escape_front", im.size)
+
+# (23. 11., user: the joint of two fronts at the roofs) art_src 359: a brick party-wall pier with its coping and a
+# downpipe, front-on, over gen/templates_party.py (600 x 2600 world; its coping's top 120 under the picture's top...
+# the picture's top = the roof - 120) -> art/city/party_wall.png
+a = np.asarray(Image.open(SRC + "359.jpg").convert("RGB")).astype(np.float32)
+rgb, al = key(a)
+im = Image.fromarray(np.dstack([rgb, al * 255]).astype(np.uint8), "RGBA")
+im = im.resize((im.width // 2 // 4 * 4, im.height // 2 // 4 * 4), Image.LANCZOS)
+im.save(REPO + "art/city/party_wall.png")
+print("party_wall", im.size)
