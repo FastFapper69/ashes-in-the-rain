@@ -1,0 +1,24 @@
+{
+ "id": "blockout-I-1-alley", "name": "I-1 THE ALLEY", "hero": "Frank",
+ "meaning": "Frank je slabý a sám. Střelci jsou pořád poblíž, protože hledají Eddieho deník a nenašli ho.",
+ "why": "Frank odchází od těla pěšky a narazí na muže, kteří prohledávají popelnice. Utečou mu domem, on musí vrchem.",
+ "handover": "Střelci ujedou autem na východ. I-2 BACK STREETS začíná honičkou za jejich hlídačem Sammym.",
+ "target_min": "6 až 7 minut hraní",
+ "graph": ["street", "yard", "street", "house", "street:wash_alley", "street"],
+ "graph_note": "Návrh uzlů pro generátor. Dům v řezu a šňůra jsou stanoviště 1 a 2 z hřiště. Názvy uzlů opraví Claude Code.",
+ "progression": ["Frank začíná od nuly: základní zdraví, opotřebovaný revolver, krátké zpomalení.", "Nepřátelé: střelci s pistolí, v druhé půlce dvě brokovnice (už je to tak v generátoru).", "Nové pro hráče: první vzdání a milost, vstup do domu dveřmi, kop do dveří bytu, jízda po šňůře.", "Na konci mapy by měl hráč mít na první vylepšení."],
+ "skipper": ["Kdo umřel: O'Malley v úseku 1, „Sorry about your friend, Frank.“", "Po čem jdou: pokřik „THE BOOK AIN'T HERE!“ v úseku 2.", "Kam dál: auto odjíždí na východ, závěrečná věta mapy."],
+ "beats": [
+  {"n":1,"name":"U plachty","kind":"klid","sec":20,"px":1200,"floor":0,"space":"ulička za Blue Note, páska, dva strážníci","men":"nikdo, O'Malley nestřílí","cp":false,"music":"klavír z panelu doznívá do deště","collect":"","text":"O'Malley: “Sorry about your friend, Frank. Doyle was all right, for a newspaperman.”","cost":"C: postava, která nestřílí (nebo jen hlas)"},
+  {"n":2,"name":"Popelnice","kind":"boj","sec":30,"px":1800,"floor":0,"space":"ulice, popelnice a kontejner","men":"2 s pistolí, zády k hráči","cp":false,"music":"bojové stopy","collect":"","text":"muž: “THE BOOK AIN'T HERE!”","cost":"A, nový pokřik"},
+  {"n":3,"name":"Dvorek","kind":"boj","sec":45,"px":2600,"floor":0,"space":"dvorek činžáku","men":"3 s pistolí","cp":true,"music":"bojové stopy","collect":"stránka deníku 1 za okapem na nízké římse (chce skok)","text":"stránka: Nov 3. Rosie showed me Tommy's photo again...","cost":"A"},
+  {"n":4,"name":"První vzdání","kind":"klid","sec":25,"px":1500,"floor":0,"space":"konec dvorku","men":"1, zahodí zbraň","cp":false,"music":"stopy utichnou, zpomalená chvíle","collect":"milost č. 1, svědectví 1:0","text":"He put his hands up. I know the look of a man hoping nobody writes it down.","cost":"A, ve hře je"},
+  {"n":5,"name":"Ulice s neonem","kind":"boj","sec":60,"px":3500,"floor":0,"space":"ulice, výklenky dveří, padající neon","men":"4, z toho 1 s brokovnicí","cp":true,"music":"bojové stopy","collect":"jméno č. 5: svatební fotka Stana Wojcika se svíčkou v okně v přízemí","text":"Married in June. Buried in August. She kept the name.","cost":"A, fotka v okně B (malá)"},
+  {"n":6,"name":"Domem nahoru","kind":"pohyb","sec":40,"px":2400,"floor":2,"space":"dům v řezu, schody v zadní zdi, kop do dveří bytu","men":"2 na chodbách","cp":true,"music":"bojové stopy potichu","collect":"","text":"bez textu","cost":"A (hřiště, stanoviště 1)"},
+  {"n":7,"name":"Šňůra na prádlo","kind":"pohyb","sec":20,"px":1800,"floor":2,"space":"z okna po šňůře přes uličku","men":"2 dole, ve zpomalení","cp":false,"music":"zpomalení, stopy ztlumené","collect":"","text":"bez textu","cost":"A (hřiště, stanoviště 2)"},
+  {"n":8,"name":"Na střeše","kind":"ticho","sec":10,"px":900,"floor":3,"space":"střecha, výhled na Hell's Kitchen","men":"nikdo","cp":false,"music":"jen vítr a déšť","collect":"","text":"dole jsou vidět světla auta, které odjíždí na východ","cost":"A (střechy z hřiště)"},
+  {"n":9,"name":"Dolů na ulici","kind":"vrchol","sec":60,"px":3000,"floor":0,"space":"požární schodiště dolů, ulice","men":"4, z toho 1 s brokovnicí","cp":true,"music":"bojové stopy naplno","collect":"","text":"bez textu","cost":"A"},
+  {"n":10,"name":"Auto je pryč","kind":"klid","sec":10,"px":800,"floor":0,"space":"prázdná křižovatka","men":"nikdo","cp":false,"music":"stopy dozní, jazz z okna","collect":"","text":"The shooters ran east. So did I. You'd have taken a cab and expensed it.","cost":"A"}
+ ],
+ "risks": ["Úsek 1 potřebuje policajta, který stojí a mluví. Když je to drahé, stačí hlas mimo obraz.", "Úseky 6 až 8 jdou za sebou bez velkého boje (70 vteřin). Je to schválně jako nádech před vrcholem, ale musí se to ověřit na telefonu."]
+}

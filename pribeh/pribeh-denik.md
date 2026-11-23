@@ -32,5 +32,29 @@ Příběh se ladí v samostatném chatu (claude.ai), vývoj běží v Claude Cod
 **Další kroky:**
 1. Prolog a kapitola I do hry s dočasným hlasem (Claude Code).
 2. Uživatel si je zahraje a řekne, jestli z toho něco cítí.
-3. Repliky celé hry v novém hlasu: [[kapitola-II]] (schváleno 23. 11.), [[kapitola-III]] s mezihrou U Rosie a [[kapitola-IV]] s oběma konci (návrhy, čekají na souhlas). Kapitola I a prolog jsou v [[Srdce-a-hlas]].
-4. Otevřené: telefon ve 2:10 v konci Sníh (návrh: vynechat, viz [[kapitola-IV]]).
+3. Scénář celé hry je napsaný (23. 11., uživatel: „dokonči příběh hry a ať to má duši“): [[Srdce-a-hlas]] (prolog, kapitola I), [[kapitola-II]], [[kapitola-III]], [[kapitola-IV]], [[scenar-mapy]], [[jedenact-a-pisen]]. Do hry ho staví Claude Code po kapitolách.
+
+## 23. 11. 2026 večer – dokončení
+
+- Kapitola II schválena („to zní dobře“). Telefon ve 2:10 v konci Sníh se vynechává (uživatel souhlasil), zůstává v konci Popel.
+- Rourke v kapitole III: důkaz je telefonní lístek z jeho stolu. Hovor, který poslal Eddieho za Blue Note, šel z kapitánovy linky. Deštník z kapitoly I se tím obrátí.
+- Stránky deníku v mapách kapitoly I: Eddie je vytrhával a schovával po cestě, proto je Frank nachází dřív, než dostane deník.
+- Jedenáct mrtvých má jména a po jedné věci v mapách. Tommyho píseň má text, poslední sloku dopíše Rosie a zazní jen v konci Sníh.
+- Petrolej v bednách na Santa Lucii zůstává (rok 1939). Škrtá se jen petrolej u Rourka v roce 1931.
+- Stará stránka deníku o hasičské helmě v zastavárně se ruší: helma leží u Franka na stole.
+
+## 23. 11. 2026 – scénáře map
+
+Uživatel: má smysl napsat i to, co se děje na mapě, aby se podle toho stavělo, vymýšlely mechaniky a hloupé nebo těžké věci se zahodily předem. Ano.
+
+- Každá mapa má scénář po úsecích: co se děje, co hráč dělá, co má cítit, text, náročnost (A hotové, B nová kresba, C nový kód).
+- Postup: scénář napíše příběhový chat, Claude Code k němu připíše, co je těžké nebo hloupé, pak se staví.
+- Hotovo: [[mapy-prolog-a-kapitola-I]] (návrh, čeká na posouzení uživatele a Claude Code). Další: kapitoly II až IV.
+
+## 23. 11. 2026 – holubi, klidná místa, postup práce
+
+- **Holubi** (nápad uživatele): Frank a Eddie krmili holuby na střeše redakce při cigaretě. Jedno krmení na kapitolu mimo boj, u každého Eddieho věta, vrátí jeden zásah. Mickeyho „Feed my birds“ tím dostane váhu. Vzpomínka na poslední setkání se odehrává na střeše redakce.
+- **Klidná místa** (uživatel: ne každá mapa musí začínat bojem): v každé kapitole aspoň jedna mapa klidem začíná a jedna končí. Klid nesmí být prázdný a trvá nejvýš 30 vteřin.
+- **Postup práce** (uživatel: „co navrhuješ, udělej“): scénář úseků → blockout jako data s rozpočtem času a křivkou napětí → posouzení Claude Code → šedá verze na telefon → kresby. Pravidla: [[pravidla-map]]. Tabulka: [[stav-map]]. První blockouty: [[blockout-prolog]], [[blockout-I-1-alley]].
+- Doplněno, na co se zapomnělo: postup hráče po kapitolách, hráč přeskakující panely, zvuk a ticho, co se v mapách sbírá a kde leží jedenáct jmen.
+- Češtinu neřešíme, hra je anglicky. Test na cizím člověku až bude co testovat.

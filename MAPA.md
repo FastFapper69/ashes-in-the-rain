@@ -32,7 +32,8 @@ Pak krátce česky: co je rozdělané a na co se čeká od uživatele. Nic nepř
   markýza, kladka) potřebují nové moduly - tabulka v [[QUEUE_doma]] §23.
 - **Hloubka jen v bodech** (pravidlo 33, uživatel zvolil C 23. 11.): výklenek dveří hotový (stanoviště 4b na konci
   hřiště), bistro jako hala za výlohou (4c); další body: vstup do uličky, schování za auto.
-- **Příběh přepsaný** (23. 11., pravidlo 35): [[Srdce-a-hlas]] - Frank mluví k mrtvému Eddiemu, jeden požár, jeden deník. Do hry zatím nic: čeká prolog + repliky kapitoly I.
+- **PŘEDÁNÍ od příběhového chatu (23. 11.): [[predani-claude-code]]** - přečíst a udělat jeho kroky po pořadě (posoudit blockouty, šedý prolog).
+- **Příběh přepsaný** (23. 11., pravidlo 35): [[Srdce-a-hlas]] - Frank mluví k mrtvému Eddiemu, jeden požár, jeden deník. Scénář celé hry je napsaný v `pribeh/`. Do hry zatím nic: začít prologem a kapitolou I.
 - Komiksy až nakonec (paměť). Kapitoly I-III hratelné, staré mapy se po hřišti převedou na modulární město.
 
 ## Příkazy (Git Bash, z kořene repa)
@@ -73,5 +74,5 @@ Užitečné testy (`--test=...`): `look:x@y,...`, `walkfrom:x[:up]`, `wash`, `do
 - [[ch05-levels-maps]] · [[ch06-lights-fx]] · [[ch07-enemies-ai]] · [[ch08-player-progression]]
 - [[ch09-audio-voice]] · [[ch10-story-cutscenes]] · [[ch11-ui-hud]]
 - [[cheatsheet]] · [[glossary]] · [[patterns]]
-- příběh: [[Srdce-a-hlas]] (platný příběh a hlas vyprávění, 23. 11.) · [[pribeh-denik]] (rozhodnutí a zahozené nápady) · repliky [[kapitola-II]] · [[kapitola-III]] · [[kapitola-IV]] - složka `pribeh/`, ladí se v samostatném chatu
+- příběh: [[Srdce-a-hlas]] (platný příběh a hlas vyprávění, 23. 11.) · [[pribeh-denik]] (rozhodnutí a zahozené nápady) · scénář [[kapitola-II]] · [[kapitola-III]] · [[kapitola-IV]] · [[scenar-mapy]] · [[jedenact-a-pisen]] · návrh map: [[pravidla-map]] (postup) · [[stav-map]] (tabulka stavu) · [[mapy-prolog-a-kapitola-I]] · blockouty [[blockout-prolog]], [[blockout-I-1-alley]] (než se mapa staví, připsat do karty, co je těžké nebo hloupé) - složka `pribeh/`, ladí se v samostatném chatu
 - další skilly: ashes-vyzkum (výzkum), mapy (pravidla map), ui-papir (UI), webapp-testing (web), [[CLAUDE]], [[PC_SETUP]]

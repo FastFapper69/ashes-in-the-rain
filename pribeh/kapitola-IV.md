@@ -1,6 +1,6 @@
 # Kapitola IV – Svatého věž a konce: repliky
 
-Návrh k odsouhlasení (23. 11. 2026), kapitola ještě není postavená. Příběh a pravidla hlasu: [[Srdce-a-hlas]]. Předchozí: [[kapitola-III]]. Deník rozhodnutí: [[pribeh-denik]].
+Uživatel dal 23. 11. 2026 pokyn příběh takhle dokončit. Kapitola ještě není postavená. Příběh a pravidla hlasu: [[Srdce-a-hlas]]. Předchozí: [[kapitola-III]]. Deník rozhodnutí: [[pribeh-denik]].
 
 **O čem kapitola je.** Štědrý večer 1947, jedna noc od 21:00 do 2:10. Frank jde nahoru Vailovou věží. Říká si, že jde pro Vaila. Jde pro Rourka.
 
@@ -67,6 +67,7 @@ Podmínka zůstává: nízký popel a aspoň polovina svědectví. Frank si rán
 | Píše se před očima | *My name is Frank Malone. On the fifteenth of August, 1939, I signed a report I knew was a lie.* |
 | Poslední řádek stránky | *Everybody has a price. Mine was eleven lives and two hundred dollars I never even spent.* |
 | U Rosie | I gave her the page and the diary. She read mine twice. Then she went to find a telephone and the Evening Ledger. |
+| Schody stanice | I still had seed in my coat from Mickey's roof. I left it on the station steps. Somebody ought to eat. |
 | Stanice | Na pult položí noviny a vedle nich Eddieho sirky: It's snowing, Eddie. I won't be needing these. |
 | Rourke žije | Briggs ho zatýká vedle Franka. Bez textu. |
 
@@ -78,15 +79,17 @@ Pak už Frank „you“ neřekne. Padá sníh, Rosie při titulcích zpívá Tom
 |---|---|
 | Pod Rosiiným oknem | I stood under her window with your diary and a page with my name on it. Then I did the thing I'm good at. |
 | Sirka | I quit smoking the night I signed. Tonight I started again. A man has to take something back. |
+| Holubi na římse | The match flared and every pigeon on the sill went up at once. They know what a man with a match is. |
 | Kancelář, na stole povýšení | Lieutenant Malone. You always said I would be, Eddie. You never said what it would cost. You knew I'd find out. |
 | | I still talk to you. You've stopped writing back. |
 | Titulek | It didn't snow again that winter. |
 
 Ve 2:10 zazvoní telefon a nikdo ho nezvedne.
 
-## K rozhodnutí
+## Rozhodnuto 23. 11.
 
-- **Telefon v konci Sníh.** Ve starším plánu ho Frank zvedl a hlas řekl *“Detective Malone? We've got a body.”* jako háček pro DLC. Když se Frank právě udal, nedává to smysl. Navrhuju v konci Sníh telefon vynechat a nechat jen ticho a sníh. Háček pro DLC zůstane v konci Popel.
+- **Telefon v konci Sníh se vynechává.** Když se Frank právě udal, hovor s novým případem nedává smysl. V konci Sníh je jen ticho a sníh. Telefon ve 2:10 a háček pro DLC zůstávají v konci Popel.
+- Jedenáct jmen a poslední sloka písně v koncích: [[jedenact-a-pisen]].
 
 ## Co je potřeba vyrobit
 

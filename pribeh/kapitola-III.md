@@ -1,6 +1,6 @@
 # Kapitola III – Podzemí a mezihra U Rosie: repliky
 
-Návrh k odsouhlasení (23. 11. 2026), ve hře zatím není. Příběh a pravidla hlasu: [[Srdce-a-hlas]]. Předchozí: [[kapitola-II]]. Další: [[kapitola-IV]]. Deník rozhodnutí: [[pribeh-denik]].
+Uživatel dal 23. 11. 2026 pokyn příběh takhle dokončit. Ve hře zatím není. Příběh a pravidla hlasu: [[Srdce-a-hlas]]. Předchozí: [[kapitola-II]]. Další: [[kapitola-IV]]. Deník rozhodnutí: [[pribeh-denik]].
 
 **O čem kapitola je.** Franka honí vlastní kolegové za vraždu, kterou nespáchal. Na konci se od Briggse dozví, kdo Eddieho dal zabít: Rourke. Potom se pět dní schovává u Rosie a poprvé to řekne nahlas.
 
@@ -55,9 +55,9 @@ Deštník z kapitoly I se tady vrací. Hráč ho viděl jako laskavost, teď ho 
 
 ## Stránky deníku (Eddieho hlas)
 
-Pět nových stránek. Vedou k Rourkovi a k prázdné stránce.
+První stránka zůstává, čtyři jsou nové místo stránek o roce 1931. Vedou k Rourkovi a k prázdné stránce.
 
-1. *Dec 13. Asked records for the Pier 17 personnel sheet. The clerk said the captain's office had it out. Has had it out since Tuesday. I filed my request Monday.*
+1. *Dec 13. Rourke called me into his office and asked about my 'little crusade'. He offered me a drink. He has never once offered me a drink.* (zůstává)
 2. *Dec 14. Rosie wants the Blue Note band for the wedding. I want to be able to pay them. We've settled on the band.*
 3. *Dec 15. Watched Frank talk a kid out of a liquor store with nothing but his voice. Whatever he did in '39, that's not all he is. I have to keep writing that down or I'll forget it.*
 4. *Dec 16. Somebody's been through my desk at the Ledger. Neat about it. Cops are neat.*
@@ -81,6 +81,15 @@ Krátká mapa. Hráč hraje za Franka, Eddie mu kryje záda. Eddie nemá zbraň 
 | Začátek | October. The Delancey warehouse. You weren't supposed to be there. You were never supposed to be anywhere. |
 | Eddie v mapě (bubliny) | “On your left, Lieutenant!” · “Smile, fellas!” · “I'm not armed! I'm press! Does that still mean anything?” |
 | Konec | You saved my life that night with a flashbulb and a big mouth. Afterwards you asked me for a light. Your hands were shaking. Mine weren't. I should have been ashamed of that. |
+
+### Holubi na požárním schodišti
+
+Krmení této části hry, s Rosie.
+
+| Panel | Replika |
+|---|---|
+| Požární schodiště, ráno | Rosie fed them off the fire escape every morning. *“Eddie's,”* she said. *“He named them after editors.”* |
+| | The fat one was called Hearst. Of course it was. |
 
 ### Přiznání
 

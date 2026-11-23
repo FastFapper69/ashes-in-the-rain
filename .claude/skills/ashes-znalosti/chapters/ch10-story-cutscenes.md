@@ -10,6 +10,8 @@ A story-driven noir told as an animated comic: narration over painted panels, be
 - Rourke: handed Frank the envelope in 1939, ordered Eddie killed in 1947 (chapter III reveal, from Briggs). Finale as before (empty cylinder, one round).
 - ONE diary: in the prologue Eddie writes FRANK on a clean page and leaves the diary with Rosie; she keeps that last page until Frank tells her "I signed it". No notebook taken by the police. FRANK is a heading of a page left blank for Frank to write.
 - Eddie = reporter (Evening Ledger), smokes, never has matches, carries a ring for Rosie. Two symbols only: ash / snow, matches.
+- The whole script is written in `pribeh/`: [[Srdce-a-hlas]] (prologue, chapter I), [[kapitola-II]], [[kapitola-III]] (with the Rosie interlude), [[kapitola-IV]] (both endings; no phone in Snow), [[scenar-mapy]] (title lines, map intros / outros, chapter I diary pages, inner voice), [[jedenact-a-pisen]] (the eleven men of Pier 17, one object each, and the lyrics of Tommy's song).
+- Map design (23. 11.): [[pravidla-map]] is the workflow and the rules (time budget, tension curve, calm places, pigeons, what is collected), [[stav-map]] the tracker, blockouts in `pribeh/blockout/` ([[blockout-prolog]], [[blockout-I-1-alley]]; the .json is the data, the card has a section for Claude Code's notes).
 - To build: prologue bubbles + panels, chapter I lines (table in the note), 7 new panels, cuts (notebook in the rain panel, kerosene / 1931 arson mentions, the tenement reveal in chapter III). Chapters II-IV lines are rewritten after the user has played chapter I.
 
 ## Fixed facts (before 23. 11. - see above for what changed)
