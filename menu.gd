@@ -672,7 +672,7 @@ func _title() -> void:
 	lab.rotation = deg_to_rad(-0.9)
 	_page.add_child(lab)
 	Paper.write(lab, "TEST LAB", _font_head, 22, CRIMSON, HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0, 1, 0.5), 6.0)
-	Paper.write(lab, "THE CITY BLOCK", _font_type, 16, INK, HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0.5, 1, 0.5), 6.0)
+	Paper.write(lab, "THE PLAYGROUND", _font_type, 16, INK, HORIZONTAL_ALIGNMENT_LEFT, Rect2(0, 0.5, 1, 0.5), 6.0)
 
 
 const LAB_MAP := 2   # the trial map the TEST LAB tag opens

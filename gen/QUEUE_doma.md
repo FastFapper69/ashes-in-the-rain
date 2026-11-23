@@ -331,3 +331,18 @@ alley (stone B) becomes a works front (module sheet with tall factory windows, G
 size (Gemini: a machine hall, two galleries / catwalks, a hoist); the jump off the escape's landing or the washing line
 ends in its first-floor window (glass breaks, `_free_slow` like the flat's window); men on the floor and on both
 galleries; out at the far end by its door to the street. Pilot in the TEST LAB, then decide where it goes in chapter I.
+
+## 23. HŘIŠTĚ (uživatel 23. 11.: "jeden pořádný playground lvl, který bude mít vypilované všechny mechaniky a traversal věci, a pak je rozházíme do levelů" - "Ano")
+Hřiště = SANDBOX 2 (TEST LAB v menu), modulární město, stanoviště za sebou; každá mechanika: tip ve hře, test se snímky,
+bot. HOTOVO až po OK uživatele z telefonu. Potom se odladěné chunky rozmístí do kapitol (příběh, obtížnost) a staré mapy
+se převedou na modulární město.
+| # | stanoviště | mechaniky | stav |
+| 1 | dům v řezu | dveře z ulice, schody v zadní zdi, kop do dveří bytu, okno, požární schodiště, žebříky (páčka nahoru) | postaveno, ladí se |
+| 2 | šňůra + tiskárna | jízda po šňůře, průraz oknem, zpomalení, ochozy, žebřík, dveře ven | postaveno, ladí se |
+| 3 | pohyb na ulici | přeskok nízké bedny, odraz od zdi (stoh), skluz, skok šipkou, krytí | 23. 11. |
+| 4 | boj | červený sud, zóna trolejového drátu, skupiny za krytím | 23. 11. |
+| 5 | střechy | střecha modulového domu (římsa), běh po střechách, skoky mezi nimi, poklop dolů | čeká: moduly střech |
+| 6 | lešení | patra prken, žebříky, cik-cak nahoru | čeká: lešení v modulární podobě |
+| 7 | markýza | odraz z markýzy na schodiště | čeká: markýza na modulu (walkup má diner) |
+| 8 | kladka a lano | houpání na laně ze skladu, přes zeď nákladu | čeká: sklad jako modul |
+| 9 | doky / metro | rumpál, třetí kolejnice, vlak | zůstávají na svých mapách (rule 31: doky a metro smí zůstat malované) |

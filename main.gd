@@ -1298,7 +1298,7 @@ func _build_street() -> void:
 			for fc in _facades:
 				if float(th[1]) >= float(fc[0]) and float(th[1]) < float(fc[1]):
 					like = fc[2]
-			props.place(String(th[0]), float(th[1]), like)
+			props.place(String(th[0]), float(th[1]), null if level.has("city") else like)   # (the city: the far drawings are blurred)
 		return
 	var wall_tex: Texture2D = load("res://art/bg/wall2.png")
 	var wall_n: Texture2D = load("res://art/bg/wall2_n.png")

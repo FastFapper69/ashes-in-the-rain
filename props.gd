@@ -46,14 +46,14 @@ func place(kind: String, x: float, like: Sprite2D) -> void:
 		wire.points = PackedVector2Array([a, a.lerp(b, 0.5) + Vector2(0.0, 26.0), b])
 		wire.width = 6.0
 		wire.default_color = Color(0.06, 0.06, 0.07)
-		wire.z_index = -8
+		wire.z_index = -8 + _city_z()
 		add_child(wire)
 		var rosette := Sprite2D.new()
 		rosette.texture = game._soft_glow()
 		rosette.scale = Vector2.ONE * 0.22
 		rosette.position = b
 		rosette.modulate = Color(0, 0, 0, 0.95)
-		rosette.z_index = -8
+		rosette.z_index = -8 + _city_z()
 		add_child(rosette)
 
 
@@ -119,6 +119,11 @@ func _cell_point(p: Dictionary, at: Vector2) -> Vector2:
 	return o + at * Vector2(cw * k, ch * k)
 
 
+## (QUEUE §23) In the modular city the street's things stand in front of its fronts (z -6), not behind them.
+func _city_z() -> int:
+	return 3 if game.level.has("city") else 0
+
+
 func _add(kind: String, tex: Texture2D, x: float, top: float, bw: float, k: float, y_foot: float, mat: Material, tone: Color, lmask: int) -> void:
 	var h := tex.get_height() * k
 	var shadow := Sprite2D.new()   # on the wall and the stones behind it
@@ -127,7 +132,7 @@ func _add(kind: String, tex: Texture2D, x: float, top: float, bw: float, k: floa
 	shadow.scale = Vector2(k, k * 0.97)
 	shadow.position = Vector2(x + 16.0, top + 14.0)
 	shadow.modulate = Color(0, 0, 0, 0.42)
-	shadow.z_index = -9
+	shadow.z_index = -9 + _city_z()
 	shadow.light_mask = 0
 	add_child(shadow)
 	var sp := Sprite2D.new()
@@ -137,7 +142,7 @@ func _add(kind: String, tex: Texture2D, x: float, top: float, bw: float, k: floa
 	sp.position = Vector2(x, top)
 	sp.material = mat
 	sp.modulate = tone
-	sp.z_index = -8
+	sp.z_index = -8 + _city_z()
 	sp.light_mask = lmask
 	add_child(sp)
 	if not is_nan(y_foot):   # where it stands: a dark contact pool on the stones

@@ -138,5 +138,12 @@ Why the painted-street + cut-house look failed (found 22. 11. on the user's phon
   pavement, a gallery stood on (`_ground_y`) or its ladder - never a jump in front; out by a jump at the door
   (`_works_door_here`); its floor's crates are moved away while he is in front (`WORKS_AWAY`); its ladder is not taken
   through the closed front. `_section_at(p, me)`: `me` for the player's own probes at another x. `--test=walkfrom:x[:up]`.
+- **The playground (QUEUE §23, user 23. 11.)**: SANDBOX 2 "PLAYGROUND" (menu tag TEST LAB / THE PLAYGROUND) = every
+  mechanic station after station in the modular city ("plain": no paced men, "keep_barrel"); the stations' table and
+  their state are in QUEUE §23 - a station is done only after the user's OK from the phone, then its chunk goes into the
+  maps. New chunks there: `city_moves` (vault, stack kick, slide/dive, cover, red barrel, trolley wire). Lessons:
+  chunks are spaced apart - `close_city` widens the front before a hole (a bay more, not stretched bays) and lays
+  fronts on past the map's end; the street's things (props.gd) stand at z -5 in front of the fronts (`_city_z`) and are
+  not toned like the blurred far drawings; the red-barrel fuel check is for painted streets only.
 - Godot 4 canvas shader lesson: in `fragment()` COLOR already holds texture x modulate - multiplying by texture(TEXTURE)
   again squares it (the escape went black). Only touch `COLOR.a`.

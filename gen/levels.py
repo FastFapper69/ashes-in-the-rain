@@ -357,6 +357,25 @@ def furnish(c, style, rng, foes, flask=False):
         c.pick("flask", a)
 
 
+def close_city(m):
+    """(QUEUE §23) The modular city's fronts join: the street between two chunks (their spacing) is no hole of sky between
+    two houses - the front before it reaches on to the next one."""
+    fronts = sorted([cy for cy in m.city if cy[0] in ("bldg", "house", "gap")], key=lambda cy: cy[2])
+    for a, b in zip(fronts, fronts[1:]):
+        if a[0] == "bldg" and 1.0 < b[2] - (a[2] + a[3]) < 2000.0:
+            a[3] = b[2] - a[2]
+            a[4] = max(2, round(a[3] / CITY_BAY))   # (a bay more rather than every bay stretched)
+    if fronts:   # on past the map's end: no sky where the street goes on out of the picture
+        last = fronts[-1]
+        x = last[2] + last[3]
+        styles = ["pale", "walkup", "stone", "brick"]
+        k = 0
+        while x < m.end + 2500.0:
+            m.city.append(["bldg", styles[k % 4], x, 3 * CITY_BAY, 3, 3 + k % 2])
+            x += 3 * CITY_BAY
+            k += 1
+
+
 def chunk(name, hard, rng=None):
     rng = rng or random.Random(7)
     c = None
@@ -463,7 +482,7 @@ def chunk(name, hard, rng=None):
         gap_x, gap_w = wall, CITY_GAP_W
         b_x, b_w = gap_x + gap_w, 3 * CITY_BAY
         c_x = b_x + b_w
-        w = c_x + 3 * CITY_BAY + 600
+        w = c_x + 9 * CITY_BAY   # (QUEUE §23: the playground's next stations follow on: its fronts end where they start)
         c = Chunk(w)
         c.city += [["bldg", "pale", -6000.0, 3 * CITY_BAY, 3, 3], ["bldg", "walkup", -3000.0, 3 * CITY_BAY, 3, 4],
                    ["bldg", "stone", 0.0, a_w, 3, 4], ["house", "brick", hx - CITY_HOUSE_L, wall - (hx - CITY_HOUSE_L), 4, 3],
@@ -506,6 +525,24 @@ def chunk(name, hard, rng=None):
         c.foe(c_x + 1200, kind="tommy")
         c.hint(hx - 600, "INTO THE HOUSE, UP THE STAIRS")
         c.hint(hx + SEC_FLAT_DOOR + 1100, "OUT OF THE WINDOW, RIDE THE LINE")
+    elif name == "city_moves":   # (QUEUE §23, the playground's stations 3-4) the street's moves and fights in front of module
+        # fronts: over a low crate in a run, into the crate stack and off it (the wall kick), the slide and the dive, down
+        # behind cover, a red barrel among three of them, the trolley wire over a puddle
+        c = Chunk(12 * CITY_BAY)
+        for i, st in enumerate(("walkup", "pale", "stone", "brick")):
+            c.city.append(["bldg", st, i * 3 * CITY_BAY, 3 * CITY_BAY, 3, 3 + i % 2])
+        c.hint(300, "RUN AT THE LOW CRATE: OVER IT WITHOUT A JUMP")
+        c.box("crate_long", 1000)
+        c.hint(1900, "JUMP INTO THE STACK, JUMP AGAIN TO KICK OFF IT")
+        c.box("stack", 2700)
+        c.hint(3600, "STICK DOWN IN A RUN TO SLIDE, THE DIVE BUTTON TO DIVE")
+        c.hint(4700, "STICK DOWN BEHIND COVER")
+        c.box("crate", 5300).foe(5900).foe(6300, kind="shotgun")
+        c.hint(6900, "SHOOT THE RED BARREL")
+        c.box("crate", 7300).box("barrel", 8060).foe(7920).foe(8240).foe(8350)
+        c.hint(8900, "SHOOT THE INSULATOR")
+        c.box("crate", 9300).thing("trolley", 10000).foe(10400).foe(10750, kind="tommy")
+        c.checks += [4500, 8800]
     elif name == "stunts":   # SANDBOX STUNTS: the new moves in a few seconds - one storey, the flat right by the door,
         w = SEC_W            # kick its door in (a man behind it), out of its window to the street, the rope behind
         c = Chunk(w + 2600)
@@ -1110,6 +1147,7 @@ def _build(mp, nudge):
     door_clear(out)
     st = rng.getstate()
     out.street = street(mp, out, rng)
+    close_city(out)
     for _ in range(0 if out.city else 4):   # (user 21. 11., phone shot: a door of the street drawing cut by the house's facade) houses on joints (not in the modular city: its own fronts)
         if not seat_sections(out):
             break
@@ -1178,7 +1216,7 @@ def check_props(m):
         if a[0] == b[0] == c[0] and c[1] - a[1] < 2600:
             errs.append(f"three {a[0]}s in a row at {a[1]:.0f}")
     for b in bs:
-        if b[0] == "barrel" and not barrel_ok(place_at(m, b[1])):
+        if b[0] == "barrel" and not barrel_ok(place_at(m, b[1])) and not getattr(m, "city", None):   # (the modular city: its own fronts, not the painted street's places)
             errs.append(f"red barrel at {b[1]:.0f} in {place_at(m, b[1])}: no fuel kept there")
     for a, b, st in m.rooms:
         inside = [q for q in bs if a <= q[1] < b]
@@ -2234,7 +2272,8 @@ SANDBOX = [
      "street_fixed": ["hk_laundry", "hk_tailor", "hk_grocery", "hk_saloon", "hk_laundry", "warehouse", "alley_mouth", "market_row", "factory", "row_house"]},   # (plain houses where the big laundry's long front goes)
     # (--sandbox=2) the modular city's pilot block (QUEUE §21, rule 31): module fronts, the house among them, its side-wall
     # fire escape, the washing line over the alley
-    {"name": "BLOCK", "seed": 903, "start": 0.3, "end": 0.3, "intro": [], "outro": [], "fixed": ["breather", "city_block"],
+    # (QUEUE §23, user 23. 11.) THE PLAYGROUND: every mechanic, station after station, tuned here before it goes into the maps
+    {"name": "PLAYGROUND", "seed": 903, "start": 0.3, "end": 0.3, "intro": [], "outro": [], "fixed": ["breather", "city_block", "city_moves"], "plain": True, "keep_barrel": True,
      "street_fixed": ["tenrow_a", "tenrow_b", "tenrow_c", "tenrow_d"]},
 ]
 
