@@ -4,6 +4,9 @@ extends RefCounted
 ## (knowledge ch01). The build number and date come from version.gen.gd (written by gen/deploy/deploy_pc.sh).
 
 const ENTRIES := [
+	["23 NOV 2026", [
+		"Test lab, the city block: ride the washing line through the window of the house across - a printing works full of men on three heights, in slowed time",
+	]],
 	["22 NOV 2026", [
 		"The flat's door stands in its wall at the wall's own angle and swings into the flat when kicked",
 		"The city block: a wet cobbled road under the kerb instead of black, lamps and hydrants up close on the near pavement",

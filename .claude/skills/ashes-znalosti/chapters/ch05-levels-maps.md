@@ -118,5 +118,16 @@ Why the painted-street + cut-house look failed (found 22. 11. on the user's phon
   `PARTITION_X`); the door card is shut at `FLAT_YAW0` in its doorway (its free edge toward us) and kicked it swings on
   into the flat to ~90 degrees against the stove (`_kick_door`); `span` = the leaf as seen, for the block and the kick
   distance. The rooming kit (BACK STREETS) keeps its flat-on doorway and door. Check: `--test=doorkick`.
+- **A works across the alley** (QUEUE §22, user 22.-23. 11.): section style "works" = one open hall the height of its
+  front (art_src 354 drawn by Gemini over gen/works_template.py's layout - galleries, ladder, floor at exact positions;
+  give Gemini a layout sketch and it keeps it), its front the modular city's sheet, whole end walls (`tenement_side` x3).
+  The washing line's pulley is on its front window: at the line's end `_crash_into_works` - glass in with him, the front
+  opens from the window, a roll onto the low gallery, `WORKS_CRASH_SLOW` 2.6 s of free slowed time. In the open hall his
+  aim reaches every height (`_nearest_enemy`); the men keep the user's own-floor rule (15. 11.). Out only by its street
+  door (the sheet's middle-bay door, `WORKS_DOOR`): on its ground floor's x the pavement is in front of it unless he is in
+  the hall (`_works_out`) - never out through a side wall into the next house. Bullets pass its iron galleries.
+- Lessons: `_flat_at_storey` must be the flat of the house he is in (a flat on the same storey of another house threw
+  him across the map); the line's grab is off from inside a works; the bot comes back down a dead-end gallery
+  (`_bot_down`); the reach check knows a line ending at a works' window.
 - Godot 4 canvas shader lesson: in `fragment()` COLOR already holds texture x modulate - multiplying by texture(TEXTURE)
   again squares it (the escape went black). Only touch `COLOR.a`.

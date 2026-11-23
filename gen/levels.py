@@ -120,7 +120,8 @@ CITY_BAY = 1000.0           # a bay of a module front (gen/module_template.py)
 CITY_FOOT = 64.0            # a front stands at the back of the pavement (main.gd WALL_LIFT + 4)
 CITY_WIN = (300.0, 440.0, 150.0)   # an upper window: width, height, sill over its storey's floor line
 CITY_HOUSE_L = 440.0        # a house in cross-section's front starts this far left of its x0 (its door bay's middle at x0 + 60)
-CITY_GAP_W = 1340.0         # the alley between two fronts (art/city/alley_gap.png at the front's scale)
+CITY_GAP_W = 1340.0
+WORKS_G1, WORKS_G2, WORKS_LADDER = 1400.0, 1700.0, 1760.0   # the works hall (gen/works_template.py): the low gallery's end, the high one's start, the ladder         # the alley between two fronts (art/city/alley_gap.png at the front's scale)
 CITY_ESC_DEEP, CITY_ESC_STAIR, CITY_ESC_DROP, CITY_ESC_FOOT = 416.0, 270.0, 370.0, -310.0   # art_src 346 at 0.5682
 CITY_PULLEY = 520.0         # a washing line's pulley over a window: just over its lintel (501 over the floor in the house)
 SEC_WIN = (3195.0, 3340.0)   # the window through the outer wall: inner face, outer face; sill 178, lintel 501 above the floor
@@ -467,7 +468,7 @@ def chunk(name, hard, rng=None):
         c.city += [["bldg", "pale", -6000.0, 3 * CITY_BAY, 3, 3], ["bldg", "walkup", -3000.0, 3 * CITY_BAY, 3, 4],
                    ["bldg", "stone", 0.0, a_w, 3, 4], ["house", "brick", hx - CITY_HOUSE_L, wall - (hx - CITY_HOUSE_L), 4, 3],
                    ["escape", "escape_side", wall, -SEC_H * 2], ["gap", "alley_gap", gap_x, gap_w],
-                   ["bldg", "stone", b_x, b_w, 3, 3], ["bldg", "pale", c_x, 3 * CITY_BAY, 3, 4],
+                   ["house", "stone", b_x, b_w, 3, 3], ["bldg", "pale", c_x, 3 * CITY_BAY, 3, 4],
                    ["bldg", "walkup", c_x + 3 * CITY_BAY, 3 * CITY_BAY, 3, 3], ["bldg", "brick", c_x + 6 * CITY_BAY, 3 * CITY_BAY, 3, 4]]
         c.sections.append([hx, hx + SEC_W, 3, "tenement"])
         for k in (1, 2):
@@ -489,7 +490,19 @@ def chunk(name, hard, rng=None):
         c.xy_checks += [[r, -SEC_H], [l, -SEC_H * 2]]
         c.checks += [hx - 60]
         c.foe(hx + 1900).foe(hx + 1300, -SEC_H).foe(hx + 2400, -SEC_H * 2, kind="shotgun")
-        c.foe(b_x + 900).foe(c_x + 1200, kind="tommy")
+        # (QUEUE §22, user 22. 11.) the stone house across is a printing works inside: one open hall three storeys high
+        # (art_src 354 on gen/works_template.py's layout) - the line ends at its first-floor window, he crashes in onto
+        # the low gallery in slowed time, men on the gallery, on the floor among the presses and up on the high gallery;
+        # out by its street door in the middle bay of the front (main.gd WORKS_DOOR), the ladder up to the high gallery
+        c.sections.append([b_x, b_x + b_w, 3, "works"])
+        c.plat(b_x, -SEC_H, WORKS_G1, "section")
+        c.plat(b_x + WORKS_G2, -SEC_H * 2, b_w - WORKS_G2, "section")
+        c.rope("ladder", b_x + WORKS_LADDER, -SEC_H * 2, 0.0, 0.0)
+        c.ropes[-1].append("drawn")
+        c.xy_checks += [[b_x + 520, -SEC_H]]
+        c.foe(b_x + 1150, -SEC_H).foe(b_x + 900, kind="shotgun").foe(b_x + 1500)   # (the floor up to its street door, WORKS_DOOR)
+        c.foe(b_x + 2300, -SEC_H * 2).foe(b_x + 2800, -SEC_H * 2, kind="tommy")
+        c.foe(c_x + 1200, kind="tommy")
         c.hint(hx - 600, "INTO THE HOUSE, UP THE STAIRS")
         c.hint(hx + SEC_FLAT_DOOR + 1100, "OUT OF THE WINDOW, RIDE THE LINE")
     elif name == "stunts":   # SANDBOX STUNTS: the new moves in a few seconds - one storey, the flat right by the door,
@@ -1929,6 +1942,9 @@ def check(m):
         ok = ok or any(abs(r[1] - py) < 1 and px - 20 <= r[0] <= px + pw + 20 for r in m.ramps)
         ok = ok or any(k == "ladder" and abs(y0 - py) < 1 and px <= x <= px + pw for k, x, y0, x1, y1, *_ in m.ropes)
         ok = ok or any(abs(ty - py) < 1 and px <= sx <= px + pw for sx, sy, ty in m.stairdoors)   # the stairs in the back wall come out on it
+        ok = ok or any(k == "wash" and px - 60 <= x1 <= px + pw and abs(y1 - py) < 700   # (QUEUE §22) a washing line ends at a
+                       and any(s[3] == "works" and s[0] - 1 <= px <= s[1] for s in m.sections)   # works' window: through it onto the gallery
+                       for k, x, y0, x1, y1, *_ in m.ropes)
         ok = ok or any(b[1] <= px + 60 and b[1] + BOX[b[0]][0] >= px - 500 and BOX[b[0]][1] + JUMP_REACH > -py for b in bs)
         if not ok:
             errs.append(f"floor at {px:.0f},{py:.0f} cannot be reached")
