@@ -6,7 +6,7 @@ Pravidla a postup: [[pravidla-map]]. Stav všech map: [[stav-map]]. Příběh: [
 **Smysl mapy:** Poznat Eddieho a mít ho rád, než umře. Tutoriál je až druhý účel.
 **Proč tudy jde:** Schůzka je za klubem Blue Note. Zadní dvorek je v noci zamčený, takže Eddie musí obejít blok. Muži, kteří ho hlídají, čekají na obou koncích ulice.
 **Předává:** Telefon ve 2:10. Frank přijíždí na stejné místo (I-1 THE ALLEY).
-**Hraje se za:** Eddie. **Cíl délky:** 5 minut hraní a asi 2 minuty panelů. **Součet úseků:** 4:43, 16.0 tisíce px. Součet je čistý průchod bez smrtí a hledání, s nimi počítej zhruba o třetinu víc.
+**Hraje se za:** Eddie. **Cíl délky:** 5 minut hraní a asi 2 minuty panelů. **Součet úseků:** 4:43, 15.4 tisíce px. Součet je čistý průchod bez smrtí a hledání, s nimi počítej zhruba o třetinu víc.
 
 ![[blockout-prolog.png]]
 

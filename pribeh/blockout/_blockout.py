@@ -46,9 +46,10 @@ def picture(d, path):
     b.set_xlim(0, x); b.set_ylim(-0.1, top + 0.5)
     b.set_yticks([i + 0.41 for i in range(top)]); b.set_yticklabels(["ulice"] + [f"{i}. patro" if i < top - 1 or top == 2 else "střecha" for i in range(1, top)])
     b.set_xticks(range(0, int(x) + 1, 4000)); b.set_xticklabels([f"{v // 1000} tis. px" for v in range(0, int(x) + 1, 4000)])
-    b.set_title(f"Mapa z boku (délka {round(x / 1000, 1)} tis. px)   CP = checkpoint   ◆ = něco k nalezení", loc="left", fontsize=10, color=INK)
+    real = sum(bt["px"] for bt in beats)
+    b.set_title(f"Mapa z boku (délka {round(real / 1000, 1)} tis. px)   CP = checkpoint   ◆ = něco k nalezení", loc="left", fontsize=10, color=INK)
     fig.savefig(path, facecolor=SURF, bbox_inches="tight"); plt.close(fig)
-    return t, x
+    return t, real
 
 def card(d, t, x):
     L = [f"# Blockout: {d['name']}", "",
