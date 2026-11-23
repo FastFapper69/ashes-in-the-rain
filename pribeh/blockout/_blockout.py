@@ -72,5 +72,12 @@ def card(d, t, x):
 for p in sorted(glob.glob(os.path.join(HERE, "*.json"))):
     d = json.load(open(p, encoding="utf-8")); d["src"] = os.path.basename(p)[:-5]
     t, x = picture(d, os.path.join(HERE, d["id"] + ".png"))
-    open(os.path.join(HERE, d["id"] + ".md"), "w", encoding="utf-8").write(card(d, t, x))
+    out = os.path.join(HERE, d["id"] + ".md")
+    text = card(d, t, x)
+    mark = "## Poznámky Claude Code"
+    if os.path.exists(out):                      # poznamky Claude Code se pri novem generovani nesmi ztratit
+        old = open(out, encoding="utf-8").read()
+        if mark in old:
+            text = text[:text.index(mark)] + old[old.index(mark):]
+    open(out, "w", encoding="utf-8").write(text)
     print(d["id"], f"{t // 60}:{t % 60:02d}", int(x), "px")

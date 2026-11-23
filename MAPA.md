@@ -32,6 +32,7 @@ Pak krátce česky: co je rozdělané a na co se čeká od uživatele. Nic nepř
   markýza, kladka) potřebují nové moduly - tabulka v [[QUEUE_doma]] §23.
 - **Hloubka jen v bodech** (pravidlo 33, uživatel zvolil C 23. 11.): výklenek dveří hotový (stanoviště 4b na konci
   hřiště), bistro jako hala za výlohou (4c); další body: vstup do uličky, schování za auto.
+- **PŘEDÁNÍ od příběhového chatu (23. 11.): [[predani-claude-code]]** - přečíst a udělat jeho kroky po pořadě (posoudit blockouty, šedý prolog).
 - **Příběh přepsaný** (23. 11., pravidlo 35): [[Srdce-a-hlas]] - Frank mluví k mrtvému Eddiemu, jeden požár, jeden deník. Scénář celé hry je napsaný v `pribeh/`. Do hry zatím nic: začít prologem a kapitolou I.
 - Komiksy až nakonec (paměť). Kapitoly I-III hratelné, staré mapy se po hřišti převedou na modulární město.
 
