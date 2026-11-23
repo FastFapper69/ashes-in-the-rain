@@ -47,6 +47,7 @@ Pak krátce česky: co je rozdělané a na co se čeká od uživatele. Nic nepř
 | Gemini: reference do schránky | `powershell -STA -File gen/tools/clip.ps1 <obrázek>` -> v Gemini Ctrl+V |
 | Gemini: stažený obrázek do art_src | `py -3 gen/tools/gemini_take.py` (další volné číslo) |
 | odkazy pro Obsidian | `py -3 gen/obsidian_links.py` |
+| záloha všeho | `bash gen/backup.sh ["zpráva"]` - paměť do `pamet/` (jen lokálně, v Obsidianu), repo commit + push; běží i po každém nasazení |
 Užitečné testy (`--test=...`): `look:x@y,...`, `walkfrom:x[:up]`, `wash`, `doorkick`, `flatwin`, `cityview`, `play`.
 
 ## Jak pracovat efektivně (poučení)
@@ -61,6 +62,9 @@ Užitečné testy (`--test=...`): `look:x@y,...`, `walkfrom:x[:up]`, `wash`, `do
 - **Před commitem/nasazením `git fetch`** (dva chaty), po nasazení počkat na LIVE (skript to dělá sám).
 - **Každé trvalé rozhodnutí uživatele** -> SKILL.md §1 + kapitola, ve stejném commitu; denní postup -> [[HANDOFF]].
 - **Odpovědi**: česky, krátce, co je hotové + co se čeká; text ve hře anglicky; kresby jen z Gemini.
+
+## Paměť Clauda (kopie v trezoru, jen lokálně - repo je veřejné)
+- `pamet/MEMORY.md` a soubory v `pamet/` (originál: `C:/Users/super/.claude/projects/C--Users-super/memory`)
 
 ## Znalosti (stabilní pravidla)
 - ashes-znalosti: `.claude/skills/ashes-znalosti/SKILL.md`
