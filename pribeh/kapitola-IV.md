@@ -1,6 +1,6 @@
 # Kapitola IV – Svatého věž a konce: repliky
 
-Návrh k odsouhlasení (23. 11. 2026), kapitola ještě není postavená. Příběh a pravidla hlasu: [[Srdce-a-hlas]]. Předchozí: [[kapitola-III]]. Deník rozhodnutí: [[pribeh-denik]].
+Uživatel dal 23. 11. 2026 pokyn příběh takhle dokončit. Kapitola ještě není postavená. Příběh a pravidla hlasu: [[Srdce-a-hlas]]. Předchozí: [[kapitola-III]]. Deník rozhodnutí: [[pribeh-denik]].
 
 **O čem kapitola je.** Štědrý večer 1947, jedna noc od 21:00 do 2:10. Frank jde nahoru Vailovou věží. Říká si, že jde pro Vaila. Jde pro Rourka.
 
@@ -84,9 +84,10 @@ Pak už Frank „you“ neřekne. Padá sníh, Rosie při titulcích zpívá Tom
 
 Ve 2:10 zazvoní telefon a nikdo ho nezvedne.
 
-## K rozhodnutí
+## Rozhodnuto 23. 11.
 
-- **Telefon v konci Sníh.** Ve starším plánu ho Frank zvedl a hlas řekl *“Detective Malone? We've got a body.”* jako háček pro DLC. Když se Frank právě udal, nedává to smysl. Navrhuju v konci Sníh telefon vynechat a nechat jen ticho a sníh. Háček pro DLC zůstane v konci Popel.
+- **Telefon v konci Sníh se vynechává.** Když se Frank právě udal, hovor s novým případem nedává smysl. V konci Sníh je jen ticho a sníh. Telefon ve 2:10 a háček pro DLC zůstávají v konci Popel.
+- Jedenáct jmen a poslední sloka písně v koncích: [[jedenact-a-pisen]].
 
 ## Co je potřeba vyrobit
 

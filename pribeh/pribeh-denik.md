@@ -32,5 +32,13 @@ Příběh se ladí v samostatném chatu (claude.ai), vývoj běží v Claude Cod
 **Další kroky:**
 1. Prolog a kapitola I do hry s dočasným hlasem (Claude Code).
 2. Uživatel si je zahraje a řekne, jestli z toho něco cítí.
-3. Repliky celé hry v novém hlasu: [[kapitola-II]] (schváleno 23. 11.), [[kapitola-III]] s mezihrou U Rosie a [[kapitola-IV]] s oběma konci (návrhy, čekají na souhlas). Kapitola I a prolog jsou v [[Srdce-a-hlas]].
-4. Otevřené: telefon ve 2:10 v konci Sníh (návrh: vynechat, viz [[kapitola-IV]]).
+3. Scénář celé hry je napsaný (23. 11., uživatel: „dokonči příběh hry a ať to má duši“): [[Srdce-a-hlas]] (prolog, kapitola I), [[kapitola-II]], [[kapitola-III]], [[kapitola-IV]], [[scenar-mapy]], [[jedenact-a-pisen]]. Do hry ho staví Claude Code po kapitolách.
+
+## 23. 11. 2026 večer – dokončení
+
+- Kapitola II schválena („to zní dobře“). Telefon ve 2:10 v konci Sníh se vynechává (uživatel souhlasil), zůstává v konci Popel.
+- Rourke v kapitole III: důkaz je telefonní lístek z jeho stolu. Hovor, který poslal Eddieho za Blue Note, šel z kapitánovy linky. Deštník z kapitoly I se tím obrátí.
+- Stránky deníku v mapách kapitoly I: Eddie je vytrhával a schovával po cestě, proto je Frank nachází dřív, než dostane deník.
+- Jedenáct mrtvých má jména a po jedné věci v mapách. Tommyho píseň má text, poslední sloku dopíše Rosie a zazní jen v konci Sníh.
+- Petrolej v bednách na Santa Lucii zůstává (rok 1939). Škrtá se jen petrolej u Rourka v roce 1931.
+- Stará stránka deníku o hasičské helmě v zastavárně se ruší: helma leží u Franka na stole.

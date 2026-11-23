@@ -3,6 +3,8 @@
 Schváleno uživatelem 23. 11. 2026. Platí místo starších příběhových rozhodnutí (pravidlo 14 v SKILL.md, [[ch10-story-cutscenes]]).
 Kopie claude.ai docu `ef8436e6-96af-4c2d-9288-b4489472fe87`. Start: [[MAPA]]. Deník změn příběhu: [[pribeh-denik]].
 
+**Celý scénář:** prolog a kapitola I jsou níže · [[kapitola-II]] · [[kapitola-III]] (s mezihrou U Rosie) · [[kapitola-IV]] (s oběma konci) · [[scenar-mapy]] (titulní věty, úvody a závěry map, stránky deníku kapitoly I) · [[jedenact-a-pisen]] (jedenáct mužů z Mola 17 a Tommyho píseň).
+
 Zjednodušená verze: jeden požár, jeden deník, dva symboly. Kostra hry zůstává, přepisuje se srdce a hlas. Všechno, co je anglicky, je text do hry.
 
 ## Příběh pěti větami
@@ -203,7 +205,7 @@ Mapy, bossové ani mechaniky se nemění. Mění se text a hlas, přibude sedm p
 | Frankovy repliky do druhé osoby | kapitola I je výše, II až IV se přepíšou po zahrání kapitoly I |
 | Eddie v prologu | 7 bublin, vlastní hlas, animace „sáhne na kapsu“ a „sevře sirky“ |
 | Nové panely | deník pro Rosie, prstýnek v kabátě, Rourke s deštníkem, střecha s holuby, výměna beze slov, kuchyňský stůl s helmou, prázdná stránka |
-| Škrty ve hře | panel se zápisníkem v dešti, zmínky o petroleji a o žhářích z roku 1931, odhalení o činžáku v kapitole III |
+| Škrty ve hře | panel se zápisníkem v dešti, petrolej u Rourka a žháři z roku 1931 (petrolej v bednách na Santa Lucii zůstává, patří k roku 1939), odhalení o činžáku v kapitole III |
 | Hlas | Frank v kapitole I znovu, až po schválení textu |
 
 ### Pořadí
