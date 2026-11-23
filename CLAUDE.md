@@ -1,5 +1,6 @@
 # Ashes in the Rain – start here
 
+0. "načti si mapu ke hře" = read `MAPA.md` and do its load steps (it also lists paths, state and commands).
 1. Read `.claude/skills/ashes-znalosti/SKILL.md` (user's hard rules + index of project knowledge; open its chapters on demand).
 2. First session on the user's PC (Claude Code, from 16. 11. 2026): follow `gen/PC_SETUP.md`. Then read the newest sections of `HANDOFF.md` (session log: what changed, what is next).
 3. Designing a mechanic, map, story beat, art brief or optimisation: skill `ashes-vyzkum` (research notes; [H] ideas must be measured first). UI work: skill `ui-papir`. Checking a web build: skill `webapp-testing` (see its PROJECT.md). Converting a book/doc into a skill: `.claude/skills/book-to-skill` (see its PROJECT.md – this repo is public, no copyrighted book content in git).

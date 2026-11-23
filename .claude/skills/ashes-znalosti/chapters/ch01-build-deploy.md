@@ -34,3 +34,7 @@ Sources live on `main`, the playable web build on `gh-pages`; one script builds 
 2. Old build stays on gh-pages on purpose – do not "clean it up".
 3. Verify on the live URL in the PC browser, read crumbs from localStorage.
 - **Version and changelog (user 17. 11.):** deploy_pc.sh writes version.gen.gd (BUILD = the commit number of the deploy, DATE); the title shows it on a WHAT'S NEW tag (whatsnew.gd). With every deploy add the player-facing changes to changelog.gd (newest day first, short English lines) in the same commit.
+
+## One-command deploy (23. 11.)
+`bash gen/deploy/deploy_pc.sh "msg"` now ends with `gen/deploy/wait_live.sh` (curl until the site serves the new
+`ashes-xxxxxxxx`: LIVE / NOT LIVE after 5 min). `NO_WAIT=1` skips it. The id alone: `bash gen/deploy/wait_live.sh [id]`.

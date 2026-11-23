@@ -64,3 +64,12 @@ All visible art is hand-drawn-looking Gemini output processed by scripts in `gen
 1. Painted size is sacred; shrink pixels, never the reported size.
 2. Before choosing a texture format ask: is it read on the CPU (`get_image`)? Then no Basis.
 3. Variants are art-only swaps – layout never depends on them.
+
+## Gemini helpers (23. 11.)
+- Reference onto the clipboard: `powershell -STA -File gen/tools/clip.ps1 <image>`, then click the prompt, Ctrl+V.
+- After the download icon: `py -3 gen/tools/gemini_take.py` copies the newest `Gemini_Generated_Image_*` to art_src as
+  the next free number (refuses a file older than 3 min: the download did not land).
+- New PNGs in art/: `bash gen/import_art.sh` (Godot import -> gen/basis_imports.py -> import again; one pass is not
+  enough, basis_imports needs the .import files).
+- Exact positions (galleries, floors, ladders) come out right when Gemini draws OVER a layout sketch made by a script
+  (gen/works_template.py): "keep every element at exactly the same position and size".

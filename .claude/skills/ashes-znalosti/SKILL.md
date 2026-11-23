@@ -12,7 +12,7 @@ description: "Distilled project knowledge for Ashes in the Rain (Godot 4.7 web/i
 - Read THIS file at the start of every session (~2k tokens; [[HANDOFF|HANDOFF.md]] is ~10k and chronological).
 - Touching a topic → open its chapter from the index below **before** editing code. Need a number or a rule fast → `cheatsheet.md`. Unknown name (CURVE, KIT, crumbs…) → `glossary.md`. A recurring technique → `patterns.md`.
 - The repo is also an **Obsidian vault** (user 23. 11.; [[MAPA]] is its start page, `.obsidian/app.json` hides art and
-  builds): write cross references as `[[ch05-levels-maps|ch05]]`, `[[HANDOFF]]`, `[[QUEUE_doma]]` - or plain "ch05" and
+  builds): write cross references as `[[ch05-levels-maps|ch05]]`, `[[HANDOFF]]`, `[[QUEUE_doma]]` - or plain "[[ch05-levels-maps|ch05]]" and
   run `py gen/obsidian_links.py`, which links them (safe to run again).
 - [[HANDOFF|HANDOFF.md]] stays the **session log** (what changed today, what is next). This skill is the **stable knowledge**. If they disagree, the newer HANDOFF entry wins – then fix the chapter (see "Keeping it current").
 - Reply to the user in Czech, short. In-game text English. Nothing Czech in the story. Hero = Frank Malone.

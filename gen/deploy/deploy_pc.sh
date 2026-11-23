@@ -51,3 +51,5 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" && git push -q origin g
 git fetch -q origin && [ "$(git rev-parse HEAD)" != "$GHP_BEFORE" ] && [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/gh-pages)" ] && echo GHP-OK || echo "GHP-FAILED: no new build commit on gh-pages"
 cd "$REPO" && git fetch -q origin && [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] && echo MAIN-OK
 grep -o '"executable":"ashes-[0-9a-f]*"' "$PAGES/index.html"
+
+[ -z "$NO_WAIT" ] && bash "$REPO/gen/deploy/wait_live.sh" || true   # (one command: deploy and confirm it is live)

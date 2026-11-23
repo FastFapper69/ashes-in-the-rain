@@ -26,3 +26,12 @@ Repeat UI-relevant shots at 1280 wide too.
 1. A green log is not enough – open the shots, zoom 2–3×.
 2. New mechanic → add a `--test=` mode that frames it, like every mechanic above.
 3. Split-build test (packs) before shipping anything that changes what is in which pack.
+
+## Quick tools (23. 11., workflow review)
+- `bash gen/tests/bot.sh sb 2` / `bash gen/tests/bot.sh <chapter> <map>` - one map's bot with the result, and on a
+  timeout who is left and where it stuck; `RUNS=3` runs three at once (flaky ends show). The bot scope rule: one map
+  for a local change, `bots.sh` (all) only for shared code, once before the deploy.
+- `bash gen/tests/shots.sh "<test args>" [WxH] [regex]` - runs the test with rungd.py and lays the pictures on one
+  labelled contact sheet `_shots/sheet.png` (`py gen/tests/sheet.py [regex] [cols]` alone: the last minute's shots).
+- `--test=walkfrom:x[:up]` - from x on the pavement walking right (stick up), the men sent away, a frame each 0.4 s and a
+  `WALK x y state out` line: doors, ladders, the works' inside/outside.
