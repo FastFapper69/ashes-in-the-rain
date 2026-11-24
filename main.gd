@@ -4921,31 +4921,33 @@ func _auto_step(delta: float) -> void:
 		if _at > POSES.size() * 0.8 + 0.2:
 			get_tree().quit()
 	elif _auto == "gait":   # --test=gait (--chapter=0 for Eddie): the stride close up, 8 phases of the run aiming, 8 of the walk at ease, 2 standing
-		var k := mini(int(_at / 0.15), 17)
+		var k := mini(int(_at / 0.13), 20)   # 18..20: a jump going up, at its top, coming down
 		hud.visible = false
 		for e in enemies:
 			e["node"].visible = false
 			e["state"] = "wait"
-		player.position = Vector2(-6500.0, 0.0)
-		cam.zoom = Vector2.ONE * (1.75 if ARGS.has("--close") else 1.15)
+		player.position = Vector2(-6500.0, -160.0 if k > 17 else 0.0)
+		player.air = 1.0 if k > 17 else 0.0
+		player.air_v = float(k - 19) if k > 17 else 0.0
+		cam.zoom = Vector2.ONE * (1.75 if ARGS.has("--close") and k < 18 else 1.15)
 		cam.rotation = 0.0
-		cam.position = player.position + Vector2(0.0, -300.0 if ARGS.has("--close") else -280.0)
+		cam.position = Vector2(player.position.x, -300.0 if ARGS.has("--close") else -280.0)
 		var run_it := k < 8
 		var walk_it := k >= 8 and k < 16
 		player._phase = float(k % 8) / 8.0
 		player._moving = 1.0 if run_it else (0.4 if walk_it else 0.0)
 		player._gs = 1.0 if run_it else (0.4 if walk_it else 0.0)
-		player.ease = 0.0 if (run_it and not ARGS.has("--ease")) or k == 16 else 1.0
+		player.ease = 0.0 if (run_it and not ARGS.has("--ease")) or k == 16 or k > 17 else 1.0
 		player.at_ease = player.ease > 0.5
 		player.set_state(0.0, Vector2(1.0, 0.0), 0.0)
 		player._moving = 1.0 if run_it else (1.0 if walk_it and player.cfg.get("gait2", false) else (0.4 if walk_it else 0.0))
 		player._pose()
-		if fmod(_at, 0.15) > 0.07 and _auto_done & (1 << k) == 0:
+		if fmod(_at, 0.13) > 0.06 and _auto_done & (1 << k) == 0:
 			_auto_done |= 1 << k
 			if k == 0:
 				print("GAIT len ", player._len, " size ", player.size)
 			_shot("gait_%02d" % k)
-		if _at > 18 * 0.15 + 0.1:
+		if _at > 21 * 0.13 + 0.1:
 			get_tree().quit()
 	elif _auto == "kit":   # a crate shot apart, a gun run dry, the reload and the HUD rounds
 		var wi := -1
@@ -9187,9 +9189,9 @@ func _eddie_cfg() -> Dictionary:
 func _eddie2_cfg() -> Dictionary:
 	return {
 		"dir": "res://art/eddie2/", "weapon": "revolver", "leg_tex": "res://art/eddie2/leg.png", "short_coat": true, "gait2": true, "pelvis": Color(0.2, 0.17, 0.14),
-		"on_torso": {"shoulder": Vector2(135.0, 300.0), "far_shoulder": Vector2(175.0, 300.0), "head": Vector2(285.0, 62.0), "belt": Vector2(250.0, 683.0)},
+		"on_torso": {"shoulder": Vector2(135.0, 300.0), "far_shoulder": Vector2(175.0, 300.0), "head": Vector2(300.0, 62.0), "belt": Vector2(250.0, 683.0)},
 		"parts": {
-			"head": {"a": Vector2(208.0, 510.0), "b": Vector2(245.0, 116.0), "ppm": 1250},
+			"head": {"a": Vector2(208.0, 450.0), "b": Vector2(239.0, 116.0), "ppm": 1180},
 			"torso": {"a": Vector2(250.0, 683.0), "b": Vector2(262.0, 90.0), "ppm": 1140},
 			"uarm": {"a": Vector2(125.0, 110.0), "b": Vector2(185.0, 600.0), "ppm": 1480},
 			"farm": {"a": Vector2(95.0, 192.0), "b": Vector2(475.0, 77.0), "ppm": 1450},

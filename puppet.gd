@@ -34,7 +34,7 @@ const GUNS := {
 var weapon := ""
 var _legs := {}            # "f"/"b" -> the bending leg mesh
 var _pelvis: Polygon2D
-var _crooks := {}          # "f"/"b" -> cloth in the crook of a tightly folded knee (the bent mesh leaves a hole there)
+var _crooks := {}          # "f"/"b" -> cloth under the leg: the bent mesh leaves a hole in the crook of a tightly folded knee
 var _leg_shadows := {}
 var _flinch := 0.0          # a hit knocks him back a moment
 var _hit_part := ""         # where the last bullet hit him: the reaction depends on it
@@ -353,9 +353,12 @@ func _ready() -> void:
 				lm.modulate = _spr["thigh_b"].modulate
 			_legs[side] = lm
 			if cfg.has("pelvis"):
-				var ck := Polygon2D.new()
-				ck.polygon = PackedVector2Array([Vector2.ZERO, Vector2.RIGHT, Vector2.DOWN])
-				ck.color = (cfg["pelvis"] as Color) * lm.modulate
+				var ck := Line2D.new()   # a band of trouser cloth along the bones, under the drawn leg
+				ck.points = PackedVector2Array([Vector2.ZERO, Vector2.RIGHT, Vector2.DOWN])
+				ck.width = 0.13 * PPM
+				ck.joint_mode = Line2D.LINE_JOINT_ROUND
+				ck.begin_cap_mode = Line2D.LINE_CAP_ROUND
+				ck.default_color = (cfg["pelvis"] as Color) * lm.modulate
 				ck.light_mask = MASK_FIGURE
 				_body.add_child(ck)
 				_body.move_child(ck, lm.get_index())
@@ -897,8 +900,12 @@ func _pose() -> void:
 		far_target = hand + ((tex_size * ((gd["fore"] as Vector2) - (gd["grip"] as Vector2))) * gun_scale).rotated(gun_a)
 	elif (weapon == "pistols" or (dual and weapon == "revolver")) and not _dead:
 		far_target = far_shoulder + _aim * reach + Vector2(0.0, 0.07)
-	elif air > 0.0 and not _dead:   # in the air the free arm swings out for balance, up on the way up
+	elif air > 0.0 and not _dead and not g2:   # in the air the free arm swings out for balance, up on the way up
 		far_target = far_target.lerp(far_shoulder + Vector2(-0.22, -0.08 - 0.18 * clampf(-air_v, 0.0, 1.0) + 0.12 * clampf(air_v, 0.0, 1.0)), air * 0.85)
+	if g2 and air > 0.0 and not _dead and not long_gun and not (weapon == "pistols" or (dual and weapon == "revolver")):
+		# (user 24. 11.: "in a jump he throws the back arm oddly" - it stood up behind his shoulder like a wing) the free
+		# arm stays low: back and bent as he goes up, forward of the hip to meet the landing
+		far_target = far_target.lerp(far_shoulder + Vector2(-0.17, 0.25).lerp(Vector2(0.14, 0.24), clampf(air_v * 0.5 + 0.5, 0.0, 1.0)), air)
 	if es > 0.0 and not long_gun:   # the free arm hangs too, and swings with the walk
 		far_target = far_target.lerp(far_shoulder + Vector2(0.03 + 0.13 * cos(th) * t, (ua + fa) * 0.93), es * (1.0 - t) if g2 else es)
 	if _dead:   # dead weight: the arm lies almost straight along the thrown direction
@@ -932,10 +939,7 @@ func _pose() -> void:
 	var leg_f := [hip, k[0], k[1]]
 	for side in _crooks:
 		var lg: Array = leg_f if side == "f" else leg_b
-		var u1: Vector2 = ((lg[0] as Vector2) - lg[1]).normalized()
-		var u2: Vector2 = ((lg[2] as Vector2) - lg[1]).normalized()
-		var d := minf(0.3, 0.11 / maxf(0.05, (u1 - u2).length()))   # as far up both bones as the trouser legs still touch
-		(_crooks[side] as Polygon2D).polygon = PackedVector2Array([(lg[1] as Vector2) * PPM, (lg[1] + u1 * d) * PPM, (lg[1] + u2 * d) * PPM])
+		(_crooks[side] as Line2D).points = PackedVector2Array([(lg[0] as Vector2) * PPM, (lg[1] as Vector2) * PPM, (lg[1] as Vector2).lerp(lg[2], 0.8) * PPM])
 	if _pelvis != null:
 		_pelvis.position = hip * PPM
 		_pelvis.rotation = legs_lean
