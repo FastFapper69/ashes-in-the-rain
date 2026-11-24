@@ -469,7 +469,7 @@ var _at := 0.0
 var _auto_done := 0
 var _moves_k := 0
 const MOVES_SEEN := [["idle", 1], ["aim", 4], ["shot", 3], ["reload", 5], ["switch", 3], ["run_aim", 2], ["jump", 4], ["land", 2],
-		["dive_push", 3], ["dive", 3], ["dive_land", 1], ["roll", 8], ["slide", 3], ["duck", 2], ["duck_walk", 4], ["hit", 3],
+		["dive_push", 3], ["dive", 3], ["dive_land", 1], ["getup", 6], ["roll", 8], ["slide", 8], ["duck", 2], ["duck_walk", 4], ["hit", 3],
 		["hit_leg", 2], ["fly_kick", 4], ["wall_kick", 3], ["flip", 4], ["window", 3], ["vault", 3], ["hang", 1], ["climb", 3],
 		["hang_one", 1], ["pipe", 4], ["tommy", 3], ["shotgun", 2], ["dead", 2]]
 
@@ -480,7 +480,7 @@ func _moves_pose(mv: String, u: float, i: int) -> void:
 	p.duck = 0.0; p.air = 0.0; p.air_v = 0.0; p.dive = 0.0; p.slide = 0.0; p.crouch = 0.0; p.roll = 0.0
 	p.hang = 0.0; p.hang_cycle = -1.0; p.hang_one = false; p.clip = ""; p.reload = 0.0; p.recoil = 0.0
 	p._flinch = 0.0; p._hit_dip = 0.0; p._hit_part = ""; p.swing = -1.0; p._switch_p = -1.0
-	p.ease = 0.0; p.at_ease = false; p.dive_side = 1.0; p.slide_side = 1.0; p.roll_t = -1.0
+	p.ease = 0.0; p.at_ease = false; p.dive_side = 1.0; p.slide_side = 1.0; p.roll_t = -1.0; p.slide_t = -1.0; p.prone = false; p.ground = 0.0
 	var gun := "tommy" if mv == "tommy" else ("shotgun" if mv == "shotgun" else "revolver")
 	if p.weapon != gun:
 		p.set_weapon(gun)
@@ -512,6 +512,8 @@ func _moves_pose(mv: String, u: float, i: int) -> void:
 			p.dive = 1.0; p.air_v = [-0.6, 0.0, 0.7][i]; y = -200.0
 		"dive_land":
 			p.dive = 1.0; y = DIVE_LAND
+		"getup":
+			p.prone = true; p.dive = 1.0 - u; y = DIVE_LAND * (1.0 - u); p.ground = -DIVE_LAND * (1.0 - u)
 		"roll":
 			var e := u * u * (3.0 - 2.0 * u)
 			p.roll = lerpf(1.35, TAU, e)
@@ -521,7 +523,7 @@ func _moves_pose(mv: String, u: float, i: int) -> void:
 			p.roll_t = u
 			y = 0.0
 		"slide":
-			p.slide = [0.5, 1.0, 0.5][i]
+			p.slide = 1.0; p.slide_t = u
 		"duck":
 			p.duck = 1.0; aim = [Vector2(1, 0), Vector2(1, -0.5)][i]
 		"duck_walk":
@@ -5340,7 +5342,9 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 		player.position.x += (run + glide) * delta
 		player.air = move_toward(player.air, 0.0, delta * 8.0)
 		if absf(glide) < 180.0:   # and only gets up once the skid has run out
-			player.dive = move_toward(player.dive, 0.0, delta * 3.5)
+			player.dive = move_toward(player.dive, 0.0, delta * (1.9 if player.prone and player._use_mocap() else 3.5))   # (the get-up sheet: a man needs a beat to get up)
+			if player.dive <= 0.0:
+				player.prone = false
 		else:
 			steps.emitting = true
 		player.slide = move_toward(player.slide, 0.0, delta * 5.0)
@@ -5441,6 +5445,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 		elif fall > 0.0 and player.position.y >= floor_y + DIVE_LAND:   # otherwise flat on the pavement, skidding on
 			player.position.y = floor_y + DIVE_LAND
 			player.dive = 1.0
+			player.prone = true   # (the get-up sheet plays as dive runs out, puppet.gd)
 			run = 0.0
 			glide *= 0.8
 			move_state = "ground"
@@ -5512,6 +5517,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			sfx.play("step1", -4.0)
 	elif move_state == "slide":   # dropping into it, riding it out on the hip, then pushing back up
 		slide_left -= delta
+		player.slide_t = clampf(1.0 - slide_left / 0.55, 0.0, 1.0)
 		run = move_toward(run, 0.0, 500.0 * delta)
 		player.position.x += run * delta
 		var into := clampf((0.55 - slide_left) / 0.12, 0.0, 1.0)
@@ -5521,10 +5527,12 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 		steps.emitting = true
 		if slide_left <= 0.0:
 			move_state = "ground"
+			player.slide_t = -1.0
 		elif floor_y > player.position.y + 36.0:   # (audit 22. 11.) slid off a crate or a deck: he falls, not glides on in the air
 			move_state = "jump"
 			fall = 0.0
 			player.slide = 0.0
+			player.slide_t = -1.0
 			player.duck = 0.0
 			steps.emitting = false
 	_block(before_x)

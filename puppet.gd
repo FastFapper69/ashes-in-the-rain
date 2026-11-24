@@ -749,6 +749,8 @@ const MOCAP := preload("res://mocap_data.gd")
 static var mocap_off := false   # --nomocap: the keyed gait2 instead, to compare
 var _mc := {}                   # the blended mocap pose this frame (empty: none)
 var roll_t := -1.0              # main.gd's roll: 0..1 through it (-1 not rolling) - the captured dive roll plays along it
+var slide_t := -1.0             # main.gd's slide: 0..1 through it (-1 not sliding) - the keyed slide sheet (gen/mocap/keyed.py)
+var prone := false              # main.gd: down flat after a dive; while dive runs 1 -> 0 he gets up (the keyed get-up sheet)
 var _mcl := []                  # the one-off captured move this frame: [name, sample, weight, side]
 
 
@@ -835,9 +837,14 @@ func _pose() -> void:
 		_mc = {"hip": -(float(m[0]) * legk + ankle), "fa": Vector2(float(m[1]) * legk * sx, -float(m[2]) * legk),
 				"fb": Vector2(float(m[3]) * legk * sx, -float(m[4]) * legk), "torso": float(m[5]), "head": float(m[6]),
 				"hf": Vector2(float(m[7]), -float(m[8])) * legk * armk, "hb": Vector2(float(m[9]), -float(m[10])) * legk * armk,
-				"w": t * (1.0 - duck)}
-		foot_a = Vector2(-0.16, 0.0).lerp(_mc["fa"], _mc["w"]).lerp(foot_a, duck)
-		foot_b = Vector2(0.14, 0.0).lerp(_mc["fb"], _mc["w"]).lerp(foot_b, duck)
+				"w": t}
+		if duck > 0.0:   # crouched: the same walk, the hips let down and the body bowed, the step a little shorter
+			_mc["hip"] = float(_mc["hip"]) + 0.45 * legk * duck
+			_mc["torso"] = float(_mc["torso"]) + 0.42 * duck
+			_mc["fa"] = (_mc["fa"] as Vector2) * Vector2(1.0 - 0.2 * duck, 1.0)
+			_mc["fb"] = (_mc["fb"] as Vector2) * Vector2(1.0 - 0.2 * duck, 1.0)
+		foot_a = Vector2(-0.16, 0.0).lerp(_mc["fa"], _mc["w"]).lerp(foot_a, duck * (1.0 - t))
+		foot_b = Vector2(0.14, 0.0).lerp(_mc["fb"], _mc["w"]).lerp(foot_b, duck * (1.0 - t))
 	foot_a = foot_a.lerp(Vector2(0.2, 0.0), duck * (1.0 - t))    # standing crouch: one foot forward, one back
 	foot_b = foot_b.lerp(Vector2(-0.22, 0.0), duck * (1.0 - t))
 	# in a jump the knees come up; in a dive the legs trail straight; in a slide they lead
@@ -880,7 +887,7 @@ func _pose() -> void:
 		bob = 0.01 + t * lerpf(0.015 + 0.017 * cos(th * 2.0), 0.03 + 0.012 * cos((th - 1.2) * 2.0), rw) * (1.0 - maxf(air, maxf(dive, slide)))
 	var hip := Vector2(-0.1 * slide * slide_side, -(l1 + l2) * 0.985 - ankle + drop + bob)
 	if not _mc.is_empty():   # the hips ride as the captured man's did (up in the flight, down over the planted foot)
-		hip.y = lerpf(-(l1 + l2) * 0.985 - ankle + 0.01, float(_mc["hip"]), float(_mc["w"])) + drop
+		hip.y = lerpf(-(l1 + l2) * 0.985 - ankle + 0.01, float(_mc["hip"]), float(_mc["w"])) + drop - minf(duck * 0.58, drop) * float(_mc["w"])   # (the crouch is already in the captured hips)
 	var legs_lean := dive * 1.5 * dive_side + roll        # the legs follow a dive (flat out) or a tumble
 	if not _dead:   # the whole body pitches into the leap and settles back for the landing
 		legs_lean += air * (0.16 * clampf(-air_v, 0.0, 1.0) - 0.05 * clampf(air_v, 0.0, 1.0)) * (1.0 - dive)
@@ -917,6 +924,34 @@ func _pose() -> void:
 			var fb2 := Vector2(float(m[3]) * legk * sd, -float(m[4]) * legk)
 			foot_a = (hip + (foot_a - hip).rotated(legs_lean)).lerp(fa2, w)   # (the game's feet as they would be turned, so the hand-over is smooth)
 			foot_b = (hip + (foot_b - hip).rotated(legs_lean)).lerp(fb2, w)
+			legs_lean = 0.0
+			lean = lerpf(lean, float(m[5]) * sd, w)
+		elif clip == "dive_push" and cw > 0.0:   # into the dive: a man running and diving over (CMU 127_23), legs and torso
+			var m := _mcl_at("launch", clip_t / float(CLIPS["dive_push"]["len"]))
+			_mcl = ["launch", m, cw, 1.0]
+			foot_a = foot_a.lerp(hip + Vector2(float(m[1]) * legk, (float(m[0]) - float(m[2])) * legk) + Vector2(0.0, ankle), cw)
+			foot_b = foot_b.lerp(hip + Vector2(float(m[3]) * legk, (float(m[0]) - float(m[4])) * legk) + Vector2(0.0, ankle), cw)
+			legs_lean = lerpf(legs_lean, 0.0, cw)
+			lean = lerpf(lean, float(m[5]), cw)
+		elif slide_t >= 0.0 and slide > 0.0:   # the slide sheet: down onto the hip, riding it, the folded leg driving him up
+			var sd := slide_side
+			var m := _mcl_at("slide", slide_t)
+			var w := 1.0 - smoothstep(0.9, 1.0, slide_t)
+			_mcl = ["slide", m, w, sd]
+			hip = hip.lerp(Vector2(0.0, -float(m[0]) * legk - ankle), w)
+			foot_a = (hip + (foot_a - hip).rotated(legs_lean)).lerp(Vector2(float(m[1]) * legk * sd, -float(m[2]) * legk), w)
+			foot_b = (hip + (foot_b - hip).rotated(legs_lean)).lerp(Vector2(float(m[3]) * legk * sd, -float(m[4]) * legk), w)
+			legs_lean = 0.0
+			lean = lerpf(lean, float(m[5]) * sd, w)
+		elif prone and dive < 1.0 and air <= 0.01:   # up off the stones after the dive: the get-up sheet, along dive 1 -> 0
+			var sd := dive_side
+			var fl := ground / (PPM * maxf(0.01, absf(scale.y)))   # the floor: the origin lies below it while he is down
+			var m := _mcl_at("getup", 1.0 - dive)
+			var w := 1.0 - smoothstep(0.85, 1.0, 1.0 - dive)
+			_mcl = ["getup", m, w, sd]
+			hip = hip.lerp(Vector2(0.0, fl - float(m[0]) * legk - ankle), w)
+			foot_a = (hip + (foot_a - hip).rotated(legs_lean)).lerp(Vector2(float(m[1]) * legk * sd, fl - float(m[2]) * legk), w)
+			foot_b = (hip + (foot_b - hip).rotated(legs_lean)).lerp(Vector2(float(m[3]) * legk * sd, fl - float(m[4]) * legk), w)
 			legs_lean = 0.0
 			lean = lerpf(lean, float(m[5]) * sd, w)
 		elif air > 0.0 and cw <= 0.0 and hang <= 0.0:
@@ -998,6 +1033,9 @@ func _pose() -> void:
 	var armk_c := 1.0
 	if not _mcl.is_empty():
 		armk_c = (ua + fa) / (float(MOCAP.CLIPS[_mcl[0]]["arm"]) * (l1 + l2))
+	if not _mcl.is_empty() and _mcl[0] == "getup" and dive > 0.55:   # the first half of getting up: both hands push off the stones
+		var mg: Array = _mcl[1]
+		near_target = near_target.lerp(shoulder + Vector2(float(mg[9]) * float(_mcl[3]), -float(mg[10])) * (l1 + l2) * armk_c, float(_mcl[2]) * smoothstep(0.55, 0.8, dive))
 	if not _mcl.is_empty() and _mcl[0] == "roll":   # tumbling, the hands go where his did: down to the stones and tucked
 		var m: Array = _mcl[1]
 		near_target = near_target.lerp(shoulder + Vector2(float(m[7]) * float(_mcl[3]), -float(m[8])) * (l1 + l2) * armk_c, float(_mcl[2]))
@@ -1121,8 +1159,8 @@ func _pose() -> void:
 	var look := (lean - roll - spin) * 0.5 + roll + spin   # (24. 11.: the head went only half way round a flip - upside down in his coat)
 	if not _mc.is_empty():
 		look = lerpf(look, float(_mc["head"]) * 0.6 + lean * 0.4, float(_mc["w"]))
-	if not _mcl.is_empty() and _mcl[0] == "roll":
-		look = lerpf(look, float(_mcl[1][6]) * float(_mcl[3]), float(_mcl[2]))
+	if not _mcl.is_empty() and _mcl[0] in ["roll", "slide", "getup"]:
+		look = lerpf(look, float(_mcl[1][6]) * float(_mcl[3]) + (clampf(_aim.angle(), -0.9, 0.7) * 0.3 if _mcl[0] != "roll" else 0.0), float(_mcl[2]))
 	if not _dead:
 		look += clampf(_aim.angle(), -0.9, 0.7) * 0.4 * (1.0 - hands_up) * (1.0 - es) - recoil * 0.3 + hands_up * 0.12
 		if not hang_one:
@@ -1135,8 +1173,8 @@ func _pose() -> void:
 	_place("farm_f", "farm", kn[0], kn[1])
 	_gun.position = hand * PPM
 	_gun.rotation = gun_a
-	if not _mcl.is_empty() and _mcl[0] == "roll":   # the gun along the forearm while the hand is on the stones
-		_gun.rotation = lerp_angle(gun_a, (kn[1] - kn[0]).angle(), float(_mcl[2]))
+	if not _mcl.is_empty() and (_mcl[0] == "roll" or (_mcl[0] == "getup" and dive > 0.55)):   # the gun along the forearm while the hand is on the stones
+		_gun.rotation = lerp_angle(gun_a, (kn[1] - kn[0]).angle(), float(_mcl[2]) * (1.0 if _mcl[0] == "roll" else smoothstep(0.55, 0.8, dive)))
 	_gun.visible = not disarmed and not (hang > 0.5 and not hang_one) and not (swing >= 0.0 and not _dead)   # both hands on the rope: the gun is in his coat
 	if _pipe != null:
 		_pipe.visible = swing >= 0.0 and not _dead
