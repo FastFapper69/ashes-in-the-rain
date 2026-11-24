@@ -693,10 +693,14 @@ func set_state(dir: float, aim: Vector2, delta: float) -> void:
 ## half, then lifted and swung forward in an eased arc.
 ## (user 24. 11.: "the run is grotesque" - postavy/plan-novych-postav, cfg "gait2") The stride keyed from how a man really
 ## moves, one foot's path against the hip, p = 0 at its strike: [p, x forward, y (up is minus)], metres.
-## RUN: on the ground for 35 % of the cycle only (so both feet are in the air twice a stride), the heel thrown up
-## behind him, the knee driven through high, the foot pawing back to land under the body.
-const RUN_KEYS := [[0.0, 0.22, 0.0], [0.35, -0.37, -0.05], [0.45, -0.53, -0.22], [0.58, -0.38, -0.52], [0.7, -0.02, -0.42],
-		[0.82, 0.3, -0.3], [0.93, 0.36, -0.1], [1.0, 0.22, 0.0]]
+## RUN: a man running hard in the street, not a sprinter (user 24. 11.: "he still lifts his knees too much - closer to
+## realism"). The keys are worked out from joint angles of a ~3 m/s run (gait studies) through Eddie's leg lengths:
+## contact thigh 25 deg forward, knee 20 bent; toe-off on the ball of the foot, thigh 15 back; the knee folds most
+## (95 deg) just after, the thigh then only ~10 forward; the thigh's highest is ~40 deg (a sprinter's 70+ reads as
+## high-stepping), the shin swinging out to land a little ahead of the hip. On the ground 38 %: a short flight between.
+## Checked by `--test=gait` (prints each frame's thigh and knee angle).
+const RUN_KEYS := [[0.0, 0.216, 0.0], [0.3, -0.25, 0.0], [0.38, -0.386, -0.06], [0.47, -0.5, -0.27], [0.6, -0.357, -0.36],
+		[0.7, -0.183, -0.24], [0.8, 0.055, -0.12], [0.92, 0.242, -0.04], [1.0, 0.216, 0.0]]
 ## WALK: on the ground 62 % (both feet down between steps), the heel peeling up before the toe leaves, a low swing
 ## just clear of the pavement. The planted leg is all but straight: a walk on bent knees is a creep.
 const WALK_KEYS := [[0.0, 0.3, 0.0], [0.45, -0.135, 0.0], [0.62, -0.3, -0.05], [0.72, -0.33, -0.12], [0.82, -0.08, -0.12], [0.93, 0.26, -0.05], [1.0, 0.3, 0.0]]
@@ -802,7 +806,7 @@ func _pose() -> void:
 	var bob := lerpf(0.01, 0.04 + (0.065 if heavy else 0.035) * cos(th * 2.0), t)
 	if g2:   # the hips ride low enough for the legs to reach their stride: lowest over the planted foot in a run (and up
 		# in the flight between), lowest between the steps in a walk
-		bob = 0.01 + t * lerpf(0.015 + 0.017 * cos(th * 2.0), 0.075 + 0.045 * cos((th - 0.75) * 2.0), rw) * (1.0 - maxf(air, maxf(dive, slide)))
+		bob = 0.01 + t * lerpf(0.015 + 0.017 * cos(th * 2.0), 0.03 + 0.012 * cos((th - 1.2) * 2.0), rw) * (1.0 - maxf(air, maxf(dive, slide)))
 	var hip := Vector2(-0.1 * slide * slide_side, -(l1 + l2) * 0.985 - ankle + drop + bob)
 	var legs_lean := dive * 1.5 * dive_side + roll        # the legs follow a dive (flat out) or a tumble
 	if not _dead:   # the whole body pitches into the leap and settles back for the landing

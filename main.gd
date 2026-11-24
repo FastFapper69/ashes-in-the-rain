@@ -4946,6 +4946,11 @@ func _auto_step(delta: float) -> void:
 			_auto_done |= 1 << k
 			if k == 0:
 				print("GAIT len ", player._len, " size ", player.size)
+			var hb: Array = player._bones["thigh_f"]
+			var kb: Array = player._bones["shin_f"]
+			var th_a := rad_to_deg(((hb[1] as Vector2) - hb[0]).angle_to(Vector2.DOWN))   # + = the thigh forward of the hip
+			var kn_a := rad_to_deg(absf(((hb[1] as Vector2) - hb[0]).angle_to((kb[1] as Vector2) - kb[0])))
+			print("GAIT %02d thigh %+.0f deg, knee bent %.0f deg" % [k, -th_a, kn_a])
 			_shot("gait_%02d" % k)
 		if _at > 21 * 0.13 + 0.1:
 			get_tree().quit()
