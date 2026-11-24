@@ -90,3 +90,7 @@ než Frank, cigareta, viditelný krk. Proporce lehce přehnané (delší nohy, o
 - Krok 3 hotov bez mocapu: `gait2` v puppet.gd (klíčovaná dráha chodidla proti kyčli, běh s letovou fází, vzpřímená chůze, kadence ze skutečné rychlosti, pumpující ruce). Mocap zatím nebyl potřeba.
 - Další: krok 4 (míření, výstřel, přebití na novém těle), krok 5 (skok, rybička, skluz, krytí).
 
+## Stav 24. 11. pozdě v noci
+- Uživatel: „dodělej všechny pohyby a animace, ať pak hodnotím celek“. Nový test `--test=moves` (82 snímků, 29 pohybů), všechny prošlé, opravy viz HANDOFF (148).
+- Běh z úhlů kloubů skutečného běhu (pravidlo 39). Čeká na celkový dojem uživatele, pak Frank stejnou cestou.
+

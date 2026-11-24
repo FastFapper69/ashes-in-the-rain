@@ -467,6 +467,97 @@ var _probe := 0.0
 var _auto := ""   # a scripted test run from the command line; empty in normal play
 var _at := 0.0
 var _auto_done := 0
+var _moves_k := 0
+const MOVES_SEEN := [["idle", 1], ["aim", 4], ["shot", 3], ["reload", 5], ["switch", 3], ["run_aim", 2], ["jump", 4], ["land", 2],
+		["dive_push", 3], ["dive", 3], ["dive_land", 1], ["roll", 4], ["slide", 3], ["duck", 2], ["duck_walk", 4], ["hit", 3],
+		["hit_leg", 2], ["fly_kick", 4], ["wall_kick", 3], ["flip", 4], ["window", 3], ["vault", 3], ["hang", 1], ["climb", 3],
+		["hang_one", 1], ["pipe", 4], ["tommy", 3], ["shotgun", 2], ["dead", 2]]
+
+
+## --test=moves: the figure set by hand into one frame of a move (u = 0..1 through it, i = the frame).
+func _moves_pose(mv: String, u: float, i: int) -> void:
+	var p = player
+	p.duck = 0.0; p.air = 0.0; p.air_v = 0.0; p.dive = 0.0; p.slide = 0.0; p.crouch = 0.0; p.roll = 0.0
+	p.hang = 0.0; p.hang_cycle = -1.0; p.hang_one = false; p.clip = ""; p.reload = 0.0; p.recoil = 0.0
+	p._flinch = 0.0; p._hit_dip = 0.0; p._hit_part = ""; p.swing = -1.0; p._switch_p = -1.0
+	p.ease = 0.0; p.at_ease = false; p.dive_side = 1.0; p.slide_side = 1.0
+	var gun := "tommy" if mv == "tommy" else ("shotgun" if mv == "shotgun" else "revolver")
+	if p.weapon != gun:
+		p.set_weapon(gun)
+	var y := 0.0
+	var aim := Vector2(1.0, 0.0)
+	var mov := 0.0
+	var gs := 0.0
+	var ph := 0.0
+	match mv:
+		"idle":
+			p.ease = 1.0; p.at_ease = true
+		"aim":
+			aim = [Vector2(1, 0), Vector2(1, -0.9), Vector2(1, 0.55), Vector2(-1, -0.1)][i]
+		"shot":
+			p.recoil = [0.38, 0.2, 0.06][i]
+		"reload":
+			p.reload = lerpf(0.06, 0.94, (u - 0.1) / 0.8)
+		"switch":
+			p._switch_p = u
+		"run_aim":
+			mov = 1.0; gs = 1.0; ph = [0.1, 0.6][i]
+		"jump":
+			p.air = 1.0; p.air_v = lerpf(-1.0, 1.0, (u - 0.125) / 0.75); y = -180.0
+		"land":
+			p.crouch = [0.9, 0.4][i]
+		"dive_push":
+			p.play_clip("dive_push", 1.0); p.clip_t = u * 0.22 * 0.95
+		"dive":
+			p.dive = 1.0; p.air_v = [-0.6, 0.0, 0.7][i]; y = -200.0
+		"dive_land":
+			p.dive = 1.0; y = DIVE_LAND
+		"roll":
+			var e := u * u * (3.0 - 2.0 * u)
+			p.roll = lerpf(1.35, TAU, e)
+			var tuck := sin(u * PI)
+			p.air = lerpf(0.5, 1.0, tuck)
+			p.crouch = lerpf(0.6, 1.0, tuck) if u < 0.75 else lerpf(1.0, 0.7, (u - 0.75) / 0.25)
+			y = -40.0
+		"slide":
+			p.slide = [0.5, 1.0, 0.5][i]
+		"duck":
+			p.duck = 1.0; aim = [Vector2(1, 0), Vector2(1, -0.5)][i]
+		"duck_walk":
+			p.duck = 1.0; mov = 1.0; gs = 0.38; ph = u
+		"hit":
+			p._flinch = [1.0, 0.6, 0.2][i]; p._hit_part = "torso"
+		"hit_leg":
+			p._flinch = [1.0, 0.5][i]; p._hit_dip = [1.0, 0.5][i]; p._hit_part = "thigh_f"
+		"fly_kick", "wall_kick", "flip", "window":
+			p.play_clip(mv, 1.0); p.clip_t = u * float(p.CLIPS[mv]["len"]) * 0.97; y = -120.0
+		"vault":
+			var lift := sin(u * PI)
+			p.air = lift; p.crouch = 0.35 * lift; p.roll = 0.28 * lift; y = -120.0 * lift
+		"hang":
+			p.hang = 1.0; y = -60.0
+		"climb":
+			p.hang = 1.0; p.hang_cycle = u; y = -60.0
+		"hang_one":
+			p.hang = 1.0; p.hang_one = true; y = -60.0
+		"pipe":
+			p.swing = u
+		"tommy":
+			mov = [0.0, 1.0, 0.0][i]; gs = mov; ph = 0.3
+			if i == 2:
+				p.ease = 1.0; p.at_ease = true
+		"shotgun":
+			mov = [0.0, 1.0][i]; gs = mov; ph = 0.3
+	p.position = Vector2(-6500.0, y)
+	if mv == "dead":
+		p.die_pose([0.3, 1.2][i], [0.0, 0.6][i])
+		return
+	p.snap_aim(aim)
+	p.set_state(0.0, aim, 0.0)
+	p._moving = mov
+	p._gs = gs
+	p._phase = ph
+	p._pose()
 var _bot_fight := 0.0
 var _dive_at := 1380.0
 var _bot_x := 0.0
@@ -3021,7 +3112,7 @@ func _process(delta: float) -> void:
 		return
 	if _auto != "" and not _auto.begins_with("cut:") and not _auto.begins_with("voice:") and _auto != "hops":
 		_auto_step(delta)
-	if _auto == "poses" or _auto == "gait":
+	if _auto in ["poses", "gait", "moves"]:
 		return
 	_probe += delta / Engine.time_scale
 	if _probe > 2.0 and _show_fps:   # key 0 switches the readout on
@@ -4953,6 +5044,33 @@ func _auto_step(delta: float) -> void:
 			print("GAIT %02d thigh %+.0f deg, knee bent %.0f deg" % [k, -th_a, kn_a])
 			_shot("gait_%02d" % k)
 		if _at > 21 * 0.13 + 0.1:
+			get_tree().quit()
+	elif _auto == "moves":   # --test=moves (--chapter=0 for Eddie): every move of the figure, a few frames each -> _shots/mv_NN_<move>.png
+		var flat: Array = []
+		for m in MOVES_SEEN:
+			for i in int(m[1]):
+				flat.append([m[0], i, int(m[1])])
+		var k0 := 0   # --mvfrom=N: start at frame N (a run of a test stops after ~3 s)
+		for a in ARGS:
+			if a.begins_with("--mvfrom="):
+				k0 = int(a.trim_prefix("--mvfrom="))
+		var k := mini(k0 + int(_at / 0.1), flat.size() - 1)
+		_moves_k = maxi(_moves_k, k0)
+		hud.visible = false
+		for e in enemies:
+			e["node"].visible = false
+			e["state"] = "wait"
+		var mv: String = flat[k][0]
+		var n: int = flat[k][2]
+		var u: float = (float(flat[k][1]) + 0.5) / float(n) if n > 1 else 0.5
+		_moves_pose(mv, u, int(flat[k][1]))
+		cam.zoom = Vector2.ONE * 1.3
+		cam.rotation = 0.0
+		cam.position = Vector2(player.position.x + 40.0, minf(player.position.y, 0.0) - 260.0)
+		if fmod(_at, 0.1) > 0.05 and _moves_k <= k:
+			_moves_k = k + 1
+			_shot("mv_%02d_%s" % [k, mv])
+		if _at > (flat.size() - k0) * 0.1 + 0.1:
 			get_tree().quit()
 	elif _auto == "kit":   # a crate shot apart, a gun run dry, the reload and the HUD rounds
 		var wi := -1

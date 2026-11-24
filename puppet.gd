@@ -821,8 +821,9 @@ func _pose() -> void:
 		lean -= sin(_flinch * PI) * 0.12 * _hit_dip              # a leg hit folds him forward a moment
 		lean += clampf(_aim.angle(), -0.9, 0.6) * 0.08   # the body follows the gun up or down a little
 	lean = lerpf(lean, 0.0, hang)   # hanging straight down from the hands
+	var spin := 0.0
 	if cw > 0.0:   # the clip's body: the legs and the torso turned as set, and a flip turns the lot
-		var spin := float(cl.get("spin", 0.0)) * TAU * clip_side
+		spin = float(cl.get("spin", 0.0)) * TAU * clip_side
 		legs_lean = lerpf(legs_lean, float(cl["legs"]) * clip_side, cw) + spin
 		lean = lerpf(lean, float(cl["lean"]) * clip_side, cw) + spin
 	var breath := sin(_clock * 1.7) * 0.006 * (1.0 - t) * (0.0 if _dead else 1.0)   # breathing, standing still
@@ -857,7 +858,7 @@ func _pose() -> void:
 	var rl := 0.0
 	if reload > 0.0 and not _dead:
 		rl = smoothstep(0.0, 0.14, reload) * (1.0 - smoothstep(0.86, 1.0, reload))
-		near_target = near_target.lerp(shoulder + Vector2(0.24, 0.24), rl)
+		near_target = near_target.lerp(shoulder + (Vector2(0.3, 0.36) if cfg.get("gait2", false) and not long_gun else Vector2(0.24, 0.24)), rl)
 	if hands_up > 0.0 and not _dead:
 		near_target = near_target.lerp(shoulder + Vector2(0.16, -(ua + fa) * 0.82), hands_up)
 	var es := 0.0   # at ease: the gun hand down by the thigh (a long gun low across the body), swinging against the legs
@@ -867,7 +868,7 @@ func _pose() -> void:
 		if g2 and not long_gun:   # walking the arm swings from the shoulder; running it pumps, the elbow bent, the gun by his ribs
 			var sw := cos(th)   # 1: the near foot is forward, so the near hand is back
 			var walk_h := Vector2(0.05 - 0.17 * sw * t, (ua + fa) * (0.95 - 0.03 * absf(sw) * t))
-			var run_h := Vector2(0.06, 0.27).lerp(Vector2(-0.2, 0.3), maxf(sw, 0.0)).lerp(Vector2(0.25, 0.17), maxf(-sw, 0.0))
+			var run_h := Vector2(0.05, 0.32).lerp(Vector2(-0.18, 0.36), maxf(sw, 0.0)).lerp(Vector2(0.22, 0.26), maxf(-sw, 0.0))
 			low = shoulder + walk_h.lerp(run_h, rw * t)
 		near_target = near_target.lerp(low, es)
 	var gun_a := lerp_angle(_aim.angle(), 0.5 if long_gun else 1.2, es)
@@ -897,7 +898,7 @@ func _pose() -> void:
 	var far_target := (shoulder + _aim * 0.5 + Vector2(0.02, 0.06)).lerp(hip + Vector2(0.25 * cos(th), 0.05), t)
 	if g2:   # the free arm against the legs: a hanging swing in the walk, a pump in the run (also while the other aims)
 		var fw := Vector2(0.03 + 0.17 * cos(th), (ua + fa) * 0.93)
-		var fr := Vector2(0.06, 0.25).lerp(Vector2(-0.2, 0.3), maxf(-cos(th), 0.0)).lerp(Vector2(0.27, 0.06), maxf(cos(th), 0.0))
+		var fr := Vector2(0.05, 0.32).lerp(Vector2(-0.18, 0.36), maxf(-cos(th), 0.0)).lerp(Vector2(0.22, 0.24), maxf(cos(th), 0.0))
 		far_target = (shoulder + _aim * 0.5 + Vector2(0.02, 0.06)).lerp(far_shoulder + fw.lerp(fr, rw), t)
 	if long_gun:
 		var tex_size := Vector2((_gun.texture as Texture2D).get_size())
@@ -919,7 +920,10 @@ func _pose() -> void:
 	if hands_up > 0.0 and not _dead:
 		far_target = far_target.lerp(far_shoulder + Vector2(0.06, -(ua + fa) * 0.84), hands_up)
 	if cw > 0.0 and cl.has("far") and not long_gun and not (weapon == "pistols" or (dual and weapon == "revolver")):
-		far_target = far_target.lerp(far_shoulder + (cl["far"] as Vector2) * Vector2(clip_side, 1.0), cw)
+		var cf: Vector2 = cl["far"]
+		if g2:
+			cf = Vector2(0.12, 0.22) if clip == "window" else Vector2(clampf(cf.x, -0.2, 0.3), maxf(cf.y, 0.18))
+		far_target = far_target.lerp(far_shoulder + cf * Vector2(clip_side, 1.0), cw)
 	if hang > 0.0 and not _dead:
 		var low := 0.2 * (1.0 - climb_c) if hang_cycle >= 0.0 else (0.0 if hang_one else 0.13)
 		far_target = far_target.lerp(Vector2(0.06, hang_top + low), hang)
@@ -997,7 +1001,7 @@ func _pose() -> void:
 		c.position = _spr["torso"].position
 		c.rotation = _spr["torso"].rotation
 	# the head tips less than the body, and turns a little after the aim: he looks where he shoots
-	var look := (lean - roll) * 0.5 + roll
+	var look := (lean - roll - spin) * 0.5 + roll + spin   # (24. 11.: the head went only half way round a flip - upside down in his coat)
 	if not _dead:
 		look += clampf(_aim.angle(), -0.9, 0.7) * 0.4 * (1.0 - hands_up) * (1.0 - es) - recoil * 0.3 + hands_up * 0.12
 		if not hang_one:
@@ -1020,7 +1024,7 @@ func _pose() -> void:
 		_gun2.visible = false
 	if rl > 0.0:   # muzzle up; near the end a flick of the wrist snaps the cylinder home
 		var flick := sin(clampf((reload - 0.78) / 0.1, 0.0, 1.0) * PI) * 0.5
-		_gun.rotation = lerp_angle(_aim.angle(), -1.25 + flick, rl)
+		_gun.rotation = lerp_angle(_aim.angle(), (-0.85 if cfg.get("gait2", false) else -1.25) + flick, rl)   # (gait2: held out from the coat, it reads as a gun, not a pocket)
 	if _shadow:
 		for key in _shadow_spr:
 			var src: Node2D = _gun if key == "gun" else (_gun2 if key == "gun2" else _spr[key])
