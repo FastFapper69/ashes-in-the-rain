@@ -860,15 +860,16 @@ func _ready() -> void:
 	side = "revolver" if String(Levels.CAMPAIGN[chapter]["hero"]) == "eddie" else Instincts.side()
 	player.side = side
 	player.dual = String(Levels.CAMPAIGN[chapter]["hero"]) != "eddie" and Instincts.side_two()
+	var eddie2: bool = not ARGS.has("--old-eddie")   # (24. 11.) his own body (art/eddie2); --old-eddie: Frank's body under his head
 	if ch["hero"] == "eddie" and not in_menu:   # Eddie (the title always shows Frank: it is his story)
-		player.cfg = _eddie_cfg()
+		player.cfg = _eddie2_cfg() if eddie2 else _eddie_cfg()
 	player.night = _undo_night(1.0)
 	add_child(player)
 	_tm("player")
 	mag = _mag_size("revolver")
 	if player.dual:
 		player.set_weapon("revolver")   # the second revolver into the far hand
-	if ch["hero"] == "eddie" and not in_menu:   # his navy pea coat, short at the hip, not Frank's long tan trench
+	if ch["hero"] == "eddie" and not in_menu and not eddie2:   # his navy pea coat, short at the hip, not Frank's long tan trench
 		for part in ["torso", "skirt", "uarm_f", "uarm_b", "collar_front", "collar_back"]:
 			if player._spr.has(part):
 				player._spr[part].modulate *= Color(0.34, 0.4, 0.58)
@@ -4926,9 +4927,9 @@ func _auto_step(delta: float) -> void:
 			e["node"].visible = false
 			e["state"] = "wait"
 		player.position = Vector2(-6500.0, 0.0)
-		cam.zoom = Vector2.ONE * 1.15
+		cam.zoom = Vector2.ONE * (1.75 if ARGS.has("--close") else 1.15)
 		cam.rotation = 0.0
-		cam.position = player.position + Vector2(0.0, -280.0)
+		cam.position = player.position + Vector2(0.0, -300.0 if ARGS.has("--close") else -280.0)
 		var run_it := k < 8
 		var walk_it := k >= 8 and k < 16
 		player._phase = float(k % 8) / 8.0
@@ -9178,6 +9179,23 @@ func _eddie_cfg() -> Dictionary:
 	var sk: Dictionary = c["parts"]["skirt"]   # a pea coat stops at the hip: only the top of the coat's drawing
 	sk["b"] = Vector2((sk["b"] as Vector2).x, lerpf((sk["a"] as Vector2).y, (sk["b"] as Vector2).y, 0.45))
 	return c
+
+
+## (user 24. 11.: "every important character its own look, closer to the comic" - the pilot) Eddie's own body: the design
+## the user approved (art_src 362), its parts sheet (363) cut by gen/eddie_parts.py. Joints in the pixels of art/eddie2/*.
+func _eddie2_cfg() -> Dictionary:
+	return {
+		"dir": "res://art/eddie2/", "weapon": "revolver", "leg_tex": "res://art/eddie2/leg.png", "short_coat": true,
+		"on_torso": {"shoulder": Vector2(135.0, 300.0), "far_shoulder": Vector2(175.0, 300.0), "head": Vector2(285.0, 62.0), "belt": Vector2(250.0, 683.0)},
+		"parts": {
+			"head": {"a": Vector2(210.0, 500.0), "b": Vector2(245.0, 120.0), "ppm": 1250},
+			"torso": {"a": Vector2(250.0, 683.0), "b": Vector2(262.0, 90.0), "ppm": 1140},
+			"uarm": {"a": Vector2(120.0, 80.0), "b": Vector2(190.0, 640.0), "ppm": 1819},
+			"farm": {"a": Vector2(95.0, 192.0), "b": Vector2(475.0, 77.0), "ppm": 1281},
+			"collar_front": Rect2(120.0, 0.0, 360.0, 235.0),   # the turned-up collar over his neck
+			"thigh": LEGS["thigh"], "shin": LEGS["shin"],
+		},
+	}
 
 
 ## (audit 18. 11.: "shotgunners, tommy gunners and bosses share one silhouette") each kind its own clothes on the same rig

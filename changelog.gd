@@ -5,6 +5,7 @@ extends RefCounted
 
 const ENTRIES := [
 	["24 NOV 2026", [
+		"Eddie Doyle has his own body: pea coat, pork-pie hat with the press card, drawn from a new design",
 		"Knees sit where a man's knees are: the lifted leg no longer marches",
 		"With nobody to shoot at he lowers the gun and walks with his arms loose",
 		"Eddie's collar is the colour of his coat: no more pale flap behind his face",

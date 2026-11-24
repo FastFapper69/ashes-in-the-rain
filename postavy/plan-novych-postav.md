@@ -78,3 +78,10 @@ než Frank, cigareta, viditelný krk. Proporce lehce přehnané (delší nohy, o
 - Rozbor: [[postava-rozbor-2026-11-24]], [[gemini-neon-2026-11-24]].
 - Toon Boom: příprava vystřihované postavy (díly, hierarchie, hlavní kolík); Godot docs: cutout animation; AnimSchool: klíčové pózy běhu;
   CMU Graphics Lab Motion Capture Database (BVH převod cgspeed).
+
+## Stav 24. 11. večer
+- Krok 1 hotov: uživatel schválil návrh C (art_src 362; portrét = závazná tvář).
+- Krok 2 hotov: list dílů art_src 363 → `gen/char_cut.py`, `gen/eddie_parts.py` → `art/eddie2/` → `main.gd _eddie2_cfg`. Eddie ve hře stojí, chodí a běží s vlastním tělem (`--test=gait --close --chapter=0`). Starý: `--old-eddie`.
+- Šablona `gen/char_template.py` se nepoužila: Gemini na dlouhá zadání se šablonou odpovídal jen textem; zabralo krátké zadání bez šablony, klouby jsem odečetl z mřížky.
+- Zbývá u Eddieho: krok 3 (běh a chůze z nasnímaného pohybu, zbraň u těla), portrét v HUD, otevřená dlaň, klobouk jako samostatný díl (aby mohl spadnout).
+
