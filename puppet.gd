@@ -676,6 +676,11 @@ func set_state(dir: float, aim: Vector2, delta: float) -> void:
 		_gs = lerpf(_gs, clampf(absf(_vel.x) / 640.0, 0.0, 1.25), 1.0 - exp(-10.0 * delta))
 		_moving = clampf(_gs / 0.2, 0.0, 1.0)
 		var rate := lerpf(WALK_RATE * sqrt(clampf(_gs / 0.4, 0.0, 1.3)), RUN_RATE * sqrt(clampf(_gs, 0.0, 1.2)), _run_w())
+		if _use_mocap():   # the recording's own cadence (a little slower when he goes slower than the man who was captured)
+			var mx := _mc_mix()
+			var nat := float(mx[2]) * (float(_len["thigh"]) + float(_len["shin"])) / float(mx[1])   # m/s of the recording on his legs
+			var sp := absf(_vel.x) / (PPM * maxf(0.01, absf(scale.x)))
+			rate = (1.0 / float(mx[1])) * clampf(sqrt(sp / maxf(0.1, nat)), 0.0, 1.15)
 		_phase = fposmod(_phase + signf(forward) * delta * rate, 1.0)
 	# kept modest: the upper coat is part of the torso drawing, and a tail that swings far breaks away from it
 	# straight down at rest and in a walk; it only streams back once he is really moving
@@ -737,6 +742,40 @@ func _run_w() -> float:
 	return smoothstep(0.5, 0.8, _gs)
 
 
+## (user 24. 11.: "most of it looks mechanical - I want to see the mocap Blender version") cfg "mocap": the walk and the run
+## are real people's, captured (CMU database) and seen from the side (gen/mocap, mocap_data.gd). The near leg, the far leg,
+## the hips' height, the torso, the head and both hands come from the recording; the figure only scales it to its own legs.
+const MOCAP := preload("res://mocap_data.gd")
+static var mocap_off := false   # --nomocap: the keyed gait2 instead, to compare
+var _mc := {}                   # the blended mocap pose this frame (empty: none)
+
+
+static func _mc_at(name: String, p: float) -> Array:
+	var ph: Array = MOCAP.CYCLES[name]["phases"]
+	var n := ph.size()
+	var t := fposmod(p, 1.0) * n
+	var i := int(t)
+	var u := t - i
+	var a: Array = ph[i % n]
+	var b: Array = ph[(i + 1) % n]
+	var out := []
+	for k in a.size():
+		out.append(lerpf(float(a[k]), float(b[k]), u))
+	return out
+
+
+## How much walk / run (0 = the walk cycle, 1 = the run), the length of a cycle in seconds, and its stride in leg lengths.
+func _mc_mix() -> Array:
+	var rw := smoothstep(0.42, 0.72, _gs)
+	var walk: Dictionary = MOCAP.CYCLES["walk"]
+	var run: Dictionary = MOCAP.CYCLES["run"]
+	return [rw, lerpf(float(walk["seconds"]), float(run["seconds"]), rw), lerpf(float(walk["travel"]), float(run["travel"]), rw)]
+
+
+func _use_mocap() -> bool:
+	return cfg.get("mocap", false) and not mocap_off and not OS.get_cmdline_user_args().has("--nomocap")
+
+
 func _foot2(p: float) -> Vector2:
 	var rw := _run_w()
 	var w := _keyed(WALK_KEYS, p) * Vector2(sqrt(clampf(_gs / 0.4, 0.05, 1.3)), 1.0)
@@ -767,6 +806,25 @@ func _pose() -> void:
 	var stride := Vector2(1.0 - 0.4 * duck, 1.0 - 0.5 * duck)   # crouched, the steps are short and low
 	var foot_a := Vector2(-0.16, 0.0).lerp(_foot(_phase) * stride, t)
 	var foot_b := Vector2(0.14, 0.0).lerp(_foot(_phase + 0.5) * stride, t)
+	_mc = {}
+	if _use_mocap() and t > 0.0 and not _dead:
+		var mx := _mc_mix()
+		var w := _mc_at("walk", _phase)
+		var r := _mc_at("run", _phase)
+		var m := []
+		for k in w.size():
+			m.append(lerpf(float(w[k]), float(r[k]), float(mx[0])))
+		var legk: float = float(_len["thigh"]) + float(_len["shin"])
+		var nat := float(mx[2]) * legk / float(mx[1])
+		var sp := absf(_vel.x) / (PPM * maxf(0.01, absf(scale.x))) if _have_last else nat
+		var sx := clampf(sp / maxf(0.1, nat) / clampf(sqrt(sp / maxf(0.1, nat)), 0.3, 1.15), 0.55, 1.2)   # what the cadence leaves to the stride
+		var armk: float = (float(_len["uarm"]) + float(_len["farm"])) / (float(MOCAP.CYCLES["jog"]["arm"]) * legk)
+		_mc = {"hip": -(float(m[0]) * legk + ankle), "fa": Vector2(float(m[1]) * legk * sx, -float(m[2]) * legk),
+				"fb": Vector2(float(m[3]) * legk * sx, -float(m[4]) * legk), "torso": float(m[5]), "head": float(m[6]),
+				"hf": Vector2(float(m[7]), -float(m[8])) * legk * armk, "hb": Vector2(float(m[9]), -float(m[10])) * legk * armk,
+				"w": t * (1.0 - duck)}
+		foot_a = Vector2(-0.16, 0.0).lerp(_mc["fa"], _mc["w"]).lerp(foot_a, duck)
+		foot_b = Vector2(0.14, 0.0).lerp(_mc["fb"], _mc["w"]).lerp(foot_b, duck)
 	foot_a = foot_a.lerp(Vector2(0.2, 0.0), duck * (1.0 - t))    # standing crouch: one foot forward, one back
 	foot_b = foot_b.lerp(Vector2(-0.22, 0.0), duck * (1.0 - t))
 	# in a jump the knees come up; in a dive the legs trail straight; in a slide they lead
@@ -808,13 +866,18 @@ func _pose() -> void:
 		# in the flight between), lowest between the steps in a walk
 		bob = 0.01 + t * lerpf(0.015 + 0.017 * cos(th * 2.0), 0.03 + 0.012 * cos((th - 1.2) * 2.0), rw) * (1.0 - maxf(air, maxf(dive, slide)))
 	var hip := Vector2(-0.1 * slide * slide_side, -(l1 + l2) * 0.985 - ankle + drop + bob)
+	if not _mc.is_empty():   # the hips ride as the captured man's did (up in the flight, down over the planted foot)
+		hip.y = lerpf(-(l1 + l2) * 0.985 - ankle + 0.01, float(_mc["hip"]), float(_mc["w"])) + drop
 	var legs_lean := dive * 1.5 * dive_side + roll        # the legs follow a dive (flat out) or a tumble
 	if not _dead:   # the whole body pitches into the leap and settles back for the landing
 		legs_lean += air * (0.16 * clampf(-air_v, 0.0, 1.0) - 0.05 * clampf(air_v, 0.0, 1.0)) * (1.0 - dive)
 		legs_lean += dive * dive_side * (0.18 * clampf(air_v, -1.0, 1.0) - 0.08)   # the dive follows its arc: head up leaving, down landing
 	var lean := legs_lean - slide * 0.75 * slide_side + crouch * 0.25 + duck * 0.32   # the torso also lies back in a slide, bows in a crouch
 	if not _dead:
-		lean += t * ((lerpf(0.04, 0.2, rw) + 0.025 * sin(th * 2.0) * rw) if g2 else (0.24 if heavy else 0.13)) * (1.0 - dive)                 # leaning into a run
+		if not _mc.is_empty():
+			lean += float(_mc["torso"]) * float(_mc["w"]) * (1.0 - dive)
+		else:
+			lean += t * ((lerpf(0.04, 0.2, rw) + 0.025 * sin(th * 2.0) * rw) if g2 else (0.24 if heavy else 0.13)) * (1.0 - dive)                 # leaning into a run
 		lean += air * (0.1 * clampf(-air_v, 0.0, 1.0) - 0.07 * clampf(air_v, 0.0, 1.0) + 0.04)   # into the leap going up, back a little to land
 		lean -= recoil * (0.5 if heavy else 0.22)                          # each shot knocks him back a touch
 		lean -= _flinch * (0.6 if _hit_part == "torso" else 0.35)   # and a bullet much more: rocked back
@@ -870,9 +933,11 @@ func _pose() -> void:
 			var walk_h := Vector2(0.05 - 0.17 * sw * t, (ua + fa) * (0.95 - 0.03 * absf(sw) * t))
 			var run_h := Vector2(0.05, 0.32).lerp(Vector2(-0.18, 0.36), maxf(sw, 0.0)).lerp(Vector2(0.22, 0.26), maxf(-sw, 0.0))
 			low = shoulder + walk_h.lerp(run_h, rw * t)
+			if not _mc.is_empty():
+				low = (shoulder + Vector2(0.05, (ua + fa) * 0.95)).lerp(shoulder + (_mc["hf"] as Vector2), float(_mc["w"]))
 		near_target = near_target.lerp(low, es)
 	var gun_a := lerp_angle(_aim.angle(), 0.5 if long_gun else 1.2, es)
-	if g2 and not long_gun and es > 0.0:   # the gun lies along the pumping forearm, muzzle up as the fist comes forward
+	if g2 and not long_gun and es > 0.0 and _mc.is_empty():   # the gun lies along the pumping forearm, muzzle up as the fist comes forward
 		gun_a = lerp_angle(gun_a, lerpf(-0.4, 0.55, 0.5 + 0.5 * cos(th)), es * rw * t)
 	var blow := 0.0   # the angle of the pipe arm, in his own forward frame
 	if swing >= 0.0 and not _dead:
@@ -900,6 +965,8 @@ func _pose() -> void:
 		var fw := Vector2(0.03 + 0.17 * cos(th), (ua + fa) * 0.93)
 		var fr := Vector2(0.05, 0.32).lerp(Vector2(-0.18, 0.36), maxf(-cos(th), 0.0)).lerp(Vector2(0.22, 0.24), maxf(cos(th), 0.0))
 		far_target = (shoulder + _aim * 0.5 + Vector2(0.02, 0.06)).lerp(far_shoulder + fw.lerp(fr, rw), t)
+		if not _mc.is_empty():
+			far_target = (shoulder + _aim * 0.5 + Vector2(0.02, 0.06)).lerp(far_shoulder + (_mc["hb"] as Vector2), float(_mc["w"]))
 	if long_gun:
 		var tex_size := Vector2((_gun.texture as Texture2D).get_size())
 		far_target = hand + ((tex_size * ((gd["fore"] as Vector2) - (gd["grip"] as Vector2))) * gun_scale).rotated(gun_a)
@@ -1002,6 +1069,8 @@ func _pose() -> void:
 		c.rotation = _spr["torso"].rotation
 	# the head tips less than the body, and turns a little after the aim: he looks where he shoots
 	var look := (lean - roll - spin) * 0.5 + roll + spin   # (24. 11.: the head went only half way round a flip - upside down in his coat)
+	if not _mc.is_empty():
+		look = lerpf(look, float(_mc["head"]) * 0.6 + lean * 0.4, float(_mc["w"]))
 	if not _dead:
 		look += clampf(_aim.angle(), -0.9, 0.7) * 0.4 * (1.0 - hands_up) * (1.0 - es) - recoil * 0.3 + hands_up * 0.12
 		if not hang_one:

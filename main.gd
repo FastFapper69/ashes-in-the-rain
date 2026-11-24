@@ -5028,6 +5028,7 @@ func _auto_step(delta: float) -> void:
 		player._phase = float(k % 8) / 8.0
 		player._moving = 1.0 if run_it else (0.4 if walk_it else 0.0)
 		player._gs = 1.0 if run_it else (0.4 if walk_it else 0.0)
+		player._have_last = false   # (the mocap stride then takes the recording's own length)
 		player.ease = 0.0 if (run_it and not ARGS.has("--ease")) or k == 16 or k > 17 else 1.0
 		player.at_ease = player.ease > 0.5
 		player.set_state(0.0, Vector2(1.0, 0.0), 0.0)
@@ -9311,7 +9312,7 @@ func _eddie_cfg() -> Dictionary:
 ## the user approved (art_src 362), its parts sheet (363) cut by gen/eddie_parts.py. Joints in the pixels of art/eddie2/*.
 func _eddie2_cfg() -> Dictionary:
 	return {
-		"dir": "res://art/eddie2/", "weapon": "revolver", "leg_tex": "res://art/eddie2/leg.png", "short_coat": true, "gait2": true, "pelvis": Color(0.2, 0.17, 0.14),
+		"dir": "res://art/eddie2/", "weapon": "revolver", "leg_tex": "res://art/eddie2/leg.png", "short_coat": true, "gait2": true, "mocap": true, "pelvis": Color(0.2, 0.17, 0.14),
 		"on_torso": {"shoulder": Vector2(135.0, 300.0), "far_shoulder": Vector2(175.0, 300.0), "head": Vector2(300.0, 62.0), "belt": Vector2(250.0, 683.0)},
 		"parts": {
 			"head": {"a": Vector2(208.0, 450.0), "b": Vector2(239.0, 116.0), "ppm": 1180},
