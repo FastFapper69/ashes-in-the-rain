@@ -9324,12 +9324,12 @@ func _eddie_cfg() -> Dictionary:
 func _eddie2_cfg() -> Dictionary:
 	return {
 		"dir": "res://art/eddie2/", "weapon": "revolver", "leg_tex": "res://art/eddie2/leg.png", "short_coat": true, "gait2": true, "mocap": true, "pelvis": Color(0.2, 0.17, 0.14),
-		"on_torso": {"shoulder": Vector2(135.0, 300.0), "far_shoulder": Vector2(175.0, 300.0), "head": Vector2(300.0, 62.0), "belt": Vector2(250.0, 683.0)},
+		"on_torso": {"shoulder": Vector2(140.0, 272.0), "far_shoulder": Vector2(180.0, 272.0), "head": Vector2(300.0, 62.0), "belt": Vector2(250.0, 683.0)},
 		"parts": {
 			"head": {"a": Vector2(208.0, 450.0), "b": Vector2(239.0, 116.0), "ppm": 1180},
 			"torso": {"a": Vector2(250.0, 683.0), "b": Vector2(262.0, 90.0), "ppm": 1140},
-			"uarm": {"a": Vector2(125.0, 110.0), "b": Vector2(185.0, 600.0), "ppm": 1480},
-			"farm": {"a": Vector2(95.0, 192.0), "b": Vector2(475.0, 77.0), "ppm": 1450},
+			"uarm": {"a": Vector2(125.0, 110.0), "b": Vector2(185.0, 600.0), "ppm": 1480, "thick": 1.3},
+			"farm": {"a": Vector2(95.0, 192.0), "b": Vector2(475.0, 77.0), "ppm": 1450, "thick": 1.25},
 			"collar_front": Rect2(120.0, 0.0, 360.0, 235.0),   # the turned-up collar over his neck
 			"thigh": LEGS["thigh"], "shin": LEGS["shin"],
 		},

@@ -315,6 +315,9 @@ func _ready() -> void:
 			s.region_rect = parts[part]["region"]
 			s.offset += (parts[part]["region"] as Rect2).position
 		s.scale = Vector2.ONE * (PPM / float(parts[part]["ppm"]))
+		if parts[part].has("thick"):   # (user 24. 11.: "the arm does not sit on the shoulder, it is oddly small") wider across the bone, same length
+			var across_x := absf(cos(float(_ang[part]))) < 0.5   # a bone drawn upright widens in x, one drawn lying in y
+			s.scale *= Vector2(float(parts[part]["thick"]), 1.0) if across_x else Vector2(1.0, float(parts[part]["thick"]))
 		if row[2]:
 			s.modulate = Color(0.55, 0.55, 0.55)
 		s.light_mask = MASK_FIGURE
