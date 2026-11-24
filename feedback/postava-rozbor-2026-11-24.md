@@ -71,3 +71,4 @@ Nové kresby z Gemini (až po kódu):
 
 ## Opraveno 24. 11.
 - B1 (světlý pruh za Eddieho hlavou): byla to chyba, ne kresba. Eddie nosí Frankovo tělo obarvené do tmavomodra, ale dva díly límce (`_collars`) se neobarvily a zůstaly světlé. Teď mají barvu kabátu.
+- A (koleno moc vysoko): opraveno 24. 11. dvěma čísly v `LEGS` (stehno 0,42 m, bérec 0,43 m, délka nohy stejná). Kresba nohy měla stehno a bérec stejně dlouhé, natahoval ji jen kloub v kódu. Platí pro všechny postavy.

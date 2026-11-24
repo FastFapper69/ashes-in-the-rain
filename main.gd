@@ -319,8 +319,10 @@ const HIGH_WIDE := 0.2    # how much wider the camera pulls up high outside (fir
 const DEPTH := [["res://art/bg/far.png", 0.85, -1560.0, 0.8, 0.18, 2.5, -25], ["res://art/bg/mid.png", 0.6, -1500.0, 0.7, 0.14, 1.5, -20]]
 
 const LEGS := {
-	"thigh": {"a": Vector2(86.5, 62.5), "b": Vector2(172.9, 418.5), "ppm": 1000},
-	"shin": {"a": Vector2(80.6, 56.9), "b": Vector2(100.8, 543.5), "ppm": 1000},
+	# (review 24. 11., feedback/postava-rozbor: the knee sat at 61 percent of the leg - thigh 0.37 m, shin 0.49 m - "knees
+	# too high"; a man's thigh and shin are about equal, and so is the leg drawing (puppet.gd LEG_KNEE): same leg length, the knee lower)
+	"thigh": {"a": Vector2(86.5, 62.5), "b": Vector2(185.9, 472.1), "ppm": 1000},
+	"shin": {"a": Vector2(80.6, 56.9), "b": Vector2(98.5, 488.3), "ppm": 1000},
 }
 var DETECTIVE := {
 	"dir": "res://art/detective/", "weapon": "revolver", "leg_tex": "res://art/mobster/leg.png",
