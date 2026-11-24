@@ -33,6 +33,8 @@ const GUNS := {
 }
 var weapon := ""
 var _legs := {}            # "f"/"b" -> the bending leg mesh
+var _pelvis: Polygon2D
+var _crooks := {}          # "f"/"b" -> cloth in the crook of a tightly folded knee (the bent mesh leaves a hole there)
 var _leg_shadows := {}
 var _flinch := 0.0          # a hit knocks him back a moment
 var _hit_part := ""         # where the last bullet hit him: the reaction depends on it
@@ -329,6 +331,16 @@ func _ready() -> void:
 	_pipe.texture_filter = MIPS
 	_pipe.visible = false
 	_body.add_child(_pipe)
+	if cfg.has("pelvis"):   # the seat of his trousers: under a short coat the street showed between his thighs in a long stride
+		_pelvis = Polygon2D.new()
+		var pts := PackedVector2Array()
+		for i in 14:
+			pts.append(Vector2(cos(i * TAU / 14.0) * 0.125, sin(i * TAU / 14.0) * 0.12 + 0.03) * PPM)
+		_pelvis.polygon = pts
+		_pelvis.color = cfg["pelvis"]
+		_pelvis.light_mask = MASK_FIGURE
+		_body.add_child(_pelvis)
+		_body.move_child(_pelvis, _spr["thigh_b"].get_index())
 	if cfg.has("leg_tex"):   # whole legs that bend at the knee, instead of a thigh and a shin on a pin
 		for side in ["b", "f"]:
 			var lm := _make_leg_mesh()
@@ -339,6 +351,14 @@ func _ready() -> void:
 			if side == "b":
 				lm.modulate = _spr["thigh_b"].modulate
 			_legs[side] = lm
+			if cfg.has("pelvis"):
+				var ck := Polygon2D.new()
+				ck.polygon = PackedVector2Array([Vector2.ZERO, Vector2.RIGHT, Vector2.DOWN])
+				ck.color = (cfg["pelvis"] as Color) * lm.modulate
+				ck.light_mask = MASK_FIGURE
+				_body.add_child(ck)
+				_body.move_child(ck, lm.get_index())
+				_crooks[side] = ck
 	if _spr.has("skirt"):
 		_skirt_mesh = _make_skirt_mesh()
 		_body.add_child(_skirt_mesh)
@@ -637,7 +657,9 @@ func set_state(dir: float, aim: Vector2, delta: float) -> void:
 			var dip := sin(PI * _switch_p)
 			_aim = Vector2.from_angle(lerp_angle(_aim.angle(), 1.45, dip * 0.92))
 	_moving = lerpf(_moving, absf(dir), 1.0 - exp(-9.0 * delta))
-	_phase = fposmod(_phase + dir * facing * delta * 2.2, 1.0)   # walking backwards runs the cycle in reverse
+	var g2s: bool = cfg.get("gait2", false)
+	if not g2s:
+		_phase = fposmod(_phase + dir * facing * delta * 2.2, 1.0)   # walking backwards runs the cycle in reverse
 
 	# the coat tail: it hangs, streams back with speed, flies up in a fall, and lags behind every change
 	if _have_last and delta > 0.0:
@@ -646,6 +668,11 @@ func set_state(dir: float, aim: Vector2, delta: float) -> void:
 	_have_last = true
 	_clock += delta
 	var forward := _vel.x * facing
+	if g2s and delta > 0.0:   # the cadence from the ground he really covers: a planted foot does not slide
+		_gs = lerpf(_gs, clampf(absf(_vel.x) / 640.0, 0.0, 1.25), 1.0 - exp(-10.0 * delta))
+		_moving = clampf(_gs / 0.2, 0.0, 1.0)
+		var rate := lerpf(WALK_RATE * sqrt(clampf(_gs / 0.4, 0.0, 1.3)), RUN_RATE * sqrt(clampf(_gs, 0.0, 1.2)), _run_w())
+		_phase = fposmod(_phase + signf(forward) * delta * rate, 1.0)
 	# kept modest: the upper coat is part of the torso drawing, and a tail that swings far breaks away from it
 	# straight down at rest and in a walk; it only streams back once he is really moving
 	var hang := Vector2(-clampf((absf(forward) - 150.0) / 400.0, 0.0, 1.3) * signf(forward) * 0.11, 0.5 - clampf(_vel.y / 1200.0, -0.5, 1.0) * (0.15 + 0.2 * maxf(air, dive)))
@@ -660,7 +687,58 @@ func set_state(dir: float, aim: Vector2, delta: float) -> void:
 
 ## One foot's path through a running stride, p = 0..1: carried back along the ground for the first
 ## half, then lifted and swung forward in an eased arc.
+## (user 24. 11.: "the run is grotesque" - postavy/plan-novych-postav, cfg "gait2") The stride keyed from how a man really
+## moves, one foot's path against the hip, p = 0 at its strike: [p, x forward, y (up is minus)], metres.
+## RUN: on the ground for 35 % of the cycle only (so both feet are in the air twice a stride), the heel thrown up
+## behind him, the knee driven through high, the foot pawing back to land under the body.
+const RUN_KEYS := [[0.0, 0.22, 0.0], [0.35, -0.37, -0.05], [0.45, -0.53, -0.22], [0.58, -0.38, -0.52], [0.7, -0.02, -0.42],
+		[0.82, 0.3, -0.3], [0.93, 0.36, -0.1], [1.0, 0.22, 0.0]]
+## WALK: on the ground 62 % (both feet down between steps), the heel peeling up before the toe leaves, a low swing
+## just clear of the pavement. The planted leg is all but straight: a walk on bent knees is a creep.
+const WALK_KEYS := [[0.0, 0.3, 0.0], [0.45, -0.135, 0.0], [0.62, -0.3, -0.05], [0.72, -0.33, -0.12], [0.82, -0.08, -0.12], [0.93, 0.26, -0.05], [1.0, 0.3, 0.0]]
+const RUN_RATE := 1.6     # strides a second at full speed: with RUN_KEYS' ground stretch the planted foot stands still
+const WALK_RATE := 1.12   # at the calm walk (0.4 of full speed)
+var _gs := 0.0            # gait2: how fast he really moves over the ground, 0..1 of a full run
+
+
+static func _keyed(keys: Array, p: float) -> Vector2:
+	p = fposmod(p, 1.0)
+	var n := keys.size()
+	for i in n - 1:
+		if p <= float(keys[i + 1][0]):
+			var a: Array = keys[i]
+			var b: Array = keys[i + 1]
+			var u := (p - float(a[0])) / maxf(0.0001, float(b[0]) - float(a[0]))
+			var pa := Vector2(a[1], a[2])
+			var pb := Vector2(b[1], b[2])
+			if i == 0:   # the planted stretch: straight back along the ground, at the speed he travels
+				return pa.lerp(pb, u)
+			var a0: Array = keys[i - 1]
+			var b1: Array = keys[(i + 2) if i + 2 < n else 1]
+			var m0 := (pb - Vector2(a0[1], a0[2])) / (float(b[0]) - float(a0[0]))
+			var m1 := (Vector2(b1[1], b1[2]) - pa) / ((float(b1[0]) + (1.0 if i + 2 >= n else 0.0)) - float(a[0]))
+			var d := float(b[0]) - float(a[0])
+			var u2 := u * u
+			var u3 := u2 * u
+			return pa * (2.0 * u3 - 3.0 * u2 + 1.0) + m0 * d * (u3 - 2.0 * u2 + u) + pb * (-2.0 * u3 + 3.0 * u2) + m1 * d * (u3 - u2)
+	return Vector2(keys[0][1], keys[0][2])
+
+
+## gait2: how much of the stride is the run (0 = the walk).
+func _run_w() -> float:
+	return smoothstep(0.5, 0.8, _gs)
+
+
+func _foot2(p: float) -> Vector2:
+	var rw := _run_w()
+	var w := _keyed(WALK_KEYS, p) * Vector2(sqrt(clampf(_gs / 0.4, 0.05, 1.3)), 1.0)
+	var r := _keyed(RUN_KEYS, p) * Vector2(sqrt(clampf(_gs, 0.3, 1.2)), 1.0)
+	return w.lerp(r, rw)
+
+
 func _foot(p: float) -> Vector2:
+	if cfg.get("gait2", false):
+		return _foot2(p)
 	p = fposmod(p, 1.0)
 	if p < 0.5:
 		return Vector2(lerpf(0.36, -0.36, p * 2.0), 0.0)
@@ -715,14 +793,20 @@ func _pose() -> void:
 		foot_b = foot_b.lerp((cl["fb"] as Vector2) * sd, cw)
 	var drop := minf(0.62, crouch * 0.3 + slide * 0.5 + duck * 0.58 + _hit_dip * 0.16)   # how far the hips sink
 	drop = lerpf(drop, float(cl.get("drop", drop)), cw)
-	var hip := Vector2(-0.1 * slide * slide_side, -(l1 + l2) * 0.985 - ankle + drop + lerpf(0.01, 0.04 + (0.065 if heavy else 0.035) * cos(th * 2.0), t))
+	var g2: bool = cfg.get("gait2", false)
+	var rw := _run_w() if g2 else 0.0
+	var bob := lerpf(0.01, 0.04 + (0.065 if heavy else 0.035) * cos(th * 2.0), t)
+	if g2:   # the hips ride low enough for the legs to reach their stride: lowest over the planted foot in a run (and up
+		# in the flight between), lowest between the steps in a walk
+		bob = 0.01 + t * lerpf(0.015 + 0.017 * cos(th * 2.0), 0.075 + 0.045 * cos((th - 0.75) * 2.0), rw) * (1.0 - maxf(air, maxf(dive, slide)))
+	var hip := Vector2(-0.1 * slide * slide_side, -(l1 + l2) * 0.985 - ankle + drop + bob)
 	var legs_lean := dive * 1.5 * dive_side + roll        # the legs follow a dive (flat out) or a tumble
 	if not _dead:   # the whole body pitches into the leap and settles back for the landing
 		legs_lean += air * (0.16 * clampf(-air_v, 0.0, 1.0) - 0.05 * clampf(air_v, 0.0, 1.0)) * (1.0 - dive)
 		legs_lean += dive * dive_side * (0.18 * clampf(air_v, -1.0, 1.0) - 0.08)   # the dive follows its arc: head up leaving, down landing
 	var lean := legs_lean - slide * 0.75 * slide_side + crouch * 0.25 + duck * 0.32   # the torso also lies back in a slide, bows in a crouch
 	if not _dead:
-		lean += t * (0.24 if heavy else 0.13) * (1.0 - dive)                 # leaning into a run
+		lean += t * ((lerpf(0.04, 0.2, rw) + 0.025 * sin(th * 2.0) * rw) if g2 else (0.24 if heavy else 0.13)) * (1.0 - dive)                 # leaning into a run
 		lean += air * (0.1 * clampf(-air_v, 0.0, 1.0) - 0.07 * clampf(air_v, 0.0, 1.0) + 0.04)   # into the leap going up, back a little to land
 		lean -= recoil * (0.5 if heavy else 0.22)                          # each shot knocks him back a touch
 		lean -= _flinch * (0.6 if _hit_part == "torso" else 0.35)   # and a bullet much more: rocked back
@@ -734,7 +818,7 @@ func _pose() -> void:
 		legs_lean = lerpf(legs_lean, float(cl["legs"]) * clip_side, cw) + spin
 		lean = lerpf(lean, float(cl["lean"]) * clip_side, cw) + spin
 	var breath := sin(_clock * 1.7) * 0.006 * (1.0 - t) * (0.0 if _dead else 1.0)   # breathing, standing still
-	var neck := hip + Vector2(lerpf(0.03, 0.15, t), -float(_len["torso"]) - breath).rotated(lean)
+	var neck := hip + Vector2(lerpf(0.03, lerpf(0.05, 0.15, rw) if g2 else 0.15, t), -float(_len["torso"]) - breath).rotated(lean)
 	# Joints that are drawn on the torso (armholes, the bottom of the collar, the belt) are given in
 	# the torso drawing's own pixels, so they stay on the drawing however the torso turns.
 	var shoulder := neck + Vector2(-0.05, 0.11).rotated(lean)
@@ -772,8 +856,15 @@ func _pose() -> void:
 	if ease > 0.0 and not _dead and swing < 0.0:
 		es = smoothstep(0.0, 1.0, ease) * (1.0 - rl) * (1.0 - hands_up) * (1.0 - hang) * (1.0 - maxf(dive, slide))
 		var low := shoulder + (Vector2(0.14, 0.4) if long_gun else Vector2(0.07 - 0.13 * cos(th) * t, (ua + fa) * 0.93))
+		if g2 and not long_gun:   # walking the arm swings from the shoulder; running it pumps, the elbow bent, the gun by his ribs
+			var sw := cos(th)   # 1: the near foot is forward, so the near hand is back
+			var walk_h := Vector2(0.05 - 0.17 * sw * t, (ua + fa) * (0.95 - 0.03 * absf(sw) * t))
+			var run_h := Vector2(0.06, 0.27).lerp(Vector2(-0.2, 0.3), maxf(sw, 0.0)).lerp(Vector2(0.25, 0.17), maxf(-sw, 0.0))
+			low = shoulder + walk_h.lerp(run_h, rw * t)
 		near_target = near_target.lerp(low, es)
 	var gun_a := lerp_angle(_aim.angle(), 0.5 if long_gun else 1.2, es)
+	if g2 and not long_gun and es > 0.0:   # the gun lies along the pumping forearm, muzzle up as the fist comes forward
+		gun_a = lerp_angle(gun_a, lerpf(-0.4, 0.55, 0.5 + 0.5 * cos(th)), es * rw * t)
 	var blow := 0.0   # the angle of the pipe arm, in his own forward frame
 	if swing >= 0.0 and not _dead:
 		var aim_a := _aim.angle()
@@ -796,6 +887,10 @@ func _pose() -> void:
 	# far arm: with a long gun it holds the fore grip; with two pistols it aims the second one just
 	# under the first; with one gun it supports the aim standing and swings against the legs running
 	var far_target := (shoulder + _aim * 0.5 + Vector2(0.02, 0.06)).lerp(hip + Vector2(0.25 * cos(th), 0.05), t)
+	if g2:   # the free arm against the legs: a hanging swing in the walk, a pump in the run (also while the other aims)
+		var fw := Vector2(0.03 + 0.17 * cos(th), (ua + fa) * 0.93)
+		var fr := Vector2(0.06, 0.25).lerp(Vector2(-0.2, 0.3), maxf(-cos(th), 0.0)).lerp(Vector2(0.27, 0.06), maxf(cos(th), 0.0))
+		far_target = (shoulder + _aim * 0.5 + Vector2(0.02, 0.06)).lerp(far_shoulder + fw.lerp(fr, rw), t)
 	if long_gun:
 		var tex_size := Vector2((_gun.texture as Texture2D).get_size())
 		far_target = hand + ((tex_size * ((gd["fore"] as Vector2) - (gd["grip"] as Vector2))) * gun_scale).rotated(gun_a)
@@ -804,7 +899,7 @@ func _pose() -> void:
 	elif air > 0.0 and not _dead:   # in the air the free arm swings out for balance, up on the way up
 		far_target = far_target.lerp(far_shoulder + Vector2(-0.22, -0.08 - 0.18 * clampf(-air_v, 0.0, 1.0) + 0.12 * clampf(air_v, 0.0, 1.0)), air * 0.85)
 	if es > 0.0 and not long_gun:   # the free arm hangs too, and swings with the walk
-		far_target = far_target.lerp(far_shoulder + Vector2(0.03 + 0.13 * cos(th) * t, (ua + fa) * 0.93), es)
+		far_target = far_target.lerp(far_shoulder + Vector2(0.03 + 0.13 * cos(th) * t, (ua + fa) * 0.93), es * (1.0 - t) if g2 else es)
 	if _dead:   # dead weight: the arm lies almost straight along the thrown direction
 		far_target = far_shoulder + Vector2.from_angle(_aim.angle() + dead_far) * (ua + fa) * 0.96
 	if rl > 0.0:   # the other hand works the gun
@@ -834,6 +929,15 @@ func _pose() -> void:
 	_place("thigh_f", "thigh", hip, k[0])
 	_place("shin_f", "shin", k[0], k[1])
 	var leg_f := [hip, k[0], k[1]]
+	for side in _crooks:
+		var lg: Array = leg_f if side == "f" else leg_b
+		var u1: Vector2 = ((lg[0] as Vector2) - lg[1]).normalized()
+		var u2: Vector2 = ((lg[2] as Vector2) - lg[1]).normalized()
+		var d := minf(0.3, 0.11 / maxf(0.05, (u1 - u2).length()))   # as far up both bones as the trouser legs still touch
+		(_crooks[side] as Polygon2D).polygon = PackedVector2Array([(lg[1] as Vector2) * PPM, (lg[1] + u1 * d) * PPM, (lg[1] + u2 * d) * PPM])
+	if _pelvis != null:
+		_pelvis.position = hip * PPM
+		_pelvis.rotation = legs_lean
 	if _legs.has("f"):
 		_bend_leg(_legs["f"], leg_f, _leg_shadows.get("f"))
 		_bend_leg(_legs["b"], leg_b, _leg_shadows.get("b"))

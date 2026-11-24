@@ -5,6 +5,8 @@ extends RefCounted
 
 const ENTRIES := [
 	["24 NOV 2026", [
+		"Eddie runs like a runner: both feet off the ground, the heel up behind, arms pumping; and he walks upright",
+		"Eddie's arms match his body, his neck shows above the collar, his sweater is lighter",
 		"Eddie Doyle has his own body: pea coat, pork-pie hat with the press card, drawn from a new design",
 		"Knees sit where a man's knees are: the lifted leg no longer marches",
 		"With nobody to shoot at he lowers the gun and walks with his arms loose",

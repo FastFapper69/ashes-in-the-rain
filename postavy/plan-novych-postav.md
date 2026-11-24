@@ -85,3 +85,8 @@ než Frank, cigareta, viditelný krk. Proporce lehce přehnané (delší nohy, o
 - Šablona `gen/char_template.py` se nepoužila: Gemini na dlouhá zadání se šablonou odpovídal jen textem; zabralo krátké zadání bez šablony, klouby jsem odečetl z mřížky.
 - Zbývá u Eddieho: krok 3 (běh a chůze z nasnímaného pohybu, zbraň u těla), portrét v HUD, otevřená dlaň, klobouk jako samostatný díl (aby mohl spadnout).
 
+## Stav 24. 11. noc
+- Výtky uživatele k první verzi: ruce v jiném měřítku než trup, hlava za kabátem, svetr skoro černý. Opraveno, poučení = pravidlo 39 (měřítko dílů podle tloušťky v metrech, hlava před límcem, srovnání s návrhem vedle sebe před odesláním).
+- Krok 3 hotov bez mocapu: `gait2` v puppet.gd (klíčovaná dráha chodidla proti kyčli, běh s letovou fází, vzpřímená chůze, kadence ze skutečné rychlosti, pumpující ruce). Mocap zatím nebyl potřeba.
+- Další: krok 4 (míření, výstřel, přebití na novém těle), krok 5 (skok, rybička, skluz, krytí).
+

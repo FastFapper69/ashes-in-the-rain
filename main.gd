@@ -4934,10 +4934,11 @@ func _auto_step(delta: float) -> void:
 		var walk_it := k >= 8 and k < 16
 		player._phase = float(k % 8) / 8.0
 		player._moving = 1.0 if run_it else (0.4 if walk_it else 0.0)
-		player.ease = 0.0 if run_it or k == 16 else 1.0
+		player._gs = 1.0 if run_it else (0.4 if walk_it else 0.0)
+		player.ease = 0.0 if (run_it and not ARGS.has("--ease")) or k == 16 else 1.0
 		player.at_ease = player.ease > 0.5
 		player.set_state(0.0, Vector2(1.0, 0.0), 0.0)
-		player._moving = 1.0 if run_it else (0.4 if walk_it else 0.0)
+		player._moving = 1.0 if run_it else (1.0 if walk_it and player.cfg.get("gait2", false) else (0.4 if walk_it else 0.0))
 		player._pose()
 		if fmod(_at, 0.15) > 0.07 and _auto_done & (1 << k) == 0:
 			_auto_done |= 1 << k
@@ -9185,13 +9186,13 @@ func _eddie_cfg() -> Dictionary:
 ## the user approved (art_src 362), its parts sheet (363) cut by gen/eddie_parts.py. Joints in the pixels of art/eddie2/*.
 func _eddie2_cfg() -> Dictionary:
 	return {
-		"dir": "res://art/eddie2/", "weapon": "revolver", "leg_tex": "res://art/eddie2/leg.png", "short_coat": true,
+		"dir": "res://art/eddie2/", "weapon": "revolver", "leg_tex": "res://art/eddie2/leg.png", "short_coat": true, "gait2": true, "pelvis": Color(0.2, 0.17, 0.14),
 		"on_torso": {"shoulder": Vector2(135.0, 300.0), "far_shoulder": Vector2(175.0, 300.0), "head": Vector2(285.0, 62.0), "belt": Vector2(250.0, 683.0)},
 		"parts": {
-			"head": {"a": Vector2(210.0, 500.0), "b": Vector2(245.0, 120.0), "ppm": 1250},
+			"head": {"a": Vector2(207.0, 528.0), "b": Vector2(245.0, 116.0), "ppm": 1250},
 			"torso": {"a": Vector2(250.0, 683.0), "b": Vector2(262.0, 90.0), "ppm": 1140},
-			"uarm": {"a": Vector2(120.0, 80.0), "b": Vector2(190.0, 640.0), "ppm": 1819},
-			"farm": {"a": Vector2(95.0, 192.0), "b": Vector2(475.0, 77.0), "ppm": 1281},
+			"uarm": {"a": Vector2(125.0, 110.0), "b": Vector2(185.0, 600.0), "ppm": 1480},
+			"farm": {"a": Vector2(95.0, 192.0), "b": Vector2(475.0, 77.0), "ppm": 1450},
 			"collar_front": Rect2(120.0, 0.0, 360.0, 235.0),   # the turned-up collar over his neck
 			"thigh": LEGS["thigh"], "shin": LEGS["shin"],
 		},

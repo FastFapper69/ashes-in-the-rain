@@ -19,6 +19,17 @@ solid = t[..., 3] > 128
 hole = ndimage.binary_fill_holes(solid) & ~solid
 hole = ndimage.binary_dilation(hole, iterations=3)
 t[hole & (t[..., 3] < 250)] = (30, 29, 36, 255)
+# (user 24. 11.: "the sweater's collar is almost black, it reads as the head cut off - a little lighter") the sweater
+# between the lapels and the black inside of the raised collar lifted to a dark grey; the ink lines stay
+lab, n = ndimage.label(hole)
+for i in range(1, n + 1):
+    if ndimage.center_of_mass(lab == i)[1] > 280:
+        t[(lab == i) & (t[..., 3] > 0)] = (66, 68, 80, 255)
+lum = t[..., :3].astype(int).sum(axis=2)
+fill = ndimage.binary_dilation(ndimage.binary_erosion((lum < 75) & solid, iterations=5), iterations=6) & (lum < 110) & solid
+fill[240:] = False
+soft = ndimage.gaussian_filter(fill.astype(float), 2.0)[..., None]
+t[..., :3] = (t[..., :3] * (1 - soft) + np.array([58, 56, 62]) * soft).astype(np.uint8)
 save("torso", Image.fromarray(t))
 # head with the hat on: the hat levelled a little and set on the hairline
 head, hat = P[4][2], P[6][2].rotate(-9, expand=True, resample=Image.BICUBIC)
