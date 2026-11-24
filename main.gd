@@ -3016,7 +3016,7 @@ func _process(delta: float) -> void:
 		return
 	if _auto != "" and not _auto.begins_with("cut:") and not _auto.begins_with("voice:") and _auto != "hops":
 		_auto_step(delta)
-	if _auto == "poses":
+	if _auto == "poses" or _auto == "gait":
 		return
 	_probe += delta / Engine.time_scale
 	if _probe > 2.0 and _show_fps:   # key 0 switches the readout on
@@ -4914,6 +4914,32 @@ func _auto_step(delta: float) -> void:
 			_auto_done |= 1 << k
 			_shot("pose_%d_%s" % [k, pose])
 		if _at > POSES.size() * 0.8 + 0.2:
+			get_tree().quit()
+	elif _auto == "gait":   # --test=gait (--chapter=0 for Eddie): the stride close up, 8 phases of the run aiming, 8 of the walk at ease, 2 standing
+		var k := mini(int(_at / 0.15), 17)
+		hud.visible = false
+		for e in enemies:
+			e["node"].visible = false
+			e["state"] = "wait"
+		player.position = Vector2(-6500.0, 0.0)
+		cam.zoom = Vector2.ONE * 1.15
+		cam.rotation = 0.0
+		cam.position = player.position + Vector2(0.0, -280.0)
+		var run_it := k < 8
+		var walk_it := k >= 8 and k < 16
+		player._phase = float(k % 8) / 8.0
+		player._moving = 1.0 if run_it else (0.4 if walk_it else 0.0)
+		player.ease = 0.0 if run_it or k == 16 else 1.0
+		player.at_ease = player.ease > 0.5
+		player.set_state(0.0, Vector2(1.0, 0.0), 0.0)
+		player._moving = 1.0 if run_it else (0.4 if walk_it else 0.0)
+		player._pose()
+		if fmod(_at, 0.15) > 0.07 and _auto_done & (1 << k) == 0:
+			_auto_done |= 1 << k
+			if k == 0:
+				print("GAIT len ", player._len, " size ", player.size)
+			_shot("gait_%02d" % k)
+		if _at > 18 * 0.15 + 0.1:
 			get_tree().quit()
 	elif _auto == "kit":   # a crate shot apart, a gun run dry, the reload and the HUD rounds
 		var wi := -1
