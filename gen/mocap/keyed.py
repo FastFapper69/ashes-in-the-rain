@@ -44,7 +44,7 @@ def pose(k):
         need.append(FLOOR["back"] - min(0.0, neck[1] * f))
     for h in (hf, hb):
         need.append(FLOOR["hand"] - (sh[1] + h[1]))
-    hip_y = max(need) + k.get("lift", 0.0)
+    hip_y = 1.0 if k.get("air") else max(need) + k.get("lift", 0.0)   # in the air the game sets the height: legs from the hips
     return [hip_y, af[0], hip_y + af[1], ab[0], hip_y + ab[1], t, math.radians(k.get("head", k["torso"] * 0.5)), hf[0], hf[1], hb[0], hb[1]]
 
 
@@ -63,6 +63,17 @@ def spline(keys, n=40):
 
 
 MOVES = {
+    # the shootdodge in the air (along the game's air_v -1 leaving .. 1 coming down): laid out head first, the legs long
+    # behind and a little apart, knees soft; at the top they scissor; coming down the knees bend and the trailing foot
+    # reaches for the stones; the free arm out ahead and a little low for balance. Chin UP (head ~30 deg): lying flat the
+    # gun arm reaches forward at the height of his face - a head bowed with the body hid behind the arm and the hat
+    "flight": [
+        (0.0, {"air": True, "fa": (-25, 35), "fb": (-55, 20), "torso": 62, "head": 25, "hb": (115, 25)}),
+        (0.3, {"air": True, "fa": (-62, 22), "fb": (-88, 12), "torso": 78, "head": 28, "hb": (100, 20)}),
+        (0.55, {"air": True, "fa": (-78, 15), "fb": (-98, 28), "torso": 84, "head": 30, "hb": (95, 15)}),
+        (0.8, {"air": True, "fa": (-85, 30), "fb": (-75, 45), "torso": 86, "head": 32, "hb": (75, 30)}),
+        (1.0, {"air": True, "fa": (-88, 40), "fb": (-65, 60), "torso": 88, "head": 35, "hb": (45, 40)}),
+    ],
     # feet first along the wet stones (0.55 s): down off the stride onto the far hip, the near leg reaching out ahead, the
     # far one folded under him, leaning back on the free hand; then the folded leg drives him up into a run
     "slide": [

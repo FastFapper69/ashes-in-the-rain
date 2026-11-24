@@ -210,20 +210,27 @@ func _clip_now() -> Array:
 	var c: Dictionary = CLIPS[clip]
 	var u := clampf(clip_t / float(c["len"]), 0.0, 1.0)
 	var keys: Array = c["keys"]
-	var a: Array = keys[0]
-	var b: Array = keys[keys.size() - 1]
-	for i in keys.size() - 1:
-		if u >= float(keys[i][0]) and u <= float(keys[i + 1][0]):
-			a = keys[i]
-			b = keys[i + 1]
+	# (user 24. 11.: "mechanical" - each key was eased in and out, so the body stopped at every key) a Catmull-Rom spline
+	# through the keys: the motion flows through them, slowing only where the keys themselves are close
+	var n := keys.size()
+	var i := n - 2
+	for k in n - 1:
+		if u <= float(keys[k + 1][0]):
+			i = k
 			break
-	var span := maxf(0.0001, float(b[0]) - float(a[0]))
-	var e := smoothstep(0.0, 1.0, (u - float(a[0])) / span)
-	var ka: Dictionary = a[1]
-	var kb: Dictionary = b[1]
+	var span := maxf(0.0001, float(keys[i + 1][0]) - float(keys[i][0]))
+	var v := clampf((u - float(keys[i][0])) / span, 0.0, 1.0)
+	var k0: Dictionary = keys[maxi(i - 1, 0)][1]
+	var k1: Dictionary = keys[i][1]
+	var k2: Dictionary = keys[i + 1][1]
+	var k3: Dictionary = keys[mini(i + 2, n - 1)][1]
 	var out := {}
-	for key in ka:
-		out[key] = lerp(ka[key], kb.get(key, ka[key]), e)
+	for key in k1:
+		var p0 = k0.get(key, k1[key])
+		var p1 = k1[key]
+		var p2 = k2.get(key, p1)
+		var p3 = k3.get(key, p2)
+		out[key] = 0.5 * (2.0 * p1 + (p2 - p0) * v + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * v * v + (3.0 * p1 - p0 - 3.0 * p2 + p3) * v * v * v)
 	var w := smoothstep(0.0, 0.12, u) if clip != "flip" else 1.0
 	w *= 1.0 - smoothstep(0.85, 1.0, u)
 	return [out, w]
@@ -946,7 +953,16 @@ func _pose() -> void:
 			foot_b = (hip + (foot_b - hip).rotated(legs_lean)).lerp(Vector2(float(m[3]) * legk * sd, -float(m[4]) * legk), w)
 			legs_lean = 0.0
 			lean = lerpf(lean, float(m[5]) * sd, w)
-		elif prone and dive < 1.0 and air <= 0.01:   # up off the stones after the dive: the get-up sheet, along dive 1 -> 0
+		elif dive > 0.0 and not prone and roll_t < 0.0:   # the flight (shootdodge): laid out, legs scissoring, the free arm out
+			var sd := dive_side
+			var m := _mcl_at("flight", clampf((air_v + 1.0) * 0.5, 0.0, 1.0))
+			var wob := sin(_clock * 7.0) * 0.04   # breathing in the air
+			_mcl = ["flight", m, dive, sd]
+			foot_a = (hip + (foot_a - hip).rotated(legs_lean)).lerp(hip + Vector2(float(m[1]) * legk * sd, (float(m[0]) - float(m[2])) * legk + wob), dive)
+			foot_b = (hip + (foot_b - hip).rotated(legs_lean)).lerp(hip + Vector2(float(m[3]) * legk * sd, (float(m[0]) - float(m[4])) * legk - wob), dive)
+			legs_lean = lerpf(legs_lean, 0.0, dive)
+			lean = lerpf(lean, float(m[5]) * sd, dive)
+		elif prone and dive <= 1.0 and air <= 0.01:   # up off the stones after the dive: the get-up sheet, along dive 1 -> 0
 			var sd := dive_side
 			var fl := ground / (PPM * maxf(0.01, absf(scale.y)))   # the floor: the origin lies below it while he is down
 			var m := _mcl_at("getup", 1.0 - dive)
@@ -1162,8 +1178,8 @@ func _pose() -> void:
 	var look := (lean - roll - spin) * 0.5 + roll + spin   # (24. 11.: the head went only half way round a flip - upside down in his coat)
 	if not _mc.is_empty():
 		look = lerpf(look, float(_mc["head"]) * 0.6 + lean * 0.4, float(_mc["w"]))
-	if not _mcl.is_empty() and _mcl[0] in ["roll", "slide", "getup"]:
-		look = lerpf(look, float(_mcl[1][6]) * float(_mcl[3]) + (clampf(_aim.angle(), -0.9, 0.7) * 0.3 if _mcl[0] != "roll" else 0.0), float(_mcl[2]))
+	if not _mcl.is_empty() and _mcl[0] in ["roll", "slide", "getup", "flight"]:
+		look = lerpf(look, float(_mcl[1][6]) * float(_mcl[3]) + (clampf(_aim.angle(), -0.9, 0.7) * (0.6 if _mcl[0] == "flight" else 0.3) if _mcl[0] != "roll" else 0.0), float(_mcl[2]))
 	if not _dead:
 		look += clampf(_aim.angle(), -0.9, 0.7) * 0.4 * (1.0 - hands_up) * (1.0 - es) - recoil * 0.3 + hands_up * 0.12
 		if not hang_one:
@@ -1171,6 +1187,12 @@ func _pose() -> void:
 		if reload > 0.0:   # eyes on the gun in his hands
 			look = lerpf(look, 0.35, smoothstep(0.0, 0.14, reload) * (1.0 - smoothstep(0.86, 1.0, reload)))
 	_place("head", "head", head_base, head_base + Vector2(0.02, -0.3).rotated(look))
+	# laid out flat in a dive the near arm reaches forward at the height of his face: it hid the face (24. 11.) - the head,
+	# chin up, goes over the arm, which then runs under his jaw (the shootdodge as drawn in the comics)
+	var over := 1 if (not _mcl.is_empty() and ((_mcl[0] == "flight" and dive > 0.4) or (_mcl[0] == "launch" and float(_mcl[2]) > 0.4))) else 0
+	_spr["head"].z_index = over
+	for c in _collars:
+		c.z_index = over
 
 	_place("uarm_f", "uarm", shoulder, kn[0])
 	_place("farm_f", "farm", kn[0], kn[1])
