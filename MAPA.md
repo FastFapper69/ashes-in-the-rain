@@ -33,6 +33,7 @@ Pak krátce česky: co je rozdělané a na co se čeká od uživatele. Nic nepř
 - **Hloubka jen v bodech** (pravidlo 33, uživatel zvolil C 23. 11.): výklenek dveří hotový (stanoviště 4b na konci
   hřiště), bistro jako hala za výlohou (4c); další body: vstup do uličky, schování za auto.
 - **Předání od příběhového chatu** ([[predani-claude-code]]): kroky 1 až 3 hotové - oba blockouty posouzené, šedý prolog postavený (hřiště 3, štítek GREY BUILD). Čeká se, až si ho uživatel zahraje; pak krok 4 (texty do hry) a šedá THE ALLEY.
+- **Nové postavy a animace (24. 11.)**: plán [[plan-novych-postav]], rozbor [[postava-rozbor-2026-11-24]]. Pilot Eddie. Další krok: návrhový list Eddieho z Gemini ke schválení.
 - **Feedback Gemini Neon (24. 11.)**: [[gemini-neon-2026-11-24]]. Zkouší se jen na hřišti (`_lab()`), pravidlo 36. Výklenky zrušené, gunsmith k vyřazení. Čeká se na dojem uživatele z hřiště.
 - **Příběh přepsaný** (23. 11., pravidlo 35): [[Srdce-a-hlas]] - Frank mluví k mrtvému Eddiemu, jeden požár, jeden deník. Scénář celé hry je napsaný v `pribeh/`. Do hry zatím nic: začít prologem a kapitolou I.
 - Komiksy až nakonec (paměť). Kapitoly I-III hratelné, staré mapy se po hřišti převedou na modulární město.
