@@ -75,3 +75,10 @@ Každý bod: **co Neon říká** → *poznámka Claude Code* (sedí / nesedí / 
 8. Rozházet nápisy z hlavy nepřítele.
 9. Škrtnout nadbytečné systémy (gunsmith).
 10. Popředí a střešní díly přes spáry modulů.
+
+## Co se z toho zkouší na hřišti (24. 11., uživatel: „zapracuj do testovacího lvl a uvidíme“)
+- Hotovo jen na hřišti (`_lab()`): těžší loutka (náklon v běhu 0,24, zpětný ráz do trupu 0,5, větší pohup, kabát vlaje dál a později), tenčí obrys, tmavší fronty (0,66), menší a průhlednější páčka, větší titulky a nápovědy, bez perků z gunsmithu, odzbrojení i ve zpomalení rybičky, CLINK stranou od hlavy.
+- Už ve hře bylo (Neon to ze snímků neviděl): zpomalení při rybičce, vinětace a přiblížení ve zpomalení, krátké zastavení při zásahu, déšť na klobouku.
+- Zrušeno všude: výklenky (uživatel: „divný a k ničemu“).
+- Ještě ne: gunsmith pryč z menu, tušový oheň a kouř (kresby), komíny/vodojemy přes spáry (kresby), žádné vyprávění v boji (příběhové mapy), sloučení tlačítek.
+

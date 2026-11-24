@@ -4,6 +4,10 @@ extends RefCounted
 ## (knowledge ch01). The build number and date come from version.gen.gd (written by gen/deploy/deploy_pc.sh).
 
 const ENTRIES := [
+	["24 NOV 2026", [
+		"The playground tries a review's advice: heavier figures, a quieter stick, bigger hints, darker house fronts, no gunsmith",
+		"The dark doorways to hide in are gone",
+	]],
 	["23 NOV 2026", [
 		"Grey build of the new prologue (title tag GREY BUILD): Eddie's walk to the Blue Note with his lines over his head, calm stretches walked",
 		"Playground: up the printing works' roof hatch, across the roofs among chimneys, down the fire escape - push the stick down at the top of a ladder",

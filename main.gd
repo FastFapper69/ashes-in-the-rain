@@ -852,6 +852,7 @@ func _ready() -> void:
 	if not level.get("under", false):   # no pigeons down in the subway
 		_place_flocks()
 	_tm("flocks")
+	PuppetScript.heavy = _lab()
 	player = PuppetScript.new()
 	player.cfg = DETECTIVE
 	side = "revolver" if String(Levels.CAMPAIGN[chapter]["hero"]) == "eddie" else Instincts.side()
@@ -962,6 +963,7 @@ func _ready() -> void:
 	fx.pass_test = mapfx.bullet_pass
 	fx.stain_host = _stain_host
 	hud = HudScript.new()
+	hud.trial = _lab()
 	add_child(hud)
 	hud.set_segments(max_hp)
 	if String(Levels.CAMPAIGN[chapter]["hero"]) == "eddie":   # the prologue is Eddie's: his picture in the corner
@@ -5069,7 +5071,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 		else:
 			dir = 0.0
 			run = 0.0
-	elif move_state == "ground" and _up_held and _section_at(player.position) < 0 and _ladder_foot() == null:
+	elif ALCOVES_ON and move_state == "ground" and _up_held and _section_at(player.position) < 0 and _ladder_foot() == null:
 		for al in _alcoves:
 			if absf(float(al["x"]) - player.position.x) < ALCOVE_REACH and absf(player.position.y) < 10.0 and not _works(_section_at(Vector2(float(al["x"]), -10.0))):   # (a hall's door takes him into the hall)
 				_enter_alcove(al)
@@ -6139,7 +6141,7 @@ func _bullet_hit(pos: Vector2, from_player: bool) -> bool:
 			# the gun itself: shot out of his hand, any time (2026-11-16: disarming was too rare; in slowed
 			# time the forearm or the hand does it as well)
 			if from_player and not e["boss"] and chapter > 0 and e["state"] not in ["give", "down"] \
-					and e["type"] in ["post", "tommy", "shotgun"] and e["node"].gun_hit(pos, slow_on) and (slow_on or _perk("openhand") or randf() < 0.05):
+					and e["type"] in ["post", "tommy", "shotgun"] and e["node"].gun_hit(pos, slow_on or (_lab() and Engine.time_scale < 0.9)) and (slow_on or (_lab() and Engine.time_scale < 0.9) or _perk("openhand") or randf() < 0.05):   # (trial: a dive's slowed time disarms as well)
 				_disarm(e, pos)
 				return true
 			var part: String = e["node"].hit_part(pos)
@@ -7608,7 +7610,8 @@ const CITY_STOREY := 700.0
 const CITY_FOOT := 64.0                      # a front's foot: the back of the pavement (WALL_LIFT + 4)
 const CITY_ESC_H := 1436.4                   # the side-on fire escape's drawing in world px (2528 px at 0.5682)
 const CITY_ESC_DECK := 1756.0 / 2528.0       # its lower deck's row, a fraction of the drawing's height
-const CITY_TONE := 0.86                      # the fronts under the night grade (the street drawings' moonlit wash)
+var CITY_TONE: float:                        # the fronts under the night grade (the street drawings' moonlit wash)
+	get: return 0.66 if _lab() else 0.86      # (trial 24. 11.: darker fronts, so the figures stand off them by value)
 func _build_city() -> void:
 	_party_walls()
 	for cy in level.get("city", []):
@@ -7665,6 +7668,7 @@ func _build_city() -> void:
 ## threshold, the door opens inward onto a dark hall, he stands IN the dark opening: only then is he hard to see.
 const CITY_DOORS := {"brick": [0, 0.5, 275.0, 102.0, 598.0], "pale": [0, 0.5, 275.0, 80.0, 598.0],
 		"walkup": [1, 0.796, 232.0, 233.0, 694.0], "stone": [1, 0.81, 207.0, 233.0, 685.0]}
+const ALCOVES_ON := false         # (user 24. 11.: "the doorways are odd and no use" - rule 33 withdrawn, the code kept)
 var _alcoves: Array = []          # every doorway: {"x", "w", "top", "sill" (world y of the threshold), "dark" (its opening)}
 func _city_alcoves(style: String, x0: float, w: float, bays: int) -> void:
 	if not CITY_DOORS.has(style):
@@ -8906,7 +8910,13 @@ func _body_dmg() -> float:
 
 
 func _perk(fx: String) -> bool:
-	return diff_step >= 0 and Instincts.has_fx(fx)
+	return diff_step >= 0 and Instincts.has_fx(fx) and not _lab()   # (trial 24. 11.: the playground plays without the gunsmith's work)
+
+
+## (feedback/gemini-neon-2026-11-24, user: "work it into the test level and we'll see") The playground carries the trial:
+## heavier figures, a quieter stick, bigger captions, darker fronts, no gunsmith.
+func _lab() -> bool:
+	return _sandbox == 2
 
 
 func _set_difficulty(hero: String) -> void:
@@ -12486,7 +12496,10 @@ func _disarm(e: Dictionary, at: Vector2) -> void:
 		fx.spark(at)
 	sfx.play("clink", 2.0, at.x, 0.06)
 	sfx.play("hit_cover", -2.0, at.x, 0.1)
-	_word(["clink"], at + Vector2(0.0, -80.0), 0.2)
+	if _lab():   # (trial: the word out of his head and his shout - up and away, the way the gun flies)
+		_word(["clink"], at + Vector2(signf(m.position.x - player.position.x) * 190.0, -40.0), 0.2)
+	else:
+		_word(["clink"], at + Vector2(0.0, -80.0), 0.2)
 	_impact(0.14, 0.18)
 	_shake = maxf(_shake, 0.06)
 	m._flinch = 1.0

@@ -227,6 +227,7 @@ func _clip_now() -> Array:
 	return [out, w]
 var ground := 0.0    # where the pavement is below the figure's origin, in pixels (0 when standing on it)
 var reload := 0.0    # 0: not reloading; else how far through it (0..1): the gun comes in to the chest
+static var heavy := false   # (trial 24. 11., main.gd _lab) more weight: deeper lean, a harder kick, a bigger step, a looser coat
 var recoil := 0.0    # set after a shot: the gun arm kicks up by this many radians and settles back
 var _shadow: CanvasGroup   # a black copy of the figure, thrown onto the wall by the nearest lamp
 var _shadow_spr := {}
@@ -257,7 +258,7 @@ func _ready() -> void:
 	mat.set_shader_parameter("boost", Vector3(body_boost.r, body_boost.g, body_boost.b))
 	_body.material = mat
 	_outline_mat = mat
-	_outline_w = 1.8 if look2 else 2.8
+	_outline_w = (1.8 if look2 else 2.8) * (0.7 if heavy else 1.0)
 	add_child(_body)
 	var parts: Dictionary = cfg["parts"]
 	for key in parts:
@@ -647,7 +648,9 @@ func set_state(dir: float, aim: Vector2, delta: float) -> void:
 	var hang := Vector2(-clampf((absf(forward) - 150.0) / 400.0, 0.0, 1.3) * signf(forward) * 0.11, 0.5 - clampf(_vel.y / 1200.0, -0.5, 1.0) * (0.15 + 0.2 * maxf(air, dive)))
 	hang.x -= maxf(air, dive) * 0.09 * (signf(forward) if absf(forward) > 50.0 else 1.0)   # in a leap the coat flies out behind him
 	hang.x += sin(_clock * 9.0) * 0.025 * _moving + sin(_clock * 1.6) * 0.012   # flutter in the run, a breath of wind at rest
-	_tail_dir = _tail_dir.lerp(hang, 1.0 - exp(-7.0 * delta))
+	if heavy:   # the coat streams further and comes after him later
+		hang.x *= 1.7
+	_tail_dir = _tail_dir.lerp(hang, 1.0 - exp(-(4.0 if heavy else 7.0) * delta))
 	_pose()
 	queue_redraw()
 
@@ -709,16 +712,16 @@ func _pose() -> void:
 		foot_b = foot_b.lerp((cl["fb"] as Vector2) * sd, cw)
 	var drop := minf(0.62, crouch * 0.3 + slide * 0.5 + duck * 0.58 + _hit_dip * 0.16)   # how far the hips sink
 	drop = lerpf(drop, float(cl.get("drop", drop)), cw)
-	var hip := Vector2(-0.1 * slide * slide_side, -(l1 + l2) * 0.985 - ankle + drop + lerpf(0.01, 0.04 + 0.035 * cos(th * 2.0), t))
+	var hip := Vector2(-0.1 * slide * slide_side, -(l1 + l2) * 0.985 - ankle + drop + lerpf(0.01, 0.04 + (0.065 if heavy else 0.035) * cos(th * 2.0), t))
 	var legs_lean := dive * 1.5 * dive_side + roll        # the legs follow a dive (flat out) or a tumble
 	if not _dead:   # the whole body pitches into the leap and settles back for the landing
 		legs_lean += air * (0.16 * clampf(-air_v, 0.0, 1.0) - 0.05 * clampf(air_v, 0.0, 1.0)) * (1.0 - dive)
 		legs_lean += dive * dive_side * (0.18 * clampf(air_v, -1.0, 1.0) - 0.08)   # the dive follows its arc: head up leaving, down landing
 	var lean := legs_lean - slide * 0.75 * slide_side + crouch * 0.25 + duck * 0.32   # the torso also lies back in a slide, bows in a crouch
 	if not _dead:
-		lean += t * 0.13 * (1.0 - dive)                 # leaning into a run
+		lean += t * (0.24 if heavy else 0.13) * (1.0 - dive)                 # leaning into a run
 		lean += air * (0.1 * clampf(-air_v, 0.0, 1.0) - 0.07 * clampf(air_v, 0.0, 1.0) + 0.04)   # into the leap going up, back a little to land
-		lean -= recoil * 0.22                          # each shot knocks him back a touch
+		lean -= recoil * (0.5 if heavy else 0.22)                          # each shot knocks him back a touch
 		lean -= _flinch * (0.6 if _hit_part == "torso" else 0.35)   # and a bullet much more: rocked back
 		lean -= sin(_flinch * PI) * 0.12 * _hit_dip              # a leg hit folds him forward a moment
 		lean += clampf(_aim.angle(), -0.9, 0.6) * 0.08   # the body follows the gun up or down a little

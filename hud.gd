@@ -8,6 +8,7 @@ const AMBER := Color(0.95, 0.66, 0.13)
 const BAR_INNER := [Vector2(60.0, 28.0), Vector2(892.0, 28.0), Vector2(866.0, 118.0), Vector2(33.0, 118.0)]
 const SEGMENTS := 5
 
+var trial := false         # (24. 11., main.gd _lab) the playground's trial: a smaller, fainter stick; bigger captions and hints
 var move := 0.0            # -1, 0 or 1 from the thumbstick
 var duck := false          # the thumbstick is pulled down
 var up := false            # the thumbstick is pushed up (23. 11.: onto a ladder and up it - never by itself)
@@ -69,6 +70,11 @@ func _ready() -> void:
 	_ring.modulate.a = 0.55   # see-through enough that cover under the thumb still reads
 	_knob = _add("res://art/ui/stick_knob.png", 0.62)
 	_knob.modulate.a = 0.75
+	if trial:
+		_ring.scale *= 0.8
+		_knob.scale *= 0.8
+		_ring.modulate.a = 0.32
+		_knob.modulate.a = 0.5
 	_slow = _add("res://art/ui/stopwatch.png", 0.215)
 	_meter = Line2D.new()
 	_meter.width = 5.0
@@ -321,7 +327,7 @@ func caption(lines: Array) -> void:
 	# the lines stack upwards from the bottom edge, so the last one always sits lowest.
 	var Paper = load("res://paper.gd")
 	var font: Font = load("res://fonts/ComicNeue-BoldItalic.woff")
-	var fs := 26   # (audit 18. 11.: 22 read small on a phone)
+	var fs := 34 if trial else 26   # (audit 18. 11.: 22 read small on a phone)
 	var view := get_viewport().get_visible_rect().size
 	var left := _stick_at.x + 120.0   # clear of the thumbstick's ring
 	var right := _slow.position.x - 92.0   # clear of the stopwatch and its meter
@@ -435,7 +441,7 @@ func hint(text: String, queued := false) -> void:
 	var view := get_viewport().get_visible_rect().size
 	var Paper = load("res://paper.gd")
 	var font: Font = load("res://fonts/ComicNeue-BoldItalic.woff")
-	var cap: Control = Paper.caption(text.to_upper(), font, 24, 560.0)
+	var cap: Control = Paper.caption(text.to_upper(), font, 32 if trial else 24, 700.0 if trial else 560.0)
 	cap.position = Vector2(view.x - 48.0 - cap.size.x, 128.0)   # up on the right, under the pause button
 	cap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cap.modulate.a = 0.0

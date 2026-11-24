@@ -566,7 +566,6 @@ def chunk(name, hard, rng=None):
         # (rule 33, station 5) back into a doorway (the brick front's, its left bay: main.gd CITY_DOORS): two of them up
         # the street do not see him there - out of it, a shot, back in while they look for him
         c.city.append(["bldg", "brick", 12 * CITY_BAY, 3 * CITY_BAY, 3, 4])
-        c.hint(11900, "STICK UP IN A DOORWAY TO STEP BACK INTO IT")
         c.foe(12 * CITY_BAY + 1500).foe(12 * CITY_BAY + 2200, kind="shotgun")
         # (rule 33, station 6) the diner behind the walk-up's shopfront: the stick up at its door, a small fight among
         # the tables they knocked over, out by the door again (its inside: art_src 355, main.gd HALLS "shop")
