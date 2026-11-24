@@ -28,9 +28,20 @@ for i in range(1, n + 1):
 lum = t[..., :3].astype(int).sum(axis=2)
 fill = ndimage.binary_dilation(ndimage.binary_erosion((lum < 75) & solid, iterations=5), iterations=6) & (lum < 110) & solid
 fill[240:] = False
-soft = ndimage.gaussian_filter(fill.astype(float), 2.0)[..., None]
-t[..., :3] = (t[..., :3] * (1 - soft) + np.array([58, 56, 62]) * soft).astype(np.uint8)
+# (user 24. 11.: "the head is BEHIND the collar, not IN the coat - the black band round the top is the collar's other
+# side") the band along the top is the inside of the far half of the collar: the head goes in front of it and only the
+# near half (below the rim line) is laid over the neck -> collar.png, the same canvas as the torso
+from PIL import ImageDraw
+RIM = [(120, 0), (168, 6), (188, 30), (220, 45), (260, 55), (300, 63), (340, 74), (380, 87), (420, 100), (450, 110), (480, 118)]   # the near half's top edge, traced on the drawing
+pm = Image.new("L", (t.shape[1], t.shape[0]), 0)
+ImageDraw.Draw(pm).polygon(RIM + [(480, 235), (120, 235)], fill=255)
+near = np.asarray(pm) > 0
 save("torso", Image.fromarray(t))
+collar = t.copy()
+collar[~near] = 0
+save("collar", Image.fromarray(collar))
+import shutil
+shutil.copy(os.path.join(OUT, "torso_n.png"), os.path.join(OUT, "collar_n.png"))   # the torso's own relief: a relief made from the cut piece bevels its cut edge (a pale stripe across the chest)
 # head with the hat on: the hat levelled a little and set on the hairline
 head, hat = P[4][2], P[6][2].rotate(-9, expand=True, resample=Image.BICUBIC)
 hat = hat.resize((int(hat.width * 1.0), int(hat.height * 1.0)), Image.LANCZOS)

@@ -289,7 +289,8 @@ func _ready() -> void:
 		if String(row[0]).begins_with("collar"):
 			if parts.has(row[0]):   # a piece of the torso drawing laid over the head or the sleeve again
 				var c := Sprite2D.new()
-				c.texture = _tex(String(cfg["dir"]) + "torso")
+				# (its own cut of the torso drawing when there is one: only the near half of a raised collar)
+				c.texture = _tex(String(cfg["dir"]) + ("collar" if ResourceLoader.exists(String(cfg["dir"]) + "collar.png") else "torso"))
 				c.centered = false
 				c.region_enabled = true
 				c.region_rect = parts[row[0]]

@@ -9189,7 +9189,7 @@ func _eddie2_cfg() -> Dictionary:
 		"dir": "res://art/eddie2/", "weapon": "revolver", "leg_tex": "res://art/eddie2/leg.png", "short_coat": true, "gait2": true, "pelvis": Color(0.2, 0.17, 0.14),
 		"on_torso": {"shoulder": Vector2(135.0, 300.0), "far_shoulder": Vector2(175.0, 300.0), "head": Vector2(285.0, 62.0), "belt": Vector2(250.0, 683.0)},
 		"parts": {
-			"head": {"a": Vector2(207.0, 528.0), "b": Vector2(245.0, 116.0), "ppm": 1250},
+			"head": {"a": Vector2(208.0, 510.0), "b": Vector2(245.0, 116.0), "ppm": 1250},
 			"torso": {"a": Vector2(250.0, 683.0), "b": Vector2(262.0, 90.0), "ppm": 1140},
 			"uarm": {"a": Vector2(125.0, 110.0), "b": Vector2(185.0, 600.0), "ppm": 1480},
 			"farm": {"a": Vector2(95.0, 192.0), "b": Vector2(475.0, 77.0), "ppm": 1450},
