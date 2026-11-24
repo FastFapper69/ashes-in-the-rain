@@ -228,6 +228,8 @@ func _clip_now() -> Array:
 var ground := 0.0    # where the pavement is below the figure's origin, in pixels (0 when standing on it)
 var reload := 0.0    # 0: not reloading; else how far through it (0..1): the gun comes in to the chest
 static var heavy := false   # (trial 24. 11., main.gd _lab) more weight: deeper lean, a harder kick, a bigger step, a looser coat
+var at_ease := false # (user 24. 11.: "he holds the gun arm out stiff all the time") nobody to shoot at: the gun comes down by his side
+var ease := 0.0      # 0 the gun up on its aim .. 1 down by the leg, the arm swinging with the walk
 var recoil := 0.0    # set after a shot: the gun arm kicks up by this many radians and settles back
 var _shadow: CanvasGroup   # a black copy of the figure, thrown onto the wall by the nearest lamp
 var _shadow_spr := {}
@@ -619,6 +621,7 @@ func set_state(dir: float, aim: Vector2, delta: float) -> void:
 	_hit_dip = move_toward(_hit_dip, 0.0, delta * 2.5)
 
 	_aim = Vector2.from_angle(_aim_angle - recoil)
+	ease = move_toward(ease, 1.0 if at_ease else 0.0, delta * (1.8 if at_ease else 9.0))   # down slowly, up fast
 	if clip != "":
 		clip_t += delta
 		if clip_t >= float(CLIPS[clip]["len"]):
@@ -765,6 +768,12 @@ func _pose() -> void:
 		near_target = near_target.lerp(shoulder + Vector2(0.24, 0.24), rl)
 	if hands_up > 0.0 and not _dead:
 		near_target = near_target.lerp(shoulder + Vector2(0.16, -(ua + fa) * 0.82), hands_up)
+	var es := 0.0   # at ease: the gun hand down by the thigh (a long gun low across the body), swinging against the legs
+	if ease > 0.0 and not _dead and swing < 0.0:
+		es = smoothstep(0.0, 1.0, ease) * (1.0 - rl) * (1.0 - hands_up) * (1.0 - hang) * (1.0 - maxf(dive, slide))
+		var low := shoulder + (Vector2(0.14, 0.4) if long_gun else Vector2(0.07 - 0.13 * cos(th) * t, (ua + fa) * 0.93))
+		near_target = near_target.lerp(low, es)
+	var gun_a := lerp_angle(_aim.angle(), 0.5 if long_gun else 1.2, es)
 	var blow := 0.0   # the angle of the pipe arm, in his own forward frame
 	if swing >= 0.0 and not _dead:
 		var aim_a := _aim.angle()
@@ -789,11 +798,13 @@ func _pose() -> void:
 	var far_target := (shoulder + _aim * 0.5 + Vector2(0.02, 0.06)).lerp(hip + Vector2(0.25 * cos(th), 0.05), t)
 	if long_gun:
 		var tex_size := Vector2((_gun.texture as Texture2D).get_size())
-		far_target = hand + ((tex_size * ((gd["fore"] as Vector2) - (gd["grip"] as Vector2))) * gun_scale).rotated(_aim.angle())
+		far_target = hand + ((tex_size * ((gd["fore"] as Vector2) - (gd["grip"] as Vector2))) * gun_scale).rotated(gun_a)
 	elif (weapon == "pistols" or (dual and weapon == "revolver")) and not _dead:
 		far_target = far_shoulder + _aim * reach + Vector2(0.0, 0.07)
 	elif air > 0.0 and not _dead:   # in the air the free arm swings out for balance, up on the way up
 		far_target = far_target.lerp(far_shoulder + Vector2(-0.22, -0.08 - 0.18 * clampf(-air_v, 0.0, 1.0) + 0.12 * clampf(air_v, 0.0, 1.0)), air * 0.85)
+	if es > 0.0 and not long_gun:   # the free arm hangs too, and swings with the walk
+		far_target = far_target.lerp(far_shoulder + Vector2(0.03 + 0.13 * cos(th) * t, (ua + fa) * 0.93), es)
 	if _dead:   # dead weight: the arm lies almost straight along the thrown direction
 		far_target = far_shoulder + Vector2.from_angle(_aim.angle() + dead_far) * (ua + fa) * 0.96
 	if rl > 0.0:   # the other hand works the gun
@@ -875,7 +886,7 @@ func _pose() -> void:
 	# the head tips less than the body, and turns a little after the aim: he looks where he shoots
 	var look := (lean - roll) * 0.5 + roll
 	if not _dead:
-		look += clampf(_aim.angle(), -0.9, 0.7) * 0.4 * (1.0 - hands_up) - recoil * 0.3 + hands_up * 0.12
+		look += clampf(_aim.angle(), -0.9, 0.7) * 0.4 * (1.0 - hands_up) * (1.0 - es) - recoil * 0.3 + hands_up * 0.12
 		if not hang_one:
 			look = lerpf(look, -0.35 if hang_cycle >= 0.0 else -0.1, hang)   # eyes on where the rope goes
 		if reload > 0.0:   # eyes on the gun in his hands
@@ -885,7 +896,7 @@ func _pose() -> void:
 	_place("uarm_f", "uarm", shoulder, kn[0])
 	_place("farm_f", "farm", kn[0], kn[1])
 	_gun.position = hand * PPM
-	_gun.rotation = _aim.angle()
+	_gun.rotation = gun_a
 	_gun.visible = not disarmed and not (hang > 0.5 and not hang_one) and not (swing >= 0.0 and not _dead)   # both hands on the rope: the gun is in his coat
 	if _pipe != null:
 		_pipe.visible = swing >= 0.0 and not _dead

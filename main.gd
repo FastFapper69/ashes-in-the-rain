@@ -3097,6 +3097,16 @@ func _process(delta: float) -> void:
 		aim = _test_aim - chest
 	_aim_point = chest + aim
 	dir = _move(dir, aim, delta)
+	# (user 24. 11.) nobody up to fight and no shot for a while: the gun comes down by his side
+	_ease_t += delta
+	if move_state != "ground" or over or reloading > 0.0 or Engine.time_scale < 0.9:
+		_ease_t = 0.0
+	else:
+		for e in enemies:
+			if e["alive"] and e["state"] not in ["wait", "give", "down"] and e["node"].visible and absf(e["node"].position.x - player.position.x) < 2400.0:
+				_ease_t = 0.0
+				break
+	player.at_ease = _ease_t > 1.5
 	if not over:
 		player.set_state(dir, aim, delta)
 	steps.emitting = (absf(dir) > 0.3 or absf(glide) > 180.0) and move_state == "ground"
@@ -5891,8 +5901,14 @@ func _show_ammo() -> void:
 
 ## One shot: flash, bullet (or a shotgun's pellets), casing, kick of the arm and the lettered bang.
 ## kind: the mobster's gun (post, tommy, shotgun); the detective fires whatever he holds.
+var _ease_t := 0.0
 func _fire(shooter, from_player: bool, kind := "") -> void:
 	if from_player:
+		_ease_t = 0.0
+		if player.ease > 0.0:   # the gun was down: up at once, the shot leaves from where it points
+			player.ease = 0.0
+			player.at_ease = false
+			player._pose()
 		_alcove_shot = _time   # (out of a doorway he leans into the street to shoot)
 	if not from_player and shooter != player and not _same_floor(shooter):   # never from another floor
 		return
