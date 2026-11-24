@@ -68,3 +68,6 @@ Jen kód (`puppet.gd`), žádné kresby:
 Nové kresby z Gemini (až po kódu):
 6. Eddieho předloktí ve stejném tónu a šrafuře jako kabát.
 7. Trup z čistšího profilu (nebo druhý trup pro běh), aby seděl k hlavě a nohám.
+
+## Opraveno 24. 11.
+- B1 (světlý pruh za Eddieho hlavou): byla to chyba, ne kresba. Eddie nosí Frankovo tělo obarvené do tmavomodra, ale dva díly límce (`_collars`) se neobarvily a zůstaly světlé. Teď mají barvu kabátu.

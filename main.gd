@@ -875,6 +875,8 @@ func _ready() -> void:
 				player._spr[part].modulate *= Color(0.55, 0.6, 0.75)
 		if player._skirt_mesh:
 			player._skirt_mesh.modulate *= Color(0.34, 0.4, 0.58)
+		for c in player._collars:   # (user 24. 11.: "something about the head or the neck") the collar pieces are not in _spr: they stayed
+			c.modulate *= Color(0.34, 0.4, 0.58)   # Frank's pale tan over Eddie's neck - a white flap behind his face
 	if checkpoint > 0.0 and not in_menu:
 		player.position = Vector2(checkpoint, _floor_at(checkpoint, checkpoint_y - 10.0 if checkpoint_y < 0.0 else -1.0))
 		if ARGS.has("--log-sets"): print("RESPAWN AT ", player.position)
