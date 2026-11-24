@@ -146,3 +146,39 @@ if __name__ == "__main__":
     elif cmd == "cycle":
         r = [int(x) for x in sys.argv[4:6]] if len(sys.argv) > 4 else []
         cycle(sys.argv[2], sys.argv[3], *r)
+
+
+def clip(path, name, a0, a1, n=40):
+    """a one-off move (a leap, a roll): frames a0..a1 resampled to n. Heights from the floor of the clip (its standing ankle
+    level, as the cycles); angles unwrapped so a roll turns all the way round."""
+    d, a = load(path)
+    fwd = frame_axes(a)
+    s, L, left_near = side(a, fwd)
+    near, far = ("l", "r") if left_near else ("r", "l")
+    floor = float(np.percentile(np.minimum(s["l_ankle"][:, 1], s["r_ankle"][:, 1]), 5))
+    def ang(p, q):
+        v = s[q] - s[p]
+        return np.unwrap(np.arctan2(v[:, 0], v[:, 1]))
+    torso, head = ang("hips", "neck"), ang("neck", "head_top")
+    out = {"src": d["src"], "frames": [a0, a1], "seconds": round((a1 - a0) * d["frame_time"], 4), "phases": []}
+    for i in range(n):
+        t = a0 + (a1 - a0) * i / (n - 1)
+        j = min(int(t), len(torso) - 2); u = t - j
+        g = lambda arr: arr[j] * (1 - u) + arr[j + 1] * u
+        hy = float((g(s[near + "_hip"])[1] + g(s[far + "_hip"])[1]) / 2 - floor)
+        out["phases"].append([round(x, 4) for x in [
+            hy, float(g(s[near + "_ankle"])[0] - g(s[near + "_hip"])[0]), float(g(s[near + "_ankle"])[1] - floor),
+            float(g(s[far + "_ankle"])[0] - g(s[far + "_hip"])[0]), float(g(s[far + "_ankle"])[1] - floor),
+            float(g(torso)), float(g(head)),
+            float((g(s[near + "_wrist"]) - g(s[near + "_shoulder"]))[0]), float((g(s[near + "_wrist"]) - g(s[near + "_shoulder"]))[1]),
+            float((g(s[far + "_wrist"]) - g(s[far + "_shoulder"]))[0]), float((g(s[far + "_wrist"]) - g(s[far + "_shoulder"]))[1])]])
+    arm = float(np.median(np.linalg.norm(a[near + "_elbow"] - a[near + "_shoulder"], axis=1) + np.linalg.norm(a[near + "_wrist"] - a[near + "_elbow"], axis=1)))
+    out["arm"] = round(arm / L, 4)
+    dst = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "art", "mocap", "clips")
+    os.makedirs(dst, exist_ok=True)
+    json.dump(out, open(os.path.join(dst, name + ".json"), "w"))
+    print("clip", name, a0, a1, "floor", round(floor, 3), "torso", round(float(torso[a0]), 2), "->", round(float(torso[a1]), 2))
+
+
+if __name__ == "__main__" and sys.argv[1] == "clip":
+    clip(sys.argv[2], sys.argv[3], int(sys.argv[4]), int(sys.argv[5]))

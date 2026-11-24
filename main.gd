@@ -469,7 +469,7 @@ var _at := 0.0
 var _auto_done := 0
 var _moves_k := 0
 const MOVES_SEEN := [["idle", 1], ["aim", 4], ["shot", 3], ["reload", 5], ["switch", 3], ["run_aim", 2], ["jump", 4], ["land", 2],
-		["dive_push", 3], ["dive", 3], ["dive_land", 1], ["roll", 4], ["slide", 3], ["duck", 2], ["duck_walk", 4], ["hit", 3],
+		["dive_push", 3], ["dive", 3], ["dive_land", 1], ["roll", 8], ["slide", 3], ["duck", 2], ["duck_walk", 4], ["hit", 3],
 		["hit_leg", 2], ["fly_kick", 4], ["wall_kick", 3], ["flip", 4], ["window", 3], ["vault", 3], ["hang", 1], ["climb", 3],
 		["hang_one", 1], ["pipe", 4], ["tommy", 3], ["shotgun", 2], ["dead", 2]]
 
@@ -480,7 +480,7 @@ func _moves_pose(mv: String, u: float, i: int) -> void:
 	p.duck = 0.0; p.air = 0.0; p.air_v = 0.0; p.dive = 0.0; p.slide = 0.0; p.crouch = 0.0; p.roll = 0.0
 	p.hang = 0.0; p.hang_cycle = -1.0; p.hang_one = false; p.clip = ""; p.reload = 0.0; p.recoil = 0.0
 	p._flinch = 0.0; p._hit_dip = 0.0; p._hit_part = ""; p.swing = -1.0; p._switch_p = -1.0
-	p.ease = 0.0; p.at_ease = false; p.dive_side = 1.0; p.slide_side = 1.0
+	p.ease = 0.0; p.at_ease = false; p.dive_side = 1.0; p.slide_side = 1.0; p.roll_t = -1.0
 	var gun := "tommy" if mv == "tommy" else ("shotgun" if mv == "shotgun" else "revolver")
 	if p.weapon != gun:
 		p.set_weapon(gun)
@@ -518,7 +518,8 @@ func _moves_pose(mv: String, u: float, i: int) -> void:
 			var tuck := sin(u * PI)
 			p.air = lerpf(0.5, 1.0, tuck)
 			p.crouch = lerpf(0.6, 1.0, tuck) if u < 0.75 else lerpf(1.0, 0.7, (u - 0.75) / 0.25)
-			y = -40.0
+			p.roll_t = u
+			y = 0.0
 		"slide":
 			p.slide = [0.5, 1.0, 0.5][i]
 		"duck":
@@ -5455,6 +5456,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 		roll_done = minf(1.0, roll_done + delta / 0.5)
 		var ease_r := roll_done * roll_done * (3.0 - 2.0 * roll_done)
 		player.roll = lerpf(1.35, TAU, ease_r) * player.dive_side
+		player.roll_t = roll_done   # (the captured dive roll plays along it, puppet.gd _mcl)
 		var tuck := sin(roll_done * PI)
 		player.air = lerpf(0.5, 1.0, tuck)
 		player.crouch = lerpf(0.6, 1.0, tuck) if roll_done < 0.75 else lerpf(1.0, 0.7, (roll_done - 0.75) / 0.25)
@@ -5463,6 +5465,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 		player.position.x += glide * 0.75 * delta
 		if roll_done >= 1.0:   # a full turn: he comes up on his feet, still moving
 			player.roll = 0.0
+			player.roll_t = -1.0
 			run = clampf(glide * 0.5, -RUN_SPEED, RUN_SPEED)
 			glide = 0.0
 			move_state = "ground"

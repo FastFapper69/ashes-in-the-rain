@@ -8,9 +8,15 @@ for f in sorted(glob.glob(os.path.join(R, "art", "mocap", "*.json"))):
     cyc[n] = {"seconds": d["seconds"], "travel": d["travel"], "arm": d["arm"], "src": d["src"],
               "phases": [[p["hip_y"], p["ankle_f"][0] - p["hipx_f"], p["ankle_f"][1], p["ankle_b"][0] - p["hipx_b"], p["ankle_b"][1],
                           p["torso"], p["head"], p["hand_f"][0], p["hand_f"][1], p["hand_b"][0], p["hand_b"][1]] for p in d["phases"]]}
+clips = {}
+for f in sorted(glob.glob(os.path.join(R, "art", "mocap", "clips", "*.json"))):
+    d = json.load(open(f))
+    clips[os.path.basename(f)[:-5]] = {"seconds": d["seconds"], "arm": d["arm"], "src": d["src"], "phases": d["phases"]}
 out = ['extends RefCounted', '## Motion capture cycles seen from the side (gen/mocap: Blender bvh_joints.py -> side.py -> to_gd.py), CMU mocap database.',
        '## A phase: [hip height, near ankle x, y, far ankle x, y (from each leg\'s hip; y from the ground), torso, head (rad from',
        '## vertical, + forward), near wrist x, y, far wrist x, y (from the shoulder)]; lengths in the subject\'s legs (hip to ankle).',
-       'const CYCLES := ' + json.dumps(cyc)]
+       'const CYCLES := ' + json.dumps(cyc),
+       '## One-off moves: the same fields, but ankles x from their hip joint, heights (hips, ankles) from the floor, angles unwrapped.',
+       'const CLIPS := ' + json.dumps(clips)]
 open(os.path.join(R, "mocap_data.gd"), "w", encoding="utf-8").write("\n".join(out) + "\n")
 print("mocap_data.gd", {k: len(v["phases"]) for k, v in cyc.items()})

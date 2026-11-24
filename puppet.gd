@@ -748,6 +748,19 @@ func _run_w() -> float:
 const MOCAP := preload("res://mocap_data.gd")
 static var mocap_off := false   # --nomocap: the keyed gait2 instead, to compare
 var _mc := {}                   # the blended mocap pose this frame (empty: none)
+var roll_t := -1.0              # main.gd's roll: 0..1 through it (-1 not rolling) - the captured dive roll plays along it
+var _mcl := []                  # the one-off captured move this frame: [name, sample, weight, side]
+
+
+static func _mcl_at(name: String, u: float) -> Array:
+	var ph: Array = MOCAP.CLIPS[name]["phases"]
+	var t := clampf(u, 0.0, 1.0) * (ph.size() - 1)
+	var i := mini(int(t), ph.size() - 2)
+	var v := t - i
+	var out := []
+	for k in (ph[i] as Array).size():
+		out.append(lerpf(float(ph[i][k]), float(ph[i + 1][k]), v))
+	return out
 
 
 static func _mc_at(name: String, p: float) -> Array:
@@ -889,6 +902,34 @@ func _pose() -> void:
 		spin = float(cl.get("spin", 0.0)) * TAU * clip_side
 		legs_lean = lerpf(legs_lean, float(cl["legs"]) * clip_side, cw) + spin
 		lean = lerpf(lean, float(cl["lean"]) * clip_side, cw) + spin
+	# the captured one-off moves (gen/mocap clips): over a jump the leap of a man running and jumping long (CMU 127_21), the
+	# legs from his hips; along main.gd's roll the dive roll (127_23) whole: his hips, legs, torso and head, all the way round
+	_mcl = []
+	if _use_mocap() and not _dead and swing < 0.0:
+		var legk: float = l1 + l2
+		if roll_t >= 0.0 and roll != 0.0:
+			var sd := dive_side
+			var m := _mcl_at("roll", roll_t)
+			var w := 1.0 - smoothstep(0.78, 1.0, roll_t)   # coming up he hands over to the game's crouch, which runs on
+			_mcl = ["roll", m, w, sd]
+			hip = hip.lerp(Vector2(0.0, -float(m[0]) * legk - ankle), w)
+			var fa2 := Vector2(float(m[1]) * legk * sd, -float(m[2]) * legk)
+			var fb2 := Vector2(float(m[3]) * legk * sd, -float(m[4]) * legk)
+			foot_a = (hip + (foot_a - hip).rotated(legs_lean)).lerp(fa2, w)   # (the game's feet as they would be turned, so the hand-over is smooth)
+			foot_b = (hip + (foot_b - hip).rotated(legs_lean)).lerp(fb2, w)
+			legs_lean = 0.0
+			lean = lerpf(lean, float(m[5]) * sd, w)
+		elif air > 0.0 and cw <= 0.0 and hang <= 0.0:
+			var w := air * (1.0 - dive) * (1.0 - slide)
+			if w > 0.0:
+				var m := _mcl_at("leap", clampf((air_v + 1.0) * 0.5, 0.0, 1.0))
+				_mcl = ["leap", m, w, 1.0]
+				var fa2 := hip + Vector2(float(m[1]) * legk, (float(m[0]) - float(m[2])) * legk) + Vector2(0.0, ankle)
+				var fb2 := hip + Vector2(float(m[3]) * legk, (float(m[0]) - float(m[4])) * legk) + Vector2(0.0, ankle)
+				foot_a = foot_a.lerp(fa2, w)
+				foot_b = foot_b.lerp(fb2, w)
+				legs_lean = lerpf(legs_lean, 0.0, w)
+				lean = lerpf(lean, float(m[5]) + clampf(_aim.angle(), -0.9, 0.6) * 0.08, w)
 	var breath := sin(_clock * 1.7) * 0.006 * (1.0 - t) * (0.0 if _dead else 1.0)   # breathing, standing still
 	var neck := hip + Vector2(lerpf(0.03, lerpf(0.05, 0.15, rw) if g2 else 0.15, t), -float(_len["torso"]) - breath).rotated(lean)
 	# Joints that are drawn on the torso (armholes, the bottom of the collar, the belt) are given in
@@ -954,6 +995,12 @@ func _pose() -> void:
 	var climb_c := 0.5 - 0.5 * cos(hang_cycle * TAU) if hang_cycle >= 0.0 else 0.0
 	if hang > 0.0 and not hang_one and not _dead:   # both fists on the rope, one above the other
 		near_target = near_target.lerp(Vector2(0.06, hang_top + 0.2 * climb_c), hang)
+	var armk_c := 1.0
+	if not _mcl.is_empty():
+		armk_c = (ua + fa) / (float(MOCAP.CLIPS[_mcl[0]]["arm"]) * (l1 + l2))
+	if not _mcl.is_empty() and _mcl[0] == "roll":   # tumbling, the hands go where his did: down to the stones and tucked
+		var m: Array = _mcl[1]
+		near_target = near_target.lerp(shoulder + Vector2(float(m[7]) * float(_mcl[3]), -float(m[8])) * (l1 + l2) * armk_c, float(_mcl[2]))
 	var kn := _ik(shoulder, near_target, ua, fa, 1.0)
 	var hand: Vector2 = kn[1]
 	var gun_scale: float = float(gd["len"]) / float((_gun.texture as Texture2D).get_width())   # metres per picture pixel
@@ -978,6 +1025,9 @@ func _pose() -> void:
 		# (user 24. 11.: "in a jump he throws the back arm oddly" - it stood up behind his shoulder like a wing) the free
 		# arm stays low: back and bent as he goes up, forward of the hip to meet the landing
 		far_target = far_target.lerp(far_shoulder + Vector2(-0.17, 0.25).lerp(Vector2(0.14, 0.24), clampf(air_v * 0.5 + 0.5, 0.0, 1.0)), air)
+	if not _mcl.is_empty() and not long_gun and not (weapon == "pistols" or (dual and weapon == "revolver")):
+		var m: Array = _mcl[1]
+		far_target = far_target.lerp(far_shoulder + Vector2(float(m[9]) * float(_mcl[3]), -float(m[10])) * (l1 + l2) * armk_c, float(_mcl[2]))
 	if es > 0.0 and not long_gun:   # the free arm hangs too, and swings with the walk
 		far_target = far_target.lerp(far_shoulder + Vector2(0.03 + 0.13 * cos(th) * t, (ua + fa) * 0.93), es * (1.0 - t) if g2 else es)
 	if _dead:   # dead weight: the arm lies almost straight along the thrown direction
@@ -1071,6 +1121,8 @@ func _pose() -> void:
 	var look := (lean - roll - spin) * 0.5 + roll + spin   # (24. 11.: the head went only half way round a flip - upside down in his coat)
 	if not _mc.is_empty():
 		look = lerpf(look, float(_mc["head"]) * 0.6 + lean * 0.4, float(_mc["w"]))
+	if not _mcl.is_empty() and _mcl[0] == "roll":
+		look = lerpf(look, float(_mcl[1][6]) * float(_mcl[3]), float(_mcl[2]))
 	if not _dead:
 		look += clampf(_aim.angle(), -0.9, 0.7) * 0.4 * (1.0 - hands_up) * (1.0 - es) - recoil * 0.3 + hands_up * 0.12
 		if not hang_one:
@@ -1083,6 +1135,8 @@ func _pose() -> void:
 	_place("farm_f", "farm", kn[0], kn[1])
 	_gun.position = hand * PPM
 	_gun.rotation = gun_a
+	if not _mcl.is_empty() and _mcl[0] == "roll":   # the gun along the forearm while the hand is on the stones
+		_gun.rotation = lerp_angle(gun_a, (kn[1] - kn[0]).angle(), float(_mcl[2]))
 	_gun.visible = not disarmed and not (hang > 0.5 and not hang_one) and not (swing >= 0.0 and not _dead)   # both hands on the rope: the gun is in his coat
 	if _pipe != null:
 		_pipe.visible = swing >= 0.0 and not _dead
