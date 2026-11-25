@@ -26,6 +26,7 @@ Pick the chapter for the task. Every idea marked **[H]** is a hypothesis: measur
 10. **Noir light is motivated hard light**: one hard source, little fill, practicals in frame (lamps, neon), venetian-blind patterns only where a window is. Matches our "every light has a source" rule. ([[ch01-build-deploy|ch01]])
 11. **One mechanic per map, taught without text** (kishōtenketsu: introduce safely → develop → twist → conclude; Katana ZERO teaches through levels). Our mapfx flags are the natural "featured mechanic". ([[ch05-levels-maps|ch05]])
 12. **Clarity over chaos** (John Wick): wide framing so cause and effect are visible; rhythm like a dance. Keep shooter and target in frame in slowed time. ([[ch03-art-pipeline|ch03]])
+13. **Anticipation is for enemies, not for the player** (Cooper, Game Anim): the player's move starts on the input frame, follow-through runs only until the next input; enemy windups are the telegraph. ([[ch16-animation-principles|ch16]])
 
 ---
 
@@ -47,6 +48,7 @@ Pick the chapter for the task. Every idea marked **[H]** is a hypothesis: measur
 | [ch13](chapters/ch13-business-release.md) | Business & release | premium vs free-to-start, subscriptions, native iOS needs Mac+Xcode, haptics |
 | [ch14](chapters/ch14-camera-telemetry-accessibility.md) | Camera, telemetry, accessibility | Keren camera techniques, death heatmaps/funnels, subtitles, assist mode |
 | [ch15](chapters/ch15-modular-kits-seams.md) | Modular kits, joins, transitions | Bethesda kits & metrics, Wang edge types, Dead Cells graph, Trine/Hollow Knight layers, thresholds, outpainting joins |
+| [ch16](chapters/ch16-animation-principles.md) | Twelve principles of animation | Thomas & Johnston, Cooper, Totten: each principle, what our puppet does, [H] gaps, checks for the poses audit |
 
 ## Topic index
 - **attack tokens** → [[ch04-phone-memory|ch04]] · **backbuffer / CanvasGroup** → [[ch06-lights-fx|ch06]] · **barks / callouts** → [[ch04-phone-memory|ch04]]
@@ -59,6 +61,7 @@ Pick the chapter for the task. Every idea marked **[H]** is a hypothesis: measur
 - **cutscene pacing, voice timing, trailer** → [[ch10-story-cutscenes|ch10]]
 - **Godot MCP / hooks / unit tests** → [[ch11-ui-hud|ch11]] · **licences, Artlist, AI disclosure** → ch12 · **business model, native export, haptics** → ch13 · **camera, heatmaps, accessibility** → ch14
 - **modular kit / metrics / edge types / seams / threshold / transition between scenes / outpainting** → ch15
+- **animation principles / squash / anticipation / follow-through / telegraph / arcs / timing / silhouette / twins** → ch16
 
 ## Supporting files
 - [cheatsheet.md](cheatsheet.md) – decision rules distilled from all chapters
