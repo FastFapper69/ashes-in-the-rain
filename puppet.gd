@@ -765,6 +765,46 @@ var death_clip := "die_back"
 var prone := false              # main.gd: down flat after a dive; while dive runs 1 -> 0 he gets up (the keyed get-up sheet)
 var _mcl := []                  # the one-off captured move this frame: [name, sample, weight, side]
 
+## (user 25. 11.: "the animations must blend into each other - they snap, frames are missing") INERTIAL BLENDING, every
+## figure: whenever the pose would jump - one move handing over to the next (the key changes), or a part leaping further
+## in a frame than a body can - the difference between what was SHOWN and the new pose is kept as an offset and faded out
+## over IN_TIME, while the new move already plays underneath. Nothing freezes, nothing snaps. Goes through: hips, both
+## feet, the torso's lean, both hands, the head. `blend_off`: the still-frame tests (moves, gait) pose out of time.
+const IN_TIME := 0.18
+static var blend_off := false
+var _in_key := ""
+var _in_new := false
+var _in_dt := 0.0
+var _in_clock := 0.0
+var _in_off := {}
+var _in_t := {}
+var _in_shown := {}
+var _in_raw := {}
+
+
+func _inert(name: String, raw, jump := 0.0, angle := false):
+	if blend_off:
+		return raw
+	var restart := _in_new
+	if not restart and jump > 0.0 and _in_raw.has(name):   # a leap inside one move
+		var step = raw - _in_raw[name]
+		restart = (absf(wrapf(step, -PI, PI)) if angle else (step as Vector2).length()) > jump
+	_in_raw[name] = raw
+	if restart and _in_shown.has(name):
+		var d = _in_shown[name] - raw
+		_in_off[name] = wrapf(d, -PI, PI) if angle else d
+		_in_t[name] = 0.0
+	var shown = raw
+	if _in_off.has(name):
+		_in_t[name] = float(_in_t[name]) + _in_dt
+		var k := 1.0 - smoothstep(0.0, IN_TIME, float(_in_t[name]))
+		if k <= 0.0:
+			_in_off.erase(name)
+		else:
+			shown = raw + _in_off[name] * k
+	_in_shown[name] = shown
+	return shown
+
 
 static func _mcl_at(name: String, u: float) -> Array:
 	var ph: Array = MOCAP.CLIPS[name]["phases"]
@@ -1012,6 +1052,14 @@ func _pose() -> void:
 				foot_b = foot_b.lerp(fb2, w)
 				legs_lean = lerpf(legs_lean, 0.0, w)
 				lean = lerpf(lean, float(m[5]) + clampf(_aim.angle(), -0.9, 0.6) * 0.08, w)
+	# inertial blending (see _inert): which move this is; a change of it starts a blend of every part
+	var in_key := (String(_mcl[0]) if not _mcl.is_empty() else "") + "|" + (clip if cw > 0.0 else "") + ("|dead" if _dead else "") + ("|swing" if swing >= 0.0 else "") + ("|hang" if hang > 0.5 else "")
+	_in_new = in_key != _in_key
+	_in_key = in_key
+	_in_dt = clampf(_clock - _in_clock, 0.0, 0.1)
+	_in_clock = _clock
+	hip = _inert("hip", hip, 0.2)
+	lean = _inert("lean", lean, 0.8, true)
 	var breath := sin(_clock * 1.7) * 0.006 * (1.0 - t) * (0.0 if _dead else 1.0)   # breathing, standing still
 	var neck := hip + Vector2(lerpf(0.03, lerpf(0.05, 0.15, rw) if g2 else 0.15, t), -float(_len["torso"]) - breath).rotated(lean)
 	# Joints that are drawn on the torso (armholes, the bottom of the collar, the belt) are given in
@@ -1091,6 +1139,7 @@ func _pose() -> void:
 	if not _mcl.is_empty() and String(_mcl[0]).begins_with("die"):   # falling dead: the gun hand where the sheet throws it
 		var md: Array = _mcl[1]
 		near_target = shoulder + Vector2(float(md[7]), -float(md[8])) * (l1 + l2) * armk_c
+	near_target = _inert("hand_n", near_target)   # (only at a hand-over: the gun arm must follow a quick aim at once)
 	var kn := _ik(shoulder, near_target, ua, fa, 1.0)
 	var hand: Vector2 = kn[1]
 	var gun_scale: float = float(gd["len"]) / float((_gun.texture as Texture2D).get_width())   # metres per picture pixel
@@ -1139,6 +1188,7 @@ func _pose() -> void:
 	if hang > 0.0 and not _dead:
 		var low := 0.2 * (1.0 - climb_c) if hang_cycle >= 0.0 else (0.0 if hang_one else 0.13)
 		far_target = far_target.lerp(Vector2(0.06, hang_top + low), hang)
+	far_target = _inert("hand_f", far_target, 0.45)
 	var k := _ik(far_shoulder, far_target, ua, fa, 1.0)
 	_place("uarm_b", "uarm", far_shoulder, k[0])
 	_place("farm_b", "farm", k[0], k[1])
@@ -1149,11 +1199,11 @@ func _pose() -> void:
 	_gun2.position = k[1] * PPM
 	_gun2.rotation = _aim.angle() + 0.04
 
-	k = _ik(hip, hip + (foot_b - Vector2(0.0, ankle) - hip).rotated(legs_lean), l1, l2, -1.0)
+	k = _ik(hip, _inert("foot_b", hip + (foot_b - Vector2(0.0, ankle) - hip).rotated(legs_lean), 0.4), l1, l2, -1.0)
 	_place("thigh_b", "thigh", hip, k[0])
 	_place("shin_b", "shin", k[0], k[1])
 	var leg_b := [hip, k[0], k[1]]
-	k = _ik(hip, hip + (foot_a - Vector2(0.0, ankle) - hip).rotated(legs_lean), l1, l2, -1.0)
+	k = _ik(hip, _inert("foot_a", hip + (foot_a - Vector2(0.0, ankle) - hip).rotated(legs_lean), 0.4), l1, l2, -1.0)
 	_place("thigh_f", "thigh", hip, k[0])
 	_place("shin_f", "shin", k[0], k[1])
 	var leg_f := [hip, k[0], k[1]]
@@ -1226,6 +1276,7 @@ func _pose() -> void:
 			look = lerpf(look, -0.35 if hang_cycle >= 0.0 else -0.1, hang)   # eyes on where the rope goes
 		if reload > 0.0:   # eyes on the gun in his hands
 			look = lerpf(look, 0.35, smoothstep(0.0, 0.14, reload) * (1.0 - smoothstep(0.86, 1.0, reload)))
+	look = _inert("look", look, 0.8, true)
 	_place("head", "head", head_base, head_base + Vector2(0.02, -0.3).rotated(look))
 	# laid out flat in a dive the near arm reaches forward at the height of his face: it hid the face (24. 11.) - the head,
 	# chin up, goes over the arm, which then runs under his jaw (the shootdodge as drawn in the comics)

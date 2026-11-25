@@ -8,6 +8,7 @@ const ENTRIES := [
 		"Eddie staggers back a step when shot, his knee gives when hit in the leg, and he falls like a man, not a plank",
 		"Eddie's free arm hangs naturally in jumps, vaults and wall kicks instead of sticking out behind him",
 		"Eddie's dive: a long take-off, stretched out with both hands forward, and a tight roll over the shoulder on landing",
+		"Every figure's moves now flow into each other instead of snapping from one to the next",
 	]],
 	["24 NOV 2026", [
 		"Eddie's dive: laid out flat, chin up over his gun arm, legs scissoring; every figure's kicks and flips flow instead of stopping at each pose",

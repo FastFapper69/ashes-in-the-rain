@@ -477,6 +477,7 @@ const MOVES_SEEN := [["idle", 1], ["aim", 4], ["shot", 3], ["reload", 5], ["swit
 ## --test=moves: the figure set by hand into one frame of a move (u = 0..1 through it, i = the frame).
 func _moves_pose(mv: String, u: float, i: int) -> void:
 	var p = player
+	PuppetScript.blend_off = true   # (still frames out of time: no inertial blending, puppet.gd _inert)
 	p.duck = 0.0; p.air = 0.0; p.air_v = 0.0; p.dive = 0.0; p.slide = 0.0; p.crouch = 0.0; p.roll = 0.0
 	p.hang = 0.0; p.hang_cycle = -1.0; p.hang_one = false; p.clip = ""; p.reload = 0.0; p.recoil = 0.0
 	p._flinch = 0.0; p._hit_dip = 0.0; p._hit_part = ""; p.swing = -1.0; p._switch_p = -1.0
@@ -5034,6 +5035,7 @@ func _auto_step(delta: float) -> void:
 		player._phase = float(k % 8) / 8.0
 		player._moving = 1.0 if run_it else (0.4 if walk_it else 0.0)
 		player._gs = 1.0 if run_it else (0.4 if walk_it else 0.0)
+		PuppetScript.blend_off = true
 		player._have_last = false   # (the mocap stride then takes the recording's own length)
 		player.ease = 0.0 if (run_it and not ARGS.has("--ease")) or k == 16 or k > 17 else 1.0
 		player.at_ease = player.ease > 0.5

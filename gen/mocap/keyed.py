@@ -40,6 +40,13 @@ def arm(a, e):
     return (el[0] + FA * math.sin(s), el[1] - FA * math.cos(s))
 
 
+def tuck(torso, flex, bend):
+    """a limb keyed from the body, for a tumble: the thigh (or upper arm) `flex` degrees forward of in-line-with-the-torso,
+    whatever way up he is -> the world angle the keys want; `bend` the knee (or, negative, the elbow)."""
+    a = (flex - torso + 180.0) % 360.0 - 180.0
+    return (a, abs(bend))
+
+
 def pose(k):
     """k: fa, fb (thigh, knee) of the near / far leg; torso, head (deg); hf, hb (upper arm, elbow) or None; lift."""
     # a leg is either angles ("fa"/"fb": thigh, knee) or a planted foot ("pf"/"pb": x from the hips, with "hy" the hips)
@@ -103,13 +110,16 @@ MOVES = {
     # legs splayed in the air, the head under the pavement): hands to the stones first, chin to the chest, knees pulled
     # in tight - a ball over the shoulders onto the back, and up into a crouch. Torso angles unwrapped (80 -> 380 deg)
     # along main.gd's roll 1.35 -> TAU. Overwrites the captured roll.json.
+    # (25. 11., second try - user: "he folds up and breaks every bone": the thighs were keyed in world angles and turned
+    # the WRONG way round, so on his back the legs lay folded under him. A limb in a tumble is keyed from the BODY:
+    # world angle = flexion - torso; `tuck(T, hip flexion, knee)` does it)
     "roll": [
         (0.0, {"fa": (-80, 20), "fb": (-70, 30), "torso": 82, "head": 45, "hf": (40, 10), "hb": (35, 10)}),
-        (0.14, {"fa": (-25, 125), "fb": (-15, 130), "torso": 112, "head": 160, "hf": (15, 70), "hb": (10, 75)}),
-        (0.32, {"fa": (15, 140), "fb": (25, 140), "torso": 165, "head": 240, "hf": (60, 80), "hb": (50, 85)}),
-        (0.5, {"fa": (60, 135), "fb": (75, 140), "torso": 228, "head": 300, "hf": (110, 60), "hb": (100, 70)}),
-        (0.72, {"fa": (120, 130), "fb": (130, 135), "torso": 290, "head": 335, "hf": (100, 40), "hb": (90, 50)}),
-        (0.88, {"fa": (85, 135), "fb": (70, 130), "torso": 340, "head": 365, "hf": (70, 35), "hb": (60, 40)}),
+        (0.14, {"fa": tuck(112, 90, 110), "fb": tuck(112, 100, 115), "torso": 112, "head": 160, "hf": (10, 20), "hb": (5, 25)}),
+        (0.32, {"fa": tuck(165, 125, 135), "fb": tuck(165, 135, 138), "torso": 165, "head": 215, "hf": tuck(165, 70, -90), "hb": tuck(165, 60, -90)}),
+        (0.5, {"fa": tuck(228, 130, 135), "fb": tuck(228, 140, 138), "torso": 228, "head": 275, "hf": tuck(228, 38, -100), "hb": tuck(228, 30, -100)}),
+        (0.68, {"fa": tuck(285, 125, 130), "fb": tuck(285, 135, 135), "torso": 285, "head": 320, "hf": tuck(285, 32, -95), "hb": tuck(285, 25, -95)}),
+        (0.85, {"fa": tuck(335, 110, 125), "fb": tuck(335, 120, 128), "torso": 335, "head": 352, "hf": tuck(335, 45, -70), "hb": tuck(335, 30, -70)}),
         (1.0, {"fa": (62, 112), "fb": (45, 100), "torso": 378, "head": 372, "hf": (70, 30), "hb": (40, 40)}),
     ],
     # feet first along the wet stones (0.55 s): down off the stride onto the far hip, the near leg reaching out ahead, the
