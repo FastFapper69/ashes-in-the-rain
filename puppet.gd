@@ -130,6 +130,17 @@ var dead_far := 0.25   # where the far arm lies off the near one once he is down
 var disarmed := false  # his gun is on the pavement: it never comes back to his hand
 var _aim_angle := 0.0
 var _vel := Vector2.ZERO          # how fast the figure is really moving, for the coat
+# (user 25. 11.: "mind Frank's coat so it does not behave oddly - try a better animation for it") the long coat's spine
+# is SIMULATED: a chain of points from the belt down (one per row of the skirt grid), with gravity, the body's inertia
+# (it lags a start and swings on after a stop), air drag (it streams back in a run), length kept, bending limited like
+# cloth, never through the pavement. The grid's columns hang across it as before. Before: a kinematic curve plus drawn
+# coats turned whole - in a roll or a flip the drawn coat stood up off him like a board.
+var _coat := PackedVector2Array()
+var _coat_prev := PackedVector2Array()
+var _coat_clock := -1.0
+var _coat_v := Vector2.ZERO
+var _coat_hug := 0.0   # 0..1: in a tumble the coat wraps along the thighs (spun free it flew out like a sail)
+var _coat_thigh := Vector2.DOWN
 var _last := Vector2.ZERO
 var _have_last := false
 var _clock := 0.0
@@ -788,6 +799,18 @@ var _in_shown := {}
 var _in_raw := {}
 
 
+var _fdt_frame := -1
+
+
+## This frame's game time (scaled with slow time), once per frame: posed twice in a frame, the second pose gets 0.
+func _frame_dt() -> float:
+	var f := Engine.get_process_frames()
+	if f == _fdt_frame:
+		return 0.0
+	_fdt_frame = f
+	return clampf(get_process_delta_time(), 0.0, 0.1)
+
+
 func _inert(name: String, raw, jump := 0.0, angle := false):
 	# (25. 11., second pass - user: "make every blend smoother") the offset is a critically damped SPRING (smooth start,
 	# no overshoot); at a hand-over it starts from where the shown pose was GOING (its last speed carried one frame on),
@@ -795,7 +818,9 @@ func _inert(name: String, raw, jump := 0.0, angle := false):
 	# spring as well made the hips overshoot half a metre after the dive's landing - the spring starts at rest.
 	if blend_off:
 		return raw
-	var dt := maxf(_in_dt, 0.001)
+	if _in_dt <= 0.0:   # posed again in the same frame: the blend as it stands, nothing stepped or measured
+		return raw + _in_off.get(name, raw * 0.0)
+	var dt := _in_dt
 	var restart := _in_new
 	var step = raw * 0.0
 	if _in_raw.has(name):
@@ -1097,8 +1122,9 @@ func _pose() -> void:
 	var in_key := (String(_mcl[0]) if not _mcl.is_empty() else "") + "|" + (clip if cw > 0.0 else "") + ("|dead" if _dead else "") + ("|swing" if swing >= 0.0 else "") + ("|hang" if hang > 0.5 else "")
 	_in_new = in_key != _in_key
 	_in_key = in_key
-	_in_dt = clampf(_clock - _in_clock, 0.0, 0.1)
-	_in_clock = _clock
+	# (25. 11.) the game's own frame time, not _clock (it stops when he dies: the blend and the coat froze half way) and
+	# not the wall clock (the tests run at a fixed frame rate faster than real time); once per frame however often posed
+	_in_dt = _frame_dt()
 	hip = _inert("hip", hip, 0.09)
 	lean = _inert("lean", lean, 0.7, true)
 	var breath := sin(_clock * 1.7) * 0.006 * (1.0 - t) * (0.0 if _dead else 1.0)   # breathing, standing still
@@ -1266,13 +1292,20 @@ func _pose() -> void:
 		# own weight and snapping in the wind
 		skirt_lean -= dive * dive_side * (0.5 + sin(_clock * 11.0) * 0.07) * (0.0 if _dead else 1.0)
 		var hem := belt + (_tail_dir.normalized() * float(_len["skirt"])).rotated(skirt_lean)
+		var tumble: bool = roll != 0.0 or (cw > 0.0 and absf(float(cl.get("spin", 0.0))) > 0.0) or (not _mcl.is_empty() and _mcl[0] in ["roll", "getup", "slide", "die_back", "die_front", "hit", "hit_leg"])
 		_place("skirt", "skirt", belt, hem)
 		if _skirt_mesh:
-			_bend_skirt(belt, lean, hem, leg_f, leg_b)
+			_coat_hug = move_toward(_coat_hug, 1.0 if (tumble or (not _mcl.is_empty() and _mcl[0] == "flight")) else 0.0, 0.15)
+			_coat_thigh = ((leg_f[1] as Vector2) + (leg_b[1] as Vector2)) * 0.5 - belt
+			hem = _bend_skirt(belt, lean, hem, leg_f, leg_b)
 		if _skirt_fly:   # flung through the air: the drawn wind-blown coat takes over from the hanging one
 			var f := 0.0 if _dead else smoothstep(0.35, 0.8, dive)
 			# the drawn run and leap coats: how much of each, eased so a change of pace blends over a few frames
-			var still := 0.0 if _dead else (1.0 - f) * (1.0 - slide) * (1.0 - duck) * (1.0 - hang)
+			if tumble or _use_mocap():
+				# (25. 11.) the simulated coat (_coat_spine) does it all: a drawn coat faded over it showed as a pale ghost
+				# of a coat, and in a tumble it stood up off him like a board
+				f = 0.0
+			var still := 0.0 if (_dead or tumble or _use_mocap()) else (1.0 - f) * (1.0 - slide) * (1.0 - duck) * (1.0 - hang)
 			var fwd: float = _vel.x * signf(scale.x)
 			var goal := {"run": clampf((fwd - 260.0) / 320.0, 0.0, 1.0) * (1.0 - air) * still,
 					"air": smoothstep(0.25, 0.7, air) * still}
@@ -1428,7 +1461,65 @@ func _make_skirt_mesh() -> Polygon2D:
 ## Bend the coat: from the belt it follows the hips, lower down it swings out to where the tail of
 ## the coat is blown (the hem), and in a stride its front and back edges are carried by the legs so
 ## it parts round them instead of sweeping through them like a board.
-func _bend_skirt(belt: Vector2, lean: float, hem: Vector2, leg_f: Array, leg_b: Array) -> void:
+func _coat_spine(belt: Vector2, top_dir: Vector2, end_dir: Vector2, length: float) -> PackedVector2Array:
+	var n := SKIRT_ROWS + 1
+	var seg := length / SKIRT_ROWS
+	var kin := PackedVector2Array()   # the old kinematic curve: the start, and the still-frame tests
+	var c := belt
+	for r in n:
+		if r > 0:
+			c += top_dir.slerp(end_dir, pow(float(r) / SKIRT_ROWS, 1.4)) * seg
+		kin.append(c)
+	var frame := float(Engine.get_process_frames())   # game time by frames (his _clock stops when he dies)
+	if blend_off or _coat.size() != n or _coat_clock < 0.0 or frame - _coat_clock > 8.0:
+		_coat = kin.duplicate()
+		_coat_prev = kin.duplicate()
+		_coat_clock = frame
+		return kin
+	var dt := minf(get_process_delta_time(), 0.05) if frame != _coat_clock else 0.0
+	_coat_clock = frame
+	if dt <= 0.0:
+		return _coat
+	var sx := signf(scale.x) if scale.x != 0.0 else 1.0
+	var k := PPM * maxf(0.01, absf(scale.x))
+	var v_loc := Vector2(_vel.x * sx, _vel.y) / k                       # the body's speed, in his own frame (m/s)
+	var acc := ((v_loc - _coat_v) / dt).limit_length(60.0)               # and how it changed
+	_coat_v = v_loc
+	var g := Vector2(0.0, 9.8).rotated(-rotation)
+	var steps := 2
+	var h := dt / steps
+	for s in steps:
+		for i in range(1, n):
+			var p := _coat[i]
+			var vel := (p - _coat_prev[i]) / maxf(h, 0.0001)
+			# gravity; the body's acceleration felt backwards (inertia); air streaming past a moving body; a little
+			# rain-heavy damping; a flutter that grows with speed toward the hem
+			var air := (-v_loc - vel) * (2.6 * float(i) / SKIRT_ROWS)
+			var flutter := Vector2(0.0, sin(_clock * 13.0 + i * 1.3) * 0.6) * clampf(v_loc.length() / 5.0, 0.0, 1.0) * float(i) / SKIRT_ROWS
+			var a := g - acc * 0.3 + air + flutter   # (a heavy wet trench coat: a stop throws it forward a little, not up like an apron)
+			_coat_prev[i] = p
+			_coat[i] = p + vel * h * 0.97 + a * h * h
+		_coat[0] = belt
+		for it in 4:   # inextensible, bending like cloth, off the pavement, not up through the body
+			for i in range(1, n):
+				var prev_dir := top_dir if i == 1 else (_coat[i - 1] - _coat[i - 2]).normalized()
+				var d := _coat[i] - _coat[i - 1]
+				var ang := prev_dir.angle_to(d)
+				var lim := 0.32 if i == 1 else 0.22   # the top follows the hips, each row bends a little from the last (stiff cloth)
+				if absf(ang) > lim:
+					d = prev_dir.rotated(signf(ang) * lim) * d.length()
+				_coat[i] = _coat[i - 1] + d.normalized() * seg
+				if _coat[i].y > -0.03 and rotation == 0.0:   # (dead too: lying, the coat lies on the stones, not under them)
+					_coat[i].y = -0.03
+			if _coat_hug > 0.0:   # wrapped round the legs: along the thighs, then on past the knees
+				var td := _coat_thigh.normalized() if _coat_thigh.length() > 0.01 else top_dir
+				for i in range(1, n):
+					var want := belt + td * seg * i
+					_coat[i] = _coat[i].lerp(want, _coat_hug * 0.35)
+	return _coat
+
+
+func _bend_skirt(belt: Vector2, lean: float, hem: Vector2, leg_f: Array, leg_b: Array) -> Vector2:
 	var p: Dictionary = cfg["parts"]["skirt"]
 	var ppm := float(p["ppm"])
 	var tex_w := float((_skirt_mesh.texture as Texture2D).get_width())
@@ -1436,6 +1527,7 @@ func _bend_skirt(belt: Vector2, lean: float, hem: Vector2, leg_f: Array, leg_b: 
 	var length := float(_len["skirt"])
 	var top_dir := Vector2(0.0, 1.0).rotated(lean)
 	var end_dir := (hem - belt).normalized()
+	var spine := _coat_spine(belt, top_dir, end_dir, length)
 	var open := clampf(_moving * 0.8 + air * 0.6 + slide * 0.3, 0.0, 1.0) * (0.0 if _dead else 1.0)
 	var pts := PackedVector2Array()
 	var center := belt
@@ -1443,9 +1535,8 @@ func _bend_skirt(belt: Vector2, lean: float, hem: Vector2, leg_f: Array, leg_b: 
 	# the background shows through the coat, outlined: user 17. 11. "a white spot on the coat when he moves")
 	for r in SKIRT_ROWS + 1:
 		var v := float(r) / SKIRT_ROWS
-		var d := top_dir.slerp(end_dir, pow(v, 1.4))
-		if r > 0:
-			center += d * length / SKIRT_ROWS
+		center = spine[r]
+		var d := top_dir if r == 0 else (spine[r] - spine[r - 1]).normalized()
 		var n := Vector2(d.y, -d.x)   # across the coat, front edge on the + side
 		var flare := 1.0 + 0.12 * v
 		var at_f := _along_leg(leg_f, v)
@@ -1476,6 +1567,7 @@ func _bend_skirt(belt: Vector2, lean: float, hem: Vector2, leg_f: Array, leg_b: 
 	_skirt_mesh.polygon = pts
 	if _skirt_shadow:
 		_skirt_shadow.polygon = pts
+	return spine[spine.size() - 1]
 
 
 ## A point down a leg (hip, knee, ankle) at fraction v of the coat's length.

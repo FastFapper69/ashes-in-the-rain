@@ -326,6 +326,8 @@ const LEGS := {
 }
 var DETECTIVE := {
 	"dir": "res://art/detective/", "weapon": "revolver", "leg_tex": "res://art/mobster/leg.png",
+	# (user 25. 11.: "now Frank - mind his coat") Eddie's pipeline: the captured walk and run, the keyed sheets, the blend
+	"gait2": true, "mocap": true,
 	# where things attach, in the torso drawing's pixels: the armholes, the bottom of the collar, the belt
 	"on_torso": {"shoulder": Vector2(100.0, 225.0), "far_shoulder": Vector2(400.0, 240.0), "head": Vector2(272.0, 168.0), "belt": Vector2(262.0, 596.0)},
 	"parts": {

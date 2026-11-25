@@ -11,6 +11,7 @@ const ENTRIES := [
 		"Every figure's moves now flow into each other instead of snapping from one to the next",
 		"No more twisted necks: the head stays on the body through the landing roll and every other tumble",
 		"Smoother everywhere: landings take the weight in the knees, the dive's roll comes up into the run without a jolt",
+		"Frank moves like Eddie now - real walk, run, dive and roll - and his trench coat swings, trails and settles like real cloth",
 	]],
 	["24 NOV 2026", [
 		"Eddie's dive: laid out flat, chin up over his gun arm, legs scissoring; every figure's kicks and flips flow instead of stopping at each pose",
