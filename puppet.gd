@@ -1114,8 +1114,10 @@ func _pose() -> void:
 	if g2 and air > 0.0 and not _dead and not long_gun and not (weapon == "pistols" or (dual and weapon == "revolver")):
 		# (user 24. 11.: "in a jump he throws the back arm oddly" - it stood up behind his shoulder like a wing) the free
 		# arm stays low: back and bent as he goes up, forward of the hip to meet the landing
-		far_target = far_target.lerp(far_shoulder + Vector2(-0.17, 0.25).lerp(Vector2(0.14, 0.24), clampf(air_v * 0.5 + 0.5, 0.0, 1.0)), air)
-	if not _mcl.is_empty() and not long_gun and not (weapon == "pistols" or (dual and weapon == "revolver")):
+		# (25. 11.: bent, the elbow stood out behind his back like a hump) nearly straight down along his side
+		far_target = far_target.lerp(far_shoulder + Vector2(-0.14, (ua + fa) * 0.86).lerp(Vector2(0.14, (ua + fa) * 0.84), clampf(air_v * 0.5 + 0.5, 0.0, 1.0)), air)
+	if not _mcl.is_empty() and _mcl[0] != "leap" and not long_gun and not (weapon == "pistols" or (dual and weapon == "revolver")):
+		# (25. 11.) not the leap's: the long-jumper flings his arms up behind him - on Eddie a wing again (rule 41 (5))
 		var m: Array = _mcl[1]
 		far_target = far_target.lerp(far_shoulder + Vector2(float(m[9]) * float(_mcl[3]), -float(m[10])) * (l1 + l2) * armk_c, float(_mcl[2]))
 	if es > 0.0 and not long_gun:   # the free arm hangs too, and swings with the walk
@@ -1129,7 +1131,7 @@ func _pose() -> void:
 	if cw > 0.0 and cl.has("far") and not long_gun and not (weapon == "pistols" or (dual and weapon == "revolver")):
 		var cf: Vector2 = cl["far"]
 		if g2:
-			cf = Vector2(0.12, 0.22) if clip == "window" else Vector2(clampf(cf.x, -0.2, 0.3), maxf(cf.y, 0.18))
+			cf = Vector2(0.12, 0.22) if clip == "window" else Vector2(clampf(cf.x, 0.02, 0.16), (ua + fa) * 0.85)   # (25. 11.: behind him it stood out like a wing in the wall kick)
 		far_target = far_target.lerp(far_shoulder + cf * Vector2(clip_side, 1.0), cw)
 	if hang > 0.0 and not _dead:
 		var low := 0.2 * (1.0 - climb_c) if hang_cycle >= 0.0 else (0.0 if hang_one else 0.13)

@@ -6,6 +6,7 @@ extends RefCounted
 const ENTRIES := [
 	["25 NOV 2026", [
 		"Eddie staggers back a step when shot, his knee gives when hit in the leg, and he falls like a man, not a plank",
+		"Eddie's free arm hangs naturally in jumps, vaults and wall kicks instead of sticking out behind him",
 	]],
 	["24 NOV 2026", [
 		"Eddie's dive: laid out flat, chin up over his gun arm, legs scissoring; every figure's kicks and flips flow instead of stopping at each pose",

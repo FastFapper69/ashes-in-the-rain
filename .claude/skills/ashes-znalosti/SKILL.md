@@ -142,3 +142,4 @@ Covers what is in [[HANDOFF|HANDOFF.md]] up to 2026-11-16 (5). Exact current val
    (9) (25. 11.) a reaction standing on the spot keeps BOTH FEET PLANTED (keyed.py "pf"/"pb" + "hy": the knees found by IK) - a lifted foot read as a walking stride twice; a leg buckles by the hips dropping over it, not by lifting it;
    (10) hands never straight over the head in front of the face (the rope hang hid the whole face): one fist low at the chin, the other high; the body behind the hands;
    (11) no figure turned over as a stiff board (death): the fall is a sheet in the body - knees give, he sits / kneels, then lies - the feet where he stood (keyed.py "hx": the hips move past them); dead arms lie along the body, never over the face.
+   (12) the free arm in the air and in clips hangs nearly STRAIGHT along his side (a bent one stuck its elbow out behind like a hump, a captured long-jumper's flung arm stood up like a wing): never take a mocap arm unchecked.
