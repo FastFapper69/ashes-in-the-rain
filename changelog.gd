@@ -6,6 +6,7 @@ extends RefCounted
 const ENTRIES := [
 	["25 NOV 2026", [
 		"Eddie and Frank really hold their guns now: fingers round the grip, the index finger on the trigger",
+		"No more holes in a bent knee, no cut-off stump on Frank's back arm, and aiming high the arm no longer crosses the face",
 		"Frank's elbow bends like a sleeve, without the drawn ring that made his arm look like a puppet's",
 		"Frank's raised collar stays round his neck when he runs and dives instead of flapping over his ear and face",
 		"Eddie staggers back a step when shot, his knee gives when hit in the leg, and he falls like a man, not a plank",

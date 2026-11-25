@@ -383,14 +383,24 @@ func _ready() -> void:
 			if cfg.has("pelvis"):
 				var ck := Line2D.new()   # a band of trouser cloth along the bones, under the drawn leg
 				ck.points = PackedVector2Array([Vector2.ZERO, Vector2.RIGHT, Vector2.DOWN])
-				ck.width = 0.13 * PPM
+				ck.width = 0.2 * PPM   # (25. 11.: holes on the OUTSIDE of a hard-bent knee - the band covers the whole knee now)
 				ck.joint_mode = Line2D.LINE_JOINT_ROUND
 				ck.begin_cap_mode = Line2D.LINE_CAP_ROUND
 				ck.default_color = (cfg["pelvis"] as Color) * lm.modulate
-				ck.light_mask = MASK_FIGURE
+				# (25. 11.: through the fold of a hard-bent knee the band showed as a pale patch: a flat colour without a
+				# normal map caught the figure's back light in full) lit by the street only, like the dark cloth round it
+				ck.light_mask = 1
+				var fill := Polygon2D.new()   # the crook itself: the wedge between the back of the thigh and the calf
+				fill.color = ck.default_color
+				fill.light_mask = 1
+				ck.add_child(fill)
 				_body.add_child(ck)
 				_body.move_child(ck, lm.get_index())
 				_crooks[side] = ck
+	# (25. 11.) the near forearm fades in at the elbow (gen/elbow_soft.py: its inked cap drew a puppet's ring); the far one keeps
+	# its cap - folded hard behind the body (support hand, run) the faded start bared the upper arm's pale stump
+	if _spr.has("farm_b") and ResourceLoader.exists(String(cfg["dir"]) + "farm_back.png"):
+		_spr["farm_b"].texture = _tex(String(cfg["dir"]) + "farm_back")
 	if _spr.has("skirt"):
 		_skirt_mesh = _make_skirt_mesh()
 		_body.add_child(_skirt_mesh)
@@ -436,6 +446,21 @@ func _ready() -> void:
 
 ## A cold light low behind the figure, seen only by figures: with the normal maps it draws a thin rim
 ## along the back of the coat and hat, so a figure in the dark reads as a lit silhouette.
+
+	for k in _hide_parts:   # (test --hide=...)
+		if _spr.has(k):
+			(_spr[k] as Sprite2D).visible = false
+			(_spr[k] as Sprite2D).self_modulate.a = 0.0
+		if k == "collar":
+			for c in _collars:
+				c.self_modulate.a = 0.0
+		if k == "legs":
+			for m in _legs.values():
+				(m as Node2D).self_modulate.a = 0.0
+		if k == "skirt" and _skirt_mesh:
+			_skirt_mesh.modulate.a = 0.0
+
+
 func _build_back_light() -> void:
 	var l := PointLight2D.new()
 	l.texture = load("res://art/light_blob.png")
@@ -792,6 +817,11 @@ const IN_W := 14.0   # the blend spring's stiffness (1/s): ~80 % gone in 0.2 s, 
 static var blend_off: bool = OS.get_cmdline_user_args().has("--noblend")   # (test --noblend: the raw poses, to compare)
 static var _headlog: bool = OS.get_cmdline_user_args().has("--headlog")
 static var _jointlog: bool = OS.get_cmdline_user_args().has("--jointlog")
+static var _hide_parts: PackedStringArray = (func() -> PackedStringArray:   # (test --hide=uarm_b,farm_b) which drawn piece is that?
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--hide="):
+			return a.trim_prefix("--hide=").split(",")
+	return PackedStringArray()).call()
 var _in_key := ""
 var _in_new := false
 var _in_dt := 0.0
@@ -1158,6 +1188,11 @@ func _pose() -> void:
 	var gd: Dictionary = GUNS.get(gun_key, GUNS["revolver"])
 	var long_gun: bool = gd.has("fore") and not _dead
 	var up_aim := clampf(-_aim.y, 0.0, 1.0)
+	# (25. 11. audit: aiming high, the straight arm from a low back shoulder ran right across his face) the shoulder
+	# comes forward and up as the arm rises, as a real one does, and the arm passes under his chin
+	if not long_gun and not _dead and _mcl.is_empty() and cfg.get("gait2", false):
+		var up_s := smoothstep(0.15, 0.8, up_aim) * (1.0 - smoothstep(0.0, 0.5, ease))
+		shoulder += Vector2(0.07, -0.02) * up_s
 	var reach := (0.3 + 0.04 * up_aim) if long_gun else lerpf(0.55, 0.66, up_aim)
 	var near_target := shoulder + _aim * reach + (Vector2(0.0, 0.05) if long_gun else Vector2.ZERO)
 	if _dead:
@@ -1285,6 +1320,10 @@ func _pose() -> void:
 	for side in _crooks:
 		var lg: Array = leg_f if side == "f" else leg_b
 		(_crooks[side] as Line2D).points = PackedVector2Array([(lg[0] as Vector2) * PPM, (lg[1] as Vector2) * PPM, (lg[1] as Vector2).lerp(lg[2], 0.8) * PPM])
+		var kn_p: Vector2 = lg[1]
+		var up_p: Vector2 = kn_p + ((lg[0] as Vector2) - kn_p).limit_length(0.2)
+		var lo_p: Vector2 = kn_p + ((lg[2] as Vector2) - kn_p).limit_length(0.2)
+		((_crooks[side] as Line2D).get_child(0) as Polygon2D).polygon = PackedVector2Array([kn_p * PPM, up_p * PPM, lo_p * PPM])
 	if _pelvis != null:
 		_pelvis.position = hip * PPM
 		_pelvis.rotation = legs_lean
@@ -1353,7 +1392,7 @@ func _pose() -> void:
 	if _use_mocap() and hang > 0.0 and not hang_one and not _dead:
 		look = lerp_angle(look, -0.18, hang)   # chin up, looking up the rope
 	if not _dead:
-		look += clampf(_aim.angle(), -0.9, 0.7) * 0.4 * (1.0 - hands_up) * (1.0 - es) - recoil * 0.3 + hands_up * 0.12
+		look += clampf(_aim.angle(), -0.9, 0.7) * (0.4 + (0.3 if _aim.y < 0.0 and cfg.get("gait2", false) else 0.0)) * (1.0 - hands_up) * (1.0 - es) - recoil * 0.3 + hands_up * 0.12   # (aiming high the chin lifts clear of the arm)
 		if not hang_one:
 			look = lerp_angle(look, -0.35 if hang_cycle >= 0.0 else -0.1, hang)   # eyes on where the rope goes
 		if reload > 0.0:   # eyes on the gun in his hands
