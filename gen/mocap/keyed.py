@@ -22,6 +22,17 @@ def leg(a, k):
     return knee, (knee[0] + SH * math.sin(s), knee[1] - SH * math.cos(s))
 
 
+def plant(hy, x):
+    """a foot set down on the floor at x (from the hips) under hips hy high: the knee found forward (two-bone IK)."""
+    d = math.hypot(x, hy)
+    d = min(d, TH + SH - 1e-4)
+    c = max(-1.0, min(1.0, (TH * TH + d * d - SH * SH) / (2 * TH * d)))
+    base = math.atan2(x, -hy)   # hip -> ankle, from straight down
+    a = base + math.acos(c)     # the thigh turned forward of that line: the knee in front
+    knee = (TH * math.sin(a), -TH * math.cos(a))
+    return knee, (x, -hy)
+
+
 def arm(a, e):
     a, e = math.radians(a), math.radians(e)
     el = (UA * math.sin(a), -UA * math.cos(a))
@@ -31,8 +42,9 @@ def arm(a, e):
 
 def pose(k):
     """k: fa, fb (thigh, knee) of the near / far leg; torso, head (deg); hf, hb (upper arm, elbow) or None; lift."""
-    kf, af = leg(*k["fa"])
-    kb, ab = leg(*k["fb"])
+    # a leg is either angles ("fa"/"fb": thigh, knee) or a planted foot ("pf"/"pb": x from the hips, with "hy" the hips)
+    kf, af = plant(k["hy"], k["pf"]) if "pf" in k else leg(*k["fa"])
+    kb, ab = plant(k["hy"], k["pb"]) if "pb" in k else leg(*k["fb"])
     t = math.radians(k["torso"])
     sh = (SHOULDER * math.sin(t), SHOULDER * math.cos(t))
     neck = (TORSO * math.sin(t), TORSO * math.cos(t))
@@ -44,8 +56,10 @@ def pose(k):
         need.append(FLOOR["back"] - min(0.0, neck[1] * f))
     for h in (hf, hb):
         need.append(FLOOR["hand"] - (sh[1] + h[1]))
-    hip_y = 1.0 if k.get("air") else max(need) + k.get("lift", 0.0)   # in the air the game sets the height: legs from the hips
-    return [hip_y, af[0], hip_y + af[1], ab[0], hip_y + ab[1], t, math.radians(k.get("head", k["torso"] * 0.5)), hf[0], hf[1], hb[0], hb[1]]
+    hip_y = 1.0 if k.get("air") else (k["hy"] if "hy" in k else max(need) + k.get("lift", 0.0))   # in the air the game sets the height: legs from the hips
+    # (12th: "hx", how far the hips have moved from where the feet stood, + forward - a fall goes down over the feet)
+    return [hip_y, af[0], hip_y + af[1], ab[0], hip_y + ab[1], t, math.radians(k.get("head", k["torso"] * 0.5)), hf[0], hf[1], hb[0], hb[1],
+            k.get("hx", 0.0)]
 
 
 def spline(keys, n=40):
@@ -85,6 +99,50 @@ MOVES = {
         (0.8, {"fa": (70, 45), "fb": (25, 140), "torso": -10, "head": 0, "hb": (-30, 20)}),
         (0.9, {"fa": (55, 75), "fb": (-10, 110), "torso": 18, "head": 8, "hb": (-40, 60)}),
         (1.0, {"fa": (35, 60), "fb": (-15, 75), "torso": 20, "head": 8, "hb": (-25, 80)}),
+    ],
+    # a bullet in the body (along main.gd's flinch 1 -> 0, ~0.45 s): the shoulders and the head snap back over hips that
+    # go forward, the knees give; the back foot steps back to catch him, and a short step brings it home again
+    # (first try 25. 11. read as a walking stride: both feet must stay PLANTED - "pf"/"pb", the knees found by IK)
+    "hit": [
+        (0.0, {"hy": 0.99, "pf": -0.19, "pb": 0.16, "torso": 2, "head": 0, "hb": (10, 20)}),
+        (0.14, {"hy": 0.96, "pf": -0.2, "pb": 0.14, "torso": -20, "head": -26, "hb": (45, 60)}),
+        (0.32, {"hy": 0.95, "fa": (-28, 18), "pb": 0.12, "torso": -15, "head": -12, "hb": (35, 50)}),
+        (0.5, {"hy": 0.93, "pf": -0.42, "pb": 0.12, "torso": -4, "head": 0, "hb": (20, 35)}),
+        (0.72, {"hy": 0.95, "pf": -0.4, "pb": 0.13, "torso": 4, "head": 4, "hb": (12, 25)}),
+        (0.87, {"hy": 0.96, "fa": (-16, 30), "pb": 0.15, "torso": 3, "head": 2, "hb": (10, 20)}),
+        (1.0, {"hy": 0.99, "pf": -0.19, "pb": 0.16, "torso": 2, "head": 0, "hb": (10, 20)}),
+    ],
+    # a bullet in the leg: the feet stay where they stood, the hips drop back over the hurt (near) leg so its knee folds
+    # forward deepest, the good one straighter; he bows over it, the free hand to the thigh (a lifted foot read as a stride), he folds over toward the wound, the free hand to the thigh;
+    # then he straightens, both feet where they were
+    "hit_leg": [
+        (0.0, {"hy": 0.99, "pf": -0.19, "pb": 0.16, "torso": 2, "head": 0, "hb": (10, 20)}),
+        (0.16, {"hy": 0.86, "pf": -0.1, "pb": 0.25, "torso": 16, "head": 10, "hb": (5, 25)}),
+        (0.42, {"hy": 0.76, "pf": -0.04, "pb": 0.31, "torso": 24, "head": 14, "hb": (-8, 15)}),
+        (0.72, {"hy": 0.9, "pf": -0.13, "pb": 0.22, "torso": 10, "head": 5, "hb": (20, 45)}),
+        (1.0, {"hy": 0.99, "pf": -0.19, "pb": 0.16, "torso": 2, "head": 0, "hb": (10, 20)}),
+    ],
+    # shot dead, falling back (25. 11.: the whole figure turned stiff as a plank, both arms flung over his face): the
+    # head snaps back, the knees give, he sits down over his heels and goes onto his back, the arms thrown out low and
+    # then flopping out past his head; the feet stay where he stood (hx: the hips go back a whole leg)
+    "die_back": [
+        (0.0, {"hy": 0.99, "hx": 0.0, "pf": -0.19, "pb": 0.16, "torso": 2, "head": 0, "hf": (80, 10), "hb": (10, 20)}),
+        (0.15, {"hy": 0.95, "hx": -0.03, "pf": -0.16, "pb": 0.19, "torso": -20, "head": -38, "hf": (65, 35), "hb": (35, 40)}),
+        (0.35, {"hy": 0.75, "hx": -0.12, "pf": -0.07, "pb": 0.28, "torso": -30, "head": -32, "hf": (45, 45), "hb": (30, 50)}),
+        (0.55, {"hy": 0.45, "hx": -0.35, "pf": 0.35, "pb": 0.5, "torso": -55, "head": -38, "hf": (70, 30), "hb": (60, 40)}),
+        (0.75, {"hx": -0.75, "fa": (110, 80), "fb": (100, 72), "torso": -82, "head": -70, "hf": (120, 20), "hb": (100, 35)}),
+        (0.88, {"hx": -0.95, "fa": (95, 40), "fb": (88, 45), "torso": -90, "head": -98, "hf": (110, 20), "hb": (95, 30)}),
+        (1.0, {"hx": -1.0, "fa": (88, 5), "fb": (84, 14), "torso": -90, "head": -92, "hf": (84, 10), "hb": (75, 25)}),
+    ],
+    # shot dead, folding forward (crouched, a leg, or one time in three): the knees go, down onto them a beat, the hands
+    # come forward too late, onto his face; the hips go forward a whole leg over the planted feet
+    "die_front": [
+        (0.0, {"hy": 0.99, "hx": 0.0, "pf": -0.19, "pb": 0.16, "torso": 2, "head": 0, "hf": (80, 10), "hb": (10, 20)}),
+        (0.2, {"hy": 0.8, "hx": 0.05, "pf": -0.24, "pb": 0.11, "torso": 22, "head": 30, "hf": (35, 30), "hb": (10, 20)}),
+        (0.42, {"hx": 0.27, "fa": (5, 95), "fb": (18, 100), "torso": 28, "head": 32, "hf": (20, 15), "hb": (15, 15)}),
+        (0.62, {"hx": 0.55, "fa": (-40, 80), "fb": (-30, 90), "torso": 58, "head": 52, "hf": (60, 15), "hb": (55, 15)}),
+        (0.8, {"hx": 0.8, "fa": (-70, 30), "fb": (-62, 45), "torso": 86, "head": 84, "hf": (95, 25), "hb": (85, 20)}),
+        (1.0, {"hx": 1.0, "fa": (-88, 5), "fb": (-84, 18), "torso": 92, "head": 88, "hf": (86, 4), "hb": (86, 10)}),
     ],
     # up off the stones after the dive, face down, head toward where he flew (the gun hand stays on the aim): a push-up,
     # the knees drawn under, one foot planted, up

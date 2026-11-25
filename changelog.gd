@@ -4,6 +4,9 @@ extends RefCounted
 ## (knowledge ch01). The build number and date come from version.gen.gd (written by gen/deploy/deploy_pc.sh).
 
 const ENTRIES := [
+	["25 NOV 2026", [
+		"Eddie staggers back a step when shot, his knee gives when hit in the leg, and he falls like a man, not a plank",
+	]],
 	["24 NOV 2026", [
 		"Eddie's dive: laid out flat, chin up over his gun arm, legs scissoring; every figure's kicks and flips flow instead of stopping at each pose",
 		"Eddie dives off a real push, gets up off the stones in a push-up, slides on his hip, walks crouched like a soldier",

@@ -139,3 +139,6 @@ Covers what is in [[HANDOFF|HANDOFF.md]] up to 2026-11-16 (5). Exact current val
    (6) motion from real joint angles or mocap, measured (`--test=gait` prints thigh/knee) - not by eye; no knee higher than ~40 deg in a street run;
    (7) keys run through a SPLINE (puppet.gd `_clip_now`, gen/mocap/keyed.py) - easing each key in and out stops the body at every key and reads as mechanical;
    (8) film it in real play (`--film=`) before deploying; bots on the maps it reaches, all maps when shared code changed.
+   (9) (25. 11.) a reaction standing on the spot keeps BOTH FEET PLANTED (keyed.py "pf"/"pb" + "hy": the knees found by IK) - a lifted foot read as a walking stride twice; a leg buckles by the hips dropping over it, not by lifting it;
+   (10) hands never straight over the head in front of the face (the rope hang hid the whole face): one fist low at the chin, the other high; the body behind the hands;
+   (11) no figure turned over as a stiff board (death): the fall is a sheet in the body - knees give, he sits / kneels, then lies - the feet where he stood (keyed.py "hx": the hips move past them); dead arms lie along the body, never over the face.

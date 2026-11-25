@@ -469,9 +469,9 @@ var _at := 0.0
 var _auto_done := 0
 var _moves_k := 0
 const MOVES_SEEN := [["idle", 1], ["aim", 4], ["shot", 3], ["reload", 5], ["switch", 3], ["run_aim", 2], ["jump", 4], ["land", 2],
-		["dive_push", 3], ["dive", 3], ["dive_land", 1], ["getup", 6], ["roll", 8], ["slide", 8], ["duck", 2], ["duck_walk", 4], ["hit", 3],
-		["hit_leg", 2], ["fly_kick", 4], ["wall_kick", 3], ["flip", 4], ["window", 3], ["vault", 3], ["hang", 1], ["climb", 3],
-		["hang_one", 1], ["pipe", 4], ["tommy", 3], ["shotgun", 2], ["dead", 2]]
+		["dive_push", 3], ["dive", 3], ["dive_land", 1], ["getup", 6], ["roll", 8], ["slide", 8], ["duck", 2], ["duck_walk", 4], ["hit", 6],
+		["hit_leg", 5], ["fly_kick", 4], ["wall_kick", 3], ["flip", 4], ["window", 3], ["vault", 3], ["hang", 1], ["climb", 3],
+		["hang_one", 1], ["pipe", 4], ["tommy", 3], ["shotgun", 2], ["dead", 2], ["die_back", 6], ["die_front", 6]]
 
 
 ## --test=moves: the figure set by hand into one frame of a move (u = 0..1 through it, i = the frame).
@@ -480,7 +480,7 @@ func _moves_pose(mv: String, u: float, i: int) -> void:
 	p.duck = 0.0; p.air = 0.0; p.air_v = 0.0; p.dive = 0.0; p.slide = 0.0; p.crouch = 0.0; p.roll = 0.0
 	p.hang = 0.0; p.hang_cycle = -1.0; p.hang_one = false; p.clip = ""; p.reload = 0.0; p.recoil = 0.0
 	p._flinch = 0.0; p._hit_dip = 0.0; p._hit_part = ""; p.swing = -1.0; p._switch_p = -1.0
-	p.ease = 0.0; p.at_ease = false; p.dive_side = 1.0; p.slide_side = 1.0; p.roll_t = -1.0; p.slide_t = -1.0; p.prone = false; p.ground = 0.0
+	p.ease = 0.0; p.at_ease = false; p.dive_side = 1.0; p.slide_side = 1.0; p.roll_t = -1.0; p.slide_t = -1.0; p.prone = false; p.ground = 0.0; p.death_t = -1.0
 	var gun := "tommy" if mv == "tommy" else ("shotgun" if mv == "shotgun" else "revolver")
 	if p.weapon != gun:
 		p.set_weapon(gun)
@@ -529,9 +529,9 @@ func _moves_pose(mv: String, u: float, i: int) -> void:
 		"duck_walk":
 			p.duck = 1.0; mov = 1.0; gs = 0.38; ph = u
 		"hit":
-			p._flinch = [1.0, 0.6, 0.2][i]; p._hit_part = "torso"
+			p._flinch = 1.0 - u; p._hit_part = "torso"
 		"hit_leg":
-			p._flinch = [1.0, 0.5][i]; p._hit_dip = [1.0, 0.5][i]; p._hit_part = "thigh_f"
+			p._flinch = 1.0 - u; p._hit_dip = 1.0 - u; p._hit_part = "thigh_f"
 		"fly_kick", "wall_kick", "flip", "window":
 			p.play_clip(mv, 1.0); p.clip_t = u * float(p.CLIPS[mv]["len"]) * 0.97; y = -120.0
 		"vault":
@@ -554,6 +554,9 @@ func _moves_pose(mv: String, u: float, i: int) -> void:
 	p.position = Vector2(-6500.0, y)
 	if mv == "dead":
 		p.die_pose([0.3, 1.2][i], [0.0, 0.6][i])
+		return
+	if mv.begins_with("die_"):   # (cfg "mocap") the fall sheets
+		p.die_pose(0.0, 0.0); p.death_clip = mv; p.death_t = u; p._pose()
 		return
 	p.snap_aim(aim)
 	p.set_state(0.0, aim, 0.0)
@@ -5133,7 +5136,7 @@ func _auto_step(delta: float) -> void:
 		if _at > 2.2 and _auto_done & 2 == 0:
 			_auto_done |= 2
 			_player_down()
-		shots = [[0.68, "death_1"], [0.78, "death_2"], [0.9, "death_3"], [1.3, "death_4"], [2.5, "death_5"], [3.4, "death_6"], [4.4, "death_7"], [5.6, "death_8"]]
+		shots = [[0.68, "death_1"], [0.78, "death_2"], [0.9, "death_3"], [1.3, "death_4"], [2.26, "death_5a"], [2.33, "death_5b"], [2.4, "death_5c"], [2.5, "death_5d"], [2.62, "death_5e"], [2.8, "death_5f"], [3.4, "death_6"], [4.4, "death_7"], [5.6, "death_8"]]
 	elif _auto == "touch":   # tap on the first mobster, then hold a finger above him
 		if _at < 0.05:
 			player.position.x = 1700.0
@@ -7499,6 +7502,19 @@ func _drop(figure, push: float, fade: bool, how := "") -> void:
 				land.x = best_x
 				lie = PI * 0.5 * side
 	var rest := Vector2(land.x, land.y - 26.0)
+	if figure == player and figure._use_mocap() and not curl:   # (25. 11.) his own fall sheet, not a stiff board turned over
+		figure.death_clip = "die_front" if facing * side > 0.0 else "die_back"
+		figure.die_pose(arm0, 0.0)
+		figure.death_t = 0.0
+		var dur: float = {"head": 0.75, "blast": 0.8, "leg": 1.1}.get(how, 1.05 if crumple else 0.9)
+		var tw2 := create_tween()
+		tw2.tween_method(func(k: float) -> void:
+			figure.death_t = k
+			figure._pose(), 0.0, 1.0, dur)
+		tw2.parallel().tween_property(figure, "position", land, dur * 0.6).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tw2.tween_callback(func() -> void: _pool(Vector2(figure.position.x + side * 230.0, land.y), side))
+		tw2.parallel().tween_callback(func() -> void: sfx.play("body_fall", 0.0, figure.position.x))
+		return
 	# how the dead arms lie: along the body, over the head or down by the side, and tipped to the open
 	# side, never down through the pavement. Face down when he falls the way he faces.
 	var face_down: bool = facing * side > 0.0
