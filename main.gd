@@ -7713,8 +7713,6 @@ func _build_section_kit(x0: float, x1: float, storeys: int, holder: Node2D, styl
 
 ## (QUEUE §22) A works in cross-section: one open hall the height of its front (art_src 354 drawn on gen/works_template.py's
 ## layout, 3000 x 2464 world px from the pavement up), its front from the modular city's sheet over it.
-const WORKS_H := 2464.0
-const WORKS_TONE := 0.74       # (the drawing is paler than the kit's storeys)
 const WORKS_DOOR := 1800.0     # its street door in the stone front (the middle bay's door): the only way out of the hall
 ## (QUEUE §22-23, rule 33) Halls: a building's inside open as one space behind its front - the works (three storeys),
 ## the diner (its ground floor). Its drawing, height, tone; in from up high (the works' window) or by the stick up at

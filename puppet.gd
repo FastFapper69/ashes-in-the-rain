@@ -825,13 +825,11 @@ static var _hide_parts: PackedStringArray = (func() -> PackedStringArray:   # (t
 var _in_key := ""
 var _in_new := false
 var _in_dt := 0.0
-var _in_clock := 0.0
 var _in_off := {}
 var _in_offv := {}
 var _in_step := {}
 var _in_cool := {}
 var _in_v := {}
-var _in_t := {}
 var _in_shown := {}
 var _in_raw := {}
 

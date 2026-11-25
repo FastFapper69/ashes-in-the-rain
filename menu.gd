@@ -1747,25 +1747,6 @@ func _snd(n: String) -> void:
 		sound.call(n)
 
 
-func _show_fresh(fresh: Sprite2D) -> void:
-	fresh.modulate.a = 1.0
-
-
-func _place_fresh(fresh: Sprite2D, where: Vector2, k: float) -> void:
-	fresh.position = where
-	fresh.scale = Vector2.ONE * k
-	fresh.modulate.a = 1.0
-
-
-## The new part home: a jolt, sparks at the joint, the word.
-func _smith_seat(at: Vector2) -> void:
-	var holder := _smith_stage
-	_snd("hammer")
-	_smith_sparks(holder.position + at.rotated(holder.rotation) * holder.scale.x)
-	_smith_flash()
-	_smith_word("kachak", holder.position + (at + Vector2(0.0, -120.0)).rotated(holder.rotation) * holder.scale.x)
-
-
 func _smith_stamp() -> void:
 	var st := _label("FITTED", _font_head, 64, CRIMSON, 0)
 	st.size = Vector2(320.0, 80.0)
@@ -1781,27 +1762,6 @@ func _smith_stamp() -> void:
 	ts.tween_property(st, "modulate:a", 1.0, 0.1)
 	ts.chain().tween_interval(0.9)
 	ts.chain().tween_callback(_gunsmith)
-
-
-## Sparks off the joint where a new part seats: the game's own drawn sparks (fx.gd INK_SPARKS).
-const SPARK_ART := preload("res://fx.gd").INK_SPARKS
-func _smith_sparks(at: Vector2) -> void:
-	var add := CanvasItemMaterial.new()
-	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
-	for k in 3:
-		var s := Sprite2D.new()
-		s.texture = load(SPARK_ART.pick_random())
-		s.material = add
-		s.position = at + Vector2(randf_range(-30.0, 30.0), randf_range(-20.0, 20.0))
-		s.rotation = randf_range(-1.2, 1.2)
-		s.scale = Vector2.ONE * 0.1
-		s.z_index = 5
-		_smith_panel.add_child(s)
-		var tw := s.create_tween()
-		tw.tween_interval(0.05 * k)
-		tw.tween_property(s, "scale", Vector2.ONE * randf_range(0.35, 0.5), 0.08).set_ease(Tween.EASE_OUT)
-		tw.tween_property(s, "modulate:a", 0.0, 0.22)
-		tw.tween_callback(s.queue_free)
 
 
 ## The shotgun's shells fly up into the open port one after another.
