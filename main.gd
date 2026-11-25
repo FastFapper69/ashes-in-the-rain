@@ -3441,6 +3441,15 @@ func _auto_step(delta: float) -> void:
 			if _film_i < int(f[2]) and _at >= float(f[0]) + float(f[1]) * _film_i:
 				_shot("film_%02d" % _film_i)
 				_film_i += 1
+	if "--trace" in ARGS and _at > 0.9:   # every frame of a test in numbers: where the body really is on the screen
+		if _auto_done & 64 == 0:
+			_auto_done |= 64
+			for bi in boxes.size():
+				if boxes[bi].position.x > 800.0 and boxes[bi].position.x < 7000.0:
+					print("BOX ", boxes[bi], " ", box_info[bi]["kind"])
+		var hb: Array = player._bones.get("torso", [Vector2.ZERO, Vector2.ZERO])
+		var hw: Vector2 = player.to_global(hb[0]); var nw: Vector2 = player.to_global(hb[1])
+		print("TR %.3f %s pos %.0f %.0f hip %.0f %.0f neck %.0f %.0f dive %.2f roll %.2f rt %.2f air %.2f crouch %.2f prone %s gr %.0f mcl %s" % [_at, move_state, player.position.x, player.position.y, hw.x, hw.y, nw.x, nw.y, player.dive, player.roll, player.roll_t, player.air, player.crouch, player.prone, player.ground, (str(player._mcl[0]) + " %.2f" % float(player._mcl[2])) if not player._mcl.is_empty() else "-"])
 	var shots: Array = []
 	if _auto == "dive":   # run at the first crate with the stick and tap the dive button right in front of it
 		if _at < 0.05:
@@ -5466,11 +5475,25 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 		player.air_v = move_toward(player.air_v, clampf(fall / 900.0, -1.0, 1.0), delta * 5.0)
 		player.air = move_toward(player.air, 0.0, delta * 8.0)
 		_try_vault()
-		if move_state != "dive":
+		# (user 25. 11.: "a dive landing on things is way off") a crate's top is too short to land on: the roll began at
+		# its far edge and went on in the air beyond it. Over a thing with no room for the landing he skims its top on
+		# his belly and flies on, to come down on the pavement behind it.
+		var skim := _dive_skim()
+		if skim < INF and move_state == "dive":
+			if player.position.y > skim + DIVE_LAND - 22.0:
+				if fall > 250.0 and _skim_cool <= 0.0:
+					fx.dust(player.position + Vector2(0.0, -DIVE_LAND), 0.4)
+					sfx.play("skid", -9.0, INF, 0.1)
+				_skim_cool = 0.4
+				player.position.y = move_toward(player.position.y, skim + DIVE_LAND - 22.0, 1400.0 * delta)
+				fall = minf(fall, 0.0)
+		_skim_cool = maxf(0.0, _skim_cool - delta)
+		if move_state != "dive" or skim < INF:
 			pass
 		elif dive_rolls and fall > 0.0 and player.position.y >= floor_y + 30.0 and not _over_bar():   # fast and forward: over the shoulder (onto a bar: on his back, skidding)
 			move_state = "roll"
 			roll_done = 0.0
+			_roll_vy = clampf(fall, 0.0, 1500.0)
 			if _win_landing:   # down from the window: the stones shake, glass and dust round the roll
 				_win_landing = false
 				_shake = maxf(_shake, 0.45)
@@ -5479,7 +5502,8 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 				sfx.play("land", 0.0)
 				_buzz(30)
 			player.roll = 1.35 * player.dive * player.dive_side
-			player.position.y = minf(player.position.y, floor_y)   # the origin moves up to his feet: on a crate he rolls along its top, not inside it
+			# (25. 11.: the origin snapped up to the floor here - the whole body jumped 25-70 px in one frame; the roll
+			# brings it up itself, below)
 			player.dive = 0.0
 		elif fall > 0.0 and player.position.y >= floor_y + DIVE_LAND:   # otherwise flat on the pavement, skidding on
 			player.position.y = floor_y + DIVE_LAND
@@ -5505,7 +5529,11 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 		player.air = lerpf(0.5 * (1.0 - smoothstep(0.5, 1.0, roll_done)), 1.0, tuck)   # (25. 11.: it ended at 0.5 - half a leap pose leaked into the run)
 		player.crouch = lerpf(0.6, 1.0, tuck) if roll_done < 0.75 else lerpf(1.0, 0.7, (roll_done - 0.75) / 0.25)
 		steps.emitting = roll_done > 0.2
-		player.position.y = move_toward(player.position.y, floor_y, delta * 500.0)
+		# (25. 11.: "the whole body snaps") his origin comes onto the floor on a critically damped spring that starts with
+		# the speed he fell at: the body goes on down into the landing and comes up, no jump up in one frame; off an edge
+		# mid-roll he drops with it
+		_roll_vy += (-256.0 * (player.position.y - floor_y) - 32.0 * _roll_vy) * delta
+		player.position.y += _roll_vy * delta
 		player.position.x += glide * 0.75 * delta
 		if roll_done >= 1.0:   # a full turn: he comes up on his feet, still moving
 			player.roll = 0.0
@@ -5709,6 +5737,28 @@ func _clip(name: String, way: float) -> void:
 
 
 var _bar_t := 0.0
+var _skim_cool := 0.0
+var _roll_vy := 0.0
+const ROLL_ROOM := 520.0   # the pavement a landing roll needs ahead of him
+## The top of a low thing under a diving body that is too short to land on (INF: none). His body is two metres
+## long: the thing counts from before his hands reach it until his feet are clear.
+func _dive_skim() -> float:
+	var way := signf(glide) if absf(glide) > 50.0 else 0.0
+	var feet: float = player.position.y - DIVE_LAND * player.dive
+	for bi in boxes.size():
+		var b: Rect2 = boxes[bi]
+		if box_info[bi]["kind"] == "car" or b.size.y > VAULT_MAX:
+			continue
+		var x0: float = b.position.x - (150.0 if way > 0.0 else 60.0)
+		var x1: float = b.end.x + (150.0 if way < 0.0 else 60.0)
+		if player.position.x < x0 or player.position.x > x1 or feet > b.position.y + 40.0:
+			continue
+		var room: float = (b.end.x - player.position.x) if way >= 0.0 else (player.position.x - b.position.x)
+		if room < ROLL_ROOM:
+			return b.position.y
+	return INF
+
+
 func _over_bar() -> bool:
 	for k in catwalks.size():
 		var c: Rect2 = catwalks[k]
