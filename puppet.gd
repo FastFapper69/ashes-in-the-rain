@@ -772,6 +772,7 @@ var _mcl := []                  # the one-off captured move this frame: [name, s
 ## feet, the torso's lean, both hands, the head. `blend_off`: the still-frame tests (moves, gait) pose out of time.
 const IN_TIME := 0.18
 static var blend_off := false
+static var _headlog: bool = OS.get_cmdline_user_args().has("--headlog")
 var _in_key := ""
 var _in_new := false
 var _in_dt := 0.0
@@ -1059,7 +1060,7 @@ func _pose() -> void:
 	_in_dt = clampf(_clock - _in_clock, 0.0, 0.1)
 	_in_clock = _clock
 	hip = _inert("hip", hip, 0.2)
-	lean = _inert("lean", lean, 0.8, true)
+	lean = _inert("lean", lean, 1.3, true)
 	var breath := sin(_clock * 1.7) * 0.006 * (1.0 - t) * (0.0 if _dead else 1.0)   # breathing, standing still
 	var neck := hip + Vector2(lerpf(0.03, lerpf(0.05, 0.15, rw) if g2 else 0.15, t), -float(_len["torso"]) - breath).rotated(lean)
 	# Joints that are drawn on the torso (armholes, the bottom of the collar, the belt) are given in
@@ -1265,19 +1266,26 @@ func _pose() -> void:
 	# the head tips less than the body, and turns a little after the aim: he looks where he shoots
 	var look := (lean - roll - spin) * 0.5 + roll + spin   # (24. 11.: the head went only half way round a flip - upside down in his coat)
 	if not _mc.is_empty():
-		look = lerpf(look, float(_mc["head"]) * 0.6 + lean * 0.4, float(_mc["w"]))
+		look = lerp_angle(look, float(_mc["head"]) * 0.6 + lean * 0.4, float(_mc["w"]))
 	if not _mcl.is_empty() and _mcl[0] in ["roll", "slide", "getup", "flight", "hit", "hit_leg", "die_back", "die_front"]:
-		look = lerpf(look, float(_mcl[1][6]) * float(_mcl[3]) + (clampf(_aim.angle(), -0.9, 0.7) * (0.6 if _mcl[0] == "flight" else 0.3) if not _mcl[0] in ["roll", "die_back", "die_front"] else 0.0), float(_mcl[2]))
+		look = lerp_angle(look, float(_mcl[1][6]) * float(_mcl[3]) + (clampf(_aim.angle(), -0.9, 0.7) * (0.6 if _mcl[0] == "flight" else 0.3) if not _mcl[0] in ["roll", "die_back", "die_front"] else 0.0), float(_mcl[2]))
 	if _use_mocap() and hang > 0.0 and not hang_one and not _dead:
-		look = lerpf(look, -0.18, hang)   # chin up, looking up the rope
+		look = lerp_angle(look, -0.18, hang)   # chin up, looking up the rope
 	if not _dead:
 		look += clampf(_aim.angle(), -0.9, 0.7) * 0.4 * (1.0 - hands_up) * (1.0 - es) - recoil * 0.3 + hands_up * 0.12
 		if not hang_one:
-			look = lerpf(look, -0.35 if hang_cycle >= 0.0 else -0.1, hang)   # eyes on where the rope goes
+			look = lerp_angle(look, -0.35 if hang_cycle >= 0.0 else -0.1, hang)   # eyes on where the rope goes
 		if reload > 0.0:   # eyes on the gun in his hands
-			look = lerpf(look, 0.35, smoothstep(0.0, 0.14, reload) * (1.0 - smoothstep(0.86, 1.0, reload)))
-	look = _inert("look", look, 0.8, true)
+			look = lerp_angle(look, 0.35, smoothstep(0.0, 0.14, reload) * (1.0 - smoothstep(0.86, 1.0, reload)))
+	# (user 25. 11.: "the head is oddly broken at the landing and the roll") a tumble counts its angles past a full turn
+	# (the roll 80 -> 380 deg) and a plain lerp against the crouch's ~0 swept the head round backwards, 130 deg against
+	# the torso: every head blend is lerp_angle now, and the neck never bends further than a neck can, any figure alive
+	if not _dead:
+		look = lean + clampf(wrapf(look - lean, -PI, PI), -1.1, 1.25)
+	look = _inert("look", look, 1.3, true)
 	_place("head", "head", head_base, head_base + Vector2(0.02, -0.3).rotated(look))
+	if _headlog and self == get_tree().current_scene.get("player"):   # (test --headlog) the neck: the head against the torso, every frame
+		print("HEAD %.3f %s lean %.0f look %.0f neck %.0f" % [_clock, (String(_mcl[0]) if not _mcl.is_empty() else (clip if cw > 0.0 else "-")), rad_to_deg(lean), rad_to_deg(look), rad_to_deg(wrapf(look - lean, -PI, PI))])
 	# laid out flat in a dive the near arm reaches forward at the height of his face: it hid the face (24. 11.) - the head,
 	# chin up, goes over the arm, which then runs under his jaw (the shootdodge as drawn in the comics)
 	var over := 1 if (not _mcl.is_empty() and ((_mcl[0] == "flight" and dive > 0.4) or (_mcl[0] == "launch" and float(_mcl[2]) > 0.4))) else 0
