@@ -78,15 +78,39 @@ def spline(keys, n=40):
 
 MOVES = {
     # the shootdodge in the air (along the game's air_v -1 leaving .. 1 coming down): laid out head first, the legs long
-    # behind and a little apart, knees soft; at the top they scissor; coming down the knees bend and the trailing foot
+    # behind and a little apart, knees nearly straight (25. 11.: bent knees lying face down lift the feet up behind him
+    # like a scorpion's tail, and under him they made "a dog"); coming down the trailing foot
     # reaches for the stones; the free arm out ahead and a little low for balance. Chin UP (head ~30 deg): lying flat the
     # gun arm reaches forward at the height of his face - a head bowed with the body hid behind the arm and the hat
     "flight": [
-        (0.0, {"air": True, "fa": (-25, 35), "fb": (-55, 20), "torso": 62, "head": 25, "hb": (115, 25)}),
-        (0.3, {"air": True, "fa": (-62, 22), "fb": (-88, 12), "torso": 78, "head": 28, "hb": (100, 20)}),
-        (0.55, {"air": True, "fa": (-78, 15), "fb": (-98, 28), "torso": 84, "head": 30, "hb": (95, 15)}),
-        (0.8, {"air": True, "fa": (-85, 30), "fb": (-75, 45), "torso": 86, "head": 32, "hb": (75, 30)}),
-        (1.0, {"air": True, "fa": (-88, 40), "fb": (-65, 60), "torso": 88, "head": 35, "hb": (45, 40)}),
+        (0.0, {"air": True, "fa": (-52, 14), "fb": (-72, 8), "torso": 64, "head": 25, "hb": (92, 6)}),
+        (0.3, {"air": True, "fa": (-70, 8), "fb": (-84, 6), "torso": 78, "head": 28, "hb": (90, 6)}),
+        (0.55, {"air": True, "fa": (-80, 6), "fb": (-91, 10), "torso": 84, "head": 30, "hb": (88, 8)}),
+        (0.8, {"air": True, "fa": (-86, 12), "fb": (-78, 18), "torso": 86, "head": 32, "hb": (80, 20)}),
+        (1.0, {"air": True, "fa": (-86, 16), "fb": (-72, 24), "torso": 88, "head": 35, "hb": (60, 35)}),
+    ],
+    # off the run into the shootdodge (user 25. 11.: "he looks like a dog" - the captured dive-ROLL take-off, 127_23, is a low
+    # crouched hop: knees under him, the free hand hanging like a front paw). A long jumper's take-off instead: the front
+    # foot plants and drives, the body opens out long forward, the back leg sweeps up behind, the free arm goes forward
+    # with the gun, the head up; ends on the flight sheet's first key. Overwrites the captured launch.json.
+    "launch": [
+        (0.0, {"air": True, "fa": (22, 18), "fb": (-28, 55), "torso": 28, "head": 12, "hb": (72, 25)}),
+        (0.35, {"air": True, "fa": (-4, 12), "fb": (-30, 35), "torso": 42, "head": 18, "hb": (84, 12)}),
+        (0.7, {"air": True, "fa": (-34, 4), "fb": (-55, 18), "torso": 56, "head": 22, "hb": (90, 6)}),
+        (1.0, {"air": True, "fa": (-52, 14), "fb": (-72, 8), "torso": 64, "head": 25, "hb": (92, 6)}),
+    ],
+    # the dive's landing roll (user 25. 11. on the dive; the captured roll, 127_23, came down HEAD first and stood on it,
+    # legs splayed in the air, the head under the pavement): hands to the stones first, chin to the chest, knees pulled
+    # in tight - a ball over the shoulders onto the back, and up into a crouch. Torso angles unwrapped (80 -> 380 deg)
+    # along main.gd's roll 1.35 -> TAU. Overwrites the captured roll.json.
+    "roll": [
+        (0.0, {"fa": (-80, 20), "fb": (-70, 30), "torso": 82, "head": 45, "hf": (40, 10), "hb": (35, 10)}),
+        (0.14, {"fa": (-25, 125), "fb": (-15, 130), "torso": 112, "head": 160, "hf": (15, 70), "hb": (10, 75)}),
+        (0.32, {"fa": (15, 140), "fb": (25, 140), "torso": 165, "head": 240, "hf": (60, 80), "hb": (50, 85)}),
+        (0.5, {"fa": (60, 135), "fb": (75, 140), "torso": 228, "head": 300, "hf": (110, 60), "hb": (100, 70)}),
+        (0.72, {"fa": (120, 130), "fb": (130, 135), "torso": 290, "head": 335, "hf": (100, 40), "hb": (90, 50)}),
+        (0.88, {"fa": (85, 135), "fb": (70, 130), "torso": 340, "head": 365, "hf": (70, 35), "hb": (60, 40)}),
+        (1.0, {"fa": (62, 112), "fb": (45, 100), "torso": 378, "head": 372, "hf": (70, 30), "hb": (40, 40)}),
     ],
     # feet first along the wet stones (0.55 s): down off the stride onto the far hip, the near leg reaching out ahead, the
     # far one folded under him, leaning back on the free hand; then the folded leg drives him up into a run

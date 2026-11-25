@@ -1119,7 +1119,10 @@ func _pose() -> void:
 	if not _mcl.is_empty() and _mcl[0] != "leap" and not long_gun and not (weapon == "pistols" or (dual and weapon == "revolver")):
 		# (25. 11.) not the leap's: the long-jumper flings his arms up behind him - on Eddie a wing again (rule 41 (5))
 		var m: Array = _mcl[1]
-		far_target = far_target.lerp(far_shoulder + Vector2(float(m[9]) * float(_mcl[3]), -float(m[10])) * (l1 + l2) * armk_c, float(_mcl[2]))
+		# (25. 11.: "like a dog" - blended out toward the hanging arm, the hand dropped under his chest like a paw at the
+		# hand-over from the take-off to the flight) the dive's free arm stays where the sheets put it, whole
+		var aw := 1.0 if (_mcl[0] == "launch" or (_mcl[0] == "flight" and dive > 0.05)) else float(_mcl[2])
+		far_target = far_target.lerp(far_shoulder + Vector2(float(m[9]) * float(_mcl[3]), -float(m[10])) * (l1 + l2) * armk_c, aw)
 	if es > 0.0 and not long_gun:   # the free arm hangs too, and swings with the walk
 		far_target = far_target.lerp(far_shoulder + Vector2(0.03 + 0.13 * cos(th) * t, (ua + fa) * 0.93), es * (1.0 - t) if g2 else es)
 	if _dead and (_mcl.is_empty() or not String(_mcl[0]).begins_with("die")):   # dead weight: the arm lies almost straight along the thrown direction
@@ -1128,7 +1131,7 @@ func _pose() -> void:
 		far_target = far_target.lerp(hand + Vector2(0.06, 0.03 + 0.03 * sin(reload * 40.0)), rl)
 	if hands_up > 0.0 and not _dead:
 		far_target = far_target.lerp(far_shoulder + Vector2(0.06, -(ua + fa) * 0.84), hands_up)
-	if cw > 0.0 and cl.has("far") and not long_gun and not (weapon == "pistols" or (dual and weapon == "revolver")):
+	if cw > 0.0 and cl.has("far") and not long_gun and not (weapon == "pistols" or (dual and weapon == "revolver")) 			and not (not _mcl.is_empty() and _mcl[0] == "launch"):   # (the take-off sheet has its own arm: this hung it down like a paw)
 		var cf: Vector2 = cl["far"]
 		if g2:
 			cf = Vector2(0.12, 0.22) if clip == "window" else Vector2(clampf(cf.x, 0.02, 0.16), (ua + fa) * 0.85)   # (25. 11.: behind him it stood out like a wing in the wall kick)
