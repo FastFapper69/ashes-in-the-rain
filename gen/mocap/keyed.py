@@ -69,6 +69,14 @@ def pose(k):
             k.get("hx", 0.0)]
 
 
+def smooth(ph, passes=2):
+    """(25. 11.: the floor contact switches from one body part to the next between keys and the hips hopped) a light
+    1-2-1 smoothing of every value over the frames; the first and last frame stay as keyed (they meet other moves)."""
+    for _ in range(passes):
+        ph = [ph[0]] + [[round((a + 2 * b + c) / 4, 4) for a, b, c in zip(ph[i - 1], ph[i], ph[i + 1])] for i in range(1, len(ph) - 1)] + [ph[-1]]
+    return ph
+
+
 def spline(keys, n=40):
     ts = [k[0] for k in keys]
     ps = [pose(k[1]) for k in keys]
@@ -115,12 +123,12 @@ MOVES = {
     # world angle = flexion - torso; `tuck(T, hip flexion, knee)` does it)
     "roll": [
         (0.0, {"fa": (-80, 20), "fb": (-70, 30), "torso": 82, "head": 45, "hf": (40, 10), "hb": (35, 10)}),
-        (0.14, {"fa": tuck(112, 90, 110), "fb": tuck(112, 100, 115), "torso": 112, "head": 160, "hf": (10, 20), "hb": (5, 25)}),
-        (0.32, {"fa": tuck(165, 125, 135), "fb": tuck(165, 135, 138), "torso": 165, "head": 215, "hf": tuck(165, 70, -90), "hb": tuck(165, 60, -90)}),
+        (0.14, {"fa": tuck(112, 90, 110), "fb": tuck(112, 100, 115), "torso": 112, "head": 128, "hf": (10, 20), "hb": (5, 25)}),
+        (0.32, {"fa": tuck(165, 125, 135), "fb": tuck(165, 135, 138), "torso": 165, "head": 200, "hf": tuck(165, 70, -90), "hb": tuck(165, 60, -90)}),
         (0.5, {"fa": tuck(228, 130, 135), "fb": tuck(228, 140, 138), "torso": 228, "head": 275, "hf": tuck(228, 38, -100), "hb": tuck(228, 30, -100)}),
         (0.68, {"fa": tuck(285, 125, 130), "fb": tuck(285, 135, 135), "torso": 285, "head": 320, "hf": tuck(285, 32, -95), "hb": tuck(285, 25, -95)}),
         (0.85, {"fa": tuck(335, 110, 125), "fb": tuck(335, 120, 128), "torso": 335, "head": 352, "hf": tuck(335, 45, -70), "hb": tuck(335, 30, -70)}),
-        (1.0, {"fa": (62, 112), "fb": (45, 100), "torso": 378, "head": 372, "hf": (70, 30), "hb": (40, 40)}),
+        (1.0, {"fa": (32, 62), "fb": (12, 55), "torso": 372, "head": 368, "hf": (70, 30), "hb": (30, 40)}),   # rising: the run takes him from here
     ],
     # feet first along the wet stones (0.55 s): down off the stride onto the far hip, the near leg reaching out ahead, the
     # far one folded under him, leaning back on the free hand; then the folded leg drives him up into a run
@@ -194,7 +202,7 @@ if __name__ == "__main__":
     dst = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "art", "mocap", "clips")
     os.makedirs(dst, exist_ok=True)
     for name, keys in MOVES.items():
-        ph = spline(keys)
+        ph = smooth(spline(keys))
         json.dump({"src": "keyed (gen/mocap/keyed.py)", "frames": [0, len(ph)], "seconds": 0.0, "arm": round(UA + FA, 4), "phases": ph},
                   open(os.path.join(dst, name + ".json"), "w"))
         print(name, len(ph), "hips", [p[0] for p in ph[::8]])

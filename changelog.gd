@@ -10,6 +10,7 @@ const ENTRIES := [
 		"Eddie's dive: a long take-off, stretched out with both hands forward, and a tight roll over the shoulder on landing",
 		"Every figure's moves now flow into each other instead of snapping from one to the next",
 		"No more twisted necks: the head stays on the body through the landing roll and every other tumble",
+		"Smoother everywhere: landings take the weight in the knees, the dive's roll comes up into the run without a jolt",
 	]],
 	["24 NOV 2026", [
 		"Eddie's dive: laid out flat, chin up over his gun arm, legs scissoring; every figure's kicks and flips flow instead of stopping at each pose",

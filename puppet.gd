@@ -770,39 +770,78 @@ var _mcl := []                  # the one-off captured move this frame: [name, s
 ## in a frame than a body can - the difference between what was SHOWN and the new pose is kept as an offset and faded out
 ## over IN_TIME, while the new move already plays underneath. Nothing freezes, nothing snaps. Goes through: hips, both
 ## feet, the torso's lean, both hands, the head. `blend_off`: the still-frame tests (moves, gait) pose out of time.
-const IN_TIME := 0.18
-static var blend_off := false
+const IN_W := 14.0   # the blend spring's stiffness (1/s): ~80 % gone in 0.2 s, all in ~0.4 s
+static var blend_off: bool = OS.get_cmdline_user_args().has("--noblend")   # (test --noblend: the raw poses, to compare)
 static var _headlog: bool = OS.get_cmdline_user_args().has("--headlog")
+static var _jointlog: bool = OS.get_cmdline_user_args().has("--jointlog")
 var _in_key := ""
 var _in_new := false
 var _in_dt := 0.0
 var _in_clock := 0.0
 var _in_off := {}
+var _in_offv := {}
+var _in_step := {}
+var _in_cool := {}
+var _in_v := {}
 var _in_t := {}
 var _in_shown := {}
 var _in_raw := {}
 
 
 func _inert(name: String, raw, jump := 0.0, angle := false):
+	# (25. 11., second pass - user: "make every blend smoother") the offset is a critically damped SPRING (smooth start,
+	# no overshoot); at a hand-over it starts from where the shown pose was GOING (its last speed carried one frame on),
+	# a break inside a move only takes up the break. Measured with gen/tests/jerk.py: carrying the shown speed into the
+	# spring as well made the hips overshoot half a metre after the dive's landing - the spring starts at rest.
 	if blend_off:
 		return raw
+	var dt := maxf(_in_dt, 0.001)
 	var restart := _in_new
-	if not restart and jump > 0.0 and _in_raw.has(name):   # a leap inside one move
-		var step = raw - _in_raw[name]
-		restart = (absf(wrapf(step, -PI, PI)) if angle else (step as Vector2).length()) > jump
-	_in_raw[name] = raw
+	var step = raw * 0.0
+	if _in_raw.has(name):
+		step = raw - _in_raw[name]
+		if angle:
+			step = wrapf(step, -PI, PI)
+	_in_cool[name] = maxf(0.0, float(_in_cool.get(name, 0.0)) - dt)
+	# (after one break is taken up the next 0.2 s are not tested: breaks taken up frame after frame cancel the move's
+	# own speeding up - the hips stayed down after the roll)
+	if not restart and jump > 0.0 and _in_step.has(name) and float(_in_cool[name]) <= 0.0:   # a break inside one move
+		# (25. 11.) not a big step but a CHANGE of step - a discontinuity. Testing the step itself restarted the blend
+		# every frame of a fast roll, and the spring, fed its own speed each time, ran away (the hips flew)
+		var dd = step - _in_step[name]
+		restart = (absf(dd) if angle else (dd as Vector2).length()) > jump
 	if restart and _in_shown.has(name):
-		var d = _in_shown[name] - raw
-		_in_off[name] = wrapf(d, -PI, PI) if angle else d
-		_in_t[name] = 0.0
+		var d
+		if _in_new:   # a hand-over: from where the shown pose was going to the new move, the spring at rest
+			var v = _in_v.get(name, raw * 0.0)
+			d = _in_shown[name] + v * dt - raw
+			_in_offv[name] = raw * 0.0
+		else:   # a break inside a move: only the break itself is taken up (taking the shown speed again counted it twice
+			# and the hips overshot half a metre), the spring runs on as it was
+			d = _in_off.get(name, raw * 0.0) - (step - _in_step.get(name, step))
+			_in_cool[name] = 0.2
+			if not _in_offv.has(name):
+				_in_offv[name] = raw * 0.0
+		_in_off[name] = clampf(wrapf(d, -PI, PI), -1.6, 1.6) if angle else (d as Vector2).limit_length(0.8)
+	if not restart or not _in_step.has(name):   # the step that held a break is not the pose's own motion: not kept
+		_in_step[name] = step
+	_in_raw[name] = raw
 	var shown = raw
 	if _in_off.has(name):
-		_in_t[name] = float(_in_t[name]) + _in_dt
-		var k := 1.0 - smoothstep(0.0, IN_TIME, float(_in_t[name]))
-		if k <= 0.0:
+		var x = _in_off[name]
+		var v = _in_offv[name]
+		var e := exp(-IN_W * dt)
+		var j = v + x * IN_W
+		_in_off[name] = (x + j * dt) * e
+		_in_offv[name] = (v - j * IN_W * dt) * e
+		shown = raw + _in_off[name]
+		var small: bool = (absf(_in_off[name]) < 0.002) if angle else ((_in_off[name] as Vector2).length() < 0.002)
+		if small and ((absf(_in_offv[name]) < 0.02) if angle else ((_in_offv[name] as Vector2).length() < 0.02)):
 			_in_off.erase(name)
-		else:
-			shown = raw + _in_off[name] * k
+			_in_offv.erase(name)
+	if _in_shown.has(name):
+		var dv = shown - _in_shown[name]
+		_in_v[name] = (wrapf(dv, -PI, PI) if angle else dv) / dt
 	_in_shown[name] = shown
 	return shown
 
@@ -985,7 +1024,7 @@ func _pose() -> void:
 		elif roll_t >= 0.0 and roll != 0.0:
 			var sd := dive_side
 			var m := _mcl_at("roll", roll_t)
-			var w := 1.0 - smoothstep(0.78, 1.0, roll_t)   # coming up he hands over to the game's crouch, which runs on
+			var w := 1.0 - smoothstep(0.62, 1.0, roll_t)   # coming up he hands over to the game's crouch, which runs on (25. 11.: longer - the hips shot up)
 			_mcl = ["roll", m, w, sd]
 			hip = hip.lerp(Vector2(0.0, -float(m[0]) * legk - ankle), w)
 			var fa2 := Vector2(float(m[1]) * legk * sd, -float(m[2]) * legk)
@@ -1016,8 +1055,9 @@ func _pose() -> void:
 			var m := _mcl_at("flight", clampf((air_v + 1.0) * 0.5, 0.0, 1.0))
 			var wob := sin(_clock * 7.0) * 0.04   # breathing in the air
 			_mcl = ["flight", m, dive, sd]
-			foot_a = (hip + (foot_a - hip).rotated(legs_lean)).lerp(hip + Vector2(float(m[1]) * legk * sd, (float(m[0]) - float(m[2])) * legk + wob), dive)
-			foot_b = (hip + (foot_b - hip).rotated(legs_lean)).lerp(hip + Vector2(float(m[3]) * legk * sd, (float(m[0]) - float(m[4])) * legk - wob), dive)
+			# (+ ankle: as the take-off has it - without it the feet hopped at the hand-over, gen/tests/jerk.py)
+			foot_a = (hip + (foot_a - hip).rotated(legs_lean)).lerp(hip + Vector2(float(m[1]) * legk * sd, (float(m[0]) - float(m[2])) * legk + wob + ankle), dive)
+			foot_b = (hip + (foot_b - hip).rotated(legs_lean)).lerp(hip + Vector2(float(m[3]) * legk * sd, (float(m[0]) - float(m[4])) * legk - wob + ankle), dive)
 			legs_lean = lerpf(legs_lean, 0.0, dive)
 			lean = lerpf(lean, float(m[5]) * sd, dive)
 		elif prone and dive <= 1.0 and air <= 0.01:   # up off the stones after the dive: the get-up sheet, along dive 1 -> 0
@@ -1059,8 +1099,8 @@ func _pose() -> void:
 	_in_key = in_key
 	_in_dt = clampf(_clock - _in_clock, 0.0, 0.1)
 	_in_clock = _clock
-	hip = _inert("hip", hip, 0.2)
-	lean = _inert("lean", lean, 1.3, true)
+	hip = _inert("hip", hip, 0.09)
+	lean = _inert("lean", lean, 0.7, true)
 	var breath := sin(_clock * 1.7) * 0.006 * (1.0 - t) * (0.0 if _dead else 1.0)   # breathing, standing still
 	var neck := hip + Vector2(lerpf(0.03, lerpf(0.05, 0.15, rw) if g2 else 0.15, t), -float(_len["torso"]) - breath).rotated(lean)
 	# Joints that are drawn on the torso (armholes, the bottom of the collar, the belt) are given in
@@ -1189,7 +1229,7 @@ func _pose() -> void:
 	if hang > 0.0 and not _dead:
 		var low := 0.2 * (1.0 - climb_c) if hang_cycle >= 0.0 else (0.0 if hang_one else 0.13)
 		far_target = far_target.lerp(Vector2(0.06, hang_top + low), hang)
-	far_target = _inert("hand_f", far_target, 0.45)
+	far_target = _inert("hand_f", far_target, 0.3)
 	var k := _ik(far_shoulder, far_target, ua, fa, 1.0)
 	_place("uarm_b", "uarm", far_shoulder, k[0])
 	_place("farm_b", "farm", k[0], k[1])
@@ -1199,12 +1239,13 @@ func _pose() -> void:
 		_spr["farm_b"].texture = _farm_open_tex if open_hand else _farm_tex
 	_gun2.position = k[1] * PPM
 	_gun2.rotation = _aim.angle() + 0.04
+	var far_hand: Vector2 = k[1]
 
-	k = _ik(hip, _inert("foot_b", hip + (foot_b - Vector2(0.0, ankle) - hip).rotated(legs_lean), 0.4), l1, l2, -1.0)
+	k = _ik(hip, _inert("foot_b", hip + (foot_b - Vector2(0.0, ankle) - hip).rotated(legs_lean), 0.22), l1, l2, -1.0)
 	_place("thigh_b", "thigh", hip, k[0])
 	_place("shin_b", "shin", k[0], k[1])
 	var leg_b := [hip, k[0], k[1]]
-	k = _ik(hip, _inert("foot_a", hip + (foot_a - Vector2(0.0, ankle) - hip).rotated(legs_lean), 0.4), l1, l2, -1.0)
+	k = _ik(hip, _inert("foot_a", hip + (foot_a - Vector2(0.0, ankle) - hip).rotated(legs_lean), 0.22), l1, l2, -1.0)
 	_place("thigh_f", "thigh", hip, k[0])
 	_place("shin_f", "shin", k[0], k[1])
 	var leg_f := [hip, k[0], k[1]]
@@ -1282,7 +1323,7 @@ func _pose() -> void:
 	# the torso: every head blend is lerp_angle now, and the neck never bends further than a neck can, any figure alive
 	if not _dead:
 		look = lean + clampf(wrapf(look - lean, -PI, PI), -1.1, 1.25)
-	look = _inert("look", look, 1.3, true)
+	look = _inert("look", look, 0.7, true)
 	_place("head", "head", head_base, head_base + Vector2(0.02, -0.3).rotated(look))
 	if _headlog and self == get_tree().current_scene.get("player"):   # (test --headlog) the neck: the head against the torso, every frame
 		print("HEAD %.3f %s lean %.0f look %.0f neck %.0f" % [_clock, (String(_mcl[0]) if not _mcl.is_empty() else (clip if cw > 0.0 else "-")), rad_to_deg(lean), rad_to_deg(look), rad_to_deg(wrapf(look - lean, -PI, PI))])
@@ -1295,6 +1336,10 @@ func _pose() -> void:
 
 	_place("uarm_f", "uarm", shoulder, kn[0])
 	_place("farm_f", "farm", kn[0], kn[1])
+	if _jointlog and self == get_tree().current_scene.get("player"):   # (test --jointlog) every joint as shown, for gen/tests/jerk.py
+		print("JL %.4f %s %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f" % [_clock, _in_key.replace(" ", "_") if _in_key != "" else "-",
+				hip.x, hip.y, (leg_f[2] as Vector2).x, (leg_f[2] as Vector2).y, (leg_b[2] as Vector2).x, (leg_b[2] as Vector2).y,
+				kn[1].x, kn[1].y, far_hand.x, far_hand.y, lean, look])
 	_gun.position = hand * PPM
 	_gun.rotation = gun_a
 	if not _mcl.is_empty() and (_mcl[0] == "roll" or (_mcl[0] == "getup" and dive > 0.55)):   # the gun along the forearm while the hand is on the stones

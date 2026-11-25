@@ -3422,6 +3422,7 @@ func _process(delta: float) -> void:
 
 
 ## Scripted checks, run headless-with-a-screen on the build machine. Each saves pictures and quits.
+var _crouch_v := 0.0   # the landing crouch's spring (rising out of it)
 var _film_i := 0
 func _auto_step(delta: float) -> void:
 	_at += delta
@@ -5353,7 +5354,12 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 		else:
 			steps.emitting = true
 		player.slide = move_toward(player.slide, 0.0, delta * 5.0)
-		player.crouch = lerpf(player.crouch, 0.0, 1.0 - exp(-7.0 * delta))
+		# (25. 11.: rising out of a landing crouch the hips shot up in two frames - an exponential starts at its fastest)
+		# a critically damped spring: he pushes up slowly, fastest half way, and settles (gen/tests/jerk.py)
+		_crouch_v += (-90.0 * player.crouch - 2.0 * sqrt(90.0) * _crouch_v) * delta
+		player.crouch = maxf(0.0, player.crouch + _crouch_v * delta)
+		if player.crouch <= 0.0:
+			_crouch_v = 0.0
 		if floor_y > player.position.y - DIVE_LAND * player.dive + 36.0 and player.dive < 0.05:   # walked off an edge (a step down the stairs is just walked)
 			move_state = "jump"
 			fall = 0.0
@@ -5405,7 +5411,9 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 				props.landed_on(player.position)
 		elif fall > 0.0 and player.position.y >= floor_y:
 			player.position.y = floor_y
-			player.crouch = clampf(fall / 1500.0, 0.3, 0.9)   # the harder the landing, the deeper the knees
+			# the harder the landing, the deeper the knees - (25. 11.) given as a push down into the crouch spring, so the
+			# knees take the weight over a few frames instead of folding in one (gen/tests/jerk.py)
+			_crouch_v = maxf(_crouch_v, clampf(fall / 1500.0, 0.3, 0.9) * 22.0)
 			if fall > 900.0:
 				fx.dust(player.position, 0.35 + clampf(fall / 4000.0, 0.0, 0.3))
 				_buzz(20)
@@ -5468,7 +5476,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 		player.roll = lerpf(1.35, TAU, ease_r) * player.dive_side
 		player.roll_t = roll_done   # (the captured dive roll plays along it, puppet.gd _mcl)
 		var tuck := sin(roll_done * PI)
-		player.air = lerpf(0.5, 1.0, tuck)
+		player.air = lerpf(0.5 * (1.0 - smoothstep(0.5, 1.0, roll_done)), 1.0, tuck)   # (25. 11.: it ended at 0.5 - half a leap pose leaked into the run)
 		player.crouch = lerpf(0.6, 1.0, tuck) if roll_done < 0.75 else lerpf(1.0, 0.7, (roll_done - 0.75) / 0.25)
 		steps.emitting = roll_done > 0.2
 		player.position.y = move_toward(player.position.y, floor_y, delta * 500.0)
