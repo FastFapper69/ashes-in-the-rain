@@ -26,4 +26,6 @@ Source: Thomas & Johnston, *The Illusion of Life: Disney Animation* (1981), ch. 
 - Settle: after a stop, a shot or a blow, a loose part (coat, hat, the off hand) still moves for 0.1–0.3 s.
 - Telegraph: every enemy attack shows a pose before the bullet that the player can read in slowed time too.
 
+**Done 25. 11. (ashes-znalosti rule 41 (24)):** telegraph `brace`, overlap `_nod`, recoil slow-out, pipe follow-through, `_exert` breath. Landing compression already existed (main.gd `_crouch_v` spring). Still [H]: hat lag (the hat is painted on the head), the off hand lagging, silhouette/twins sheets in the moves test.
+
 [H] = idea, measure or view it in the playground before shipping (new mechanics go through the playground).

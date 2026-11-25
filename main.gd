@@ -473,7 +473,8 @@ var _moves_k := 0
 const MOVES_SEEN := [["idle", 1], ["aim", 4], ["shot", 3], ["reload", 5], ["switch", 3], ["run_aim", 2], ["jump", 4], ["land", 2],
 		["dive_push", 3], ["dive", 3], ["dive_land", 1], ["getup", 6], ["roll", 8], ["slide", 8], ["duck", 2], ["duck_walk", 4], ["hit", 6],
 		["hit_leg", 5], ["fly_kick", 4], ["wall_kick", 3], ["flip", 4], ["window", 3], ["vault", 3], ["hang", 1], ["climb", 3],
-		["hang_one", 1], ["pipe", 4], ["tommy", 3], ["shotgun", 2], ["dead", 2], ["die_back", 6], ["die_front", 6]]
+		["hang_one", 1], ["pipe", 4], ["tommy", 3], ["shotgun", 2], ["dead", 2], ["die_back", 6], ["die_front", 6],
+		["brace", 2], ["nod", 2], ["pipe_ft", 4]]
 
 
 ## --test=moves: the figure set by hand into one frame of a move (u = 0..1 through it, i = the frame).
@@ -482,7 +483,7 @@ func _moves_pose(mv: String, u: float, i: int) -> void:
 	PuppetScript.blend_off = true   # (still frames out of time: no inertial blending, puppet.gd _inert)
 	p.duck = 0.0; p.air = 0.0; p.air_v = 0.0; p.dive = 0.0; p.slide = 0.0; p.crouch = 0.0; p.roll = 0.0
 	p.hang = 0.0; p.hang_cycle = -1.0; p.hang_one = false; p.clip = ""; p.reload = 0.0; p.recoil = 0.0
-	p._flinch = 0.0; p._hit_dip = 0.0; p._hit_part = ""; p.swing = -1.0; p._switch_p = -1.0
+	p._flinch = 0.0; p._hit_dip = 0.0; p._hit_part = ""; p.swing = -1.0; p._switch_p = -1.0; p.brace = 0.0; p._nod = 0.0; p._nod_v = 0.0; p._exert = 0.0
 	p.ease = 0.0; p.at_ease = false; p.dive_side = 1.0; p.slide_side = 1.0; p.roll_t = -1.0; p.slide_t = -1.0; p.prone = false; p.ground = 0.0; p.death_t = -1.0
 	var gun := "tommy" if mv == "tommy" else ("shotgun" if mv == "shotgun" else "revolver")
 	if p.weapon != gun:
@@ -548,6 +549,12 @@ func _moves_pose(mv: String, u: float, i: int) -> void:
 			p.hang = 1.0; p.hang_one = true; y = -60.0
 		"pipe":
 			p.swing = u
+		"pipe_ft":   # (ch16) the pipe's follow-through, close: past the blow and back
+			p.swing = lerpf(0.52, 0.72, u)
+		"brace":     # (ch16) a man about to fire, feet set, leaning into the gun (0 / 1)
+			p.brace = float(i)
+		"nod":       # (ch16) the head and torso trailing a hard stop (+) / a hard start (-)
+			p._nod = [0.16, -0.16][i]
 		"tommy":
 			mov = [0.0, 1.0, 0.0][i]; gs = mov; ph = 0.3
 			if i == 2:
@@ -7456,7 +7463,7 @@ func _drop(figure, push: float, fade: bool, how := "") -> void:
 	figure.set_shadow(0.0, 0.0, 0.0)
 	# whatever he was doing ends here: no dive, slide, tumble, reload or raised hands left in the body,
 	# or the fall would bend limbs the wrong way
-	for k in ["air", "dive", "crouch", "slide", "roll", "reload", "recoil", "hands_up", "_flinch", "_hit_dip"]:
+	for k in ["air", "dive", "crouch", "slide", "roll", "reload", "recoil", "hands_up", "_flinch", "_hit_dip", "brace", "_nod", "_nod_v"]:
 		figure.set(k, 0.0)
 	var facing: float = figure.scale.x
 	var crumple: bool = how == "leg" or (how == "" and (figure.duck > 0.5 or randf() < 0.34))
@@ -11583,6 +11590,8 @@ func _enemies(delta: float) -> void:
 			e["cool"] -= delta
 			if was_cool > 0.32 and e["cool"] <= 0.32 and may_fire:   # a glint at the muzzle: he is about to fire
 				_glint(m)
+			if e["cool"] <= 0.32 and e["cool"] > 0.0 and may_fire:   # (ch16 telegraph) and his body says it too: feet set, leaning in
+				m.brace = maxf(m.brace, 1.0 - float(e["cool"]) / 0.32)
 			# between shots a man without cover does not stand like a target: a step this way or that
 			# (user 18. 11. look at the big laundry: three men in one spot) every gunman in the open spreads out, on any floor
 			var spread_ok: bool = (e["type"] == "post" and m.position.y == 0.0) or (e["type"] in ["post", "tommy", "shotgun"] and _plain_room_at(m.position) >= 0 and _floor_under_ok(m.position))

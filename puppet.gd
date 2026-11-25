@@ -258,6 +258,12 @@ static var heavy := false   # (trial 24. 11., main.gd _lab) more weight: deeper 
 var at_ease := false # (user 24. 11.: "he holds the gun arm out stiff all the time") nobody to shoot at: the gun comes down by his side
 var ease := 0.0      # 0 the gun up on its aim .. 1 down by the leg, the arm swinging with the walk
 var recoil := 0.0    # set after a shot: the gun arm kicks up by this many radians and settles back
+# (25. 11., research ch16 - the twelve principles) overlap, secondary action, telegraph:
+var brace := 0.0     # main.gd, a man about to fire (the glint's last 0.32 s): he sets his feet and leans into the gun
+var _exert := 0.0    # 0..1: built up by running, it fades standing: the breath at rest is deeper and faster after a run
+var _nod := 0.0      # the head and shoulders trail a hard start or stop and settle with one small swing (a spring)
+var _nod_v := 0.0
+var _vx_prev := 0.0
 var _shadow: CanvasGroup   # a black copy of the figure, thrown onto the wall by the nearest lamp
 var _shadow_spr := {}
 
@@ -693,7 +699,8 @@ func set_state(dir: float, aim: Vector2, delta: float) -> void:
 		want = Vector2.RIGHT
 	# the gun arm eases onto the target instead of snapping; the kick of a shot is added on top
 	_aim_angle = lerp_angle(_aim_angle, want.angle(), 1.0 - exp(-22.0 * delta))
-	recoil = move_toward(recoil, 0.0, delta * 1.6)
+	recoil = move_toward(recoil * exp(-7.0 * delta), 0.0, delta * 0.25)   # (ch16 slow out: the kick is instant, the settle fast first, then slow)
+	brace = move_toward(brace, 0.0, delta * 3.0)
 	_flinch = move_toward(_flinch, 0.0, delta * 2.2)
 	_hit_dip = move_toward(_hit_dip, 0.0, delta * 2.5)
 
@@ -724,6 +731,16 @@ func set_state(dir: float, aim: Vector2, delta: float) -> void:
 	_last = global_position
 	_have_last = true
 	_clock += delta
+	if delta > 0.0:
+		var grounded := not _dead and air < 0.1 and dive < 0.1 and hang < 0.1 and slide < 0.1 and roll_t < 0.0
+		var acc := (_vel.x - _vx_prev) / delta * facing if grounded else 0.0
+		_vx_prev = _vel.x
+		if absf(acc) * delta > 900.0:   # a jump of speed in one frame is a teleport (respawn, a test), not a stop
+			acc = 0.0
+		# an underdamped spring (w 12/s, damping 0.4): pushed by the change of speed, it overshoots once and settles
+		_nod_v += (clampf(-acc * 0.0035, -40.0, 40.0) - 144.0 * _nod - 9.6 * _nod_v) * delta
+		_nod = clampf(_nod + _nod_v * delta, -0.16, 0.16)
+		_exert = clampf(_exert + delta * (0.22 if _moving > 0.6 and grounded else -0.07), 0.0, 1.0)
 	var forward := _vel.x * facing
 	if g2s and delta > 0.0:   # the cadence from the ground he really covers: a planted foot does not slide
 		_gs = lerpf(_gs, clampf(absf(_vel.x) / 640.0, 0.0, 1.25), 1.0 - exp(-10.0 * delta))
@@ -1029,7 +1046,7 @@ func _pose() -> void:
 		var sd := Vector2(clip_side, 1.0)
 		foot_a = foot_a.lerp((cl["fa"] as Vector2) * sd, cw)
 		foot_b = foot_b.lerp((cl["fb"] as Vector2) * sd, cw)
-	var drop := minf(0.62, crouch * 0.3 + slide * 0.5 + duck * 0.58 + _hit_dip * 0.16)   # how far the hips sink
+	var drop := minf(0.62, crouch * 0.3 + slide * 0.5 + duck * 0.58 + _hit_dip * 0.16 + brace * 0.04)   # how far the hips sink (and a man setting his feet to fire)
 	drop = lerpf(drop, float(cl.get("drop", drop)), cw)
 	var g2: bool = cfg.get("gait2", false)
 	var rw := _run_w() if g2 else 0.0
@@ -1055,6 +1072,7 @@ func _pose() -> void:
 		lean -= _flinch * (0.6 if _hit_part == "torso" else 0.35)   # and a bullet much more: rocked back
 		lean -= sin(_flinch * PI) * 0.12 * _hit_dip              # a leg hit folds him forward a moment
 		lean += clampf(_aim.angle(), -0.9, 0.6) * 0.08   # the body follows the gun up or down a little
+		lean += _nod * 0.35 + brace * 0.07              # (ch16) the torso pitches on after a hard stop; a man about to fire leans in
 	lean = lerpf(lean, 0.0, hang)   # hanging straight down from the hands
 	# (25. 11., rule 41: both fists straight over his head hid the whole face) the cfg "mocap" figure hangs as a rope climber
 	# does: the body a little behind the rope, leaning back off it, the feet forward clamping it; the near fist low at his
@@ -1162,7 +1180,7 @@ func _pose() -> void:
 	_in_dt = _frame_dt()
 	hip = _inert("hip", hip, 0.09)
 	lean = _inert("lean", lean, 0.7, true)
-	var breath := sin(_clock * 1.7) * 0.006 * (1.0 - t) * (0.0 if _dead else 1.0)   # breathing, standing still
+	var breath := sin(_clock * (1.7 + 1.5 * _exert)) * (0.006 + 0.016 * _exert) * (1.0 - t) * (0.0 if _dead else 1.0)   # breathing, standing still (out of breath after a run)
 	var neck := hip + Vector2(lerpf(0.03, lerpf(0.05, 0.15, rw) if g2 else 0.15, t), -float(_len["torso"]) - breath).rotated(lean)
 	# Joints that are drawn on the torso (armholes, the bottom of the collar, the belt) are given in
 	# the torso drawing's own pixels, so they stay on the drawing however the torso turns.
@@ -1224,8 +1242,10 @@ func _pose() -> void:
 			blow = lerp_angle(aim_a, -2.3, smoothstep(0.0, 0.35, swing))
 		elif swing < 0.55:    # down onto him, fast
 			blow = lerpf(-2.3, 0.95, smoothstep(0.35, 0.55, swing))
-		else:                 # the follow-through, then back to the aim
-			blow = lerp_angle(0.95, aim_a, smoothstep(0.6, 1.0, swing))
+		elif swing < 0.68:    # (ch16 follow-through) the weight carries the pipe on past the blow and it swings back
+			blow = 0.95 + 0.2 * sin(PI * (swing - 0.55) / 0.13)
+		else:                 # then back to the aim, slowing as it gets there
+			blow = lerp_angle(0.95, aim_a, smoothstep(0.68, 1.0, swing))
 		near_target = shoulder + Vector2.from_angle(blow) * (ua + fa) * 0.9
 	var reach_up := (ua + fa) * 0.96
 	hang_top = shoulder.y - reach_up
@@ -1383,6 +1403,7 @@ func _pose() -> void:
 		c.rotation = _spr["torso"].rotation
 	# the head tips less than the body, and turns a little after the aim: he looks where he shoots
 	var look := (lean - roll - spin) * 0.5 + roll + spin   # (24. 11.: the head went only half way round a flip - upside down in his coat)
+	look += _nod * 0.6   # (ch16 overlap) the head trails the body: on after a stop, back on a start
 	if not _mc.is_empty():
 		look = lerp_angle(look, float(_mc["head"]) * 0.6 + lean * 0.4, float(_mc["w"]))
 	if not _mcl.is_empty() and _mcl[0] in ["roll", "slide", "getup", "flight", "hit", "hit_leg", "die_back", "die_front"]:
