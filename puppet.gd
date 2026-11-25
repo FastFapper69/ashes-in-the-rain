@@ -1375,6 +1375,10 @@ func _pose() -> void:
 				kn[1].x, kn[1].y, far_hand.x, far_hand.y, lean, look])
 	_gun.position = hand * PPM
 	_gun.rotation = gun_a
+	if g2 and not long_gun and es > 0.0 and not _mc.is_empty():   # (user 25. 11.: "the gun is broken in his hand") the gun follows the forearm,
+		# the wrist cocked a little so the muzzle leans forward; never pointing back at him
+		var fa_ang := wrapf((kn[1] - kn[0]).angle() - 0.3, -PI, PI)
+		_gun.rotation = lerp_angle(gun_a, clampf(fa_ang, -1.1, 1.35), es)
 	if not _mcl.is_empty() and (_mcl[0] == "roll" or (_mcl[0] == "getup" and dive > 0.55)):   # the gun along the forearm while the hand is on the stones
 		_gun.rotation = lerp_angle(gun_a, (kn[1] - kn[0]).angle(), float(_mcl[2]) * (1.0 if _mcl[0] == "roll" else smoothstep(0.55, 0.8, dive)))
 	_gun.visible = not disarmed and not (hang > 0.5 and not hang_one) and not (swing >= 0.0 and not _dead)   # both hands on the rope: the gun is in his coat
