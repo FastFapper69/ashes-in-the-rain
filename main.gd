@@ -5083,6 +5083,23 @@ func _auto_step(delta: float) -> void:
 		var n: int = flat[k][2]
 		var u: float = (float(flat[k][1]) + 0.5) / float(n) if n > 1 else 0.5
 		_moves_pose(mv, u, int(flat[k][1]))
+		if "--sil" in ARGS:   # (ch16 staging) the figure alone, filled black on white: does the pose read as a shape?
+			RenderingServer.set_default_clear_color(Color.WHITE)
+			for nd in get_children():
+				if nd is CanvasLayer:
+					(nd as CanvasLayer).visible = false
+				elif nd is CanvasItem and nd != player:
+					(nd as CanvasItem).visible = false
+			player.modulate = Color.BLACK
+			player.set_shadow(0.0, 0.0, 0.0)
+		if fmod(_at, 0.1) > 0.05 and _moves_k <= k:   # (ch16 twins) the far limb lying on the near one: one limb, not two
+			for pr in [["uarm", "farm"], ["thigh", "shin"]]:
+				var jf: Vector2 = player._bones[pr[0] + "_f"][1]; var ef: Vector2 = player._bones[pr[1] + "_f"][1]
+				var jb: Vector2 = player._bones[pr[0] + "_b"][1]; var eb: Vector2 = player._bones[pr[1] + "_b"][1]
+				var gap := maxf(jf.distance_to(jb), ef.distance_to(eb)) / PPM
+				var free_arms: bool = player.ease > 0.5 or player.air > 0.3 or player.dive > 0.3 or player.hands_up > 0.5   # (aiming both hands share the gun: that is right)
+				if gap < 0.06 and (pr[0] == "thigh" or free_arms):
+					print("TWIN %02d %s %s %.3f m" % [k, mv, "arms" if pr[0] == "uarm" else "legs", gap])
 		cam.zoom = Vector2.ONE * 1.3
 		cam.rotation = 0.0
 		cam.position = Vector2(player.position.x + 40.0, minf(player.position.y, 0.0) - 260.0)

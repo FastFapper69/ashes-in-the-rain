@@ -5,6 +5,7 @@ extends RefCounted
 
 const ENTRIES := [
 	["25 NOV 2026", [
+		"Reloading, the gun comes out in front of the chest",
 		"Gunmen set their feet and lean in just before they fire",
 		"Heads swing on after a hard stop, the pipe carries through",
 		"After a long run a man stands there catching his breath",

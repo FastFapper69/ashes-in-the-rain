@@ -1217,7 +1217,7 @@ func _pose() -> void:
 	var rl := 0.0
 	if reload > 0.0 and not _dead:
 		rl = smoothstep(0.0, 0.14, reload) * (1.0 - smoothstep(0.86, 1.0, reload))
-		near_target = near_target.lerp(shoulder + (Vector2(0.3, 0.36) if cfg.get("gait2", false) and not long_gun else Vector2(0.24, 0.24)), rl)
+		near_target = near_target.lerp(shoulder + (Vector2(0.4, 0.3) if cfg.get("gait2", false) and not long_gun else Vector2(0.24, 0.24)), rl)   # (ch16 staging: out past the chest, or the reload is lost in the coat's black)
 	if hands_up > 0.0 and not _dead:
 		near_target = near_target.lerp(shoulder + Vector2(0.16, -(ua + fa) * 0.82), hands_up)
 	var es := 0.0   # at ease: the gun hand down by the thigh (a long gun low across the body), swinging against the legs
@@ -1300,7 +1300,7 @@ func _pose() -> void:
 		var aw := 1.0 if (_mcl[0] == "launch" or (_mcl[0] == "flight" and dive > 0.05)) else float(_mcl[2])
 		far_target = far_target.lerp(far_shoulder + Vector2(float(m[9]) * float(_mcl[3]), -float(m[10])) * (l1 + l2) * armk_c, aw)
 	if es > 0.0 and not long_gun:   # the free arm hangs too, and swings with the walk
-		far_target = far_target.lerp(far_shoulder + Vector2(0.03 + 0.13 * cos(th) * t, (ua + fa) * 0.93), es * (1.0 - t) if g2 else es)
+		far_target = far_target.lerp(far_shoulder + Vector2(-0.04 * (1.0 - t) + 0.03 + 0.13 * cos(th) * t, (ua + fa) * 0.93), es * (1.0 - t) if g2 else es)   # (ch16 twins: at rest the free hand a little behind, not on the gun hand)
 	if _dead and (_mcl.is_empty() or not String(_mcl[0]).begins_with("die")):   # dead weight: the arm lies almost straight along the thrown direction
 		far_target = far_shoulder + Vector2.from_angle(_aim.angle() + dead_far) * (ua + fa) * 0.96
 	if rl > 0.0:   # the other hand works the gun
