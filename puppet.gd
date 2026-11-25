@@ -23,8 +23,10 @@ const ORDER := [
 # phone), and points on the picture as fractions of it: where the hand grips, the muzzle, and for the
 # long guns where the other hand holds it.
 const GUNS := {
-	"revolver": {"tex": "res://art/guns/revolver.png", "len": 0.34, "grip": Vector2(0.17, 0.56), "muzzle": Vector2(1.0, 0.13)},
-	"pistol": {"tex": "res://art/guns/pistol.png", "len": 0.33, "grip": Vector2(0.21, 0.55), "muzzle": Vector2(1.0, 0.13)},
+	"revolver": {"tex": "res://art/guns/revolver.png", "len": 0.34, "grip": Vector2(0.17, 0.56), "muzzle": Vector2(1.0, 0.13),
+		"hand": {"tex": "res://art/guns/revolver_hand.png", "len": 0.37, "wrist": Vector2(0.03, 0.63), "muzzle": Vector2(1.0, 0.115)}},
+	"pistol": {"tex": "res://art/guns/pistol.png", "len": 0.33, "grip": Vector2(0.21, 0.55), "muzzle": Vector2(1.0, 0.13),
+		"hand": {"tex": "res://art/guns/pistol_hand.png", "len": 0.43, "wrist": Vector2(0.03, 0.64), "muzzle": Vector2(1.0, 0.137)}},
 	"tommy": {"tex": "res://art/guns/tommy.png", "len": 0.92, "grip": Vector2(0.42, 0.6), "muzzle": Vector2(1.0, 0.16), "fore": Vector2(0.76, 0.58), "stock": true},
 	"shotgun": {"tex": "res://art/guns/shotgun.png", "len": 1.0, "grip": Vector2(0.31, 0.42), "muzzle": Vector2(1.0, 0.07), "fore": Vector2(0.68, 0.3), "stock": true},
 	"rifle": {"tex": "res://art/guns/rifle.png", "len": 1.15, "grip": Vector2(0.27, 0.6), "muzzle": Vector2(1.0, 0.33), "fore": Vector2(0.6, 0.5), "stock": true},
@@ -32,6 +34,11 @@ const GUNS := {
 	"dynamite": {"tex": "res://art/guns/dynamite.png", "len": 0.22, "grip": Vector2(0.35, 0.5), "muzzle": Vector2(1.0, 0.2)},
 }
 var weapon := ""
+# (user 25. 11.: "he does not hold the gun, no finger on the trigger") a figure with cfg "grip_cuff" holds a one-hand gun
+# with a drawn hand (art/guns/<gun>_hand.png: the fingers round the grip, the index on the trigger, art_src 364/365):
+# the forearm loses its fist (<dir>/farm_grip.png, gen/grip_cuff.py) and the hand comes out of the cuff
+var _grip := false
+var _grip_tex: Texture2D
 var _legs := {}            # "f"/"b" -> the bending leg mesh
 var _pelvis: Polygon2D
 var _crooks := {}          # "f"/"b" -> cloth under the leg: the bent mesh leaves a hole in the crook of a tightly folded knee
@@ -1366,6 +1373,17 @@ func _pose() -> void:
 	_spr["head"].z_index = over
 	for c in _collars:
 		c.z_index = over
+	# (user 25. 11.: "the collar is an explosion again, and the neck") running, the body leans and the head stays up:
+	# a collar piece round the neck stayed with the leaning body and its tip stood over his ear like a flap. Every
+	# piece cut near the neck turns with the head about the neck, as when he stands
+	var torso_tilt := wrapf((neck - hip).angle() - Vector2(0.03, -float(_len["torso"])).angle(), -PI, PI)   # the torso as drawn against standing
+	var neck_d := wrapf(look - torso_tilt, -PI, PI)
+	var tp: Dictionary = cfg["parts"]["torso"]
+	var pv: Vector2 = _spr["torso"].position + ((cfg["on_torso"]["head"] as Vector2) - (tp["a"] as Vector2)).rotated(_spr["torso"].rotation) * (PPM / float(tp["ppm"]))
+	for c in _collars:
+		if (c.region_rect.position.y + c.region_rect.size.y * 0.5) < float((cfg["on_torso"]["head"] as Vector2).y) + 120.0:
+			c.rotation = _spr["torso"].rotation + neck_d
+			c.position = pv + (_spr["torso"].position - pv).rotated(neck_d)
 
 	_place("uarm_f", "uarm", shoulder, kn[0])
 	_place("farm_f", "farm", kn[0], kn[1])
@@ -1375,6 +1393,12 @@ func _pose() -> void:
 				kn[1].x, kn[1].y, far_hand.x, far_hand.y, lean, look])
 	_gun.position = hand * PPM
 	_gun.rotation = gun_a
+	# the drawn hand grips it: it comes out of the cuff, the wrist bending from the forearm to the gun's line
+	var gripped := _grip_ok() and not disarmed and not (hang > 0.5 and not hang_one) and not (swing >= 0.0 and not _dead)
+	if gripped != _grip:
+		_set_grip(gripped)
+	if _grip:
+		_gun.position = kn[0].lerp(kn[1], float(cfg["grip_cuff"])) * PPM
 	if g2 and not long_gun and es > 0.0 and not _mc.is_empty():   # (user 25. 11.: "the gun is broken in his hand") the gun follows the forearm,
 		# the wrist cocked a little so the muzzle leans forward; never pointing back at him
 		var fa_ang := wrapf((kn[1] - kn[0]).angle() - 0.3, -PI, PI)
@@ -1761,6 +1785,8 @@ func set_weapon(name: String) -> void:
 		g.offset = -Vector2(tex.get_size()) * (gd["grip"] as Vector2)
 		g.scale = Vector2.ONE * float(gd["len"]) * PPM / tex.get_width()
 	_gun2.visible = name == "pistols" or (dual and name == "revolver")
+	_grip = false
+	_set_grip(_grip_ok())
 	if _shadow_spr.has("gun"):
 		for k in ["gun", "gun2"]:
 			var src: Sprite2D = _gun if k == "gun" else _gun2
@@ -1770,6 +1796,44 @@ func set_weapon(name: String) -> void:
 			d.scale = src.scale
 			d.visible = src.visible
 	_pose()
+
+
+func _grip_ok() -> bool:
+	if not cfg.has("grip_cuff") or not _spr.has("farm_f") or weapon == "pistols" or (dual and weapon == "revolver"):
+		return false
+	var key := "pistol" if weapon == "revolver" and side == "beretta" else weapon
+	return GUNS.has(key) and (GUNS[key] as Dictionary).has("hand")
+
+
+## Swap the gun in the near hand between the bare gun over a fist and the drawn hand gripping it.
+func _set_grip(on: bool) -> void:
+	if on == _grip and (not on or _grip_tex != null):
+		return
+	_grip = on
+	var key := "pistol" if weapon == "pistols" or (weapon == "revolver" and side == "beretta") else weapon
+	var gd: Dictionary = GUNS.get(key, GUNS["revolver"])
+	var farm: Sprite2D = _spr["farm_f"]
+	if on:
+		var hd: Dictionary = gd["hand"]
+		var tex: Texture2D = load(hd["tex"])
+		_gun.texture = tex
+		_gun.offset = -Vector2(tex.get_size()) * (hd["wrist"] as Vector2)
+		_gun.scale = Vector2.ONE * float(hd["len"]) * PPM / tex.get_width()
+		_gun.modulate = Color(0.78, 0.78, 0.8)
+		if _grip_tex == null:
+			_grip_tex = _tex(String(cfg["dir"]) + "farm_grip")
+		farm.texture = _grip_tex
+	else:
+		var tex: Texture2D = load(gd["tex"])
+		_gun.texture = tex
+		_gun.offset = -Vector2(tex.get_size()) * (gd["grip"] as Vector2)
+		_gun.scale = Vector2.ONE * float(gd["len"]) * PPM / tex.get_width()
+		farm.texture = _tex(String(cfg["dir"]) + "farm")
+	if _shadow_spr.has("gun"):
+		var d: Sprite2D = _shadow_spr["gun"]
+		d.texture = _gun.texture
+		d.offset = _gun.offset
+		d.scale = _gun.scale
 
 
 ## The crown of his hat and the top of his near shoulder, in world coordinates: where rain lands on him.
@@ -1788,7 +1852,8 @@ func muzzle() -> Vector2:
 	var key := "pistol" if weapon == "pistols" or (weapon == "revolver" and side == "beretta") else weapon
 	var gd: Dictionary = GUNS.get(key, GUNS["revolver"])
 	var size_px := Vector2(g.texture.get_size())
-	var local := (size_px * (gd["muzzle"] as Vector2) + g.offset) * g.scale
+	var mz: Vector2 = (gd["hand"]["muzzle"] if g == _gun and _grip else gd["muzzle"])
+	var local := (size_px * mz + g.offset) * g.scale
 	return to_global(g.position + local.rotated(g.rotation))
 
 

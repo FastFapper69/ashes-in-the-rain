@@ -5,7 +5,8 @@ extends RefCounted
 
 const ENTRIES := [
 	["25 NOV 2026", [
-		"Running or walking with the gun down, Eddie and Frank hold it along the forearm instead of bending the wrist",
+		"Eddie and Frank really hold their guns now: fingers round the grip, the index finger on the trigger",
+		"Frank's raised collar stays round his neck when he runs and dives instead of flapping over his ear and face",
 		"Eddie staggers back a step when shot, his knee gives when hit in the leg, and he falls like a man, not a plank",
 		"Eddie's free arm hangs naturally in jumps, vaults and wall kicks instead of sticking out behind him",
 		"Eddie's dive: a long take-off, stretched out with both hands forward, and a tight roll over the shoulder on landing",

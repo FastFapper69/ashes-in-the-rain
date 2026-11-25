@@ -327,7 +327,7 @@ const LEGS := {
 var DETECTIVE := {
 	"dir": "res://art/detective/", "weapon": "revolver", "leg_tex": "res://art/mobster/leg.png",
 	# (user 25. 11.: "now Frank - mind his coat") Eddie's pipeline: the captured walk and run, the keyed sheets, the blend
-	"gait2": true, "mocap": true,
+	"gait2": true, "mocap": true, "grip_cuff": 0.88,
 	# where things attach, in the torso drawing's pixels: the armholes, the bottom of the collar, the belt
 	"on_torso": {"shoulder": Vector2(100.0, 225.0), "far_shoulder": Vector2(400.0, 240.0), "head": Vector2(272.0, 168.0), "belt": Vector2(262.0, 596.0)},
 	"parts": {
@@ -9351,7 +9351,7 @@ func _eddie_cfg() -> Dictionary:
 ## the user approved (art_src 362), its parts sheet (363) cut by gen/eddie_parts.py. Joints in the pixels of art/eddie2/*.
 func _eddie2_cfg() -> Dictionary:
 	return {
-		"dir": "res://art/eddie2/", "weapon": "revolver", "leg_tex": "res://art/eddie2/leg.png", "short_coat": true, "gait2": true, "mocap": true, "pelvis": Color(0.2, 0.17, 0.14),
+		"dir": "res://art/eddie2/", "grip_cuff": 0.77, "weapon": "revolver", "leg_tex": "res://art/eddie2/leg.png", "short_coat": true, "gait2": true, "mocap": true, "pelvis": Color(0.2, 0.17, 0.14),
 		"on_torso": {"shoulder": Vector2(140.0, 272.0), "far_shoulder": Vector2(180.0, 272.0), "head": Vector2(300.0, 62.0), "belt": Vector2(250.0, 683.0)},
 		"parts": {
 			"head": {"a": Vector2(208.0, 450.0), "b": Vector2(239.0, 116.0), "ppm": 1180},
