@@ -439,6 +439,7 @@ var _sandbox := -1            # --sandbox=N: a trial map from levels.gd SANDBOX
 static var _url_sandbox := -2   # the page's ?sandbox=N (-2: not read yet, -1: none or left for the title)
 var sections: Array = []      # buildings in cross-section: [x0, x1, storeys, style] (levels.gd "sections")
 var section_h := 700.0
+var _bot_scaf := false        # the test bot on a scaffold's ladder (until he stands on a deck again)
 var _bot_esc_up := false      # the test bot on a fire escape: turned back to the foot of the flight
 var _free_slow := 0.0         # real seconds of slowed time a stunt gives for free (door kick 1.2 s, swing 1 s)
 var _flat_art: Array = []     # [storey y, the flat's drawing, its kit]: <kit>_flat_open replaces it when the window goes
@@ -3467,8 +3468,8 @@ func _auto_step(delta: float) -> void:
 		shots = [[1.06, "dive_1"], [1.14, "dive_2"], [1.22, "dive_3"], [1.32, "dive_4"], [1.5, "dive_5"], [2.0, "dive_6"]]
 	elif _auto == "play":   # a bot plays the chapter: walks right, stops to fight, jumps what blocks it
 		var near = _nearest_enemy()
-		if near != null and _section_at(player.position) >= 0 and absf(near.position.y - player.position.y) > 200.0:
-			near = null   # in a building: a man on another storey is not this storey's fight
+		if near != null and _section_at(player.position) >= 0 and absf(near.position.y - player.position.y) > 200.0 				and not (_works(_section_at(player.position)) and _section_at(near.position) == _section_at(player.position) and player.position.y > -60.0):
+			near = null   # in a building: a man on another storey is not this storey's fight (an open hall's floor: its galleries are)
 		var fight: bool = near != null and absf(near.position.x - player.position.x) < 1500.0
 		_bot_fight = _bot_fight + delta if fight else 0.0
 		if _bot_fight > 8.0:   # a man dug in behind cover: walk up on him, as a player would
@@ -3505,8 +3506,8 @@ func _auto_step(delta: float) -> void:
 				_bot_esc_up = false
 		if not fight and move_state == "ground" and player.position.y < -300.0 and _section_at(player.position) < 0:
 			for e in enemies:   # up on a fire escape: toward a man still higher (its stairs run up to the right)
-				if e["alive"] and float(e["node"].position.y) < player.position.y - 200.0 and absf(float(e["node"].position.x) - player.position.x) < 900.0:
-					hud.move = 1.0
+				if e["alive"] and not String(e["state"]) in ["give", "down"] and float(e["node"].position.y) < player.position.y - 200.0 and absf(float(e["node"].position.x) - player.position.x) < 900.0:
+					hud.move = 1.0   # (not toward one with his hands up: it walked him off the deck's end)
 		var lad = _bot_ladder()
 		if lad == null and move_state == "jump" and _bot_lad != null and _plain_room_at(player.position) >= 0:
 			lad = _bot_lad   # (over a crate on the way back to a room's ladder: still going there)
@@ -3521,25 +3522,79 @@ func _auto_step(delta: float) -> void:
 			hud.move = 0.0 if absf(lx - player.position.x) < 30.0 else signf(lx - player.position.x)
 			if absf(lx - player.position.x) < 50.0 and move_state == "ground":
 				hud.up = true   # (23. 11.) the stick up at its foot: onto it (a jump would only hop)
+				if float(lad["bottom"]) < player.position.y - 100.0:
+					hud.jump_tapped = true   # (a fire escape's drop ladder hangs over the pavement: a jump, the stick up)
 		elif not roof.is_empty() and player.position.y < float(roof["y"]) + 8.0 and not fight and move_state == "ground":
 			hud.move = -1.0   # along the roof the other way (once up on it, not on the last stair)
 		var roof_men := false
 		for e in enemies:
-			if e["alive"] and float(e["node"].position.y) < -2200.0 and level.has("city"):
-				roof_men = true
+			if e["alive"] and float(e["node"].position.y) < -2200.0 and level.has("city") and absf(float(e["node"].position.x) - player.position.x) < 9000.0:
+				roof_men = true   # (on these roofs: the next station's are not his yet)
 		_bot_duck = false
 		if level.has("city") and not fight and not roof_men and _ground_y < -300.0 and _section_at(player.position) < 0 and move_state in ["ground", "climb"]:
 			if _ground_y < -2200.0 and move_state == "ground":   # the roofs done: to the fire escape's gooseneck, down it
+				var way_down: float = INF   # (the nearest one on these roofs; the scaffold's rather than back to the escape he came up)
 				for r in _ropes:
-					if r["kind"] == "ladder" and r.get("drawn", false) and absf(float(r["top"]) - _ground_y) < 40.0:
+					if r["kind"] == "ladder" and not r.has("hall") and absf(float(r["top"]) - _ground_y) < 40.0:
 						var gx: float = (r["a"] as Vector2).x
-						hud.move = 0.0 if absf(gx - player.position.x) < 25.0 else signf(gx - player.position.x)
-						_bot_duck = absf(gx - player.position.x) < 50.0
+						if absf(gx - player.position.x) < 9500.0 and (way_down == INF or gx > way_down):
+							way_down = gx
+				if way_down != INF:
+					var wd: float = way_down - player.position.x   # (slowly up to it: the stick down in a run is a slide past it)
+					hud.move = 0.0 if absf(wd) < 25.0 else signf(wd) * (0.3 if absf(wd) < 220.0 else 1.0)
+					_bot_duck = absf(wd) < 50.0 and absf(run) < 280.0
 			elif move_state == "climb":
 				_bot_duck = true   # (on down)
 				hud.up = false
 			else:
 				hud.move = -1.0   # on its decks: along to their end and down from deck to deck (a player takes its stairs)
+		if _bot_scaf and move_state == "jump":
+			hud.move = 0.0   # (off a ladder's foot: straight down onto its deck, not on off the deck's end)
+		elif move_state == "ground":
+			_bot_scaf = false
+		if level.has("city") and move_state in ["ground", "climb"] and _section_at(player.position) < 0:
+			# (stations 6-7) ladders outside: up one that stands on his floor when men are higher, down the scaffold deck by
+			# deck when nobody is left at his height or above
+			var on_scaf := false
+			for ci in catwalks.size():
+				if catwalk_style[ci] == "scaffold" and absf(catwalks[ci].position.y - _ground_y) < 10.0 and player.position.x > catwalks[ci].position.x - 60.0 and player.position.x < catwalks[ci].end.x + 60.0:
+					on_scaf = true
+			var men_up := false
+			var men_here := false
+			for e in enemies:
+				var ep: Vector2 = e["node"].position
+				if not e["alive"] or absf(ep.x - player.position.x) > 4000.0:
+					continue
+				if ep.y < _ground_y - 200.0:
+					men_up = true
+				elif ep.y < _ground_y + 200.0 and absf(ep.x - player.position.x) < 1500.0:
+					men_here = true
+			if move_state == "climb" and _rope != null and not _rope.get("drawn", false) and not _rope.has("hall"):
+				var higher := false
+				for e in enemies:
+					if e["alive"] and absf(float(e["node"].position.x) - player.position.x) < 4000.0 and float(e["node"].position.y) < float(_rope["top"]) + 100.0:
+						higher = true
+				hud.up = higher
+				_bot_duck = not higher
+				hud.move = 0.0
+				_bot_scaf = true
+			elif move_state == "ground" and not men_here:
+				var best = null
+				for r in _ropes:
+					if r["kind"] != "ladder" or r.has("hall"):
+						continue
+					var lx3: float = (r["a"] as Vector2).x
+					var goes_up: bool = men_up and absf(float(r["bottom"]) - _ground_y) < 40.0 and (not r.get("drawn", false) or _ground_y < -300.0)
+					var goes_down: bool = on_scaf and not men_up and absf(float(r["top"]) - _ground_y) < 40.0
+					if (goes_up or goes_down) and absf(lx3 - player.position.x) < 3500.0 and (best == null or absf(lx3 - player.position.x) < absf((best["a"] as Vector2).x - player.position.x)):
+						best = r
+				if best != null:
+					var bx3: float = (best["a"] as Vector2).x
+					var bd: float = bx3 - player.position.x
+					hud.move = 0.0 if absf(bd) < 25.0 else signf(bd) * (0.3 if absf(bd) < 220.0 else 1.0)
+					hud.up = men_up and absf(bd) < 50.0
+					_bot_duck = not men_up and absf(bd) < 50.0 and absf(run) < 280.0
+					hud.jump_tapped = false
 		var wk := _section_at(player.position)
 		if _works(wk) and not fight and roof_men and absf(_ground_y + 1400.0) < 10.0:   # men up on the roofs: the hatch
 			for r in _ropes:
@@ -3725,8 +3780,11 @@ func _auto_step(delta: float) -> void:
 	elif _auto == "awnjump":   # --test=awnjump --sandbox=1: from the crate (stack) before the awning: a jump onto it, the throw, frames
 		var bi := -1
 		for k in boxes.size():
-			if boxes[k].position.x > 2000.0 and boxes[k].position.x < 4000.0:
+			if boxes[k].position.x > 2000.0 and boxes[k].position.x < 4000.0 and not level.has("city"):
 				bi = k
+			for ci in catwalks.size():   # (the modular city: the crate before its awning)
+				if level.has("city") and catwalk_style[ci] == "awning" and absf(boxes[k].end.x - catwalks[ci].position.x) < 400.0:
+					bi = k
 		if _auto_done & (1 << 21) == 0 and bi >= 0:
 			_auto_done |= 1 << 21
 			player.position = Vector2(boxes[bi].end.x - 40.0, boxes[bi].position.y)
@@ -5431,7 +5489,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 				var goal := INF
 				for k in catwalks.size():
 					var c: Rect2 = catwalks[k]
-					if catwalk_style[k] == "drawn" and c.position.y < floor_y - 200.0:
+					if catwalk_style[k] in ["drawn", "fescape"] and c.position.y < floor_y - 200.0:
 						var cx := c.position.x + 120.0 if way > 0.0 else c.end.x - 120.0
 						if (cx - player.position.x) * way > 0.0 and absf(cx - player.position.x) < 2000.0 and absf(cx - player.position.x) < absf(goal - player.position.x):
 							goal = cx
@@ -5444,6 +5502,7 @@ func _move(dir: float, aim: Vector2, delta: float) -> float:
 			_clip("flip", run if absf(run) > 50.0 else signf(player.scale.x))   # thrown up: once over, tucked
 			if props:
 				props.landed_on(player.position)
+			_awning_give()
 		elif fall > 0.0 and player.position.y >= floor_y:
 			player.position.y = floor_y
 			# the harder the landing, the deeper the knees - (25. 11.) given as a push down into the crouch spring, so the
@@ -7920,6 +7979,21 @@ func _build_city() -> void:
 			fs.light_mask = 0
 			fs.modulate = Color(0.66, 0.66, 0.7, 1.0)
 			add_child(fs)
+		elif kind == "awning":   # (station 7, rule 27) a shop's awning, its own layer forward of the front, its shadow on the wall
+			var at: Texture2D = load("res://art/props/%s.png" % String(cy[1]))
+			var ak := float(cy[3]) / at.get_width()
+			for part in 2:
+				var asp := Sprite2D.new()
+				asp.texture = at
+				asp.centered = false
+				asp.scale = Vector2(ak, ak)
+				asp.position = Vector2(x, float(cy[4])) + (Vector2(26.0, 44.0) if part == 0 else Vector2.ZERO)
+				asp.z_index = -5 if part == 0 else -4
+				asp.light_mask = 0
+				asp.modulate = Color(0.0, 0.0, 0.0, 0.45) if part == 0 else Color(0.8, 0.8, 0.84, 1.0)
+				add_child(asp)
+				if part == 1:
+					_city_awnings.append(asp)
 		elif kind == "gap":   # the alley between two fronts: its sky keyed out, the city's sky behind
 			var tex: Texture2D = BigTex.get_tex("res://art/city/%s.png" % String(cy[1]))
 			var k := float(cy[3]) / tex.get_width()
@@ -8034,6 +8108,7 @@ func _party_half_at(x: float) -> float:
 ## behind its cornice, at its own scale, every other roof the other way round.
 const ROOF_STRIP_K := 1.294       # art/city/roof_strip.png's px in the world (the layout's 3000 px roof)
 const ROOF_SINK := 40.0           # its tar edge hidden behind the cornice's top
+var _city_awnings: Array = []     # the awning sprites of the modular city (they give under a man: _awning_give)
 var _city_tops: Array = []        # [x0, x1, roof y] of every front: a taller one is a wall to a man on a lower roof
 var _roof_n := 0
 func _city_roof(x0: float, w: float, storeys: int) -> void:
@@ -8715,6 +8790,19 @@ func _flat_closed_between(a: Vector2, b: Vector2) -> bool:
 	return false
 
 
+## The canvas sags under him and springs back (the modular city's awnings; a street piece's own: props.landed_on).
+func _awning_give() -> void:
+	for a in _city_awnings:
+		var sp: Sprite2D = a
+		var w := sp.texture.get_width() * sp.scale.x
+		if player.position.x > sp.position.x - 40.0 and player.position.x < sp.position.x + w + 40.0:
+			var k := sp.scale.x
+			var tw := create_tween()
+			tw.tween_property(sp, "scale:y", k * 1.13, 0.07)
+			tw.tween_property(sp, "scale:y", k * 0.95, 0.12)
+			tw.tween_property(sp, "scale:y", k, 0.2)
+
+
 const AWNING_BOUNCE := 120.0   # how fast he must be falling for the awning to throw him back up (any landing from a jump)
 func _awning_under() -> bool:
 	for i in catwalks.size():
@@ -8835,6 +8923,8 @@ func _tick_works() -> void:
 			_door_armed = true   # (in by the door just now: out again once he let go of the stick or turned into the hall -
 			# not on the same push that took him in, user 23. 11.: a diagonal up-right went in and straight out)
 		var crossed: bool = (_works_px - door) * (px - door) <= 0.0 and _works_px != px
+		if _hall_in == i and move_state == "ground" and (player.position.y < -section_h * int(sec[2]) - 100.0 or px < x0 - 200.0 or px > float(sec[1]) + 200.0):
+			_hall_in = -1   # (26. 11.) out by its roof hatch: he is not in it any more (it stayed "in" for the rest of the map: no other hall's door took him)
 		if px > x0 and px < float(sec[1]) and (_ground_y < -60.0 or move_state == "climb") and player.position.y > -section_h * int(sec[2]) + 20.0:   # (not on its roof)
 			_hall_in = i   # up on a gallery or its ladder (a jump on the pavement in front is still the pavement)
 		elif _hall_in == i and _door_armed and player.position.y > -60.0 and _ground_y > -60.0 and move_state in ["ground", "slide", "dive"] \
@@ -10170,18 +10260,38 @@ func _build_roofs() -> void:
 ## down the picture), each one storey tall, standing on the deck or the street below.
 const SCAF_DECK := 735.0
 const SCAF_STEP := 769.0
+const SCAF_CITY := 983.0   # (= gen/levels.py) a bay in the modular city: its posts on the next bay's
 func _scaffold(r: Rect2) -> void:
 	var tex: Texture2D = load("res://art/props/scaffold.png")
 	var below := minf(-r.position.y, 520.0)
 	var k := below / (tex.get_height() - SCAF_DECK)
 	var n := maxi(1, roundi(r.size.x / SCAF_STEP))
 	var w := tex.get_width() * k
+	var city := level.has("city")   # (station 6) a storey of the city's fronts tall, the bays post on post (SCAF_CITY)
+	if city:
+		k = CITY_STOREY / (tex.get_height() - SCAF_DECK)
+		n = maxi(1, roundi(r.size.x / SCAF_CITY))
 	for i in n:
 		var sp := Sprite2D.new()
 		sp.texture = tex
 		sp.centered = false
 		sp.scale = Vector2.ONE * k
 		sp.position = Vector2(r.position.x + r.size.x * (i + 0.5) / n - w * 0.5, r.position.y - SCAF_DECK * k)
+		if city:
+			sp.position.x = r.position.x + i * SCAF_CITY - 97.0 * k
+			if -r.position.y < CITY_STOREY + 100.0:   # the lowest stands on the pavement, a little below the front's foot
+				var legs := Sprite2D.new()   # the legs below the deck stretched to the pavement, the deck and rail above as drawn
+				legs.texture = tex
+				legs.centered = false
+				legs.region_enabled = true
+				legs.region_rect = Rect2(0.0, 900.0, tex.get_width(), tex.get_height() - 900.0)
+				legs.scale = Vector2(k, (-r.position.y - (900.0 - SCAF_DECK) * k) / (tex.get_height() - 900.0))
+				legs.position = Vector2(sp.position.x, r.position.y + (900.0 - SCAF_DECK) * k)
+				legs.z_index = -3
+				legs.modulate = Color(0.84, 0.82, 0.79)
+				add_child(legs)
+				sp.region_enabled = true
+				sp.region_rect = Rect2(0.0, 0.0, tex.get_width(), 900.0)
 		sp.z_index = -3
 		sp.modulate = Color(0.84, 0.82, 0.79)
 		add_child(sp)
@@ -10868,8 +10978,8 @@ func _nearest_enemy(side := 0.0):
 ## once he has come to it).
 func _bot_ladder():
 	for r in _ropes:   # a street piece's fire escape with a man still up on it: up the drop ladder after him
-		if r["kind"] != "ladder" or not r.get("drawn", false) or player.position.y < -10.0:
-			continue
+		if r["kind"] != "ladder" or not r.get("drawn", false) or player.position.y < -10.0 or float(r["bottom"]) < -500.0:
+			continue   # (from the street: a ladder whose foot is within a jump of it)
 		var lx: float = (r["a"] as Vector2).x
 		var deck := Rect2(lx - 900.0, float(r["top"]) - 5.0, 1800.0, 10.0)   # the floor the ladder leads up to (the laundry's long catwalk)
 		for c in catwalks:

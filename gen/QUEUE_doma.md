@@ -344,7 +344,7 @@ se převedou na modulární město.
 | 4b | hloubka v bodech (pravidlo 33) | výklenek dveří: páčka nahoru = ustoupit z ulice, kryt, nevidí ho; dál ulička, obchod, auto | výklenek 23. 11. |
 | 4c | bistro (hala za výlohou) | páčka nahoru u dveří, boj mezi převrácenými stoly, ven do dveří | 23. 11. |
 | 5 | střechy | z tiskárny poklopem na střechy (3 domy, komíny), chlapi na nich, dolů požárním schodištěm (páčka dolů u horního konce žebříku) | 23. 11. |
-| 6 | lešení | patra prken, žebříky, cik-cak nahoru | čeká: lešení v modulární podobě |
-| 7 | markýza | odraz z markýzy na schodiště | čeká: markýza na modulu (walkup má diner) |
-| 8 | kladka a lano | houpání na laně ze skladu, přes zeď nákladu | čeká: sklad jako modul |
+| 6 | lešení | patra prken na čarách pater cihlového domu, žebříky na střídačku, ze střech dolů i z ulice nahoru | postaveno 26. 11. (chunk city_climb) |
+| 7 | markýza | z bedny na markýzu obchodu (kamenný dům), vyhodí ho na požární schodiště, po něm na střechy | postaveno 26. 11. |
+| 8 | kladka a lano | houpání na laně ze skladu, přes zeď nákladu | čeká na kresbu: šablona gen/templates/module_template_warehouse.png je hotová (kladka nad nakládacími dveřmi 1. patra), Gemini 26. 11. nedostupné (rozšíření Chrome nepřipojené) |
 | 9 | doky / metro | rumpál, třetí kolejnice, vlak | zůstávají na svých mapách (rule 31: doky a metro smí zůstat malované) |

@@ -172,6 +172,15 @@ Why the painted-street + cut-house look failed (found 22. 11. on the user's phon
 - Fixes found by the roofs: men in one building took the stairs of another (`_stairs_toward` only his own house's);
   a man who stepped out of a closed house stayed invisible for good (`sec_hid`); one going round came back past the
   map's end (`_going_round` the other side); in a hall `_hall_in` must not be set from its roof.
+- **Awning, roofs, scaffold (playground stations 6-7, 26. 11.)**: chunk `city_climb`. City entry `["awning", art, x, w, top]`
+  (main.gd _build_city: the prop on its own layer z -4 with a shadow copy on the wall, `_awning_give` sags it) + a floor of
+  style "awning" (AWN_* in gen/levels.py: over the stone sheet's shop window, its valance just over his hat); the throw
+  now also aims at "fescape" decks. Scaffold in the city: floors of style "scaffold" on the front's floor lines
+  (-CITY_FOOT - 700 k), `SCAF_CITY` 983 = post on post, the lowest bay's legs stretched to the pavement; ladders at
+  alternate ends, the top one to CITY_ROOF. A run of roofs must end at a taller front (else he walks off the plat on a
+  roof that looks whole). Lessons: a new chunk after a front with a hall must not widen that front (close_city); `_hall_in`
+  is cleared when he is out of the hall's x or above its roof; the bot's roof/ladder choices must be LOCAL (a ladder of
+  the next station sent it off the roof). Tests: `--test=awnjump --sandbox=2`, `bash gen/tests/bot.sh sb 2`.
 - **Story maps and grey builds (23. 11., pribeh/pravidla-map)**: a map is designed as a blockout (pribeh/blockout/*.json
   + card), reviewed in the card's "Poznámky Claude Code", then built grey (modules only) as a SANDBOX map and played by
   the user from the menu tag GREY BUILD (menu.gd GREY_MAP). Tools: chunk `.say(x, text)` -> level "says" (the hero's

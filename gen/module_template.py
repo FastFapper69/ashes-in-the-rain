@@ -43,6 +43,20 @@ if GROUND == "stoop":   # a street door up three steps, two windows
         cx = b * BAY + BAY / 2
         R(cx - WIN[0] / 2, H - 560, cx + WIN[0] / 2, H - 150, (45, 45, 45))
         R(cx - WIN[0] / 2 - 25, H - 150, cx + WIN[0] / 2 + 25, H - 125, (170, 170, 170))
+elif GROUND == "warehouse":   # (QUEUE §23 station 8) a warehouse: a wide sliding loading door in the middle bay, over it on the
+    # first floor a loading door with a hoist beam and its pulley above (the game hangs its swing rope from the wheel:
+    # HOIST below), a small door and a window in the side bays
+    R(BAY + 150, H - 600, 2 * BAY - 150, H, (35, 35, 35))                       # the sliding door
+    R(BAY + 120, H - 640, 2 * BAY - 120, H - 600, (175, 175, 175))              # its rail
+    R(BAY / 2 - 130, H - 560, BAY / 2 + 130, H, (35, 35, 35))                   # a side door
+    cx = 2 * BAY + BAY / 2
+    R(cx - WIN[0] / 2, H - 560, cx + WIN[0] / 2, H - 150, (45, 45, 45))
+    f1 = CORNICE + 2 * STOREY                                                   # the first floor's floor line
+    R(BAY + 60, f1 - STOREY + 40, 2 * BAY - 60, f1, (128, 128, 128))            # (plain wall where the grid drew a window)
+    R(BAY + 300, f1 - 480, 2 * BAY - 300, f1, (30, 30, 30))                     # the loading door (over the window drawn there)
+    R(BAY + 270, f1 - 30, 2 * BAY - 270, f1 + 10, (175, 175, 175))              # its sill
+    R(BAY + 465, f1 - 640, BAY + 535, f1 - 590, (200, 200, 200))                # the hoist beam's end
+    d.ellipse([(BAY + 455) * K, (f1 - 590) * K, (BAY + 545) * K, (f1 - 500) * K], fill=(215, 215, 215), outline=(20, 20, 20), width=3)   # the pulley wheel
 else:                   # a shop front across two bays (sign band, big window, door), a plain window in the third
     R(60, gtop + 70, 2 * BAY - 60, gtop + 190, (95, 95, 95))
     R(80, gtop + 220, 2 * BAY - 330, H - 60, (50, 50, 50))

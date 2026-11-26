@@ -126,6 +126,8 @@ ESCF_DECKS = (-788.0, -1466.0, -1971.0)   # the front fire escape's decks (art_s
 ESCF_DROP = -377.0
 WORKS_G1, WORKS_G2, WORKS_LADDER, WORKS_DOOR_X = 1400.0, 1700.0, 1760.0, 1800.0   # the works hall (gen/works_template.py): the low gallery's end, the high one's start, the ladder         # the alley between two fronts (art/city/alley_gap.png at the front's scale)
 CITY_ESC_DEEP, CITY_ESC_STAIR, CITY_ESC_DROP, CITY_ESC_FOOT = 416.0, 270.0, 370.0, -310.0   # art_src 346 at 0.5682
+AWN_X, AWN_W, AWN_TOP, AWN_WALK = 230.0, 1200.0, -768.0, -485.0   # the shop awning on the stone front (main.gd "awning" city entry): from the front's x0, its width, its top, the canvas he lands on
+SCAF_CITY = 983.0           # a bay of scaffolding at the city's storey (main.gd _scaffold: post to post)
 CITY_PULLEY = 520.0         # a washing line's pulley over a window: just over its lintel (501 over the floor in the house)
 SEC_WIN = (3195.0, 3340.0)   # the window through the outer wall: inner face, outer face; sill 178, lintel 501 above the floor
 ESC_K = 1.0526           # the escape drawing's pixels to the world (its landings fall on the storeys)
@@ -368,6 +370,13 @@ def close_city(m):
     fronts = sorted([cy for cy in m.city if cy[0] in ("bldg", "house", "gap")], key=lambda cy: cy[2])
     for a, b in zip(fronts, fronts[1:]):
         if a[0] == "bldg" and 1.0 < b[2] - (a[2] + a[3]) < 2000.0:
+            if b[0] == "bldg" and any(s[3] == "shop" and s[0] < a[2] + a[3] and s[1] > a[2] for s in m.sections):
+                # (26. 11.) a front with a hall behind it keeps its bays (the diner's door moved off its drawing when the
+                # next station was added after it): the next front reaches back to it instead
+                b[3] += b[2] - (a[2] + a[3])
+                b[2] = a[2] + a[3]
+                b[4] = max(2, round(b[3] / CITY_BAY))
+                continue
             a[3] = b[2] - a[2]
             a[4] = max(2, round(a[3] / CITY_BAY))   # (a bay more rather than every bay stretched)
     if fronts:   # on past the map's end: no sky where the street goes on out of the picture
@@ -575,6 +584,39 @@ def chunk(name, hard, rng=None):
         c.hint(sx - 500, "STICK UP AT THE DINER'S DOOR TO GO IN")
         c.box("table", sx + 600).box("table", sx + 1250)
         c.foe(sx + 350).foe(sx + 950, kind="shotgun").foe(sx + 1450)
+    elif name == "city_climb":   # (QUEUE §23, the playground's stations 6-7) the awning, the fire escape, the roofs, the scaffold:
+        # a shop's awning (art/props/hk_awning.png on the stone front's shop) throws him up onto the fire escape beside it,
+        # up it to the roofs, along them, down the scaffold of the house under repair (deck to deck, a ladder at each end)
+        c = Chunk(15 * CITY_BAY)   # (the last front a storey taller: the roofs end at its wall - station 8's warehouse goes there)
+        for i, (st, n) in enumerate((("pale", 4), ("stone", 3), ("walkup", 3), ("brick", 3), ("stone", 4))):
+            c.city.append(["bldg", st, i * 3 * CITY_BAY, 3 * CITY_BAY, 3, n])
+        s0 = 3 * CITY_BAY
+        c.hint(s0 - 1900, "ONTO THE CRATE, JUMP ON THE AWNING: IT THROWS YOU UP")
+        c.box("crate", s0 - 70)
+        c.city.append(["awning", "hk_awning", s0 + AWN_X, AWN_W, AWN_TOP])
+        c.plat(s0 + AWN_X + 60, AWN_WALK, AWN_W - 120, "awning")
+        ex = s0 + 2 * CITY_BAY
+        c.city.append(["fesc", "escape_front", ex])
+        for y in ESCF_DECKS:
+            c.plat(ex + 90, y, 820, "fescape")
+        c.ramps += [[ex + 280, ESCF_DECKS[0], ex + 720, ESCF_DECKS[1], "fescape"], [ex + 280, ESCF_DECKS[1], ex + 620, ESCF_DECKS[2], "fescape"]]
+        c.ropes += [["ladder", ex + 790, CITY_ROOF, 0.0, ESCF_DECKS[2], "drawn"], ["ladder", ex + 840, ESCF_DECKS[0], 0.0, ESCF_DROP, "drawn"]]
+        c.foe(ex + 620, ESCF_DECKS[0]).foe(ex + 250, ESCF_DECKS[1], kind="shotgun").foe(ex + 1500)
+        c.hint(ex + 300, "UP THE ESCAPE TO THE ROOFS")
+        c.plat(s0, CITY_ROOF, 9 * CITY_BAY, "roof")
+        c.foe(s0 + 4300, CITY_ROOF).foe(s0 + 5600, CITY_ROOF, kind="tommy")
+        # the scaffold before the brick house: three decks on its floor lines, bays SCAF_CITY wide, the ladders zigzag
+        sx, sw = 9 * CITY_BAY + 25.0, 3 * SCAF_CITY
+        decks = [-CITY_FOOT - SEC_H * k for k in (1, 2, 3)]
+        for y in decks:
+            c.plat(sx, y, sw, "scaffold")
+        c.rope("ladder", sx + 160, decks[0], 0, 0.0).rope("ladder", sx + sw - 160, decks[1], 0, decks[0])
+        c.rope("ladder", sx + 160, decks[2], 0, decks[1]).rope("ladder", sx + sw - 160, CITY_ROOF, 0, decks[2])
+        c.foe(sx + 1300, decks[2]).foe(sx + 1500, decks[1], kind="shotgun").foe(sx + 1900, decks[0])
+        c.hint(s0 + 5200, "DOWN THE SCAFFOLD: STICK DOWN AT A LADDER'S TOP")
+        c.foe(13 * CITY_BAY + 400)
+        c.checks += [s0 - 1200, 12 * CITY_BAY + 100]
+        c.xy_checks += [[s0 + 3300, CITY_ROOF]]
     elif name == "prologue_grey":   # (pribeh/blockout/prolog.json, the grey build: modules only, no new art) Eddie's
         # walk round the block to the back of the Blue Note - about twice the blockout's length (user 23. 11.: "longer maps,
         # say once again as much, and we'll see"); calm stretches walked, his lines by place
@@ -2344,7 +2386,7 @@ SANDBOX = [
     # (--sandbox=2) the modular city's pilot block (QUEUE §21, rule 31): module fronts, the house among them, its side-wall
     # fire escape, the washing line over the alley
     # (QUEUE §23, user 23. 11.) THE PLAYGROUND: every mechanic, station after station, tuned here before it goes into the maps
-    {"name": "PLAYGROUND", "seed": 903, "start": 0.3, "end": 0.3, "intro": [], "outro": [], "fixed": ["breather", "city_block", "city_moves"], "plain": True, "keep_barrel": True,
+    {"name": "PLAYGROUND", "seed": 903, "start": 0.3, "end": 0.3, "intro": [], "outro": [], "fixed": ["breather", "city_block", "city_moves", "city_climb"], "plain": True, "keep_barrel": True,
      "street_fixed": ["tenrow_a", "tenrow_b", "tenrow_c", "tenrow_d"]},
     # (--sandbox=3, pribeh/predani-claude-code step 3) the prologue's grey build from the story chat's blockout, played as Eddie
     {"name": "PROLOGUE GREY", "seed": 904, "start": 0.3, "end": 0.3, "intro": [], "outro": [], "fixed": ["prologue_grey"], "plain": True,
