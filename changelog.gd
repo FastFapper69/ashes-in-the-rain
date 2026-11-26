@@ -6,6 +6,7 @@ extends RefCounted
 const ENTRIES := [
 	["26 NOV 2026", [
 		"Playground: the gunmen duck from bullets that go by, move after every shot, turn when a friend shouts, and stand easy until they see you",
+		"Playground: a warehouse hoist rope to swing over the stacked cargo",
 		"Playground: a shop awning that throws you up onto a fire escape, the roofs beyond it, and a scaffold to climb down",
 		"The diner's door opens again after you have left the printing works by its roof",
 		"A dive over a crate skims its top and lands behind it",

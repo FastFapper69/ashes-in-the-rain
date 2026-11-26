@@ -25,7 +25,8 @@ def fit4(im):
     return im.crop((0, 0, im.width - im.width % 4, im.height - im.height % 4))
 
 
-for src, name in (("347.jpg", "brick"), ("348.jpg", "stone"), ("350.jpg", "walkup"), ("351.jpg", "pale")):
+# (366: the warehouse, station 8 - gen/module_template.py warehouse; its hoist's pulley wheel: bottom at sheet (1497, 1201))
+for src, name in (("347.jpg", "brick"), ("348.jpg", "stone"), ("350.jpg", "walkup"), ("351.jpg", "pale"), ("366.jpg", "warehouse")):
     im = fit4(Image.open(SRC + src).convert("RGB"))
     im.save(OUT + name + ".png")
     print(src, "->", name, im.size)

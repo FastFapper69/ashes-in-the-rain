@@ -346,5 +346,5 @@ se převedou na modulární město.
 | 5 | střechy | z tiskárny poklopem na střechy (3 domy, komíny), chlapi na nich, dolů požárním schodištěm (páčka dolů u horního konce žebříku) | 23. 11. |
 | 6 | lešení | patra prken na čarách pater cihlového domu, žebříky na střídačku, ze střech dolů i z ulice nahoru | postaveno 26. 11. (chunk city_climb) |
 | 7 | markýza | z bedny na markýzu obchodu (kamenný dům), vyhodí ho na požární schodiště, po něm na střechy | postaveno 26. 11. |
-| 8 | kladka a lano | houpání na laně ze skladu, přes zeď nákladu | čeká na kresbu: šablona gen/templates/module_template_warehouse.png je hotová (kladka nad nakládacími dveřmi 1. patra), Gemini 26. 11. nedostupné (rozšíření Chrome nepřipojené) |
+| 8 | kladka a lano | sklad jako modul (art_src 366, art/city/warehouse.png): lano z nakreslené kladky nad nakládacími dveřmi, houpání přes stoh nákladu, chlapi za ním | postaveno 26. 11. |
 | 9 | doky / metro | rumpál, třetí kolejnice, vlak | zůstávají na svých mapách (rule 31: doky a metro smí zůstat malované) |

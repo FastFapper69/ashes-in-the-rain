@@ -181,6 +181,10 @@ Why the painted-street + cut-house look failed (found 22. 11. on the user's phon
   roof that looks whole). Lessons: a new chunk after a front with a hall must not widen that front (close_city); `_hall_in`
   is cleared when he is out of the hall's x or above its roof; the bot's roof/ladder choices must be LOCAL (a ladder of
   the next station sent it off the roof). Tests: `--test=awnjump --sandbox=2`, `bash gen/tests/bot.sh sb 2`.
+- **Hoist rope (playground station 8, 26. 11.)**: module sheet "warehouse" (art_src 366 over `py gen/module_template.py
+  warehouse`: sliding door in the middle bay, a loading door over it, the hoist beam with an EMPTY pulley wheel). A
+  chunk hangs `rope("swing", x0 + HOIST_CITY[0], HOIST_CITY[1])` from the wheel; the front must be 3 storeys (with 4 the
+  hoist row is repeated a storey up and the rope is 1240 long: a swing 1200 px each way). Cargo `stack` at rope + 520.
 - **Story maps and grey builds (23. 11., pribeh/pravidla-map)**: a map is designed as a blockout (pribeh/blockout/*.json
   + card), reviewed in the card's "Poznámky Claude Code", then built grey (modules only) as a SANDBOX map and played by
   the user from the menu tag GREY BUILD (menu.gd GREY_MAP). Tools: chunk `.say(x, text)` -> level "says" (the hero's

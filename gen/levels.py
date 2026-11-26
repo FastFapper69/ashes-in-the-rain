@@ -127,6 +127,7 @@ ESCF_DROP = -377.0
 WORKS_G1, WORKS_G2, WORKS_LADDER, WORKS_DOOR_X = 1400.0, 1700.0, 1760.0, 1800.0   # the works hall (gen/works_template.py): the low gallery's end, the high one's start, the ladder         # the alley between two fronts (art/city/alley_gap.png at the front's scale)
 CITY_ESC_DEEP, CITY_ESC_STAIR, CITY_ESC_DROP, CITY_ESC_FOOT = 416.0, 270.0, 370.0, -310.0   # art_src 346 at 0.5682
 AWN_X, AWN_W, AWN_TOP, AWN_WALK = 230.0, 1200.0, -768.0, -485.0   # the shop awning on the stone front (main.gd "awning" city entry): from the front's x0, its width, its top, the canvas he lands on
+HOIST_CITY = (1497.0, -1263.0)   # the warehouse sheet's pulley wheel (its bottom), from the front's x0 / over the pavement
 SCAF_CITY = 983.0           # a bay of scaffolding at the city's storey (main.gd _scaffold: post to post)
 CITY_PULLEY = 520.0         # a washing line's pulley over a window: just over its lintel (501 over the floor in the house)
 SEC_WIN = (3195.0, 3340.0)   # the window through the outer wall: inner face, outer face; sill 178, lintel 501 above the floor
@@ -587,8 +588,8 @@ def chunk(name, hard, rng=None):
     elif name == "city_climb":   # (QUEUE §23, the playground's stations 6-7) the awning, the fire escape, the roofs, the scaffold:
         # a shop's awning (art/props/hk_awning.png on the stone front's shop) throws him up onto the fire escape beside it,
         # up it to the roofs, along them, down the scaffold of the house under repair (deck to deck, a ladder at each end)
-        c = Chunk(15 * CITY_BAY)   # (the last front a storey taller: the roofs end at its wall - station 8's warehouse goes there)
-        for i, (st, n) in enumerate((("pale", 4), ("stone", 3), ("walkup", 3), ("brick", 3), ("stone", 4))):
+        c = Chunk(18 * CITY_BAY)   # (a front a storey taller ends the roofs; then station 8's warehouse)
+        for i, (st, n) in enumerate((("pale", 4), ("stone", 3), ("walkup", 3), ("brick", 3), ("stone", 4), ("warehouse", 3))):
             c.city.append(["bldg", st, i * 3 * CITY_BAY, 3 * CITY_BAY, 3, n])
         s0 = 3 * CITY_BAY
         c.hint(s0 - 1900, "ONTO THE CRATE, JUMP ON THE AWNING: IT THROWS YOU UP")
@@ -615,7 +616,15 @@ def chunk(name, hard, rng=None):
         c.foe(sx + 1300, decks[2]).foe(sx + 1500, decks[1], kind="shotgun").foe(sx + 1900, decks[0])
         c.hint(s0 + 5200, "DOWN THE SCAFFOLD: STICK DOWN AT A LADDER'S TOP")
         c.foe(13 * CITY_BAY + 400)
-        c.checks += [s0 - 1200, 12 * CITY_BAY + 100]
+        # (station 8) the warehouse's hoist (art_src 366: the beam over its first-floor loading door, the pulley wheel
+        # drawn empty - the game hangs the rope from it): a jump for the rope, the swing over the cargo stacked before
+        # its sliding door, down among the men behind it
+        hx = 15 * CITY_BAY + HOIST_CITY[0]
+        c.rope("swing", hx, HOIST_CITY[1])
+        c.box("stack", hx + 520).box("crate", hx + 1150)
+        c.foe(hx + 1500).foe(hx + 1900, kind="shotgun")
+        c.hint(hx - 1300, "JUMP FOR THE HOIST ROPE, LET GO OVER THE CARGO")
+        c.checks += [s0 - 1200, 12 * CITY_BAY + 100, hx - 900]
         c.xy_checks += [[s0 + 3300, CITY_ROOF]]
     elif name == "prologue_grey":   # (pribeh/blockout/prolog.json, the grey build: modules only, no new art) Eddie's
         # walk round the block to the back of the Blue Note - about twice the blockout's length (user 23. 11.: "longer maps,

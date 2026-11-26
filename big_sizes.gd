@@ -7,6 +7,7 @@ const SIZES := {
 	"res://art/city/pale.png": Vector2i(2304, 1856),
 	"res://art/city/stone.png": Vector2i(2304, 1856),
 	"res://art/city/walkup.png": Vector2i(2304, 1856),
+	"res://art/city/warehouse.png": Vector2i(2400, 1792),
 	"res://art/cut/320.jpg": Vector2i(1920, 815),
 	"res://art/cut/321.jpg": Vector2i(1920, 815),
 	"res://art/cut/322.jpg": Vector2i(1920, 815),
