@@ -37,6 +37,8 @@ const LINES := {
 	"flank": ["{n}, GO AROUND!", "{n}, FLANK HIM!", "{n}, MOVE UP!", "HE'S PINNED, MOVE!", "FLANK HIM!", "GO AROUND!"],
 	"round": ["{n}, GET BEHIND HIM!", "{n}, TAKE THE ALLEY!", "{n}, ROUND THE BACK!", "GET BEHIND HIM!"],
 	"behind": ["BEHIND YOU, {p}!", "GOT YOU NOW!", "OVER HERE!", "SURPRISE, {p}!"],
+	# a bullet of his went by a man's head
+	"whizz": ["JESUS!", "THAT WAS CLOSE!", "HE NEARLY HAD ME!", "KEEP YOUR HEAD DOWN!", "TOO CLOSE!", "WATCH IT!"],
 	"cover": ["COVER!", "GET DOWN!", "IT'S {p}!", "FIND COVER!"],
 	"crate": ["CHEW THROUGH IT!", "CUT THAT CRATE DOWN!", "IT'S ONLY WOOD!", "SPLINTER IT!"],
 	"reload": ["RELOADING!", "COVER ME, I'M OUT!", "I'M EMPTY!", "RELOADING, COVER ME!"],

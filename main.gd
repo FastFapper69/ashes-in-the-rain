@@ -432,7 +432,7 @@ var _bark_last := {}
 var _bark_at := {}           # when each kind was last heard
 var _bark_recent := []       # the last lines heard: not again soon
 var _cry_t := -9.0           # the last dying man's cry
-const BARK_GAP := {"empty": 18.0, "spot": 5.0, "reload": 7.0, "cover": 6.0, "taunt": 14.0, "crate": 10.0, "flank": 8.0}         # the last line used of each kind, so none comes twice running
+const BARK_GAP := {"empty": 18.0, "spot": 5.0, "reload": 7.0, "cover": 6.0, "taunt": 14.0, "crate": 10.0, "flank": 8.0, "whizz": 6.0}         # the last line used of each kind, so none comes twice running
 var _names := []             # the names given out on this map
 var _mercy: Array = []
 var _sandbox := -1            # --sandbox=N: a trial map from levels.gd SANDBOX
@@ -4880,6 +4880,24 @@ func _auto_step(delta: float) -> void:
 		if _at > 7.0:
 			get_tree().quit()
 		return
+	elif _auto.begins_with("watch:"):   # --test=watch:x[@y] --film=1,0.25,48: he stands there and does not die; what the men do
+		# (--wduck=5,10: down behind what he stands by from 5 s to 10 s; --wshoot=3: his shots from 3 s on)
+		var wa: PackedStringArray = _auto.trim_prefix("watch:").split("@")
+		hp = max_hp
+		if _at < 0.1:
+			player.position = Vector2(float(wa[0]), _floor_at(float(wa[0]), float(wa[1]) if wa.size() > 1 else -2000.0))
+			_ground_y = player.position.y
+		for arg in ARGS:
+			if arg.begins_with("--wduck="):
+				var wd := arg.trim_prefix("--wduck=").split(",")
+				hud.duck = _at > float(wd[0]) and _at < float(wd[1])
+			if arg.begins_with("--wshoot=") and _at > float(arg.trim_prefix("--wshoot=")) and fmod(_at, 0.9) < delta:
+				hud.fire_tapped = true
+			if arg.begins_with("--wlen=") and _at > float(arg.trim_prefix("--wlen=")):
+				get_tree().quit()
+		if _at > 30.0:
+			get_tree().quit()
+		return
 	elif _auto.begins_with("look:"):   # --test=look:x1,x2,...: stand at each x for a moment, take a picture
 		var xs := _auto.trim_prefix("look:").split(",")
 		var k := int(_at / 2.6)
@@ -6233,6 +6251,13 @@ func _fire(shooter, from_player: bool, kind := "") -> void:
 	var d: Vector2 = shooter.aim_dir()
 	if from_player and _aim_point != Vector2.INF and _aim_point.distance_to(at) > 120.0:
 		d = (_aim_point - at).normalized()   # exactly onto the finger or the cursor, wherever the arm still is
+	if from_player and _human():   # the men his bullet goes by: each knows it a beat later (_enemies: head down, a step back)
+		for e in enemies:
+			if not e["alive"] or not e["seen"] or e.has("shot_at"):
+				continue
+			var rel: Vector2 = e["node"].position + Vector2(0.0, SHOULDER.y) - at
+			if rel.dot(d) > 0.0 and rel.dot(d) < 2600.0 and absf(rel.cross(d)) < 210.0:
+				e["shot_at"] = _ai_t + randf_range(0.1, 0.28)
 	var gun := weapon if from_player else (kind if WEAPONS.has(kind) else "revolver")
 	var w: Dictionary = _w(gun) if from_player else WEAPONS[gun]
 	# the gunsmith's work shows in the street: a new barrel (or slide) and its loads flash bigger and
@@ -9294,6 +9319,13 @@ func _lab() -> bool:
 	return _sandbox == 2
 
 
+## (user 26. 11.: "they still behave like robots") The men as people, tried in the playground first (rules 21, 36):
+## they flinch and duck from a bullet that goes by, step off their spot after every shot, bring the gun round onto him
+## with a man's delay, look out of cover without always shooting, and stand about with the gun down until they see him.
+func _human() -> bool:
+	return _lab() and not ARGS.has("--nohuman")
+
+
 func _set_difficulty(hero: String) -> void:
 	var step := -1
 	if hero != "eddie":
@@ -11612,6 +11644,8 @@ func _enemies(delta: float) -> void:
 		if not e["alive"]:
 			continue
 		var m = e["node"]
+		if ARGS.has("--ailog") and fmod(_ai_t, 1.0) < delta and absf(m.position.x - player.position.x) < 2600.0:
+			print("ST %.1f %s x %d y %d %s %s seen %s notice %.2f vis %s" % [_ai_t, e.get("name", "?"), int(m.position.x), int(m.position.y), e["type"], e["state"], e["seen"], float(e["notice"]), m.visible])
 		if e["state"] == "give":
 			_giving_up(e, delta)
 			continue
@@ -11675,6 +11709,9 @@ func _enemies(delta: float) -> void:
 			elif float(e["notice"]) < 0.0:
 				e["notice"] = 0.0
 				_mark(m, "?")
+		if e.has("alert_t") and _ai_t >= float(e["alert_t"]) and not e["seen"] and float(e["notice"]) < 0.0:
+			e["notice"] = 0.0   # (his friend's shout)
+			_mark(m, "?")
 		if float(e["notice"]) >= 0.0 and not e["seen"]:
 			e["notice"] = float(e["notice"]) + delta
 			if float(e["notice"]) > 0.5:
@@ -11683,8 +11720,24 @@ func _enemies(delta: float) -> void:
 				_mark(m, "!")
 				if randf() < 0.55:
 					_bark(m, "spot")
+				if _human():   # the men near him hear it and look: nobody stands on with his back to a gunfight
+					for o in enemies:
+						if o != e and o["alive"] and not o["seen"] and o["state"] == "post" and not o.has("alert_t") 								and absf(float(o["node"].position.x) - m.position.x) < 1400.0 and absf(float(o["node"].position.y) - m.position.y) < 120.0:
+							o["alert_t"] = _ai_t + randf_range(0.3, 1.0)
 		if not e["seen"]:
+			if _human() and e["state"] == "post" and not e["boss"] and m.visible and e["type"] in ["post", "tommy", "shotgun", "dynamite"]:
+				# (not a statue with its gun on an empty street) the gun down, a look up the street, a look down it; at the
+				# "?" he turns to where the sound came from
+				e["idle_t"] = float(e.get("idle_t", randf_range(1.0, 4.0))) - delta
+				if float(e["idle_t"]) <= 0.0:
+					e["idle_t"] = randf_range(2.5, 6.0)
+					e["idle_face"] = -float(e.get("idle_face", -1.0)) if randf() < 0.7 else float(e.get("idle_face", -1.0))
+				var face: float = -side if float(e["notice"]) >= 0.0 else float(e.get("idle_face", -1.0))
+				m.at_ease = float(e["notice"]) < 0.25
+				m.set_state(0.0, Vector2(face * 400.0, 30.0), delta)
 			continue
+		if _human():
+			m.at_ease = false
 		if not e.get("sought", false) and e["state"] == "post":
 			e["sought"] = true
 			if _seek_cover(e, m):
@@ -11737,6 +11790,30 @@ func _enemies(delta: float) -> void:
 		var reach: float = 1500.0 if e["type"] == "shotgun" else 2450.0   # (inside their guns' range: WEAPONS life)
 		var may_fire: bool = not over and not cleared and _grace <= 0.0 and absf(to_player.x) < minf(reach, SIGHT * 1.3) * (1.0 - 0.6 * mapfx.fog) \
 				and (not _player_covered(side) or over_cover or at_cover or at_crate) and _can_see(m) and (_slot_free(e) or at_crate)
+		if ARGS.has("--ailog") and fmod(_ai_t, 0.5) < delta and absf(to_player.x) < 2600.0:
+			print("AI %.1f %s x %d d %d %s role %s cover %s hid %s up %s tmr %.2f cool %.2f may %s [grace %.1f covd %s see %s slot %s] duck %.1f" % [_ai_t, e.get("name", "?"), int(m.position.x), int(to_player.x), e["type"], e["role"], e["cover"], hiding, e["up"], float(e["timer"]), float(e["cool"]), may_fire, _grace, _player_covered(side), _can_see(m), _slot_free(e), m.duck])
+		var human: bool = _human() and not e["boss"] and e["type"] in ["post", "tommy", "shotgun"] and not e.has("shield")
+		if human and e.has("shot_at") and _ai_t >= float(e["shot_at"]):
+			e.erase("shot_at")
+			e["cower"] = randf_range(0.35, 0.7)   # head down, no shot for a moment
+			e["cool"] = maxf(float(e["cool"]), randf_range(0.5, 0.9))
+			if randf() < 0.3:
+				_bark(m, "whizz")
+			if hiding:
+				if e["up"]:   # down behind his cover, and longer than he would have
+					e["up"] = false
+					e["timer"] = randf_range(1.2, 2.4)
+			elif _ai_t - float(e.get("sought_t", -99.0)) > 5.0:
+				e["sought_t"] = _ai_t
+				if _seek_cover(e, m):   # the open is no place to be shot at: to a crate if one is near
+					continue
+				var back: float = m.position.x + side * randf_range(120.0, 220.0)   # or a step back from him
+				if _step_free(m, back):
+					e["home"] = back
+					e["wander"] = back
+		if float(e.get("cower", 0.0)) > 0.0:
+			e["cower"] = float(e["cower"]) - delta
+			may_fire = false
 		var aim_vec: Vector2 = to_player
 		if at_crate and _player_covered(side):   # his gun on the boards, chest high on the crate
 			var cb: Rect2 = boxes[crate_i]
@@ -11752,16 +11829,23 @@ func _enemies(delta: float) -> void:
 					if may_fire:
 						e["aim_off"] = randf_range(-120.0, 90.0) * _aim_spread()
 						_enemy_fire(e)
+				if e.get("peek", false):
+					want_duck = 0.5   # (only his hat and eyes over the crate)
 				if e["timer"] <= 0.0:
 					e["up"] = false
-					e["timer"] = randf_range(1.0, 1.9)
+					e["timer"] = randf_range(0.7, 2.4) if human else randf_range(1.0, 1.9)
 			else:
 				want_duck = 1.0
 				if e["timer"] <= 0.0:
 					e["up"] = true
 					e["shot"] = false
 					e["glinted"] = false
-					e["timer"] = 1.15
+					e["timer"] = randf_range(0.95, 1.5) if human else 1.15
+					e["peek"] = human and randf() < 0.25   # a look over it to see where he is: no shot
+					if e["peek"]:
+						e["shot"] = true
+						e["glinted"] = true
+						e["timer"] = randf_range(0.45, 0.8)
 		else:
 			var was_cool: float = e["cool"]
 			e["cool"] -= delta
@@ -11772,6 +11856,7 @@ func _enemies(delta: float) -> void:
 			# between shots a man without cover does not stand like a target: a step this way or that
 			# (user 18. 11. look at the big laundry: three men in one spot) every gunman in the open spreads out, on any floor
 			var spread_ok: bool = (e["type"] == "post" and m.position.y == 0.0) or (e["type"] in ["post", "tommy", "shotgun"] and _plain_room_at(m.position) >= 0 and _floor_under_ok(m.position))
+			spread_ok = spread_ok or human
 			if spread_ok and not e["boss"] and e["cool"] > 0.5:
 				if not e.has("home"):
 					e["home"] = m.position.x
@@ -11788,8 +11873,18 @@ func _enemies(delta: float) -> void:
 						e["home"] = to2
 				if absf(float(e["wander"]) - m.position.x) > 8.0:
 					walk = signf(float(e["wander"]) - m.position.x)
-					m.position.x += walk * 170.0 * delta
-				elif randf() < delta * 0.6:
+					m.position.x += walk * (210.0 if human else 170.0) * delta
+				elif human and e.get("step_due", false):   # he has just fired: off that spot (never twice from one place)
+					e.erase("step_due")
+					var st: float = randf_range(100.0, 230.0) * (1.0 if randf() < 0.5 else -1.0)
+					if e["type"] == "shotgun":
+						st = side * randf_range(-90.0, 210.0)   # (the shotgun: mostly back a step, then in again)
+					for sgn in [1.0, -1.0]:
+						if _step_free(m, m.position.x + st * sgn) and absf(m.position.x + st * sgn - player.position.x) > 330.0:
+							e["wander"] = m.position.x + st * sgn
+							e["home"] = float(e["wander"])
+							break
+				elif not human and randf() < delta * 0.6:
 					var to: float = float(e["home"]) + randf_range(-150.0, 150.0)
 					var free := true
 					for bx in boxes:
@@ -11797,7 +11892,7 @@ func _enemies(delta: float) -> void:
 							free = false
 					if free:
 						e["wander"] = to
-			if e["type"] == "shotgun" and absf(m.position.y - player.position.y) < 60.0 and absf(to_player.x) > 520.0:
+			if e["type"] == "shotgun" and absf(m.position.y - player.position.y) < 60.0 and absf(to_player.x) > (520.0 if not human or float(e["cool"]) < 0.7 else 820.0):   # (human: he gives ground between blasts, in again for the next)
 				walk = signf(to_player.x)   # the shotgunner closes in
 				m.position.x += walk * 300.0 * delta
 			var in_range: bool = e["type"] != "shotgun" or absf(to_player.x) < 760.0
@@ -11821,8 +11916,34 @@ func _enemies(delta: float) -> void:
 			if e["cool"] <= 0.0 and may_fire and in_range:
 				e["aim_off"] = randf_range(-150.0, 110.0) * _aim_spread()
 				_enemy_fire(e)
-		m.duck = move_toward(m.duck, want_duck, delta * 7.0)
-		m.set_state(walk, aim_vec + Vector2(0.0, e["aim_off"] * (0.3 if aim_vec != to_player else 1.0)), delta)
+				e["step_due"] = true
+		if float(e.get("cower", 0.0)) > 0.0:
+			want_duck = maxf(want_duck, 0.55)
+		m.duck = move_toward(m.duck, want_duck, delta * (11.0 if float(e.get("cower", 0.0)) > 0.0 else 7.0))
+		var aim_now: Vector2 = aim_vec + Vector2(0.0, e["aim_off"] * (0.3 if aim_vec != to_player else 1.0))
+		if human:   # the gun comes round onto him with a man's delay: a running, diving Frank is ahead of it
+			var av: Vector2 = e.get("aim_v", aim_now)
+			av = av.lerp(aim_now, 1.0 - exp(-delta * 6.0))
+			e["aim_v"] = av
+			if av.length() > 80.0 and signf(av.x) == signf(aim_now.x):
+				aim_now = av
+		m.set_state(walk, aim_now, delta)
+
+
+## A step to x is free for him: no crate there, and a floor under it (a deck's end, a roof's edge).
+func _step_free(m, x: float) -> bool:
+	for bx in boxes:
+		if bx.grow(60.0).has_point(Vector2(x, m.position.y - 50.0)):
+			return false
+	for bx in boxes:   # (nor through one on the way)
+		if absf(bx.end.y - m.position.y) < 60.0 and minf(x, m.position.x) < bx.end.x and maxf(x, m.position.x) > bx.position.x:
+			return false
+	if m.position.y == 0.0:
+		return x > 200.0 and x < level_end + 1500.0
+	for c in catwalks:
+		if absf(c.position.y - m.position.y) < 4.0 and m.position.x > c.position.x - 10.0 and m.position.x < c.end.x + 10.0:
+			return x > c.position.x + 110.0 and x < c.end.x - 110.0
+	return false
 
 
 ## The marksman: a thin line from his scope onto Frank while he sights in, then one shot that does

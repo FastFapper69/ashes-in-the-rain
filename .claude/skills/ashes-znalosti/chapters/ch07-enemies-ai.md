@@ -16,6 +16,15 @@ Enemies are a squad with roles that must be fair (same floor, on screen, no spaw
 - Barks (`barks.gd`, `_bark`): every non-boss man has a name (NAMES, none from the story); `_witness` – the nearest of his own shouts the fallen man's name ("HE GOT VINNIE!", bubble clamped to the screen edge when off-screen) and fires sooner; last man calls the fallen, lead sends men by name, empty reload → "HE'S EMPTY!", long hiding → taunt. One voice at a time (1.6 s, urgent 0.6 s) + per-kind gap `BARK_GAP`. {p} = MALONE / DOYLE.
 - `_go_close` flanker stops 470–550 px off, never on Frank's crate, no two on one spot.
 
+## Men as people (rule 42, 26. 11., playground only: `_human()`)
+- Tool: `--test=watch:x[@y] --film=T,step,n --ailog` (+ `--wduck=a,b`, `--wshoot=t`, `--wlen=t`). Look at the strip before and after any AI change; `--nohuman` = the old behaviour beside it.
+- `shot_at` (set in `_fire` for every seen man within 210 px of the bullet's line) -> `cower` (duck 0.55, no fire), bark "whizz", down behind cover longer, or `_seek_cover` again / a step back (`sought_t`: at most every 5 s).
+- `step_due` after each shot -> a new `wander`/`home` 100-230 px off (`_step_free`); the shotgun closes to 520 only when about to fire (cool < 0.7), else gives ground to 820.
+- `aim_v`: the aim vector eased toward Frank (1 - exp(-6 dt)); shots leave along the puppet's aim, so they trail a moving Frank.
+- Cover: up 0.95-1.5 s, down 0.7-2.4 s, `peek` 25 % (duck 0.5, no shot, 0.45-0.8 s).
+- Unseen: `at_ease`, `idle_face` flips every 2.5-6 s; `alert_t` from a friend's "!" starts his own "?".
+- NEXT ideas (not built): wounded men back off and call it; a man whose friends are all down breaks and runs / gives up sooner; push when Frank reloads (bark "empty" exists) as a real rush; talk between men before the fight; tokens per gun category (research ch04).
+
 ## Enemy types by chapter
 ch I mobsters (fedora/homburg/cap) and boxer; ch II hook men, dynamite throwers, marksmen (red sight line), crane loads; ch III police: shield + flashlight (finds Frank in the dark), police marksmen; bosses Mickey (club), Kessler (office), Briggs (cap can be shot off).
 - Each kind reads by its clothes (18. 11., user: "make new characters so they differ"): main.gd OUTFIT / COP_OUTFIT pick art/mobster/<outfit>/ (gen/outfits.py: Gemini redraws the plain suit's parts sheet, cut back onto the same rig). Plain dark suit = gunman; pale pinstripe + white tie = tommy gunner (torpedo); black leather coat, roll-neck, a bit bigger = shotgun/hook/dynamite (docker); white dinner jacket = mob boss; navy uniform = patrolman (ch III post/shotgun/sniper/shield; ch III tommy gunners and Briggs in plain clothes). No colour tints per kind any more. The 1931 memory keeps its shadow men (the arsonists).

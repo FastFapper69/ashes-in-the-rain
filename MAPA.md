@@ -33,6 +33,7 @@ Pak krátce česky: co je rozdělané a na co se čeká od uživatele. Nic nepř
 - **Hloubka jen v bodech** (pravidlo 33, uživatel zvolil C 23. 11.): výklenek dveří hotový (stanoviště 4b na konci
   hřiště), bistro jako hala za výlohou (4c); další body: vstup do uličky, schování za auto.
 - **Předání od příběhového chatu** ([[predani-claude-code]]): kroky 1 až 3 hotové - oba blockouty posouzené, šedý prolog postavený (hřiště 3, štítek GREY BUILD). Uživatel 26. 11.: tempo prologu je v pořádku. Další: krok 4 (texty do hry) a šedá THE ALLEY.
+- **AI nepřátel (26. 11., pravidlo 42)**: první várka "lidského" chování jen na hřišti (`_human()`), čeká na dojem uživatele; další nápady v [[ch07-enemies-ai]].
 - **Hřiště, stanoviště 6-7 (26. 11.)**: markýza -> požární schodiště -> střechy -> lešení dolů, postaveno, čeká na OK z telefonu. Stanoviště 8 (kladka a lano) čeká na modul skladu z Gemini (šablona hotová).
 - **Nové postavy a animace (24. 11.)**: plán [[plan-novych-postav]], rozbor [[postava-rozbor-2026-11-24]]. Pilot Eddie. Další krok: návrhový list Eddieho z Gemini ke schválení.
 - **Feedback Gemini Neon (24. 11.)**: [[gemini-neon-2026-11-24]]. Zkouší se jen na hřišti (`_lab()`), pravidlo 36. Výklenky zrušené, gunsmith k vyřazení. Čeká se na dojem uživatele z hřiště.
